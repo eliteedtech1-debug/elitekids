@@ -84,18 +84,81 @@ function getAgeColor(ageLevel: string, colorblind: boolean): string {
 }
 
 /** Map a student's class_name to the lesson age_level category.
- * e.g. "Nursery 1" → "Nursery", "KG1A" → "KG1", "Primary 3" → "Primary"
+ *
+ * Uses flexible fuzzy matching to handle Nigerian school naming:
+ *   BASIC 1-6, JSS 1-3, SSS 1-3, HADANA, Islamiyya, KG1, Nursery, etc.
+ *
+ * Returns null only if truly unrecognizable → shows ALL lessons as fallback.
  */
 function classToAgeLevel(className: string | null | undefined): string | null {
   if (!className) return null;
-  const normalized = className.trim().toLowerCase();
-  if (/pre.?nursery|creche/.test(normalized)) return 'Creche';
-  if (/nursery/.test(normalized)) return 'Nursery';
-  if (/kg1|kindergarten.?1/.test(normalized)) return 'KG1';
-  if (/kg2|kindergarten.?2/.test(normalized)) return 'KG2';
-  if (/primary|basic/.test(normalized)) return 'Primary';
-  if (/jss|js[1-3]|junior/.test(normalized)) return 'Primary'; // secondary uses primary-level kids games
-  if (/sss|ss[1-3]|senior/.test(normalized)) return 'Primary';
+
+  // Normalize: lowercase, strip extra spaces, remove class codes like CLS0007
+  const raw = className.trim();
+  const normalized = raw
+    .toLowerCase()
+    .replace(/cls\d+/g, '')           // remove CLS codes
+    .replace(/[^a-z0-9\s]/g, ' ')     // remove special chars
+    .replace(/\s+/g, ' ')             // collapse spaces
+    .trim();
+
+  if (!normalized) return null;
+
+  // ── Tier 1: Explicit keyword matches (most reliable) ──
+  if (/creche|pre.?nursery|pre.?school/.test(normalized)) return 'Creche';
+  if (/nursery|nurs/.test(normalized)) return 'Nursery';
+  if (/\bkg1\b|kindergarten.?1|\bkg.?1\b/.test(normalized)) return 'KG1';
+  if (/\bkg2\b|kindergarten.?2|\bkg.?2\b/.test(normalized)) return 'KG2';
+  if (/\bkg3\b|kindergarten.?3|\bkg.?3\b/.test(normalized)) return 'Primary';
+
+  // ── Tier 2: Nigerian school naming patterns ──
+  // BASIC 1-2 → KG1/KG2, BASIC 3-6 → Primary
+  const basicMatch = normalized.match(/\bbasic\s*(\d+)/);
+  if (basicMatch) {
+    const num = parseInt(basicMatch[1]);
+    if (num <= 1) return 'KG1';
+    if (num <= 2) return 'KG2';
+    return 'Primary';
+  }
+
+  // JSS 1-3 (Junior Secondary) → Primary-level kids games
+  if (/\bjss\s*\d|\bjunior\s*sec|\bjunior\b/.test(normalized)) return 'Primary';
+
+  // SSS 1-3 (Senior Secondary) → Primary-level kids games  
+  if (/\bsss\s*\d|\bsenior\s*sec|\bsenior\b/.test(normalized)) return 'Primary';
+
+  // ── Tier 3: Islamic/Arabic school patterns ──
+  if (/hadana|hifz|huffaz|halkat/.test(normalized)) return 'Primary';
+  if (/islamiyya|islamic|madrasa|madrasah|tarbiyah/.test(normalized)) return 'Primary';
+  if (/quran|koran|tajweed/.test(normalized)) return 'Primary';
+
+  // ── Tier 4: Generic level extraction ──
+  // Match any word + number pattern: "Level 3", "Class 2", "Grade 1", etc.
+  const levelMatch = normalized.match(/\b(?:level|class|grade|form|form|std|standard|year|stage)\s*(\d+)/);
+  if (levelMatch) {
+    const num = parseInt(levelMatch[1]);
+    if (num <= 1) return 'Creche';
+    if (num <= 2) return 'Nursery';
+    if (num <= 3) return 'KG1';
+    if (num <= 4) return 'KG2';
+    return 'Primary';
+  }
+
+  // ── Tier 5: Bare number at end → treat as level ──
+  const bareNum = normalized.match(/(\d+)\s*$/);
+  if (bareNum) {
+    const num = parseInt(bareNum[1]);
+    if (num <= 1) return 'KG1';
+    if (num <= 2) return 'KG2';
+    return 'Primary';
+  }
+
+  // ── Tier 6: Partial keyword fuzzy match ──
+  if (/primar|basic|element|junior/.test(normalized)) return 'Primary';
+  if (/nurs|toddler|baby|infant/.test(normalized)) return 'Nursery';
+  if (/pre/.test(normalized)) return 'Creche';
+
+  // ── Fallback: return null → shows ALL lessons (no filtering) ──
   return null;
 }
 
@@ -183,10 +246,37 @@ export default function StudentHome() {
   // Filter lessons by student's class/age level first, then by tab
   const filteredLessons = useMemo(() => {
     const studentAgeLevel = classToAgeLevel(student?.class_name);
-    // If student has a recognized class, only show matching lessons
-    const classFiltered = studentAgeLevel
-      ? lessons.filter((l) => l.age_level === studentAgeLevel)
-      : lessons;
+
+    // Age level hierarchy for fallback matching
+    const AGE_HIERARCHY = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'];
+    const getAdjacentLevels = (level: string): string[] => {
+      const idx = AGE_HIERARCHY.indexOf(level);
+      if (idx === -1) return AGE_HIERARCHY; // unknown → show all
+      // Include self + neighbors (e.g. KG1 → [Nursery, KG1, KG2])
+      const adjacent = [AGE_HIERARCHY[idx]];
+      if (idx > 0) adjacent.push(AGE_HIERARCHY[idx - 1]);
+      if (idx < AGE_HIERARCHY.length - 1) adjacent.push(AGE_HIERARCHY[idx + 1]);
+      return adjacent;
+    };
+
+    let classFiltered: typeof lessons;
+    if (studentAgeLevel) {
+      // Try exact match first
+      const exact = lessons.filter((l) => l.age_level === studentAgeLevel);
+      if (exact.length > 0) {
+        classFiltered = exact;
+      } else {
+        // No exact match → show adjacent age levels (nearby fallback)
+        const adjacent = getAdjacentLevels(studentAgeLevel);
+        classFiltered = lessons.filter((l) => adjacent.includes(l.age_level));
+        // If still nothing, show all lessons
+        if (classFiltered.length === 0) classFiltered = lessons;
+      }
+    } else {
+      // Unrecognized class → show all lessons
+      classFiltered = lessons;
+    }
+
     const tab = TABS.find((t) => t.key === activeTab);
     return tab ? classFiltered.filter(tab.filter) : classFiltered;
   }, [lessons, activeTab, student?.class_name]);

@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PuzzleSplitConfig",
+  "type": "object",
+  "required": ["gameId", "template", "lessonId", "ageLevel", "category", "tier", "item_id", "originalImageUrl", "difficulties", "rewards", "successThresholdPct"],
+  "properties": {
+    "gameId": { "type": "string" },
+    "template": { "const": "puzzle-split" },
+    "lessonId": { "type": "string" },
+    "ageLevel": { "type": "string" },
+    "category": { "type": "string" },
+    "tier": { "type": "integer", "minimum": 0, "maximum": 3 },
+    "item_id": { "type": "string" },
+    "durationTargetSec": { "type": "integer", "minimum": 15, "maximum": 300 },
+    "originalImageUrl": { "type": "string" },
+    "difficulties": {
+      "type": "object",
+      "required": ["easy", "medium", "hard", "expert"],
+      "properties": {
+        "easy": { "$ref": "#/definitions/levelConfig" },
+        "medium": { "$ref": "#/definitions/levelConfig" },
+        "hard": { "$ref": "#/definitions/levelConfig" },
+        "expert": { "$ref": "#/definitions/levelConfig" }
+      }
+    },
+    "pieces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "row", "col", "imageUrl"],
+        "properties": {
+          "id": { "type": "string" },
+          "row": { "type": "integer", "minimum": 0 },
+          "col": { "type": "integer", "minimum": 0 },
+          "imageUrl": { "type": "string" }
+        }
+      }
+    },
+    "grid": {
+      "type": "object",
+      "properties": {
+        "rows": { "type": "integer", "minimum": 2, "maximum": 6 },
+        "cols": { "type": "integer", "minimum": 2, "maximum": 6 }
+      }
+    },
+    "pieceSize": {
+      "type": "object",
+      "properties": {
+        "width": { "type": "integer" },
+        "height": { "type": "integer" }
+      }
+    },
+    "rewards": {
+      "type": "object",
+      "required": ["starsOnComplete", "xp"],
+      "properties": {
+        "starsOnComplete": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "xp": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "successThresholdPct": { "type": "integer", "minimum": 0, "maximum": 100 }
+  },
+  "definitions": {
+    "levelConfig": {
+      "type": "object",
+      "required": ["pieces", "grid", "pieceSize", "label", "emoji", "minAge"],
+      "properties": {
+        "pieces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "row", "col", "imageUrl"],
+            "properties": {
+              "id": { "type": "string" },
+              "row": { "type": "integer" },
+              "col": { "type": "integer" },
+              "imageUrl": { "type": "string" }
+            }
+          }
+        },
+        "grid": {
+          "type": "object",
+          "required": ["rows", "cols"],
+          "properties": {
+            "rows": { "type": "integer" },
+            "cols": { "type": "integer" }
+          }
+        },
+        "pieceSize": {
+          "type": "object",
+          "properties": {
+            "width": { "type": "integer" },
+            "height": { "type": "integer" }
+          }
+        },
+        "label": { "type": "string" },
+        "emoji": { "type": "string" },
+        "minAge": { "type": "string" }
+      }
+    }
+  }
+}

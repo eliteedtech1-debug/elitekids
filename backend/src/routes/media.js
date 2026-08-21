@@ -98,6 +98,47 @@ module.exports = (app) => {
     }
   });
 
+  // GET /media/puzzle/:filename — serve puzzle piece images
+  app.get('/media/puzzle/:filename', (req, res) => {
+    const { splitImage, PUZZLE_DIR, ensureDir } = require('../media/puzzle-splitter');
+    const filePath = path.join(PUZZLE_DIR, req.params.filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'Puzzle piece not found' });
+    }
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.sendFile(filePath);
+  });
+
+  // POST /media/puzzle-split — staff uploads image, engine splits at all difficulty levels
+  const puzzleUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype.startsWith('image/')) cb(null, true);
+      else cb(new Error('Only images allowed'), false);
+    },
+  });
+  app.post('/media/puzzle-split', auth, staffOnly, puzzleUpload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ success: false, message: 'No image uploaded' });
+      const { splitAllLevels, PUZZLE_DIR: PUZZLE_DIR_LOCAL, ensureDir: ensureDirLocal } = require('../media/puzzle-splitter');
+      const { v4: uuidv4 } = require('uuid');
+      const puzzleId = uuidv4();
+
+      ensureDirLocal(PUZZLE_DIR_LOCAL);
+      const tmpPath = path.join(PUZZLE_DIR_LOCAL, `${puzzleId}-upload.tmp`);
+      fs.writeFileSync(tmpPath, req.file.buffer);
+
+      const result = await splitAllLevels(tmpPath, puzzleId);
+      fs.unlinkSync(tmpPath); // cleanup temp
+
+      return res.json({ success: true, data: result });
+    } catch (err) {
+      console.error('puzzle-split error:', err.message);
+      return res.status(500).json({ success: false, message: err.message || 'Split failed' });
+    }
+  });
+
   // GET /media/:key — public serving (lesson assets on children's devices).
   app.get('/media/:key', async (req, res) => {
     const key = req.params.key;

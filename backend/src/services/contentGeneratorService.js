@@ -236,7 +236,7 @@ async function callGemini(systemPrompt, userPrompt) {
 
 // ── Game Config generation ───────────────────────────────────────────────────
 async function generateGameConfig({ lesson, school_id }) {
-  const templates = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank'];
+  const templates = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split'];
   const model_provider = 'gemini';
   const model_version = getModelName();
 

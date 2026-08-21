@@ -22,6 +22,7 @@ import TimerBar from '@/components/Timer';
 import { getItemVisual, getNumberEmoji, getNumberImageUrl } from '@/lib/utils/icons';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import SpeechSettings from '@/components/SpeechSettings';
+import SpeechInput from '@/components/SpeechInput';
 import { getFeedbackClasses, getTimerColor, FOCUS_RING_GAME, motionClass } from '@/lib/utils/accessibility';
 import {
   speak,
@@ -91,6 +92,7 @@ function PairIcon({ text, size = 'lg' }: { text: string; size?: 'sm' | 'md' | 'l
 interface GameConfig {
   id?: string;
   template: string;
+  ageLevel?: string;
   pairs?: { a: string; b: string; audio?: string }[];
   items?: { hex?: string; color?: string; num?: number; label?: string; image?: string; emoji?: string; sound?: string; audio?: string }[];
   objects?: { id: string; label: string; image?: string }[];
@@ -102,6 +104,21 @@ interface GameConfig {
   sentence?: string;
   blanks?: { id: number; answer: string }[];
   wordBank?: string[];
+  // Input mode: 'tap' | 'speak' | 'both' — controls whether kids tap, speak, or both
+  inputMode?: 'tap' | 'speak' | 'both';
+  // Puzzle
+  originalImageUrl?: string;
+  pieces?: { id: string; row: number; col: number; imageUrl: string }[];
+  grid?: { rows: number; cols: number };
+  pieceSize?: { width: number; height: number };
+  difficulties?: Record<string, {
+    pieces: { id: string; row: number; col: number; imageUrl: string }[];
+    grid: { rows: number; cols: number };
+    pieceSize: { width: number; height: number };
+    label: string;
+    emoji: string;
+    minAge: string;
+  }>;
 }
 
 interface SceneText {
@@ -499,9 +516,31 @@ function TapGame({
           />
         ))}
       </div>
+      {/* Voice input — speak the answer instead of tapping */}
+      {config.inputMode !== 'tap' && current && (
+        <div className="flex justify-center">
+          <SpeechInput
+            expectedAnswers={[current.label || '', current.color || '', current.emoji || ''].filter(Boolean)}
+            onResult={(spoken, isCorrect) => {
+              if (isCorrect && !feedback) {
+                const matchIdx = items.findIndex((it) => {
+                  const targets = [it.label || '', it.color || '', it.emoji || ''].filter(Boolean);
+                  return targets.some((t) => spoken.toLowerCase().includes(t.toLowerCase()));
+                });
+                if (matchIdx >= 0) handleTap(matchIdx);
+              }
+            }}
+            disabled={!!feedback}
+            compact={config.inputMode === 'both'}
+            soundOn={soundOn}
+          />
+        </div>
+      )}
     </div>
   );
-}/* ── Drag-Sort Game ────────────────────────────────────────── */
+}
+
+/* ── Drag-Sort Game ────────────────────────────────────────── */
 
 function DragSortGame({
   config, onComplete, soundOn, mode, onAnswer,
@@ -1020,6 +1059,26 @@ function FillBlankGame({
           })}
         </div>
       </div>
+      {/* Voice input — speak a word to fill a blank */}
+      {config.inputMode !== 'tap' && !allFilled && (
+        <div className="flex justify-center">
+          <SpeechInput
+            expectedAnswers={blanks.filter((b) => !filledSlots[b.id]).map((b) => b.answer)}
+            onResult={(spoken, isCorrect) => {
+              if (!isCorrect || feedback || completed) return;
+              // Find the first unfilled blank and fill it with the spoken word
+              const targetBlank = blanks.find((b) => !filledSlots[b.id]);
+              if (targetBlank) {
+                if (soundOn) playPlace();
+                setFilledSlots((prev) => ({ ...prev, [targetBlank.id]: spoken }));
+              }
+            }}
+            disabled={!!feedback || completed}
+            compact={config.inputMode === 'both'}
+            soundOn={soundOn}
+          />
+        </div>
+      )}
       {/* Touch ghost */}
       {touchGhost && (
         <div
@@ -1146,6 +1205,26 @@ function QuizGame({
           </button>
         ))}
       </div>
+      {/* Voice input — speak the answer instead of tapping */}
+      {config.inputMode !== 'tap' && (
+        <div className="flex justify-center">
+          <SpeechInput
+            expectedAnswers={options.map((o) => o.label).filter(Boolean)}
+            onResult={(spoken, isCorrect) => {
+              if (isCorrect && !feedback) {
+                const matchIdx = options.findIndex((o) =>
+                  o.label.toLowerCase().includes(spoken.toLowerCase()) ||
+                  spoken.toLowerCase().includes(o.label.toLowerCase())
+                );
+                if (matchIdx >= 0) handleAnswer(matchIdx);
+              }
+            }}
+            disabled={!!feedback}
+            compact={config.inputMode === 'both'}
+            soundOn={soundOn}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -1443,6 +1522,424 @@ function LearningComplete({
   );
 }
 
+/* ── Puzzle Game (image split → reassemble) ────────────────── */
+
+const DIFFICULTY_META: Record<string, { label: string; emoji: string; color: string }> = {
+  easy:   { label: 'Easy',   emoji: '⭐',       color: 'border-green-300 bg-green-50 text-green-700' },
+  medium: { label: 'Medium', emoji: '⭐⭐',     color: 'border-blue-300 bg-blue-50 text-blue-700' },
+  hard:   { label: 'Hard',   emoji: '⭐⭐⭐',   color: 'border-orange-300 bg-orange-50 text-orange-700' },
+  expert: { label: 'Expert', emoji: '⭐⭐⭐⭐', color: 'border-red-300 bg-red-50 text-red-700' },
+};
+
+function PuzzleGame({
+  config, onComplete, soundOn, mode, onAnswer,
+}: {
+  config: GameConfig;
+  onComplete: (score: number) => void;
+  soundOn: boolean;
+  mode: GameMode;
+  onAnswer?: (r: AnswerResult) => void;
+}) {
+  const { colorblindMode } = useA11yStore();
+  const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
+
+  const difficulties = config.difficulties || {};
+  const hasLevels = Object.keys(difficulties).length > 1;
+
+  // Pick difficulty: auto-select based on age level, or let user choose
+  const defaultDifficulty = useMemo(() => {
+    const age = config.ageLevel || 'KG1';
+    if (age === 'Creche' || age === 'Nursery') return 'easy';
+    if (age === 'KG1') return 'easy';
+    if (age === 'KG2') return 'medium';
+    return 'hard';
+  }, [config.ageLevel]);
+
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>(defaultDifficulty);
+  const [showDifficultyPicker, setShowDifficultyPicker] = useState(!hasLevels || mode === 'learning');
+
+  // Load pieces for the selected difficulty
+  const activeLevel = difficulties[selectedDifficulty];
+  const pieces = activeLevel?.pieces || config.pieces || [];
+  const grid = activeLevel?.grid || config.grid || { rows: 3, cols: 3 };
+  const pieceSize = activeLevel?.pieceSize || config.pieceSize || { width: 120, height: 120 };
+  const isTest = mode === 'test';
+  const totalPieces = pieces.length;
+
+  // Track placed pieces: slot index → piece id
+  const [placed, setPlaced] = useState<Record<number, string>>({});
+  const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
+  const [score, setScore] = useState(0);
+  const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const [completed, setCompleted] = useState(false);
+  const [celebrateSlot, setCelebrateSlot] = useState<number | null>(null);
+
+  const placedCount = Object.keys(placed).length;
+  const allPlaced = placedCount >= totalPieces;
+
+  // Piece IDs placed
+  const placedSet = useMemo(() => new Set(Object.values(placed)), [placed]);
+
+  // Shuffled pieces for the bank
+  const shuffledPieces = useMemo(() => {
+    const arr = [...pieces];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [pieces]);
+
+  // Check correctness when all placed
+  useEffect(() => {
+    if (!allPlaced || completed || feedback) return;
+    const timer = setTimeout(() => {
+      const correct = Object.entries(placed).every(([slotIdx, pieceId]) => {
+        const piece = pieces.find((p) => p.id === pieceId);
+        const slotRow = Math.floor(parseInt(slotIdx) / grid.cols);
+        const slotCol = parseInt(slotIdx) % grid.cols;
+        return piece && piece.row === slotRow && piece.col === slotCol;
+      });
+      if (correct) {
+        if (!isTest && soundOn) playCorrect();
+        if (!isTest) setFeedback('correct');
+        const pts = totalPieces * 10;
+        setScore(pts);
+        pieces.forEach((p) => onAnswer?.({ correct: true, expected: `row ${p.row} col ${p.col}`, given: p.id }));
+        setTimeout(() => onComplete(pts), 1000);
+      } else {
+        if (!isTest && soundOn) playWrong();
+        if (!isTest) setFeedback('wrong');
+        // Count correct placements
+        let correctCount = 0;
+        Object.entries(placed).forEach(([slotIdx, pieceId]) => {
+          const piece = pieces.find((p) => p.id === pieceId);
+          const slotRow = Math.floor(parseInt(slotIdx) / grid.cols);
+          const slotCol = parseInt(slotIdx) % grid.cols;
+          const isCorrect = !!(piece && piece.row === slotRow && piece.col === slotCol);
+          if (isCorrect) correctCount++;
+          onAnswer?.({
+            correct: isCorrect,
+            expected: `row ${piece?.row} col ${piece?.col}`,
+            given: `slot ${slotIdx}`,
+          });
+        });
+        const pts = correctCount * 10;
+        setScore(pts);
+        setTimeout(() => {
+          setFeedback(null);
+          setPlaced({});
+          setCompleted(false);
+        }, 1500);
+      }
+      setCompleted(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [allPlaced, completed, feedback, placed, pieces, grid, totalPieces, isTest, soundOn, onComplete, onAnswer]);
+
+  // Tap-to-place
+  const handlePieceTap = (pieceId: string) => {
+    if (feedback || completed) return;
+    if (placedSet.has(pieceId)) return;
+    if (soundOn) playTap();
+    if (selectedPiece === pieceId) {
+      setSelectedPiece(null);
+    } else {
+      setSelectedPiece(pieceId);
+    }
+  };
+
+  const handleSlotTap = (slotIdx: number) => {
+    if (feedback || completed) return;
+    if (placed[slotIdx]) {
+      // Tap filled slot to remove
+      if (soundOn) playTap();
+      setPlaced((prev) => {
+        const next = { ...prev };
+        delete next[slotIdx];
+        return next;
+      });
+      return;
+    }
+    if (!selectedPiece) return;
+    if (soundOn) playPlace();
+    setPlaced((prev) => ({ ...prev, [slotIdx]: selectedPiece }));
+    setSelectedPiece(null);
+  };
+
+  // Drag-and-drop
+  const [draggingPiece, setDraggingPiece] = useState<string | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+
+  const handlePieceDragStart = (e: React.DragEvent, pieceId: string) => {
+    e.dataTransfer.setData('text/plain', pieceId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingPiece(pieceId);
+  };
+
+  const handlePieceDragEnd = () => setDraggingPiece(null);
+
+  const handleSlotDragOver = (e: React.DragEvent, slotIdx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverSlot(slotIdx);
+  };
+
+  const handleSlotDrop = (e: React.DragEvent, slotIdx: number) => {
+    e.preventDefault();
+    setDragOverSlot(null);
+    if (feedback || completed) return;
+    const pieceId = e.dataTransfer.getData('text/plain');
+    if (!pieceId) return;
+    if (soundOn) playPlace();
+    setPlaced((prev) => ({ ...prev, [slotIdx]: pieceId }));
+  };
+
+  // Touch drag
+  const touchPieceRef = useRef<string | null>(null);
+  const [touchGhost, setTouchGhost] = useState<{ x: number; y: number; pieceId: string } | null>(null);
+
+  const handlePieceTouchStart = (e: React.TouchEvent, pieceId: string) => {
+    const touch = e.touches[0];
+    touchPieceRef.current = pieceId;
+    setTouchGhost({ x: touch.clientX, y: touch.clientY, pieceId });
+    setDraggingPiece(pieceId);
+  };
+  const handlePieceTouchMove = (e: React.TouchEvent) => {
+    if (!touchGhost) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    setTouchGhost((prev) => prev ? { ...prev, x: touch.clientX, y: touch.clientY } : null);
+  };
+  const handlePieceTouchEnd = (e: React.TouchEvent) => {
+    setDraggingPiece(null);
+    setTouchGhost(null);
+    if (!touchPieceRef.current) return;
+    const touch = e.changedTouches[0];
+    for (let i = 0; i < totalPieces; i++) {
+      const el = document.getElementById(`puzzle-slot-${i}`);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        if (touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+          if (!placed[i] && !feedback && !completed) {
+            if (soundOn) playPlace();
+            setPlaced((prev) => ({ ...prev, [i]: touchPieceRef.current! }));
+          }
+          break;
+        }
+      }
+    }
+    touchPieceRef.current = null;
+  };
+
+  // Learning mode auto-play
+  useEffect(() => {
+    if (mode !== 'learning' || feedback || completed) return;
+    let cancelled = false;
+    const unfilledSlots = Array.from({ length: totalPieces }, (_, i) => i).filter((i) => !placed[i]);
+    if (unfilledSlots.length === 0) return;
+    const nextSlot = unfilledSlots[0];
+    const correctPiece = pieces.find((p) => p.row === Math.floor(nextSlot / grid.cols) && p.col === nextSlot % grid.cols);
+    if (!correctPiece) return;
+    const timer = setTimeout(async () => {
+      if (soundOn) await speak(`Row ${correctPiece.row + 1}, Column ${correctPiece.col + 1}`);
+      if (cancelled) return;
+      if (soundOn) playPlace();
+      setPlaced((prev) => ({ ...prev, [nextSlot]: correctPiece.id }));
+    }, 800);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [mode, feedback, completed, placed, pieces, grid, totalPieces, soundOn]);
+
+  const handleDifficultyChange = (diff: string) => {
+    if (soundOn) playTap();
+    setSelectedDifficulty(diff);
+    setPlaced({});
+    setSelectedPiece(null);
+    setFeedback(null);
+    setCompleted(false);
+    setScore(0);
+  };
+
+  // Difficulty picker
+  if (showDifficultyPicker && hasLevels && mode !== 'learning') {
+    return (
+      <div className="space-y-6">
+        <p className="text-center text-lg font-semibold text-gray-700">Choose Puzzle Difficulty 🧩</p>
+        <p className="text-center text-xs text-gray-400">Harder = more pieces!</p>
+        <div className="grid grid-cols-2 gap-3">
+          {Object.entries(difficulties).map(([key, level]) => {
+            const meta = DIFFICULTY_META[key] || DIFFICULTY_META.medium;
+            const pieceCount = level.pieces.length;
+            const isSelected = selectedDifficulty === key;
+            return (
+              <button
+                key={key}
+                onClick={() => { handleDifficultyChange(key); setShowDifficultyPicker(false); }}
+                className={`rounded-2xl border-2 p-5 text-left transition-all animate-game-slide-up ${
+                  isSelected
+                    ? `${meta.color} shadow-md`
+                    : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:animate-game-squish'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">{meta.emoji}</span>
+                  <span className="font-bold text-sm">{meta.label}</span>
+                </div>
+                <p className="text-xs text-gray-500">{level.grid.rows}×{level.grid.cols} grid — {pieceCount} pieces</p>
+                <p className="text-[10px] text-gray-400 mt-1">Best for: {level.minAge}+</p>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={() => { playTap(); handleDifficultyChange(selectedDifficulty); setShowDifficultyPicker(false); }}
+          className="w-full rounded-xl bg-[#0F4D92] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#0D3F7A] transition-all hover:scale-105 active:scale-95"
+        >
+          Start Puzzle! 🧩
+        </button>
+      </div>
+    );
+  }
+
+  if (pieces.length === 0) {
+    return <p className="text-center text-gray-500">No puzzle data available.</p>;
+  }
+
+  const diffMeta = DIFFICULTY_META[selectedDifficulty] || DIFFICULTY_META.medium;
+
+  return (
+    <div className="space-y-4 relative select-none">
+      {mode === 'learning' && (
+        <p className="text-center text-sm font-medium text-purple-600 bg-purple-50 rounded-xl px-3 py-2">
+          📺 Learning Mode — Watch and learn!
+        </p>
+      )}
+      {isTest && (
+        <p className="text-center text-sm font-medium text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
+          ⚠️ Test Mode — Solve the puzzle!
+        </p>
+      )}
+      <div className="flex items-center justify-center gap-3">
+        <p className="text-lg font-semibold text-gray-700">Solve the puzzle! 🧩</p>
+        {hasLevels && (
+          <button
+            onClick={() => { playTap(); setShowDifficultyPicker(true); }}
+            className={`rounded-xl border px-3 py-1 text-xs font-semibold transition-all ${diffMeta.color} hover:shadow-md`}
+          >
+            {diffMeta.emoji} {diffMeta.label}
+          </button>
+        )}
+      </div>
+      <p className="text-center text-xs text-gray-400">Drag pieces to the grid or tap to place — {grid.rows}×{grid.cols} ({totalPieces} pieces)</p>
+      {/* Progress */}
+      <div className="text-center">
+        <span className="text-sm font-semibold text-green-600">{placedCount}/{totalPieces} placed</span>
+      </div>
+      {/* Puzzle grid (drop zone) */}
+      <div
+        className="inline-grid mx-auto gap-1 p-2 rounded-2xl bg-white shadow-md border border-gray-100"
+        style={{ gridTemplateColumns: `repeat(${grid.cols}, ${pieceSize.width}px)` }}
+      >
+        {Array.from({ length: totalPieces }, (_, i) => {
+          const pieceId = placed[i];
+          const piece = pieceId ? pieces.find((p) => p.id === pieceId) : null;
+          const isCorrectHere = piece && piece.row === Math.floor(i / grid.cols) && piece.col === i % grid.cols;
+          const isTarget = dragOverSlot === i;
+          return (
+            <div
+              key={i}
+              id={`puzzle-slot-${i}`}
+              onClick={() => handleSlotTap(i)}
+              onDragOver={(e) => handleSlotDragOver(e, i)}
+              onDrop={(e) => handleSlotDrop(e, i)}
+              onDragLeave={() => setDragOverSlot(null)}
+              className={`rounded-lg overflow-hidden transition-all duration-200 cursor-pointer ${
+                piece
+                  ? feedback === 'correct' && isCorrectHere
+                    ? `ring-2 ring-green-400 ring-offset-1`
+                    : feedback === 'wrong' && !isCorrectHere
+                    ? `ring-2 ring-red-300 opacity-80`
+                    : `shadow-sm`
+                  : isTarget
+                  ? `ring-2 ring-blue-400 bg-blue-50 scale-105`
+                  : `border-2 border-dashed border-gray-200 bg-gray-50 hover:border-blue-300`
+              }`}
+              style={{ width: pieceSize.width, height: pieceSize.height }}
+            >
+              {piece ? (
+                <img src={piece.imageUrl} alt="" className="w-full h-full object-cover rounded-lg animate-game-pop" draggable={false} />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+                  {Math.floor(i / grid.cols) + 1},{(i % grid.cols) + 1}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Piece bank */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+        <p className="mb-3 text-xs font-medium text-gray-400 text-center">Piece Bank — drag to grid</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {shuffledPieces.map((piece) => {
+            const isPlaced = placedSet.has(piece.id);
+            const isSelected = selectedPiece === piece.id;
+            return (
+              <div
+                key={piece.id}
+                draggable={!isPlaced}
+                onDragStart={(e) => handlePieceDragStart(e, piece.id)}
+                onDragEnd={handlePieceDragEnd}
+                onTouchStart={(e) => handlePieceTouchStart(e, piece.id)}
+                onTouchMove={handlePieceTouchMove}
+                onTouchEnd={handlePieceTouchEnd}
+                onClick={() => handlePieceTap(piece.id)}
+                className={`rounded-lg overflow-hidden cursor-grab active:cursor-grabbing touch-none transition-all ${
+                  isPlaced
+                    ? 'opacity-30 scale-90 grayscale cursor-not-allowed'
+                    : isSelected
+                    ? 'ring-2 ring-blue-500 shadow-md scale-105 animate-game-jelly'
+                    : draggingPiece === piece.id
+                    ? 'opacity-50 scale-95'
+                    : 'shadow-sm hover:shadow-md hover:scale-105 hover:animate-game-squish'
+                }`}
+                style={{ width: Math.min(pieceSize.width, 80), height: Math.min(pieceSize.height, 80) }}
+              >
+                <img src={piece.imageUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {/* Touch ghost */}
+      {touchGhost && (
+        <div
+          className="fixed z-50 pointer-events-none rounded-lg border-2 border-blue-400 shadow-lg animate-game-pop opacity-80"
+          style={{ left: touchGhost.x - 30, top: touchGhost.y - 30, width: 60, height: 60 }}
+        >
+          {(() => {
+            const p = pieces.find((pp) => pp.id === touchGhost.pieceId);
+            return p ? <img src={p.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" /> : null;
+          })()}
+        </div>
+      )}
+      {/* Feedback overlay */}
+      {feedback && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/10 animate-game-pop">
+          <div className={`rounded-2xl px-8 py-6 text-center shadow-xl ${
+            feedback === 'correct' ? 'bg-green-50 border-2 border-green-200' : 'bg-red-50 border-2 border-red-200'
+          }`}>
+            <span className="text-4xl block mb-2">{feedback === 'correct' ? '🧩✅' : '🧩❌'}</span>
+            <p className="text-lg font-bold">
+              {feedback === 'correct' ? 'Perfect puzzle!' : 'Try again!'}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Main GamePlay Page ────────────────────────────────────── */
 
 export default function GamePlay() {
@@ -1491,6 +1988,7 @@ export default function GamePlay() {
     if (config.template === 'drag-sort') return config.items?.length || 0;
     if (config.template === 'quiz') return 1;
     if (config.template === 'fill-in-blank') return config.blanks?.length || 0;
+    if (config.template === 'puzzle-split') return config.pieces?.length || 0;
     return 0;
   }, [config]);
 
@@ -2100,6 +2598,9 @@ export default function GamePlay() {
           )}
           {config.template === 'fill-in-blank' && (
             <FillBlankGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
+          )}
+          {config.template === 'puzzle-split' && (
+            <PuzzleGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
           )}
         </div>
       </div>
