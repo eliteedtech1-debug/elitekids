@@ -268,6 +268,77 @@ describe('generateGameConfig', () => {
   });
 });
 
+// ── Cross-modal defaults (image→text for tap-recognition + quiz) ─────────────
+
+describe('cross-modal defaults', () => {
+  function tapRecGeminiResponse() {
+    return {
+      gameId: 'game-LESSON-TEST-tap-01',
+      template: 'tap-recognition',
+      lessonId: 'LESSON-TEST',
+      ageLevel: 'Nursery',
+      durationTargetSec: 45,
+      prompt: 'Find the cat',
+      assets: {
+        background: 'farm',
+        objects: [
+          { id: 'a1', image: 'media/cat.webp' },
+          { id: 'a2', image: 'media/dog.webp' },
+          { id: 'a3', image: 'media/fish.webp' },
+        ],
+        correctId: 'a1',
+      },
+      rewards: { starsOnComplete: 3, xp: 25 },
+      successThresholdPct: 50,
+    };
+  }
+
+  it('tap-recognition gets image→text cross-modal defaults', async () => {
+    // AI returns a tap-recognition config without promptMode/responseMode
+    mockGenerateContent.mockResolvedValue(geminiResponse(tapRecGeminiResponse()));
+
+    const result = await generateGameConfig({ lesson: fakeLesson(), school_id: 'SCH-TEST' });
+
+    // The generator should auto-inject cross-modal defaults
+    expect(result.config.promptMode).toBe('image');
+    expect(result.config.responseMode).toBe('text');
+  });
+
+  it('quiz gets image→text cross-modal defaults', async () => {
+    mockGenerateContent.mockResolvedValue(geminiResponse(quizGeminiResponse()));
+
+    const result = await generateGameConfig({ lesson: fakeLesson(), school_id: 'SCH-TEST' });
+
+    expect(result.config.promptMode).toBe('image');
+    expect(result.config.responseMode).toBe('text');
+  });
+
+  it('matching gets text→image defaults (not cross-image→text)', async () => {
+    mockGenerateContent.mockResolvedValue(geminiResponse(matchingGeminiResponse()));
+
+    const result = await generateGameConfig({ lesson: fakeLesson(), school_id: 'SCH-TEST' });
+
+    expect(result.config.promptMode).toBe('text');
+    expect(result.config.responseMode).toBe('image');
+  });
+
+  it('does not override AI-provided promptMode/responseMode', async () => {
+    // AI returns a config that already has cross-modal fields set
+    const configWithModes = {
+      ...tapRecGeminiResponse(),
+      promptMode: 'audio',
+      responseMode: 'text',
+    };
+    mockGenerateContent.mockResolvedValue(geminiResponse(configWithModes));
+
+    const result = await generateGameConfig({ lesson: fakeLesson(), school_id: 'SCH-TEST' });
+
+    // Should keep AI's values, not overwrite with defaults
+    expect(result.config.promptMode).toBe('audio');
+    expect(result.config.responseMode).toBe('text');
+  });
+});
+
 // ── generateSceneScript (integration with mocked Gemini) ─────────────────────
 
 describe('generateSceneScript', () => {
