@@ -143,5 +143,6 @@ export const ENDPOINTS = {
   MEDIA: {
     SAVE_OPENSOURCE: '/media/save-opensource',
     SAVE_BATCH: '/media/save-opensource-batch',
+    OPENSOURCE_ASSETS: '/media/opensource-assets',
   },
 } as const;

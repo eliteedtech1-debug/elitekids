@@ -277,6 +277,126 @@ module.exports = (app) => {
     }
   });
 
+  // GET /media/opensource-assets — list all saved open-source assets with usage stats
+  app.get('/media/opensource-assets', auth, staffOnly, async (req, res) => {
+    try {
+      const { b2List, isB2Configured } = require('../storage/b2');
+      const { mediaPublicUrl } = require('../media/media-pipeline');
+      const db = require('../models');
+
+      // List all objects under opensource/ prefix
+      let assets = [];
+      if (isB2Configured()) {
+        const objects = await b2List('media', 'opensource/');
+        assets = objects.map((o) => {
+          // Parse key: opensource/category/label-hash.ext
+          const parts = o.key.split('/');
+          const category = parts[1] || 'misc';
+          const filename = parts.slice(2).join('/');
+          const nameParts = filename.replace(/\.[^.]+$/, '').split('-');
+          const hash = nameParts.pop();
+          const label = nameParts.join('-').replace(/_/g, ' ');
+          return {
+            key: o.key,
+            url: mediaPublicUrl(o.key),
+            category,
+            label,
+            hash,
+            size: o.size,
+            lastModified: o.lastModified,
+          };
+        });
+      } else {
+        // Local mode — scan disk
+        const fs = require('fs');
+        const path = require('path');
+        const { storageDir } = require('../media/media-pipeline');
+        const opensourceDir = path.join(storageDir(), 'opensource');
+        try {
+          const categories = await fs.promises.readdir(opensourceDir);
+          for (const cat of categories) {
+            const catDir = path.join(opensourceDir, cat);
+            const stat = await fs.promises.stat(catDir).catch(() => null);
+            if (!stat || !stat.isDirectory()) continue;
+            const files = await fs.promises.readdir(catDir);
+            for (const file of files) {
+              const filePath = path.join(catDir, file);
+              const fileStat = await fs.promises.stat(filePath).catch(() => null);
+              if (!fileStat || !fileStat.isFile()) continue;
+              const nameParts = file.replace(/\.[^.]+$/, '').split('-');
+              const hash = nameParts.pop();
+              const label = nameParts.join('-').replace(/_/g, ' ');
+              assets.push({
+                key: `opensource/${cat}/${file}`,
+                url: `${process.env.MEDIA_PUBLIC_BASE_URL || 'http://127.0.0.1:34600'}/media/opensource/${cat}/${file}`,
+                category: cat,
+                label,
+                hash,
+                size: fileStat.size,
+                lastModified: fileStat.mtime,
+              });
+            }
+          }
+        } catch {}
+      }
+
+      // Count usage: how many game configs reference each asset URL
+      const allConfigs = await db.KidGameConfig.findAll({
+        attributes: ['id', 'config_json', 'lesson_id', 'content_state'],
+      });
+
+      const usageMap = new Map();
+      for (const asset of assets) {
+        usageMap.set(asset.key, { usedInLessons: new Set(), usedInConfigs: new Set(), states: new Set() });
+      }
+
+      for (const config of allConfigs) {
+        const json = JSON.stringify(config.config_json || {});
+        for (const asset of assets) {
+          if (json.includes(asset.url) || json.includes(asset.key)) {
+            const usage = usageMap.get(asset.key);
+            if (usage) {
+              usage.usedInConfigs.add(config.id);
+              usage.usedInLessons.add(config.lesson_id);
+              usage.states.add(config.content_state);
+            }
+          }
+        }
+      }
+
+      const enriched = assets.map((a) => {
+        const usage = usageMap.get(a.key);
+        return {
+          ...a,
+          usageCount: usage ? usage.usedInConfigs.size : 0,
+          lessonCount: usage ? usage.usedInLessons.size : 0,
+          states: usage ? [...usage.states] : [],
+        };
+      });
+
+      // Summary stats
+      const totalSize = enriched.reduce((sum, a) => sum + (a.size || 0), 0);
+      const categoryCounts = {};
+      enriched.forEach((a) => { categoryCounts[a.category] = (categoryCounts[a.category] || 0) + 1; });
+
+      return res.json({
+        success: true,
+        data: {
+          assets: enriched,
+          stats: {
+            total: enriched.length,
+            totalSize,
+            categories: categoryCounts,
+            totalUsage: enriched.reduce((sum, a) => sum + a.usageCount, 0),
+          },
+        },
+      });
+    } catch (err) {
+      console.error('media/opensource-assets error:', err.message);
+      return res.status(500).json({ success: false, message: 'Failed to list assets' });
+    }
+  });
+
   // GET /media/:key — public serving (lesson assets on children's devices).
   app.get('/media/:key', async (req, res) => {
     const key = req.params.key;
