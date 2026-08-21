@@ -693,6 +693,7 @@ async function decideApproval(req, res) {
         lesson: db.KidLesson,
       }[approval.content_type];
 
+      let assetsSaved = 0;
       if (modelFor) {
         const content = await modelFor.findByPk(approval.content_id);
         if (content) {
@@ -703,12 +704,24 @@ async function decideApproval(req, res) {
           await content.update(updatePayload);
           if (nextState === 'published' && approval.content_type === 'game_config') {
             await db.KidLesson.update({ content_state: 'published', published_at: new Date() }, { where: { id: content.lesson_id } });
+            // Save all open-source assets from this game config to our bucket
+            try {
+              const { saveGameAssets } = require('../media/asset-saver');
+              if (content.config_json) {
+                const result = await saveGameAssets(content.config_json);
+                assetsSaved = result.saved;
+                await content.update({ config_json: content.config_json });
+              }
+            } catch (err) {
+              console.error('⚠️ Asset save failed (non-blocking):', err.message);
+            }
           }
         }
       }
     }
 
-    return res.json({ success: true, message: decision === 'approve' ? 'Approved and published.' : 'Rejected.' });
+    const assetMsg = assetsSaved > 0 ? ` ${assetsSaved} asset(s) saved to bucket.` : '';
+    return res.json({ success: true, message: `${decision === 'approve' ? 'Approved and published.' : 'Rejected.'}${assetMsg}` });
   } catch (err) {
     console.error('decideApproval error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
@@ -774,17 +787,38 @@ async function approveLesson(req, res) {
     }
 
     // Also update game configs directly (some may not have approval records)
+    let assetsSaved = 0;
     if (decision === 'approve') {
       await db.KidGameConfig.update(
         { content_state: 'published', approved_by: req.user.id, approved_at: new Date(), published_at: new Date() },
         { where: { lesson_id: id, content_state: 'pending_human_review' } },
       );
       await lesson.update({ content_state: 'published', approved_by: req.user.id, approved_at: new Date(), published_at: new Date() });
+
+      // Save all open-source assets from game configs to our bucket
+      try {
+        const { saveGameAssets } = require('../media/asset-saver');
+        for (const gc of gameConfigs) {
+          if (gc.config_json) {
+            const result = await saveGameAssets(gc.config_json);
+            assetsSaved += result.saved;
+            // Persist the updated config with stored URLs
+            await gc.update({ config_json: gc.config_json });
+          }
+        }
+      } catch (err) {
+        console.error('⚠️ Asset save failed (non-blocking):', err.message);
+      }
     } else {
       await lesson.update({ content_state: 'generated' });
     }
 
-    return res.json({ success: true, message: `${decision === 'approve' ? 'Approved' : 'Rejected'} ${reviewed.length} item(s).`, reviewed });
+    return res.json({
+      success: true,
+      message: `${decision === 'approve' ? 'Approved' : 'Rejected'} ${reviewed.length} item(s).${assetsSaved > 0 ? ` ${assetsSaved} asset(s) saved to bucket.` : ''}`,
+      reviewed,
+      assets_saved: assetsSaved,
+    });
   } catch (err) {
     console.error('approveLesson error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
