@@ -40,6 +40,7 @@ export const ENDPOINTS = {
     GAME_COMPLETE: '/kids/progress/game-complete',
     CHILD: (admissionNo: string) => `/kids/progress/child?admission_no=${encodeURIComponent(admissionNo)}`,
     LESSON: (lessonId: string) => `/kids/progress/lesson/${lessonId}`,
+    PUZZLE_DIFFICULTY: (childId: string, lessonId: string) => `/kids/progress/puzzle-difficulty?child_admission_no=${encodeURIComponent(childId)}&lesson_id=${encodeURIComponent(lessonId)}`,
   },
 
   // Generation jobs (teacher polling)

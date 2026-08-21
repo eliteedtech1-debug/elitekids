@@ -17,6 +17,7 @@ const {
   listApprovals,
   listParentActivities,
   listLessons,
+  getPuzzleDifficultyStatus,
 } = require('../controllers/kids');
 const {
   createSeries,
@@ -124,6 +125,9 @@ module.exports = (app) => {
     if (denied) return res.status(denied.status).json(denied.body);
     next();
   }, childProgress);
+
+  // ── Puzzle difficulty lock status ──────────────────────────────────────
+  app.get('/kids/progress/puzzle-difficulty', auth, getPuzzleDifficultyStatus);
 
   // ── Review & safety pipeline (staff-only: approve/reject content) ─────
   app.get('/kids/approvals', auth, listApprovals);

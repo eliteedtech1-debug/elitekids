@@ -92,6 +92,7 @@ function PairIcon({ text, size = 'lg' }: { text: string; size?: 'sm' | 'md' | 'l
 interface GameConfig {
   id?: string;
   template: string;
+  lessonId?: string;
   ageLevel?: string;
   pairs?: { a: string; b: string; audio?: string }[];
   items?: { hex?: string; color?: string; num?: number; label?: string; image?: string; emoji?: string; sound?: string; audio?: string }[];
@@ -1532,13 +1533,14 @@ const DIFFICULTY_META: Record<string, { label: string; emoji: string; color: str
 };
 
 function PuzzleGame({
-  config, onComplete, soundOn, mode, onAnswer,
+  config, onComplete, soundOn, mode, onAnswer, onDifficultyChange,
 }: {
   config: GameConfig;
   onComplete: (score: number) => void;
   soundOn: boolean;
   mode: GameMode;
   onAnswer?: (r: AnswerResult) => void;
+  onDifficultyChange?: (difficulty: string) => void;
 }) {
   const { colorblindMode } = useA11yStore();
   const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
@@ -1557,6 +1559,30 @@ function PuzzleGame({
 
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>(defaultDifficulty);
   const [showDifficultyPicker, setShowDifficultyPicker] = useState(!hasLevels || mode === 'learning');
+  const [difficultyLocks, setDifficultyLocks] = useState<Record<string, { passed: boolean; best_score?: number; stars?: number }>>({});
+  const [unlockedLevels, setUnlockedLevels] = useState<Record<string, boolean>>({ easy: true });
+  const lessonId = config.lessonId || '';
+
+  // Fetch difficulty lock status on mount
+  useEffect(() => {
+    if (!hasLevels || !lessonId || mode === 'learning') return;
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
+    let admissionNo = '';
+    try {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      admissionNo = decoded.admission_no || decoded.id || '';
+    } catch {}
+    if (!admissionNo) return;
+
+    apiClient.get(ENDPOINTS.PROGRESS.PUZZLE_DIFFICULTY(admissionNo, lessonId))
+      .then((res) => {
+        const data = res.data?.data;
+        if (data?.completed) setDifficultyLocks(data.completed);
+        if (data?.unlocked) setUnlockedLevels(data.unlocked);
+      })
+      .catch(() => {});
+  }, [hasLevels, lessonId, mode]);
 
   // Load pieces for the selected difficulty
   const activeLevel = difficulties[selectedDifficulty];
@@ -1753,6 +1779,7 @@ function PuzzleGame({
   const handleDifficultyChange = (diff: string) => {
     if (soundOn) playTap();
     setSelectedDifficulty(diff);
+    onDifficultyChange?.(diff);
     setPlaced({});
     setSelectedPiece(null);
     setFeedback(null);
@@ -1771,22 +1798,45 @@ function PuzzleGame({
             const meta = DIFFICULTY_META[key] || DIFFICULTY_META.medium;
             const pieceCount = level.pieces.length;
             const isSelected = selectedDifficulty === key;
+            const isLocked = !unlockedLevels[key];
+            const isCompleted = difficultyLocks[key]?.passed;
             return (
               <button
                 key={key}
-                onClick={() => { handleDifficultyChange(key); setShowDifficultyPicker(false); }}
-                className={`rounded-2xl border-2 p-5 text-left transition-all animate-game-slide-up ${
-                  isSelected
+                onClick={() => {
+                  if (isLocked) { if (soundOn) playWrong(); return; }
+                  handleDifficultyChange(key);
+                  setShowDifficultyPicker(false);
+                }}
+                disabled={isLocked}
+                className={`relative rounded-2xl border-2 p-5 text-left transition-all animate-game-slide-up ${
+                  isLocked
+                    ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                    : isSelected
                     ? `${meta.color} shadow-md`
                     : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:animate-game-squish'
                 }`}
               >
+                {/* Lock overlay */}
+                {isLocked && (
+                  <div className="absolute top-3 right-3 text-lg">🔒</div>
+                )}
+                {/* Completed checkmark */}
+                {isCompleted && !isLocked && (
+                  <div className="absolute top-3 right-3 text-lg">✅</div>
+                )}
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xl">{meta.emoji}</span>
                   <span className="font-bold text-sm">{meta.label}</span>
                 </div>
                 <p className="text-xs text-gray-500">{level.grid.rows}×{level.grid.cols} grid — {pieceCount} pieces</p>
-                <p className="text-[10px] text-gray-400 mt-1">Best for: {level.minAge}+</p>
+                {isLocked ? (
+                  <p className="text-[10px] text-orange-500 mt-1 font-medium">🔒 Pass {DIFFICULTY_META[Object.keys(DIFFICULTY_META)[Math.max(0, Object.keys(DIFFICULTY_META).indexOf(key) - 1)]]?.label || 'previous level'} to unlock</p>
+                ) : isCompleted ? (
+                  <p className="text-[10px] text-green-500 mt-1 font-medium">✅ Completed! Best: {difficultyLocks[key]?.best_score || 0} pts</p>
+                ) : (
+                  <p className="text-[10px] text-gray-400 mt-1">Best for: {level.minAge}+</p>
+                )}
               </button>
             );
           })}
@@ -1963,6 +2013,7 @@ export default function GamePlay() {
   const [retryMessage, setRetryMessage] = useState('');
   const [showBreakSuggestion, setShowBreakSuggestion] = useState(false);
   const [breakDismissed, setBreakDismissed] = useState(false);
+  const [puzzleDifficulty, setPuzzleDifficulty] = useState<string>('easy');
   const sessionStartRef = useRef(Date.now());
   const { colorblindMode, toggleColorblind } = useA11yStore();
 
@@ -2115,12 +2166,13 @@ export default function GamePlay() {
           stars_earned: finalScore >= 20 ? 3 : finalScore >= 10 ? 2 : 1,
           mode,
           answers_count: answers.length,
+          difficulty: config?.template === 'puzzle-split' ? puzzleDifficulty : undefined,
         }).catch(() => {});
       } finally {
         setSubmitting(false);
       }
     },
-    [lessonId, mode, answers.length],
+    [lessonId, mode, answers.length, config?.template, puzzleDifficulty],
   );
 
   // Timer expired — in test mode, treat as auto-submit
@@ -2600,7 +2652,7 @@ export default function GamePlay() {
             <FillBlankGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
           )}
           {config.template === 'puzzle-split' && (
-            <PuzzleGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
+            <PuzzleGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} onDifficultyChange={setPuzzleDifficulty} />
           )}
         </div>
       </div>

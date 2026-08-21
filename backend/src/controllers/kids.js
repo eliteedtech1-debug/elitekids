@@ -558,7 +558,7 @@ async function listGenerationJobs(req, res) {
 /** POST /kids/progress/game-complete — idempotent progress record. */
 async function recordGameComplete(req, res) {
   try {
-    const { child_admission_no, lesson_id, game_config_id, score, stars_earned, xp, idempotency_key } = req.body || {};
+    const { child_admission_no, lesson_id, game_config_id, score, stars_earned, xp, idempotency_key, difficulty } = req.body || {};
     if (!child_admission_no || !lesson_id) {
       return res.status(400).json({ success: false, message: 'child_admission_no and lesson_id are required.' });
     }
@@ -585,6 +585,7 @@ async function recordGameComplete(req, res) {
       xp: Number(xp) || 0,
       completed_at: new Date(),
       idempotency_key: idempotency_key || null,
+      difficulty: difficulty || null,
     });
     return res.status(201).json({ success: true, data: record });
   } catch (err) {
@@ -600,6 +601,50 @@ async function childProgress(req, res) {
     return res.json({ success: true, data: await progressSummary(admissionNo) });
   } catch (err) {
     console.error('childProgress error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/** GET /kids/progress/puzzle-difficulty?child_admission_no=X&lesson_id=Y
+ * Returns which difficulty levels the student has passed for this puzzle.
+ * Used by the frontend to lock/unlock difficulty levels.
+ */
+async function getPuzzleDifficultyStatus(req, res) {
+  try {
+    const { child_admission_no, lesson_id } = req.query;
+    if (!child_admission_no || !lesson_id) {
+      return res.status(400).json({ success: false, message: 'child_admission_no and lesson_id are required.' });
+    }
+
+    // Check if student has passed (score > 0) at each difficulty
+    const difficulties = ['easy', 'medium', 'hard', 'expert'];
+    const completed = {};
+
+    for (const diff of difficulties) {
+      const passed = await db.KidProgress.findOne({
+        where: {
+          child_admission_no,
+          lesson_id,
+          difficulty: diff,
+          score: { [db.Sequelize.Op.gt]: 0 },
+        },
+        order: [['score', 'DESC']],
+      });
+      completed[diff] = passed ? { passed: true, best_score: passed.score, stars: passed.stars_earned } : { passed: false };
+    }
+
+    // Determine which levels are unlocked
+    const unlockOrder = ['easy', 'medium', 'hard', 'expert'];
+    const unlocked = { easy: true }; // Easy always unlocked
+    for (let i = 1; i < unlockOrder.length; i++) {
+      const prev = unlockOrder[i - 1];
+      const curr = unlockOrder[i];
+      unlocked[curr] = completed[prev]?.passed || false;
+    }
+
+    return res.json({ success: true, data: { completed, unlocked } });
+  } catch (err) {
+    console.error('getPuzzleDifficultyStatus error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 }
@@ -791,6 +836,7 @@ module.exports = {
   listGenerationJobs,
   recordGameComplete,
   childProgress,
+  getPuzzleDifficultyStatus,
   decideApproval,
   listApprovals,
   listParentActivities,
