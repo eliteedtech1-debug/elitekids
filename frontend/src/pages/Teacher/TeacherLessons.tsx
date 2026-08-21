@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ShieldCheck,
   ChevronRight,
+  Wand2,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -209,11 +210,17 @@ export default function TeacherLessons() {
             >
               <RefreshCw className="h-3 w-3" /> Refresh
             </button>
-            <button
-              onClick={() => setShowCreate(true)}
+            <Link
+              to="/teacher/create-game"
               className="inline-flex items-center gap-1 rounded-lg bg-[#0F4D92] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0b3d76]"
             >
-              <Plus className="h-3 w-3" /> New Lesson
+              <Wand2 className="h-3 w-3" /> Create Game
+            </Link>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#0F4D92] bg-white px-3 py-1.5 text-xs font-medium text-[#0F4D92] hover:bg-blue-50"
+            >
+              <Plus className="h-3 w-3" /> AI Generate
             </button>
             {pendingApprovals > 0 && (
               <Link

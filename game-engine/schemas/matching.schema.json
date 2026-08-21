@@ -57,6 +57,16 @@
       "minimum": 15,
       "maximum": 300
     },
+    "promptMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio"],
+      "description": "How the left side of the match is presented"
+    },
+    "responseMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio"],
+      "description": "How the right side (response) is presented"
+    },
     "assets": {
       "type": "object",
       "required": [

@@ -7,6 +7,7 @@ const {
   deleteChild,
   linkChildForParent,
   createLesson,
+  createLessonManual,
   getPublishedGame,
   getPublishedScenes,
   getGenerationJob,
@@ -83,6 +84,7 @@ module.exports = (app) => {
   // ── Lessons (listing for students/parents + CRUD for staff) ──────────────
   app.get('/kids/lessons', auth, listLessons);
   app.post('/kids/lessons', auth, requireStaff, createLesson);
+  app.post('/kids/lessons/manual', auth, requireStaff, createLessonManual);
 
   // ── Children ────────────────────────────────────────────────────────────
   app.get('/kids/children', auth, listChildrenForParent);

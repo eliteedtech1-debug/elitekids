@@ -61,6 +61,20 @@
       "type": "string",
       "description": "e.g. 'Tap the red apple' \u2014 must be understandable without reading (audio hint optional)"
     },
+    "promptMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio", "context"],
+      "description": "How the concept is presented: text prompt, image to identify, audio to listen, or context/riddle"
+    },
+    "responseMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio"],
+      "description": "How the learner responds: tap text labels, tap images, or speak the answer"
+    },
+    "context": {
+      "type": "string",
+      "description": "Contextual riddle/description when promptMode is 'context', e.g. 'An animal that says meow'"
+    },
     "assets": {
       "type": "object",
       "required": [

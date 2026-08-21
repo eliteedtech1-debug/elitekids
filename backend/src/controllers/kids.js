@@ -456,6 +456,100 @@ async function createLesson(req, res) {
   }
 }
 
+/** POST /kids/lessons/manual — create a lesson + game config MANUALLY (no AI).
+ * Body: { title, subject, age_level, template, config_json, is_global?, lesson_text?, scenes? }
+ */
+async function createLessonManual(req, res) {
+  try {
+    const { title, subject, age_level, template, config_json, is_global, lesson_text, scenes } = req.body || {};
+    if (!title || !subject || !age_level || !template || !config_json) {
+      return res.status(400).json({ success: false, message: 'title, subject, age_level, template, and config_json are required.' });
+    }
+
+    const VALID_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split'];
+    if (!VALID_TEMPLATES.includes(template)) {
+      return res.status(400).json({ success: false, message: `template must be one of: ${VALID_TEMPLATES.join(', ')}` });
+    }
+
+    const school_id = req.headers['x-school-id'] || req.user.school_id;
+    const branch_id = req.headers['x-branch-id'] || req.user.branch_id;
+    const isGlobal = (school_id === PLATFORM_SCHOOL_ID && is_global) ? 1 : 0;
+
+    // Create the lesson
+    const lesson = await db.KidLesson.create({
+      id: uuidv4(),
+      school_id,
+      branch_id,
+      title,
+      subject,
+      age_level,
+      lesson_text: lesson_text || null,
+      created_by: req.user.id,
+      content_state: 'pending_human_review',
+      lesson_type: 'game',
+      is_global: isGlobal,
+    });
+
+    // Create the game config directly (no AI)
+    const configId = uuidv4();
+    await db.KidGameConfig.create({
+      id: configId,
+      lesson_id: lesson.id,
+      template,
+      age_level,
+      config_json,
+      schema_version: '1.0',
+      content_state: 'pending_human_review',
+      model_version: 'manual',
+      created_by: req.user.id,
+    });
+
+    // Create approval record
+    await db.KidContentApproval.create({
+      id: uuidv4(),
+      school_id,
+      branch_id,
+      content_type: 'game_config',
+      content_id: configId,
+      status: 'pending',
+    }).catch(() => {});
+
+    // Optionally create scene scripts
+    if (Array.isArray(scenes) && scenes.length > 0) {
+      for (const scene of scenes) {
+        const sceneId = uuidv4();
+        await db.KidSceneScript.create({
+          id: sceneId,
+          lesson_id: lesson.id,
+          scene_type: scene.sceneType || 'teach',
+          script_json: scene,
+          schema_version: '1.0',
+          content_state: 'pending_human_review',
+          model_version: 'manual',
+          created_by: req.user.id,
+        });
+        await db.KidContentApproval.create({
+          id: uuidv4(),
+          school_id,
+          branch_id,
+          content_type: 'scene_script',
+          content_id: lesson.id,
+          status: 'pending',
+        }).catch(() => {});
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: { lesson_id: lesson.id, config_id: configId, template },
+      message: 'Lesson created manually. Pending review.',
+    });
+  } catch (err) {
+    console.error('createLessonManual error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 /** GET /kids/lessons/:id/game — CHILD-FACING: published game config only.
  * Resolves global platform lessons (from SCH-KIDS) for any school.
  */
@@ -951,6 +1045,7 @@ module.exports = {
   deleteChild,
   linkChildForParent,
   createLesson,
+  createLessonManual,
   getPublishedGame,
   getPublishedScenes,
   getGenerationJob,

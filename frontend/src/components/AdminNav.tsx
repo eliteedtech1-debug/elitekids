@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, ShieldCheck, LayoutDashboard, LogOut, GraduationCap, Image } from 'lucide-react';
+import { BookOpen, ShieldCheck, LayoutDashboard, LogOut, GraduationCap, Image, Wand2 } from 'lucide-react';
 import { useCallback } from 'react';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import toast from 'react-hot-toast';
@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/teacher/lessons', label: 'Lessons', icon: BookOpen },
+  { to: '/teacher/create-game', label: 'Create', icon: Wand2 },
   { to: '/teacher/approvals', label: 'Reviews', icon: ShieldCheck },
   { to: '/admin/assets', label: 'Assets', icon: Image },
 ];

@@ -41,6 +41,8 @@ import {
   speakShape,
   speakColor,
 } from '@/lib/utils/sound';
+import type { PromptMode, ResponseMode } from '@/lib/types/game';
+import { getPromptDisplay, getResponseDisplay } from '@/lib/types/game';
 
 /* ── Item visual renderer (image → emoji → color → text) ── */
 
@@ -95,12 +97,12 @@ interface GameConfig {
   template: string;
   lessonId?: string;
   ageLevel?: string;
-  pairs?: { a: string; b: string; audio?: string }[];
-  items?: { hex?: string; color?: string; num?: number; label?: string; image?: string; emoji?: string; sound?: string; audio?: string }[];
+  pairs?: { a: string; b: string; audio?: string; image?: string }[];
+  items?: { id?: string; hex?: string; color?: string; num?: number; label?: string; image?: string; emoji?: string; sound?: string; audio?: string; context?: string }[];
   objects?: { id: string; label: string; image?: string }[];
   correctId?: string;
   question?: string;
-  options?: { id: string; label: string; image?: string; emoji?: string; audio?: string }[];
+  options?: { id: string; label: string; image?: string; emoji?: string; audio?: string; text?: string }[];
   answer?: string;
   durationSec?: number;
   sentence?: string;
@@ -108,6 +110,13 @@ interface GameConfig {
   wordBank?: string[];
   // Input mode: 'tap' | 'speak' | 'both' — controls whether kids tap, speak, or both
   inputMode?: 'tap' | 'speak' | 'both';
+  // Multimodal interaction: how the concept is presented and how the learner responds
+  promptMode?: PromptMode;   // 'text' | 'image' | 'audio' | 'context'
+  responseMode?: ResponseMode; // 'text' | 'image' | 'audio'
+  // Multimodal content fields
+  image?: string;    // URL to prompt image
+  context?: string;  // Contextual description/riddle
+  audio?: string;    // URL to prompt audio
   // Puzzle
   originalImageUrl?: string;
   pieces?: { id: string; row: number; col: number; imageUrl: string }[];
@@ -212,6 +221,13 @@ function MatchingGame({
   const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
   const cbWrong = getFeedbackClasses(colorblindMode, 'wrong');
   const pairs = config.pairs || [];
+  // Multimodal: determine what to show on each side based on promptMode/responseMode
+  const promptMode = config.promptMode || 'text';
+  const responseMode = config.responseMode || 'image';
+  const isLearning = mode === 'learning';
+  // In learning mode: show everything. In practice/test: apply cross-modal.
+  const leftPrompt = getPromptDisplay({ promptMode }, pairs[0] || {});
+  const rightResponse = getResponseDisplay({ responseMode }, pairs[0] || {});
   const [selected, setSelected] = useState<{ side: 'a' | 'b'; index: number } | null>(null);
   const [matched, setMatched] = useState<Set<number>>(new Set());
   const [wrong, setWrong] = useState<string | null>(null);
@@ -325,7 +341,16 @@ function MatchingGame({
                   : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:animate-game-squish'
               } ${!isTest && wrong?.startsWith(`a-${i}`) ? `animate-game-wrong ${cbWrong.border} ${cbWrong.bg}` : ''} ${celebrate === i ? 'animate-game-dance' : ''} ${dancing === `a-${i}` ? 'animate-game-tap-ripple' : ''}`}
             >
-              {pair.a}
+              {/* Multimodal: show based on promptMode */}
+              {isLearning ? (
+                <span>{pair.a}</span>
+              ) : promptMode === 'image' && (pair as any).image ? (
+                <CachedImg src={(pair as any).image} alt="" className="h-10 w-10 object-contain" />
+              ) : promptMode === 'audio' ? (
+                <span className="flex items-center gap-1"><Volume2 className="h-4 w-4" />{stripEmoji(pair.a)}</span>
+              ) : (
+                <span>{pair.a}</span>
+              )}
             </button>
           ))}
         </div>
@@ -343,7 +368,16 @@ function MatchingGame({
                   : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:animate-game-squish'
               } ${!isTest && wrong?.startsWith(`b-${item.origIdx}`) ? `animate-game-wrong ${cbWrong.border} ${cbWrong.bg}` : ''} ${celebrate === item.origIdx ? 'animate-game-dance' : ''} ${dancing === `b-${item.origIdx}` ? 'animate-game-tap-ripple' : ''}`}
             >
-              {item.label}
+              {/* Multimodal: show based on responseMode */}
+              {isLearning ? (
+                <span>{item.label}</span>
+              ) : responseMode === 'image' && (pairs[item.origIdx] as any)?.image ? (
+                <CachedImg src={(pairs[item.origIdx] as any).image} alt="" className="h-10 w-10 object-contain" />
+              ) : responseMode === 'audio' ? (
+                <span className="flex items-center gap-1"><Volume2 className="h-4 w-4" />{stripEmoji(item.label)}</span>
+              ) : (
+                <span>{item.label}</span>
+              )}
             </button>
           ))}
         </div>
@@ -367,6 +401,10 @@ function TapGame({
   const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
   const cbWrong = getFeedbackClasses(colorblindMode, 'wrong');
   const items = config.items || [];
+  // Multimodal: how to present the prompt and what responses to show
+  const promptMode = config.promptMode || 'text';
+  const responseMode = config.responseMode || 'image';
+  const isLearning = mode === 'learning';
   const [currentIdx, setCurrentIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
@@ -447,20 +485,66 @@ function TapGame({
         </p>
       )}
       <div className="text-center">
-        <p className="text-lg font-semibold text-gray-700">Find:</p>
-        <div className="mt-1 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-50 animate-game-float animate-game-glow-pulse">
-          {current.emoji && <span className="text-3xl" role="img" aria-label={current.label || current.color}>{current.emoji}</span>}
-          {current.image && <CachedImg src={current.image} alt={current.label} className="h-10 w-10 object-contain" />}
-          {!current.emoji && !current.image && isHex(current.hex) && (
-            <div className="h-8 w-8 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: current.hex }} />
-          )}
-          {current.emoji && isHex(current.hex) && (
-            <div className="h-5 w-5 rounded-full shadow-inner border border-white/50" style={{ backgroundColor: current.hex }} />
-          )}
-          {readableLabel(current.label, current.color, current.emoji) && (
-            <span className="text-2xl font-bold text-[#0F4D92] capitalize">{readableLabel(current.label, current.color, current.emoji)}</span>
-          )}
-        </div>
+        {/* Multimodal prompt display */}
+        {isLearning ? (
+          /* Learning mode: show everything */
+          <>
+            <p className="text-lg font-semibold text-gray-700">Find:</p>
+            <div className="mt-1 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-50 animate-game-float animate-game-glow-pulse">
+              {current.emoji && <span className="text-3xl" role="img" aria-label={current.label || current.color}>{current.emoji}</span>}
+              {current.image && <CachedImg src={current.image} alt={current.label} className="h-10 w-10 object-contain" />}
+              {!current.emoji && !current.image && isHex(current.hex) && (
+                <div className="h-8 w-8 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: current.hex }} />
+              )}
+              {readableLabel(current.label, current.color, current.emoji) && (
+                <span className="text-2xl font-bold text-[#0F4D92] capitalize">{readableLabel(current.label, current.color, current.emoji)}</span>
+              )}
+            </div>
+          </>
+        ) : promptMode === 'image' ? (
+          /* Image prompt: show big image, no text hint */
+          <>
+            <p className="text-lg font-semibold text-gray-700">What is this?</p>
+            <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-blue-50 animate-game-float animate-game-glow-pulse">
+              {current.image ? (
+                <CachedImg src={current.image} alt="" className="h-20 w-20 object-contain" />
+              ) : current.emoji ? (
+                <span className="text-5xl" role="img" aria-label="item">{current.emoji}</span>
+              ) : isHex(current.hex) ? (
+                <div className="h-16 w-16 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: current.hex }} />
+              ) : (
+                <span className="text-3xl font-bold text-gray-400">?</span>
+              )}
+            </div>
+          </>
+        ) : promptMode === 'audio' ? (
+          /* Audio prompt: play sound, no visual hint */
+          <>
+            <p className="text-lg font-semibold text-gray-700">Listen and find:</p>
+            <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-purple-50 animate-game-float animate-game-glow-pulse">
+              <Volume2 className="h-12 w-12 text-purple-500 animate-game-bounce" />
+            </div>
+          </>
+        ) : promptMode === 'context' ? (
+          /* Context prompt: show riddle/description */
+          <>
+            <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-amber-50 animate-game-float animate-game-glow-pulse">
+              <p className="text-lg font-medium text-amber-800">{current.context || `Find the ${readableLabel(current.label, current.color, current.emoji)}`}</p>
+            </div>
+          </>
+        ) : (
+          /* Text prompt (default): show text with visual */
+          <>
+            <p className="text-lg font-semibold text-gray-700">Find:</p>
+            <div className="mt-1 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-50 animate-game-float animate-game-glow-pulse">
+              {current.emoji && <span className="text-3xl" role="img" aria-label={current.label || current.color}>{current.emoji}</span>}
+              {current.image && <CachedImg src={current.image} alt={current.label} className="h-10 w-10 object-contain" />}
+              {readableLabel(current.label, current.color, current.emoji) && (
+                <span className="text-2xl font-bold text-[#0F4D92] capitalize">{readableLabel(current.label, current.color, current.emoji)}</span>
+              )}
+            </div>
+          </>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {shuffle(items).map((item, i) => {
@@ -481,27 +565,47 @@ function TapGame({
                   : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg hover:animate-game-squish'
               }`}
             >
-              {/* Visual: emoji + color swatch, or image, or text */}
+              {/* Multimodal response display */}
               <div className="flex items-center justify-center">
-                {item.emoji ? (
-                  <span className="text-4xl" role="img" aria-label={item.label || item.color}>{item.emoji}</span>
-                ) : item.image ? (
-                  <CachedImg src={item.image} alt={item.label} className="h-14 w-14 object-contain" />
-                ) : isHex(item.hex) ? (
-                  <div
-                    className={`h-14 w-14 rounded-full shadow-inner border-2 border-white/50 ${!isTest && feedback === 'correct' && realIdx === currentIdx ? 'animate-game-pulse' : ''}`}
-                    style={{ backgroundColor: item.hex }}
-                  />
+                {isLearning ? (
+                  /* Learning mode: show everything */
+                  <>
+                    {item.emoji && <span className="text-4xl" role="img" aria-label={item.label || item.color}>{item.emoji}</span>}
+                    {item.image && !item.emoji && <CachedImg src={item.image} alt={item.label} className="h-14 w-14 object-contain" />}
+                    {!item.emoji && !item.image && isHex(item.hex) && (
+                      <div className="h-14 w-14 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: item.hex }} />
+                    )}
+                  </>
+                ) : responseMode === 'image' ? (
+                  /* Image response: show image only, no text */
+                  item.image ? (
+                    <CachedImg src={item.image} alt="" className="h-16 w-16 object-contain" />
+                  ) : item.emoji ? (
+                    <span className="text-5xl" role="img" aria-label="option">{item.emoji}</span>
+                  ) : isHex(item.hex) ? (
+                    <div className="h-14 w-14 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: item.hex }} />
+                  ) : (
+                    <span className="text-2xl font-bold text-gray-400">?</span>
+                  )
+                ) : responseMode === 'audio' ? (
+                  /* Audio response: show play button */
+                  <span className="flex flex-col items-center gap-1">
+                    <Volume2 className="h-8 w-8 text-[#0F4D92]" />
+                    <span className="text-xs text-gray-400">tap to hear</span>
+                  </span>
                 ) : (
-                  <span className="text-2xl font-bold text-gray-700">{item.label}</span>
-                )}
-                {/* If has emoji AND hex, also show color swatch next to it */}
-                {item.emoji && isHex(item.hex) && (
-                  <div className="ml-1 h-6 w-6 rounded-full shadow-inner border border-white/50" style={{ backgroundColor: item.hex }} />
+                  /* Text response (default): show text label */
+                  <>
+                    {item.emoji && <span className="text-4xl" role="img" aria-label={item.label || item.color}>{item.emoji}</span>}
+                    {item.image && !item.emoji && <CachedImg src={item.image} alt={item.label} className="h-14 w-14 object-contain" />}
+                    {!item.emoji && !item.image && isHex(item.hex) && (
+                      <div className="h-14 w-14 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: item.hex }} />
+                    )}
+                  </>
                 )}
               </div>
-              {/* Label — only if readable (not a hex code) */}
-              {readableLabel(item.label, item.color, item.emoji) && (
+              {/* Label — show based on responseMode */}
+              {(isLearning || responseMode === 'text') && readableLabel(item.label, item.color, item.emoji) && (
                 <span className="text-sm font-bold text-gray-700 capitalize">{readableLabel(item.label, item.color, item.emoji)}</span>
               )}
             </button>
@@ -794,6 +898,9 @@ function FillBlankGame({
   const blanks = fbConfig.blanks || [];
   const sentence = fbConfig.sentence || '';
   const wordBank = useMemo(() => shuffle(fbConfig.wordBank || []), [fbConfig.wordBank]);
+  // Multimodal: how to present the sentence
+  const promptMode = config.promptMode || 'text';
+  const isLearning = mode === 'learning';
 
   const [filledSlots, setFilledSlots] = useState<Record<number, string>>({});
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
@@ -804,6 +911,14 @@ function FillBlankGame({
 
   // Words already placed
   const placedWords = useMemo(() => new Set(Object.values(filledSlots)), [filledSlots]);
+
+  // Longest word in bank — used to size all blank boxes equally (no length hints)
+  const blankWidthPx = useMemo(() => {
+    const allWords = [...wordBank, ...blanks.map((b) => b.answer)];
+    const maxLen = allWords.reduce((max, w) => Math.max(max, w.length), 0);
+    // Scale: ~12px per char + 40px padding, clamped between 90–200px
+    return Math.min(200, Math.max(90, maxLen * 12 + 40));
+  }, [wordBank, blanks]);
 
   // Check if all blanks are filled
   const allFilled = blanks.every((b) => filledSlots[b.id]);
@@ -986,8 +1101,26 @@ function FillBlankGame({
           ⚠️ Test Mode — Fill in the blanks correctly
         </p>
       )}
-      <p className="text-center text-lg font-semibold text-gray-700">Complete the sentence 📝</p>
-      <p className="text-center text-xs text-gray-400">Tap a word, then tap a blank — or drag it!</p>
+      {/* Multimodal sentence presentation */}
+      {promptMode === 'audio' ? (
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-lg font-semibold text-gray-700">Listen and fill in the blanks 🎧</p>
+          <div className="rounded-xl bg-purple-50 px-6 py-3 flex items-center gap-2">
+            <Volume2 className="h-6 w-6 text-purple-600 animate-game-bounce" />
+            <span className="text-sm text-purple-600 font-medium">Playing sentence...</span>
+          </div>
+        </div>
+      ) : promptMode === 'image' ? (
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-lg font-semibold text-gray-700">Look at the picture and complete the sentence 🖼️</p>
+          {config.image && <CachedImg src={config.image} alt="" className="h-20 w-20 object-contain" />}
+        </div>
+      ) : (
+        <>
+          <p className="text-center text-lg font-semibold text-gray-700">Complete the sentence 📝</p>
+          <p className="text-center text-xs text-gray-400">Tap a word, then tap a blank — or drag it!</p>
+        </>
+      )}
       {/* Sentence with blank slots */}
       <div className="rounded-2xl bg-white p-6 shadow-md border border-gray-100">
         <div className="flex flex-wrap items-center gap-2 text-xl font-kid-body leading-relaxed">
@@ -1009,7 +1142,7 @@ function FillBlankGame({
                 onDragOver={(e) => handleBlankDragOver(e, blankId)}
                 onDrop={(e) => handleBlankDrop(e, blankId)}
                 onDragLeave={() => setDragOverBlank(null)}
-                className={`inline-flex items-center justify-center min-w-[80px] h-10 rounded-xl border-2 border-dashed px-3 font-bold transition-all duration-200 ${
+                className={`inline-flex items-center justify-center h-11 rounded-xl border-2 border-dashed px-2 font-bold text-sm transition-all duration-200 ${
                   filled
                     ? isCorrectHere
                       ? `${cbCorrect.border} ${cbCorrect.bg} text-green-700`
@@ -1020,8 +1153,9 @@ function FillBlankGame({
                     ? 'border-blue-400 bg-blue-50 scale-105'
                     : 'border-gray-300 bg-gray-50 text-gray-400'
                 }`}
+                style={{ width: blankWidthPx }}
               >
-                {filled || '___'}
+                {filled ? <span className="truncate" style={{ maxWidth: blankWidthPx - 16 }}>{filled}</span> : <span className="text-gray-300">?</span>}
               </span>
             );
           })}
@@ -1029,7 +1163,7 @@ function FillBlankGame({
       </div>
       {/* Word bank */}
       <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
-        <p className="mb-3 text-xs font-medium text-gray-400 text-center">Word Bank</p>
+        <p className="mb-3 text-xs font-medium text-gray-400 text-center">Word Bank — tap or drag to a blank</p>
         <div className="flex flex-wrap justify-center gap-2">
           {wordBank.map((word, i) => {
             const isPlaced = placedWords.has(word);
@@ -1045,17 +1179,17 @@ function FillBlankGame({
                 onTouchEnd={handleWordTouchEnd}
                 onClick={() => handleWordTap(word)}
                 disabled={isPlaced}
-                className={`rounded-xl border-2 px-4 py-2.5 text-base font-bold transition-all touch-none ${
+                className={`rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all select-none ${
                   isPlaced
-                    ? 'border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed'
+                    ? 'border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed opacity-50'
                     : isSelected
                     ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md animate-game-jelly scale-105'
                     : draggingWord === word
                     ? 'border-blue-400 bg-blue-50 opacity-50 scale-95'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:shadow-md hover:animate-game-squish cursor-grab active:cursor-grabbing'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:shadow-md cursor-grab active:cursor-grabbing'
                 }`}
               >
-                {word}
+                <span className="whitespace-normal leading-tight">{word}</span>
               </button>
             );
           })}
@@ -1084,10 +1218,10 @@ function FillBlankGame({
       {/* Touch ghost */}
       {touchGhost && (
         <div
-          className="fixed z-50 pointer-events-none rounded-xl border-2 border-blue-400 bg-blue-50 px-4 py-2 font-bold text-blue-700 shadow-lg animate-game-pop"
-          style={{ left: touchGhost.x - 40, top: touchGhost.y - 30 }}
+          className="fixed z-50 pointer-events-none rounded-xl border-2 border-blue-400 bg-blue-50 px-4 py-2 font-bold text-sm text-blue-700 shadow-lg animate-game-pop max-w-[140px] text-center"
+          style={{ left: touchGhost.x - 50, top: touchGhost.y - 40 }}
         >
-          {touchGhost.word}
+          <span className="whitespace-normal leading-tight">{touchGhost.word}</span>
         </div>
       )}
       {/* Feedback overlay */}
@@ -1122,6 +1256,10 @@ function QuizGame({
   const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
   const cbWrong = getFeedbackClasses(colorblindMode, 'wrong');
   const options = config.options || [];
+  // Multimodal: how to present question and options
+  const promptMode = config.promptMode || 'text';
+  const responseMode = config.responseMode || 'text';
+  const isLearning = mode === 'learning';
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [tapping, setTapping] = useState<number | null>(null);
@@ -1182,9 +1320,40 @@ function QuizGame({
           ⚠️ Test Mode — Choose carefully
         </p>
       )}
-      <p className="text-center text-xl font-semibold text-gray-700 animate-game-drop-in">
-        {config.question || 'Choose the correct answer'}
-      </p>
+      {/* Multimodal question display */}
+      {isLearning ? (
+        <p className="text-center text-xl font-semibold text-gray-700 animate-game-drop-in">
+          {config.question || 'Choose the correct answer'}
+        </p>
+      ) : promptMode === 'image' ? (
+        <div className="flex flex-col items-center gap-2 animate-game-drop-in">
+          <p className="text-lg font-semibold text-gray-700">What is this?</p>
+          {config.image ? (
+            <CachedImg src={config.image} alt="" className="h-24 w-24 object-contain" />
+          ) : (
+            <div className="h-24 w-24 rounded-xl bg-blue-50 flex items-center justify-center">
+              <span className="text-4xl">🖼️</span>
+            </div>
+          )}
+        </div>
+      ) : promptMode === 'audio' ? (
+        <div className="flex flex-col items-center gap-2 animate-game-drop-in">
+          <p className="text-lg font-semibold text-gray-700">Listen and choose:</p>
+          <div className="h-16 w-16 rounded-full bg-purple-100 flex items-center justify-center animate-game-bounce">
+            <Volume2 className="h-8 w-8 text-purple-600" />
+          </div>
+        </div>
+      ) : promptMode === 'context' ? (
+        <div className="flex flex-col items-center gap-2 animate-game-drop-in">
+          <div className="rounded-xl bg-amber-50 px-6 py-4">
+            <p className="text-lg font-medium text-amber-800">{config.context || config.question || 'Choose the correct answer'}</p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-center text-xl font-semibold text-gray-700 animate-game-drop-in">
+          {config.question || 'Choose the correct answer'}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-4">
         {options.map((opt, i) => (
           <button
@@ -1200,11 +1369,38 @@ function QuizGame({
                 : tapping === i
                 ? 'border-blue-400 bg-blue-50 animate-game-jelly shadow-md'
                 : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg hover:animate-game-squish'
-            }`}
-          >
-            {opt.image && <CachedImg src={opt.image} alt={opt.label} className="mx-auto mb-2 h-12 w-12 object-contain" />}
-            <span>{opt.label}</span>
-          </button>
+            }`}            >
+              {/* Multimodal response display */}
+              {isLearning ? (
+                /* Learning mode: show everything */
+                <>
+                  {opt.image && <CachedImg src={opt.image} alt={opt.label} className="mx-auto mb-2 h-12 w-12 object-contain" />}
+                  {opt.emoji && <span className="text-3xl mb-1">{opt.emoji}</span>}
+                  <span>{opt.label}</span>
+                </>
+              ) : responseMode === 'image' ? (
+                /* Image response: show image only */
+                opt.image ? (
+                  <CachedImg src={opt.image} alt="" className="mx-auto h-16 w-16 object-contain" />
+                ) : opt.emoji ? (
+                  <span className="text-4xl" role="img" aria-label="option">{opt.emoji}</span>
+                ) : (
+                  <span className="text-lg font-bold text-gray-700">{opt.label}</span>
+                )
+              ) : responseMode === 'audio' ? (
+                /* Audio response: show audio icon */
+                <span className="flex flex-col items-center gap-1">
+                  <Volume2 className="h-8 w-8 text-[#0F4D92]" />
+                  <span className="text-xs text-gray-400">tap to hear</span>
+                </span>
+              ) : (
+                /* Text response (default): show text */
+                <>
+                  {opt.image && <CachedImg src={opt.image} alt={opt.label} className="mx-auto mb-2 h-12 w-12 object-contain" />}
+                  <span>{opt.label}</span>
+                </>
+              )}
+            </button>
         ))}
       </div>
       {/* Voice input — speak the answer instead of tapping */}

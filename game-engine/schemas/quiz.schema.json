@@ -57,6 +57,20 @@
       "minimum": 15,
       "maximum": 300
     },
+    "promptMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio", "context"],
+      "description": "How the question is presented"
+    },
+    "responseMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio"],
+      "description": "How options are displayed and how the learner responds"
+    },
+    "context": {
+      "type": "string",
+      "description": "Contextual riddle/description when promptMode is 'context'"
+    },
     "questions": {
       "type": "array",
       "minItems": 3,
