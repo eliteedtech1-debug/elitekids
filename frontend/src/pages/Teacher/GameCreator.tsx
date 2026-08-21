@@ -87,9 +87,10 @@ function getConfigTemplate(template: string, ageLevel: string): string {
   // Default prompt/response modes per template (cross-modal by default)
   const defaultModes: Record<string, { promptMode: string; responseMode: string }> = {
     matching: { promptMode: 'text', responseMode: 'image' },
-    'tap-recognition': { promptMode: 'text', responseMode: 'image' },
+    // Cross-modal: show image (no text), child picks the correct text label
+    'tap-recognition': { promptMode: 'image', responseMode: 'text' },
     'drag-sort': { promptMode: 'text', responseMode: 'image' },
-    quiz: { promptMode: 'text', responseMode: 'image' },
+    quiz: { promptMode: 'image', responseMode: 'text' },
     'fill-in-blank': { promptMode: 'text', responseMode: 'text' },
     'puzzle-split': { promptMode: 'image', responseMode: 'image' },
   };

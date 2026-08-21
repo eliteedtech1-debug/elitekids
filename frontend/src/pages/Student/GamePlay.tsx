@@ -533,12 +533,10 @@ function TapGame({
             </div>
           </>
         ) : (
-          /* Text prompt (default): show text with visual */
+          /* Text prompt: show text only (no emoji — child must read) */
           <>
             <p className="text-lg font-semibold text-gray-700">Find:</p>
             <div className="mt-1 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-50 animate-game-float animate-game-glow-pulse">
-              {current.emoji && <span className="text-3xl" role="img" aria-label={current.label || current.color}>{current.emoji}</span>}
-              {current.image && <CachedImg src={current.image} alt={current.label} className="h-10 w-10 object-contain" />}
               {readableLabel(current.label, current.color, current.emoji) && (
                 <span className="text-2xl font-bold text-[#0F4D92] capitalize">{readableLabel(current.label, current.color, current.emoji)}</span>
               )}
@@ -594,18 +592,12 @@ function TapGame({
                     <span className="text-xs text-gray-400">tap to hear</span>
                   </span>
                 ) : (
-                  /* Text response (default): show text label */
-                  <>
-                    {item.emoji && <span className="text-4xl" role="img" aria-label={item.label || item.color}>{item.emoji}</span>}
-                    {item.image && !item.emoji && <CachedImg src={item.image} alt={item.label} className="h-14 w-14 object-contain" />}
-                    {!item.emoji && !item.image && isHex(item.hex) && (
-                      <div className="h-14 w-14 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: item.hex }} />
-                    )}
-                  </>
+                  /* Text response: show ONLY text label — no emoji/image so child must read */
+                  <span className="text-lg font-bold text-gray-800 capitalize">{readableLabel(item.label, item.color, item.emoji)}</span>
                 )}
               </div>
               {/* Label — show based on responseMode */}
-              {(isLearning || responseMode === 'text') && readableLabel(item.label, item.color, item.emoji) && (
+              {isLearning && readableLabel(item.label, item.color, item.emoji) && (
                 <span className="text-sm font-bold text-gray-700 capitalize">{readableLabel(item.label, item.color, item.emoji)}</span>
               )}
             </button>
@@ -1394,11 +1386,8 @@ function QuizGame({
                   <span className="text-xs text-gray-400">tap to hear</span>
                 </span>
               ) : (
-                /* Text response (default): show text */
-                <>
-                  {opt.image && <CachedImg src={opt.image} alt={opt.label} className="mx-auto mb-2 h-12 w-12 object-contain" />}
-                  <span>{opt.label}</span>
-                </>
+                /* Text response: show ONLY text label — no image so child must read */
+                <span className="text-lg font-semibold text-gray-800 capitalize">{opt.label}</span>
               )}
             </button>
         ))}

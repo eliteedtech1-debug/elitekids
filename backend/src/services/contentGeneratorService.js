@@ -126,9 +126,16 @@ Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
-The child sees multiple objects on screen and must tap the CORRECT one. The "prompt" field is the instruction (e.g. "Tap the red apple"). "correctId" tells the engine which object is right. Objects should be visually distinct.
+PEDAGOGY RULE (cross-modal learning):
+- Set promptMode: "image" — show a big image/emoji of the item, NO text label
+- Set responseMode: "text" — options show text labels ONLY, NO images/emojis
+- This tests if the child can READ the word, not just match pictures
+- Example: Show a big 🐱 image. Options: "Cat", "Dog", "Fish", "Bird". Child taps "Cat".
+- The child must recognize the image AND know the correct spelling/word
 
-Output a JSON object with exactly these keys: gameId, template ("tap-recognition"), lessonId, ageLevel, durationTargetSec, prompt, assets (with background, objects array, correctId), rewards, successThresholdPct.`;
+The child sees an image/emoji on screen and must tap the CORRECT text label from options. "correctId" tells the engine which option is right.
+
+Output a JSON object with exactly these keys: gameId, template ("tap-recognition"), lessonId, ageLevel, durationTargetSec, promptMode ("image"), responseMode ("text"), prompt, assets (with background, objects array, correctId), rewards, successThresholdPct.`;
 }
 
 function dragSortPrompt(lesson, ageLevel) {
@@ -152,9 +159,15 @@ Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
+PEDAGOGY RULE (cross-modal learning):
+- Set promptMode: "image" — questions show an image/emoji, no text hint
+- Set responseMode: "text" — options show text labels ONLY, no images/emojis
+- This tests if the child can READ the word, not just match pictures
+- Example: Show 🐱 image. Question: "What is this?" Options: "Cat", "Dog", "Bird". Answer: Cat
+
 Multiple-choice quiz: 3-5 questions, each with 2-4 options. Questions should test understanding of the lesson. "correctIndex" is the 0-based index of the correct option. Use simple language appropriate for the age level.
 
-Output a JSON object with exactly these keys: gameId, template ("quiz"), lessonId, ageLevel, durationTargetSec, questions (array with id/prompt/options/correctIndex), rewards, successThresholdPct.`;
+Output a JSON object with exactly these keys: gameId, template ("quiz"), lessonId, ageLevel, durationTargetSec, promptMode ("image"), responseMode ("text"), questions (array with id/prompt/options/correctIndex), rewards, successThresholdPct.`;
 }
 
 function sceneScriptPrompt(lesson, ageLevel) {
@@ -262,6 +275,14 @@ async function generateGameConfig({ lesson, school_id }) {
         if (!raw.rewards) raw.rewards = { starsOnComplete: 3, xp: 25 };
         if (raw.successThresholdPct === undefined) {
           raw.successThresholdPct = { Creche: 50, Nursery: 50, KG1: 60, KG2: 70, Primary: 75 }[lesson.age_level] || 60;
+        }
+
+        // Cross-modal defaults: enforce pedagogically correct prompt/response modes
+        if (!raw.promptMode) {
+          raw.promptMode = { 'tap-recognition': 'image', quiz: 'image', matching: 'text', 'drag-sort': 'text', 'fill-in-blank': 'text' }[template] || 'text';
+        }
+        if (!raw.responseMode) {
+          raw.responseMode = { 'tap-recognition': 'text', quiz: 'text', matching: 'image', 'drag-sort': 'image', 'fill-in-blank': 'text' }[template] || 'text';
         }
 
         const config = validateConfig(template, raw);

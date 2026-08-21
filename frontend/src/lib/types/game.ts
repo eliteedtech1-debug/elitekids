@@ -266,6 +266,7 @@ export function getResponseDisplay(
       };
     case 'text':
     default:
+      // Text response mode: show ONLY text, never images/emojis
       return {
         showImage: false,
         showText: true,
