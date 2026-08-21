@@ -23,6 +23,7 @@ import { getItemVisual, getNumberEmoji, getNumberImageUrl } from '@/lib/utils/ic
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import SpeechSettings from '@/components/SpeechSettings';
 import SpeechInput from '@/components/SpeechInput';
+import CachedImg from '@/components/CachedImg';
 import { getFeedbackClasses, getTimerColor, FOCUS_RING_GAME, motionClass } from '@/lib/utils/accessibility';
 import {
   speak,
@@ -449,7 +450,7 @@ function TapGame({
         <p className="text-lg font-semibold text-gray-700">Find:</p>
         <div className="mt-1 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-50 animate-game-float animate-game-glow-pulse">
           {current.emoji && <span className="text-3xl" role="img" aria-label={current.label || current.color}>{current.emoji}</span>}
-          {current.image && <img src={current.image} alt={current.label} className="h-10 w-10 object-contain" />}
+          {current.image && <CachedImg src={current.image} alt={current.label} className="h-10 w-10 object-contain" />}
           {!current.emoji && !current.image && isHex(current.hex) && (
             <div className="h-8 w-8 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: current.hex }} />
           )}
@@ -485,7 +486,7 @@ function TapGame({
                 {item.emoji ? (
                   <span className="text-4xl" role="img" aria-label={item.label || item.color}>{item.emoji}</span>
                 ) : item.image ? (
-                  <img src={item.image} alt={item.label} className="h-14 w-14 object-contain" />
+                  <CachedImg src={item.image} alt={item.label} className="h-14 w-14 object-contain" />
                 ) : isHex(item.hex) ? (
                   <div
                     className={`h-14 w-14 rounded-full shadow-inner border-2 border-white/50 ${!isTest && feedback === 'correct' && realIdx === currentIdx ? 'animate-game-pulse' : ''}`}
@@ -1201,7 +1202,7 @@ function QuizGame({
                 : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg hover:animate-game-squish'
             }`}
           >
-            {opt.image && <img src={opt.image} alt={opt.label} className="mx-auto mb-2 h-12 w-12 object-contain" />}
+            {opt.image && <CachedImg src={opt.image} alt={opt.label} className="mx-auto mb-2 h-12 w-12 object-contain" />}
             <span>{opt.label}</span>
           </button>
         ))}
@@ -1917,7 +1918,7 @@ function PuzzleGame({
               style={{ width: pieceSize.width, height: pieceSize.height }}
             >
               {piece ? (
-                <img src={piece.imageUrl} alt="" className="w-full h-full object-cover rounded-lg animate-game-pop" draggable={false} />
+                <CachedImg src={piece.imageUrl} alt="" className="w-full h-full object-cover rounded-lg animate-game-pop" draggable={false} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
                   {Math.floor(i / grid.cols) + 1},{(i % grid.cols) + 1}
@@ -1955,7 +1956,7 @@ function PuzzleGame({
                 }`}
                 style={{ width: Math.min(pieceSize.width, 80), height: Math.min(pieceSize.height, 80) }}
               >
-                <img src={piece.imageUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+                <CachedImg src={piece.imageUrl} alt="" className="w-full h-full object-cover" draggable={false} />
               </div>
             );
           })}
@@ -1969,7 +1970,7 @@ function PuzzleGame({
         >
           {(() => {
             const p = pieces.find((pp) => pp.id === touchGhost.pieceId);
-            return p ? <img src={p.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" /> : null;
+            return p ? <CachedImg src={p.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" /> : null;
           })()}
         </div>
       )}

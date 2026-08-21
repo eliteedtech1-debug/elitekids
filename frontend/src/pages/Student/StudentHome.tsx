@@ -28,6 +28,7 @@ import GardenScene from '@/components/GardenScene';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreak, getStreakEmoji } from '@/lib/utils/streak';
+import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
 
 /* ── Types ────────────────────────────────────────────────────── */
 
@@ -191,6 +192,7 @@ export default function StudentHome() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
+    let lessonsData: any[] = [];
     try {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
       const decoded = decodeToken(token);
@@ -201,7 +203,8 @@ export default function StudentHome() {
       const lessonsRes = await apiClient.get(ENDPOINTS.LESSONS.LIST, {
         params: { content_state: 'published' },
       }).catch(() => ({ data: { data: [] } }));
-      setLessons(lessonsRes.data?.data || []);
+      lessonsData = lessonsRes.data?.data || [];
+      setLessons(lessonsData);
 
       if (admissionNo) {
         const progressRes = await apiClient.get(ENDPOINTS.PROGRESS.CHILD(admissionNo));
@@ -229,6 +232,24 @@ export default function StudentHome() {
       // Record daily play for streak tracking
       const updatedStreak = recordPlayDay();
       setStreak(updatedStreak);
+      // Warm IndexedDB cache with game assets in background
+      try {
+        const allUrls: string[] = [];
+        for (const lesson of lessonsData) {
+          // Fetch game config to extract image URLs
+          const gameRes = await apiClient.get(ENDPOINTS.LESSONS.GAME(lesson.id)).catch(() => ({ data: null }));
+          if (gameRes.data?.data?.config_json) {
+            allUrls.push(...extractCacheableUrls(gameRes.data.data.config_json));
+          }
+        }
+        if (allUrls.length > 0) {
+          warmCache(allUrls).then((r) => {
+            if (r.cached > 0) console.log(`[AssetCache] Warmed ${r.cached} assets`);
+          });
+        }
+      } catch {
+        // Non-blocking — cache warming is optional
+      }
     }
   }, []);
 
