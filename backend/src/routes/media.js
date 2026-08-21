@@ -139,6 +139,144 @@ module.exports = (app) => {
     }
   });
 
+  // POST /media/save-opensource — download an open-source asset (e.g. Twemoji) and save to our bucket
+  app.post('/media/save-opensource', auth, staffOnly, async (req, res) => {
+    try {
+      const { url, label, category } = req.body;
+      if (!url) return res.status(400).json({ success: false, message: 'Missing url' });
+
+      // Only allow trusted open-source CDNs
+      const ALLOWED_ORIGINS = [
+        'cdn.jsdelivr.net',
+        'twemoji.maxcdn.com',
+        'cdnjs.cloudflare.com',
+        'fonts.gstatic.com',
+      ];
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        return res.status(400).json({ success: false, message: 'Invalid URL' });
+      }
+      if (!ALLOWED_ORIGINS.some((o) => parsedUrl.hostname.includes(o))) {
+        return res.status(400).json({ success: false, message: 'URL domain not in allowlist' });
+      }
+
+      // Fetch the asset
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      let response;
+      try {
+        response = await fetch(url, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (!response.ok) {
+        return res.status(502).json({ success: false, message: `Upstream returned ${response.status}` });
+      }
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length === 0) {
+        return res.status(502).json({ success: false, message: 'Empty response from upstream' });
+      }
+
+      // Determine extension from content-type or URL
+      const ct = response.headers.get('content-type') || '';
+      let ext = 'png';
+      if (ct.includes('jpeg') || ct.includes('jpg')) ext = 'jpg';
+      else if (ct.includes('webp')) ext = 'webp';
+      else if (ct.includes('gif')) ext = 'gif';
+      else if (ct.includes('svg')) ext = 'svg';
+      else if (ct.includes('mp3')) ext = 'mp3';
+      else if (ct.includes('wav')) ext = 'wav';
+      else if (ct.includes('ogg')) ext = 'ogg';
+
+      // Build a deterministic key from the source URL (dedup)
+      const { createHash } = require('crypto');
+      const hash = createHash('md5').update(url).digest('hex').slice(0, 12);
+      const safeLabel = (label || 'asset').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+      const cat = (category || 'misc').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const key = `opensource/${cat}/${safeLabel}-${hash}.${ext}`;
+
+      // Save via the media pipeline
+      const { mediaPublicUrl } = require('../media/media-pipeline');
+      const { b2Upload, isB2Configured } = require('../storage/b2');
+
+      if (isB2Configured()) {
+        await b2Upload('media', key, buffer, ct || `image/${ext}`);
+        return res.json({ success: true, data: { key, url: mediaPublicUrl(key), sourceUrl: url, size: buffer.length } });
+      }
+
+      // Local fallback
+      const { storageDir } = require('../media/media-pipeline');
+      await fs.promises.mkdir(path.join(storageDir(), 'opensource', cat), { recursive: true });
+      await fs.promises.writeFile(path.join(storageDir(), key), buffer);
+      return res.json({ success: true, data: { key, url: `${process.env.MEDIA_PUBLIC_BASE_URL || 'http://127.0.0.1:34600'}/media/${key}`, sourceUrl: url, size: buffer.length } });
+    } catch (err) {
+      console.error('media/save-opensource error:', err.message);
+      return res.status(500).json({ success: false, message: err.message || 'Failed to save asset' });
+    }
+  });
+
+  // POST /media/save-opensource-batch — save multiple assets at once (rate-limited)
+  app.post('/media/save-opensource-batch', auth, staffOnly, async (req, res) => {
+    try {
+      const { assets } = req.body; // [{ url, label, category }]
+      if (!Array.isArray(assets) || assets.length === 0) {
+        return res.status(400).json({ success: false, message: 'Missing assets array' });
+      }
+      if (assets.length > 20) {
+        return res.status(400).json({ success: false, message: 'Max 20 assets per batch' });
+      }
+
+      const results = [];
+      for (const asset of assets) {
+        try {
+          // Reuse the single-save logic via internal fetch simulation
+          const ctrl = new AbortController();
+          const tm = setTimeout(() => ctrl.abort(), 10000);
+          let resp;
+          try {
+            resp = await fetch(asset.url, { signal: ctrl.signal });
+          } finally {
+            clearTimeout(tm);
+          }
+          if (!resp.ok) { results.push({ url: asset.url, success: false, error: `HTTP ${resp.status}` }); continue; }
+
+          const buf = Buffer.from(await resp.arrayBuffer());
+          const ct = resp.headers.get('content-type') || '';
+          let ext = 'png';
+          if (ct.includes('jpeg')) ext = 'jpg'; else if (ct.includes('webp')) ext = 'webp';
+          else if (ct.includes('gif')) ext = 'gif'; else if (ct.includes('mp3')) ext = 'mp3';
+
+          const { createHash } = require('crypto');
+          const hash = createHash('md5').update(asset.url).digest('hex').slice(0, 12);
+          const safeLabel = (asset.label || 'asset').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+          const cat = (asset.category || 'misc').replace(/[^a-zA-Z0-9_-]/g, '_');
+          const key = `opensource/${cat}/${safeLabel}-${hash}.${ext}`;
+
+          const { b2Upload, isB2Configured } = require('../storage/b2');
+          const { mediaPublicUrl } = require('../media/media-pipeline');
+
+          if (isB2Configured()) {
+            await b2Upload('media', key, buf, ct || `image/${ext}`);
+            results.push({ url: asset.url, success: true, key, storedUrl: mediaPublicUrl(key) });
+          } else {
+            const { storageDir } = require('../media/media-pipeline');
+            await fs.promises.mkdir(path.join(storageDir(), 'opensource', cat), { recursive: true });
+            await fs.promises.writeFile(path.join(storageDir(), key), buf);
+            results.push({ url: asset.url, success: true, key, storedUrl: `${process.env.MEDIA_PUBLIC_BASE_URL || 'http://127.0.0.1:34600'}/media/${key}` });
+          }
+        } catch (e) {
+          results.push({ url: asset.url, success: false, error: e.message });
+        }
+      }
+      return res.json({ success: true, data: results });
+    } catch (err) {
+      console.error('media/save-opensource-batch error:', err.message);
+      return res.status(500).json({ success: false, message: err.message || 'Batch save failed' });
+    }
+  });
+
   // GET /media/:key — public serving (lesson assets on children's devices).
   app.get('/media/:key', async (req, res) => {
     const key = req.params.key;

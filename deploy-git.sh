@@ -2,6 +2,9 @@
 set -euo pipefail
 # Git-based deploy: push local → pull on VPS → build → restart
 # Usage: bash deploy-git.sh
+#
+# Safety: only pushes what you've committed locally.
+# VPS script backs up .env before reset, always rebuilds dist.
 
 VPS_HOST="${VPS_HOST:-62.72.0.209}"
 VPS_USER="${VPS_USER:-dev}"
@@ -12,8 +15,24 @@ SSH_CMD="ssh -i $VPS_KEY -o StrictHostKeyChecking=accept-new -o ConnectTimeout=1
 
 step() { echo; echo "==> $1"; }
 
-step "Pushing to GitHub..."
-git push origin main 2>&1 | tail -3
+# Pre-flight: check we have uncommitted changes
+UNCOMMITTED=$(git status --porcelain | wc -l | tr -d ' ')
+if [ "$UNCOMMITTED" -gt 0 ]; then
+  echo "⚠️  You have $UNCOMMITTED uncommitted changes."
+  echo "   Run 'git add . && git commit' first, or use 'bash deploy.sh' (rsync) instead."
+  echo "   Aborting git deploy."
+  exit 1
+fi
+
+# Check we have local commits ahead of remote
+AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "0")
+if [ "$AHEAD" = "0" ]; then
+  echo "✅ Nothing to push — local is up to date with origin/main."
+  exit 0
+fi
+
+step "Pushing $AHEAD commit(s) to GitHub..."
+git push origin main 2>&1 | tail -5
 
 step "Running git-deploy on VPS..."
 $SSH_CMD "$VPS_USER@$VPS_HOST" "bash $REMOTE_DIR/git-deploy.sh" 2>&1

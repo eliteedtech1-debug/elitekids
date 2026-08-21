@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, Play, RotateCcw } from 'lucide-react';
 import { useSpeechStore, getAvailableVoices } from '@/lib/utils/speech-store';
 import { speak } from '@/lib/utils/sound';
+import { haptic } from '@/lib/utils/haptic';
 
 /**
  * Speech settings panel — speed slider + voice picker.
@@ -26,19 +27,25 @@ export default function SpeechSettings() {
     };
   }, [open]);
 
-  // Close on outside click
+  // Close on outside click (works for both mouse and touch)
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+    const handler = (e: Event) => {
+      const target = e.target as Node;
+      if (panelRef.current && !panelRef.current.contains(target)) {
         setOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
   }, [open]);
 
   const handlePreview = () => {
+    haptic('light');
     speak('Hello! This is how I sound!', undefined, rate);
   };
 
@@ -49,7 +56,7 @@ export default function SpeechSettings() {
       {/* Trigger */}
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-medium text-[#0F4D92]/60 transition hover:bg-gray-50 hover:text-[#0F4D92]"
+        className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-2 sm:px-2.5 sm:py-1.5 text-sm font-medium text-[#0F4D92]/60 transition hover:bg-gray-50 hover:text-[#0F4D92] active:scale-95"
         aria-label="Voice settings"
         aria-expanded={open}
       >
@@ -58,14 +65,17 @@ export default function SpeechSettings() {
 
       {/* Panel */}
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
+        <>
+        {/* Backdrop — tap to close */}
+        <div className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent sm:static sm:hidden" onClick={() => setOpen(false)} />
+        <div className="fixed inset-x-3 top-14 z-50 mx-auto max-w-[calc(100vw-24px)] sm:absolute sm:right-0 sm:top-full sm:mx-0 sm:mt-2 sm:w-80 sm:max-w-none rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-800">🔊 Voice Settings</h3>
             <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600" aria-label="Close">✕</button>
           </div>
 
           {/* Speed slider */}
-          <div className="mb-5">
+          <div className="mb-4 sm:mb-5">
             <div className="mb-2 flex items-center justify-between">
               <label className="text-xs font-semibold text-gray-600">Speed</label>
               <span className="text-xs text-gray-400">{speedLabel} ({rate.toFixed(1)}x)</span>
@@ -76,8 +86,8 @@ export default function SpeechSettings() {
               max="2.0"
               step="0.05"
               value={rate}
-              onChange={(e) => setRate(parseFloat(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer accent-[#0F4D92]"
+              onChange={(e) => { haptic('selection'); setRate(parseFloat(e.target.value)); }}
+              className="w-full h-3 rounded-full appearance-none cursor-pointer accent-[#0F4D92]"
             />
             <div className="mt-1 flex justify-between text-[10px] text-gray-400">
               <span>0.3x</span>
@@ -87,7 +97,7 @@ export default function SpeechSettings() {
           </div>
 
           {/* Pitch slider */}
-          <div className="mb-5">
+          <div className="mb-4 sm:mb-5">
             <div className="mb-2 flex items-center justify-between">
               <label className="text-xs font-semibold text-gray-600">Pitch</label>
               <span className="text-xs text-gray-400">{pitch < 1.0 ? ' lower' : pitch > 1.3 ? ' high' : ' normal'} ({pitch.toFixed(1)})</span>
@@ -98,8 +108,8 @@ export default function SpeechSettings() {
               max="2.0"
               step="0.1"
               value={pitch}
-              onChange={(e) => setPitch(parseFloat(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer accent-purple-500"
+              onChange={(e) => { haptic('selection'); setPitch(parseFloat(e.target.value)); }}
+              className="w-full h-3 rounded-full appearance-none cursor-pointer accent-purple-500"
             />
             <div className="mt-1 flex justify-between text-[10px] text-gray-400">
               <span>Low</span>
@@ -114,10 +124,10 @@ export default function SpeechSettings() {
             {voices.length === 0 ? (
               <p className="text-xs text-gray-400">No voices available on this device.</p>
             ) : (
-              <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-gray-100 p-2">
+              <div className="max-h-32 sm:max-h-40 space-y-1 overflow-y-auto rounded-xl border border-gray-100 p-2">
                 {/* Auto option */}
                 <button
-                  onClick={() => setVoice('')}
+                  onClick={() => { haptic('selection'); setVoice(''); }}
                   className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${
                     !voiceName ? 'bg-[#0F4D92] text-white' : 'hover:bg-gray-50 text-gray-700'
                   }`}
@@ -127,7 +137,7 @@ export default function SpeechSettings() {
                 {voices.map((v) => (
                   <button
                     key={v.name}
-                    onClick={() => setVoice(v.name)}
+                    onClick={() => { haptic('selection'); setVoice(v.name); }}
                     className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${
                       voiceName === v.name ? 'bg-[#0F4D92] text-white' : 'hover:bg-gray-50 text-gray-700'
                     }`}
@@ -149,13 +159,14 @@ export default function SpeechSettings() {
               <Play className="h-3 w-3" /> Preview
             </button>
             <button
-              onClick={() => { reset(); }}
+              onClick={() => { haptic('light'); reset(); }}
               className="flex items-center justify-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium text-gray-500 transition hover:bg-gray-50"
             >
               <RotateCcw className="h-3 w-3" /> Reset
             </button>
           </div>
         </div>
+        </>
       )}
     </div>
   );

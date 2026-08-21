@@ -11,14 +11,16 @@ import {
   Eye,
   Gamepad2,
   ArrowLeft,
-  LogOut,
   RefreshCw,
   Sparkles,
   AlertCircle,
+  ShieldCheck,
+  ChevronRight,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import AdminNav from '@/components/AdminNav';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -157,15 +159,28 @@ export default function TeacherLessons() {
   const pendingApprovals = lessons.filter((l) => l.content_state === 'pending_human_review').length;
   const activeJobs = jobs.filter((j) => j.status === 'queued' || j.status === 'processing').length;
 
+  // Inline approve/reject — approve ALL pending approvals for a lesson at once
+  const [processingApproval, setProcessingApproval] = useState<string | null>(null);
+  const handleInlineApprove = async (lessonId: string, decision: 'approve' | 'reject') => {
+    setProcessingApproval(lessonId);
+    try {
+      await apiClient.post(ENDPOINTS.LESSONS.APPROVE(lessonId), {
+        decision,
+        reason: decision === 'reject' ? 'Content needs revision' : undefined,
+      });
+      toast.success(decision === 'approve' ? '✅ Lesson published!' : '❌ Rejected');
+      await loadLessons();
+      await loadJobs();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || `Failed to ${decision}`);
+    } finally {
+      setProcessingApproval(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#E7EEF6]">
-      {/* Header */}
-      <header className="border-b border-[#0F4D92]/10 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-center gap-4 px-4 py-3">
-          <BookOpen className="h-6 w-6 text-[#0F4D92]" />
-          <h1 className="text-lg font-bold text-[#0F4D92]">Lesson Manager</h1>
-        </div>
-      </header>
+      <AdminNav pendingCount={pendingApprovals} />
 
       <main className="mx-auto max-w-5xl px-4 py-6">
         {/* Status cards */}
@@ -336,12 +351,26 @@ export default function TeacherLessons() {
                 </div>
                 <div className="flex items-center gap-2">
                   {lesson.content_state === 'pending_human_review' && (
-                    <Link
-                      to="/teacher/approvals"
-                      className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-200"
-                    >
-                      <Eye className="h-3 w-3" /> Review
-                    </Link>
+                    <>
+                      {processingApproval === lesson.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleInlineApprove(lesson.id, 'approve')}
+                            className="inline-flex items-center gap-1 rounded-lg bg-green-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 transition-colors"
+                          >
+                            <CheckCircle2 className="h-3 w-3" /> Approve
+                          </button>
+                          <button
+                            onClick={() => handleInlineApprove(lesson.id, 'reject')}
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
+                          >
+                            <XCircle className="h-3 w-3" /> Reject
+                          </button>
+                        </>
+                      )}
+                    </>
                   )}
                   {lesson.content_state === 'published' && lesson.has_games && (
                     <span className="inline-flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700">

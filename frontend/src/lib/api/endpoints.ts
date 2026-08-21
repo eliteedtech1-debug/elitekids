@@ -33,6 +33,8 @@ export const ENDPOINTS = {
     GENERATE: (id: string) => `/kids/lessons/${id}/generate`,
     GAME: (id: string) => `/kids/lessons/${id}/game`,
     SCENES: (id: string) => `/kids/lessons/${id}/scenes`,
+    APPROVE: (id: string) => `/kids/lessons/${id}/approve`,
+    SUGGESTED_MODE: (lessonId: string, studentId: string) => `/kids/lessons/${lessonId}/suggested-mode?student_id=${encodeURIComponent(studentId)}`,
   },
 
   // Progress — same query-param pattern for admission numbers
@@ -135,5 +137,11 @@ export const ENDPOINTS = {
     GET: (studentId: string) => `/kids/parental-controls?student_id=${encodeURIComponent(studentId)}`,
     SET: '/kids/parental-controls',
     CHECK: (studentId: string) => `/kids/parental-controls/check?student_id=${encodeURIComponent(studentId)}`,
+  },
+
+  // Open-source media library (save to our bucket)
+  MEDIA: {
+    SAVE_OPENSOURCE: '/media/save-opensource',
+    SAVE_BATCH: '/media/save-opensource-batch',
   },
 } as const;

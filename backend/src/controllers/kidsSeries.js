@@ -275,6 +275,106 @@ async function getUnitLockStatus(req, res) {
   }
 }
 
+/**
+ * GET /kids/lessons/:id/suggested-mode?student_id=X
+ * Given a lesson ID, find which unit it belongs to and suggest the best mode.
+ * - First access to a newly unlocked unit → 'learning'
+ * - Has some progress but hasn't tested → 'practice'
+ * - Has tested before → null (let student choose)
+ */
+async function getUnitSuggestedMode(req, res) {
+  try {
+    const { id: lessonId } = req.params;
+    const studentId = req.query.student_id || req.body?.student_id;
+    if (!studentId) {
+      return res.status(400).json({ success: false, message: 'student_id is required.' });
+    }
+
+    // Find which unit contains this lesson by scanning all units' content_items
+    const allUnits = await db.KidGameUnit.findAll();
+    let matchedUnit = null;
+
+    for (const u of allUnits) {
+      const items = Array.isArray(u.content_items) ? u.content_items : [];
+      const found = items.some((ci) => {
+        const itemId = ci.item_id || ci.id;
+        const lessonRef = ci.lesson_id;
+        return itemId === lessonId || lessonRef === lessonId;
+      });
+      if (found) { matchedUnit = u; break; }
+    }
+
+    // Not part of any unit → no suggestion
+    if (!matchedUnit) {
+      return res.json({ success: true, data: { suggested_mode: null, reason: null } });
+    }
+
+    // No prerequisite → always unlocked from start — don't force learning
+    if (!matchedUnit.prerequisite_unit_id) {
+      return res.json({ success: true, data: { suggested_mode: null, reason: null } });
+    }
+
+    // Check if the prerequisite is actually passed
+    const prereqUnit = await db.KidGameUnit.findByPk(matchedUnit.prerequisite_unit_id);
+    if (!prereqUnit) {
+      return res.json({ success: true, data: { suggested_mode: null, reason: null } });
+    }
+
+    const prereqItemIds = Array.isArray(prereqUnit.content_items)
+      ? prereqUnit.content_items.map((ci) => ci.item_id || ci.id).filter(Boolean)
+      : [];
+
+    const passed = prereqItemIds.length > 0
+      ? await db.KidTestAttempt.findOne({
+          where: { student_id: studentId, item_id: { [Op.in]: prereqItemIds }, result: 'pass' },
+        })
+      : null;
+
+    // Prerequisite not passed → unit still locked, no suggestion
+    if (!passed) {
+      return res.json({ success: true, data: { suggested_mode: null, reason: null } });
+    }
+
+    // Prerequisite IS passed — check if student has any activity in THIS unit
+    const thisUnitItemIds = Array.isArray(matchedUnit.content_items)
+      ? matchedUnit.content_items.map((ci) => ci.item_id || ci.id).filter(Boolean)
+      : [];
+
+    if (thisUnitItemIds.length === 0) {
+      return res.json({ success: true, data: { suggested_mode: 'learning', reason: 'New unit unlocked!' } });
+    }
+
+    // Check for any test attempts on items in this unit
+    const hasTried = await db.KidTestAttempt.findOne({
+      where: { student_id: studentId, item_id: { [Op.in]: thisUnitItemIds } },
+    });
+
+    if (hasTried) {
+      // Already tested → let student choose
+      return res.json({ success: true, data: { suggested_mode: null, reason: null } });
+    }
+
+    // Check for any practice/learning activity (kid_progress or item responses)
+    const hasActivity = await db.KidGameItemResponse.findOne({
+      where: { student_id: studentId, item_id: { [Op.in]: thisUnitItemIds } },
+    }).catch(() => null);
+
+    if (hasActivity) {
+      // Has practiced but not tested → suggest practice
+      return res.json({ success: true, data: { suggested_mode: 'practice', reason: 'Keep practicing!' } });
+    }
+
+    // No activity at all → this is first access → suggest learning
+    return res.json({
+      success: true,
+      data: { suggested_mode: 'learning', reason: `Great job finishing Unit ${prereqUnit.unit_number}! Let's learn Unit ${matchedUnit.unit_number}.` },
+    });
+  } catch (err) {
+    console.error('getUnitSuggestedMode error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 module.exports = {
   createSeries,
   listSeries,
@@ -282,4 +382,5 @@ module.exports = {
   createUnit,
   updateUnit,
   getUnitLockStatus,
+  getUnitSuggestedMode,
 };

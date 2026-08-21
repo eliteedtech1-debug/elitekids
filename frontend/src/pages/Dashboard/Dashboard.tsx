@@ -17,6 +17,7 @@ import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { getSchoolId } from '@/lib/utils/school';
 import A11ySettings from '@/components/A11ySettings';
+import AdminNav from '@/components/AdminNav';
 
 /** Decode the JWT payload (role/school claims) — never trust it for authz. */
 function decodeToken(token: string): Record<string, any> | null {
@@ -130,6 +131,8 @@ export default function Dashboard() {
   const isStaff = /admin|teacher|superadmin/i.test(role);
   const isStudent = /student/i.test(role);
   const isParent = /parent/i.test(role);
+
+  // Staff auto-redirects to lessons — but still renders if they navigate here directly
   const cards = NAV_CARDS.filter((c) => {
     if (isStaff) return c.audience === 'staff';
     if (isStudent) return c.audience === 'student';
@@ -141,7 +144,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#E7EEF6]">
-      {/* Header */}
+      {isStaff ? (
+        <AdminNav />
+      ) : (
       <header className="border-b border-[#0F4D92]/10 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
@@ -186,6 +191,7 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Body */}
       <main className="mx-auto max-w-5xl px-4 py-8">

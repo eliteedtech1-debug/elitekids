@@ -14,6 +14,7 @@ const {
   recordGameComplete,
   childProgress,
   decideApproval,
+  approveLesson,
   listApprovals,
   listParentActivities,
   listLessons,
@@ -26,6 +27,7 @@ const {
   createUnit,
   updateUnit,
   getUnitLockStatus,
+  getUnitSuggestedMode,
 } = require('../controllers/kidsSeries');
 const {
   getOnboardingStatus,
@@ -132,6 +134,7 @@ module.exports = (app) => {
   // ── Review & safety pipeline (staff-only: approve/reject content) ─────
   app.get('/kids/approvals', auth, listApprovals);
   app.post('/kids/approvals/:id/decide', auth, requireStaff, decideApproval);
+  app.post('/kids/lessons/:id/approve', auth, requireStaff, approveLesson);
 
   // ── Game Series & Unit Sequencing (Doc 12) ──────────────────────────
   app.post('/kids/series', auth, requireStaff, createSeries);
@@ -140,6 +143,7 @@ module.exports = (app) => {
   app.post('/kids/series/:id/units', auth, requireStaff, createUnit);
   app.put('/kids/series/:id/units/:unitId', auth, requireStaff, updateUnit);
   app.get('/kids/units/:id/lock-status', auth, getUnitLockStatus);
+  app.get('/kids/lessons/:id/suggested-mode', auth, getUnitSuggestedMode);
 
   // ── Interface Onboarding (Doc 16) ───────────────────────────────────
   app.get('/kids/onboarding/status', auth, getOnboardingStatus);

@@ -16,6 +16,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import AdminNav from '@/components/AdminNav';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -86,22 +87,9 @@ export default function TeacherApprovals() {
 
   return (
     <div className="min-h-screen bg-[#E7EEF6]">
-      {/* Header */}
-      <header className="border-b border-[#0F4D92]/10 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-center gap-4 px-4 py-3">
-          <ShieldCheck className="h-6 w-6 text-amber-500" />
-          <h1 className="text-lg font-bold text-[#0F4D92]">Content Review</h1>
-        </div>
-      </header>
+      <AdminNav pendingCount={approvals.length} />
 
       <main className="mx-auto max-w-5xl px-4 py-6">
-        {/* Back link */}
-        <Link
-          to="/teacher/lessons"
-          className="mb-4 inline-flex items-center gap-1 text-sm text-[#0F4D92] hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Lessons
-        </Link>
 
         {/* Info */}
         <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 p-4">

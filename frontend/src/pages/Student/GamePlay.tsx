@@ -2110,6 +2110,29 @@ export default function GamePlay() {
       .catch(() => {}); // No lock — child can choose freely
   }, [lessonId, admissionNo, className]);
 
+  // ── Natural progression: suggest learning mode for newly unlocked units ──
+  const suggestedModeApplied = useRef(false);
+  useEffect(() => {
+    if (!lessonId || !admissionNo || suggestedModeApplied.current || loading) return;
+    // Fetch suggested mode — checks if this lesson belongs to a unit
+    // whose prerequisite was just passed and the student hasn't played yet
+    apiClient.get(ENDPOINTS.LESSONS.SUGGESTED_MODE(lessonId, admissionNo))
+      .then((res) => {
+        const { suggested_mode, reason } = res.data?.data || {};
+        if (suggested_mode && !suggestedModeApplied.current) {
+          suggestedModeApplied.current = true;
+          setMode(suggested_mode as GameMode);
+          // Show a friendly toast about the progression
+          if (reason) {
+            import('react-hot-toast').then(({ default: toast }) => {
+              toast(reason, { icon: '🎓', duration: 4000 });
+            });
+          }
+        }
+      })
+      .catch(() => {}); // No suggestion — let child choose freely
+  }, [lessonId, admissionNo, loading]);
+
   // Session Fatigue: suggest break after 7 minutes (Doc 16 §5)
   useEffect(() => {
     if (mode === 'learning' || breakDismissed) return;
@@ -2374,6 +2397,34 @@ export default function GamePlay() {
           </button>
         </header>
 
+        {/* ── Mode picker on intro — choose before you play ── */}
+        <div className="px-4 py-2 bg-white/60 backdrop-blur border-b border-white/50">
+          <div className="mx-auto flex max-w-md gap-1 rounded-xl bg-white p-1 shadow-sm">
+            {([
+              { key: 'learning' as GameMode, icon: '📺', label: 'Learn' },
+              { key: 'practice' as GameMode, icon: '🎯', label: 'Practice' },
+              { key: 'test' as GameMode, icon: '📝', label: 'Test' },
+            ]).map((m) => (
+              <button
+                key={m.key}
+                onClick={() => handleModeSelect(m.key)}
+                className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-2 text-sm font-semibold transition-all active:scale-95 ${
+                  mode === m.key
+                    ? m.key === 'learning'
+                      ? 'bg-purple-500 text-white shadow-sm'
+                      : m.key === 'test'
+                      ? 'bg-blue-500 text-white shadow-sm'
+                      : 'bg-green-500 text-white shadow-sm'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                }`}
+              >
+                <span>{m.icon}</span>
+                <span>{m.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-1 flex-col items-center justify-center px-6">
           {/* Scene text cards with stagger entrance */}
           {sceneTexts.map((s, i) => (
@@ -2415,25 +2466,33 @@ export default function GamePlay() {
             </div>
           )}
 
-          {/* Next / Play button */}
-          <button
-            onClick={advanceIntro}
-            className={`mt-4 rounded-xl px-8 py-3 text-base font-semibold text-white shadow-lg transition-all hover:scale-105 active:scale-95 animate-game-spring-in stagger-5 ${
-              isLastScene
-                ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
-                : 'bg-[#0F4D92] hover:bg-[#0D3F7A]'
-            }`}
-          >
-            {isLastScene ? (
-              <span className="flex items-center gap-2">
-                <Gamepad2 className="h-5 w-5" /> Let's Play! 🎮
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                Next <span className="animate-game-bounce inline-block">→</span>
-              </span>
-            )}
-          </button>
+          {/* Next / Play button + Skip to Play */}
+          <div className="mt-4 flex flex-col items-center gap-2 animate-game-spring-in stagger-5">
+            <button
+              onClick={advanceIntro}
+              className={`rounded-xl px-8 py-3 text-base font-semibold text-white shadow-lg transition-all hover:scale-105 active:scale-95 ${
+                isLastScene
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                  : 'bg-[#0F4D92] hover:bg-[#0D3F7A]'
+              }`}
+            >
+              {isLastScene ? (
+                <span className="flex items-center gap-2">
+                  <Gamepad2 className="h-5 w-5" /> Let's Play! 🎮
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  Next <span className="animate-game-bounce inline-block">→</span>
+                </span>
+              )}
+            </button>
+            <button
+              onClick={handleSkipIntro}
+              className="text-sm text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
+            >
+              Skip story → Play now
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -2514,50 +2573,17 @@ export default function GamePlay() {
   /* ── Play Phase ── */
   return (
     <div className="flex min-h-screen flex-col bg-[#E7EEF6]">
-      <header className="flex items-center gap-2 border-b border-white/50 bg-white/80 px-3 py-2.5 backdrop-blur">
-        <button onClick={() => navigate('/student')} className="rounded-lg p-1.5 hover:bg-gray-100">
+      <header className="flex items-center gap-1.5 border-b border-white/50 bg-white/80 px-2 py-2 sm:gap-2 sm:px-3 sm:py-2.5 backdrop-blur">
+        <button onClick={() => navigate('/student')} className="rounded-lg p-2 sm:p-1.5 hover:bg-gray-100 active:scale-95">
           <ArrowLeft className="h-5 w-5 text-gray-600" />
         </button>
-        <h1 className="text-xs font-semibold text-gray-700 capitalize shrink-0">{config.template.replace('-', ' ')}</h1>
-        {/* Mode switcher tabs */}
-        <div className="flex-1 flex justify-center">
-          <div className="flex gap-0.5 rounded-xl bg-gray-100 p-0.5">
-            {([
-              { key: 'learning' as GameMode, icon: '📺', label: 'Learn', color: 'purple' },
-              { key: 'practice' as GameMode, icon: '🎯', label: 'Practice', color: 'green' },
-              { key: 'test' as GameMode, icon: '📝', label: 'Test', color: 'blue' },
-            ]).map((m) => {
-              const isLockedTab = isModeLocked && mode === m.key;
-              return (
-                <button
-                  key={m.key}
-                  onClick={() => handleModeSelect(m.key)}
-                  disabled={isModeLocked}
-                  title={isModeLocked ? `Locked by ${modeLock?.locked_by_role} (${modeLock?.locked_by_name || ''})` : undefined}
-                  className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${
-                    mode === m.key
-                      ? m.key === 'learning'
-                        ? 'bg-purple-500 text-white shadow-sm'
-                        : m.key === 'test'
-                        ? 'bg-blue-500 text-white shadow-sm'
-                        : 'bg-green-500 text-white shadow-sm'
-                      : isModeLocked
-                      ? 'text-gray-400 cursor-not-allowed'
-                      : 'text-gray-500 hover:bg-white hover:text-gray-700'
-                  }`}
-                >
-                  <span>{m.icon}</span>
-                  <span className="hidden sm:inline">{m.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <h1 className="text-[11px] sm:text-xs font-semibold text-gray-700 capitalize shrink-0">{config.template.replace('-', ' ')}</h1>
+        <div className="flex-1" />
         {/* Lock indicator + toggle (teacher/parent only) */}
         {canLockMode && (
           <button
             onClick={handleLockMode}
-            className={`rounded-lg px-2 py-1.5 text-xs font-semibold transition-all ${
+            className={`rounded-lg p-2 sm:px-2 sm:py-1.5 text-xs font-semibold transition-all active:scale-95 ${
               isModeLocked
                 ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                 : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
@@ -2579,22 +2605,54 @@ export default function GamePlay() {
         )}
         <button
           onClick={toggleColorblind}
-          className={`rounded-lg p-1.5 transition-all ${colorblindMode ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100 text-gray-400'}`}
+          className={`rounded-lg p-2 sm:p-1.5 transition-all active:scale-95 ${colorblindMode ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100 text-gray-400'}`}
           title={colorblindMode ? 'Colorblind mode ON' : 'Colorblind mode OFF'}
           aria-label="Toggle colorblind-safe colors"
         >
-          <Palette className="h-4 w-4" />
+          <Palette className="h-5 w-5" />
         </button>
-        <button onClick={() => setSoundOn(!soundOn)} className="rounded-lg p-1.5 hover:bg-gray-100">
-          {soundOn ? <Volume2 className="h-4 w-4 text-[#0F4D92]" /> : <VolumeX className="h-4 w-4 text-gray-400" />}
+        <button onClick={() => setSoundOn(!soundOn)} className="rounded-lg p-2 sm:p-1.5 hover:bg-gray-100 active:scale-95">
+          {soundOn ? <Volume2 className="h-5 w-5 text-[#0F4D92]" /> : <VolumeX className="h-5 w-5 text-gray-400" />}
         </button>
         <SpeechSettings />
         {mode !== 'learning' && (
-          <span className={`rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-600 transition-all ${scoreBounce ? 'animate-game-score-bounce' : ''}`}>
+          <span className={`rounded-full bg-amber-100 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-amber-600 transition-all ${scoreBounce ? 'animate-game-score-bounce' : ''}`}>
             ⭐ {score}
           </span>
         )}
       </header>
+
+      {/* ── Mode switcher bar (always visible, prominent) ── */}
+      <div className="bg-white px-3 py-2 border-b border-gray-100">
+        <div className="mx-auto flex max-w-lg gap-1 rounded-xl bg-gray-100 p-1">
+          {([
+            { key: 'learning' as GameMode, icon: '📺', label: 'Learn', color: 'purple', desc: 'Watch & learn' },
+            { key: 'practice' as GameMode, icon: '🎯', label: 'Practice', color: 'green', desc: 'Instant feedback' },
+            { key: 'test' as GameMode, icon: '📝', label: 'Test', color: 'blue', desc: 'No hints' },
+          ]).map((m) => (
+            <button
+              key={m.key}
+              onClick={() => handleModeSelect(m.key)}
+              disabled={isModeLocked}
+              title={isModeLocked ? `Locked by ${modeLock?.locked_by_role} (${modeLock?.locked_by_name || ''})` : m.desc}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-3 sm:py-2.5 text-sm font-semibold transition-all active:scale-95 ${
+                mode === m.key
+                  ? m.key === 'learning'
+                    ? 'bg-purple-500 text-white shadow-md'
+                    : m.key === 'test'
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'bg-green-500 text-white shadow-md'
+                  : isModeLocked
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-500 hover:bg-white hover:text-gray-700 hover:shadow-sm'
+              }`}
+            >
+              <span className="text-base">{m.icon}</span>
+              <span>{m.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Timer bar — hidden in learning mode */}
       {mode !== 'learning' && (

@@ -8,8 +8,10 @@
  * Teachers tap to select; the game builder uses the asset.
  */
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Search, X, Volume2, Image, Smile, Music } from 'lucide-react';
+import { Search, X, Volume2, Image, Smile, Music, CloudUpload, Check, Loader2 } from 'lucide-react';
 import { EMOJI_CATEGORIES, searchEmojis, type EmojiEntry } from '@/lib/utils/emojiData';
+import apiClient from '@/lib/api/client';
+import { ENDPOINTS } from '@/lib/api/endpoints';
 
 const TWEMOJI_CDN = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72';
 
@@ -202,6 +204,8 @@ interface MediaLibraryProps {
   filter?: 'emoji' | 'sound' | 'all';
   /** Pre-selected category */
   initialCategory?: string;
+  /** When true, auto-save selected assets to bucket and pass stored URL */
+  saveToBucket?: boolean;
 }
 
 export default function MediaLibrary({
@@ -209,11 +213,14 @@ export default function MediaLibrary({
   onClose,
   filter = 'all',
   initialCategory = 'animals',
+  saveToBucket = true,
 }: MediaLibraryProps) {
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'browse' | 'search'>(filter === 'all' ? 'browse' : 'browse');
   const searchRef = useRef<HTMLInputElement>(null);
+  const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState<Set<string>>(new Set());
 
   // Get assets for current category
   const categoryAssets = useMemo(() => {
@@ -259,22 +266,52 @@ export default function MediaLibrary({
     return results.slice(0, 50);
   }, [search, filter]);
 
-  const handleSelect = useCallback((asset: any) => {
+  /** Save an open-source asset to our B2 bucket, return stored URL */
+  const saveAssetToBucket = useCallback(async (asset: any): Promise<string | undefined> => {
+    if (!saveToBucket) return undefined;
+    const sourceUrl = asset.imageUrl || (asset.codepoint ? toImageUrl(asset.emoji, asset.codepoint) : undefined);
+    if (!sourceUrl) return undefined;
+    const cacheKey = sourceUrl;
+    if (saved.has(cacheKey)) return sourceUrl; // already saved
+    if (saving.has(cacheKey)) return sourceUrl; // in progress
+    try {
+      setSaving((s) => new Set(s).add(cacheKey));
+      const res = await apiClient.post(ENDPOINTS.MEDIA.SAVE_OPENSOURCE, {
+        url: sourceUrl,
+        label: asset.label,
+        category: asset.category || 'misc',
+      });
+      const storedUrl = res.data?.data?.url;
+      if (storedUrl) {
+        setSaved((s) => new Set(s).add(cacheKey));
+        return storedUrl;
+      }
+    } catch (err) {
+      console.warn('Failed to save asset to bucket:', err);
+    } finally {
+      setSaving((s) => { const next = new Set(s); next.delete(cacheKey); return next; });
+    }
+    return sourceUrl; // fallback to CDN URL
+  }, [saveToBucket, saved, saving]);
+
+  const handleSelect = useCallback(async (asset: any) => {
+    // Save to bucket in background (non-blocking)
+    const storedUrl = await saveAssetToBucket(asset);
     if (asset.type === 'sound') {
       onSelect({
         emoji: asset.emoji || '🔊',
         label: asset.label,
-        imageUrl: asset.emoji ? toImageUrl(asset.emoji) : undefined,
+        imageUrl: storedUrl || (asset.emoji ? toImageUrl(asset.emoji) : undefined),
         soundText: asset.speakText,
       });
     } else {
       onSelect({
         emoji: asset.emoji,
         label: asset.label,
-        imageUrl: asset.imageUrl || (asset.codepoint ? toImageUrl(asset.emoji, asset.codepoint) : undefined),
+        imageUrl: storedUrl || asset.imageUrl || (asset.codepoint ? toImageUrl(asset.emoji, asset.codepoint) : undefined),
       });
     }
-  }, [onSelect]);
+  }, [onSelect, saveAssetToBucket]);
 
   // Play sound preview
   const playSound = useCallback((text: string) => {
@@ -336,6 +373,15 @@ export default function MediaLibrary({
         </div>
       )}
 
+      {/* Bucket save status bar */}
+      {(saving.size > 0 || saved.size > 0) && (
+        <div className="flex items-center gap-2 border-b bg-green-50/80 px-4 py-1.5 text-xs text-green-700">
+          <CloudUpload className="h-3.5 w-3.5" />
+          {saving.size > 0 && <span>Saving {saving.size} asset{saving.size > 1 ? 's' : ''}...</span>}
+          {saved.size > 0 && <span>✓ {saved.size} saved to your bucket</span>}
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
         {activeTab === 'search' ? (
@@ -344,7 +390,8 @@ export default function MediaLibrary({
           ) : (
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
               {searchResults.map((asset, i) => (
-                <AssetCard key={`${asset.emoji}-${i}`} asset={asset} onSelect={handleSelect} onPlaySound={playSound} />
+                <AssetCard key={`${asset.emoji}-${i}`} asset={asset} onSelect={handleSelect} onPlaySound={playSound}
+                  isSaving={saving.has(asset.imageUrl || '')} isSaved={saved.has(asset.imageUrl || '')} />
               ))}
             </div>
           )
@@ -357,7 +404,8 @@ export default function MediaLibrary({
             </p>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
               {categoryAssets.map((asset: any, i: number) => (
-                <AssetCard key={`${asset.emoji}-${i}`} asset={asset} onSelect={handleSelect} onPlaySound={playSound} />
+                <AssetCard key={`${asset.emoji}-${i}`} asset={asset} onSelect={handleSelect} onPlaySound={playSound}
+                  isSaving={saving.has(asset.imageUrl || '')} isSaved={saved.has(asset.imageUrl || '')} />
               ))}
             </div>
           </>
@@ -373,10 +421,14 @@ function AssetCard({
   asset,
   onSelect,
   onPlaySound,
+  isSaving,
+  isSaved,
 }: {
   asset: any;
   onSelect: (a: any) => void;
   onPlaySound: (text: string) => void;
+  isSaving?: boolean;
+  isSaved?: boolean;
 }) {
   const isSound = asset.type === 'sound' || asset.soundType === 'speak';
   const imageUrl = asset.imageUrl || (asset.codepoint ? toImageUrl(asset.emoji, asset.codepoint) : undefined);
@@ -387,7 +439,7 @@ function AssetCard({
       className="group relative flex flex-col items-center gap-1 rounded-xl border border-gray-100 bg-white p-2 transition-all hover:border-[#0F4D92] hover:shadow-md hover:animate-game-squish active:scale-95"
     >
       {/* Image/Emoji */}
-      <div className="flex h-12 w-12 items-center justify-center">
+      <div className="relative flex h-12 w-12 items-center justify-center">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -400,6 +452,17 @@ function AssetCard({
           />
         ) : null}
         <span className={`text-3xl ${imageUrl ? 'hidden' : ''}`}>{asset.emoji}</span>
+        {/* Save indicator */}
+        {isSaving && (
+          <div className="absolute -bottom-0.5 -right-0.5 rounded-full bg-amber-500 p-0.5">
+            <Loader2 className="h-2.5 w-2.5 text-white animate-spin" />
+          </div>
+        )}
+        {isSaved && !isSaving && (
+          <div className="absolute -bottom-0.5 -right-0.5 rounded-full bg-green-500 p-0.5">
+            <Check className="h-2.5 w-2.5 text-white" />
+          </div>
+        )}
       </div>
       <span className="text-[10px] font-medium text-gray-600 leading-tight text-center">{asset.label}</span>
       {/* Sound preview button */}

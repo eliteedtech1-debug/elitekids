@@ -311,22 +311,22 @@ export default function StudentHome() {
       )}
       {/* Header */}
       <header className="border-b border-[#0F4D92]/10 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <img src="/logo.svg" alt="Elite Kids" className="h-10 w-10 rounded-full object-contain" />
             <div>
-              <h1 className="text-lg font-bold leading-tight text-[#0F4D92] animate-game-slide-left">Elite Kids</h1>
-              <p className="text-xs text-gray-500">Hello, {displayName}!</p>
+              <h1 className="text-base sm:text-lg font-bold leading-tight text-[#0F4D92] animate-game-slide-left">Elite Kids</h1>
+              <p className="text-[11px] sm:text-xs text-gray-500">Hello, {displayName}!</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <A11ySettings />
             <SpeechSettings />
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-2.5 py-2 sm:px-3 text-sm font-medium text-red-600 transition hover:bg-red-50 active:scale-95"
             >
-              <LogOut className="h-4 w-4" /> Sign out
+              <LogOut className="h-5 w-5" /> <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>

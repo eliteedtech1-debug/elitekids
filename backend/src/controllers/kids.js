@@ -715,6 +715,82 @@ async function decideApproval(req, res) {
   }
 }
 
+/** POST /kids/lessons/:id/approve — approve ALL pending approvals for a lesson at once. */
+async function approveLesson(req, res) {
+  try {
+    const { id } = req.params;
+    const { decision, reason } = req.body || {};
+    if (!['approve', 'reject'].includes(decision)) {
+      return res.status(400).json({ success: false, message: "decision must be 'approve' or 'reject'." });
+    }
+
+    const lesson = await db.KidLesson.findByPk(id);
+    if (!lesson) return res.status(404).json({ success: false, message: 'Lesson not found.' });
+
+    // Find all pending approvals that reference this lesson (directly or via game_config)
+    const gameConfigs = await db.KidGameConfig.findAll({ where: { lesson_id: id } });
+    const gameConfigIds = gameConfigs.map((g) => String(g.id));
+
+    const approvals = await db.KidContentApproval.findAll({
+      where: {
+        status: 'pending',
+        [db.Sequelize.Op.or]: [
+          { content_id: id },                           // scene_script or lesson
+          { content_id: { [db.Sequelize.Op.in]: gameConfigIds } }, // game_config
+        ],
+      },
+    });
+
+    if (approvals.length === 0) {
+      return res.status(404).json({ success: false, message: 'No pending approvals for this lesson.' });
+    }
+
+    const nextState = decision === 'approve' ? 'published' : 'generated';
+    const reviewed = [];
+
+    for (const approval of approvals) {
+      await approval.update({
+        status: decision === 'approve' ? 'approved' : 'rejected',
+        reviewed_by: req.user.id,
+        reviewed_at: new Date(),
+        rejection_reason: decision === 'reject' ? reason || null : null,
+      });
+      reviewed.push(approval.id);
+
+      if (approval.content_type === 'scene_script') {
+        await db.KidSceneScript.update(
+          { content_state: nextState },
+          { where: { lesson_id: id, content_state: 'pending_human_review' } },
+        );
+      } else if (approval.content_type === 'game_config') {
+        const gc = await db.KidGameConfig.findByPk(approval.content_id);
+        if (gc) {
+          const gcUpdate = { content_state: nextState };
+          await gc.update(gcUpdate);
+        }
+      } else if (approval.content_type === 'lesson') {
+        await lesson.update({ content_state: nextState });
+      }
+    }
+
+    // Also update game configs directly (some may not have approval records)
+    if (decision === 'approve') {
+      await db.KidGameConfig.update(
+        { content_state: 'published', approved_by: req.user.id, approved_at: new Date(), published_at: new Date() },
+        { where: { lesson_id: id, content_state: 'pending_human_review' } },
+      );
+      await lesson.update({ content_state: 'published', approved_by: req.user.id, approved_at: new Date(), published_at: new Date() });
+    } else {
+      await lesson.update({ content_state: 'generated' });
+    }
+
+    return res.json({ success: true, message: `${decision === 'approve' ? 'Approved' : 'Rejected'} ${reviewed.length} item(s).`, reviewed });
+  } catch (err) {
+    console.error('approveLesson error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 /** GET /kids/approvals — the human review queue. */
 async function listApprovals(req, res) {
   try {
@@ -838,6 +914,7 @@ module.exports = {
   childProgress,
   getPuzzleDifficultyStatus,
   decideApproval,
+  approveLesson,
   listApprovals,
   listParentActivities,
   listLessons,
