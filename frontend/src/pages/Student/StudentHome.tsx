@@ -464,12 +464,11 @@ export default function StudentHome() {
                   const avgScore = stat?.avg_score || 0;
                   const bestScore = stat?.best_score || 0;
                   return (
-                    <Link
+                    <div
                       key={lesson.id}
-                      to={`/student/game/${lesson.id}`}
-                      onClick={() => playTap()}
-                      className={`game-card-hover block rounded-2xl border p-5 text-left no-underline shadow-sm animate-game-slide-up stagger-${Math.min(cardIdx + 1, 12)} ${played > 0 ? 'border-green-200 bg-green-50/30' : 'border-[#0F4D92]/10 bg-white'}`}
+                      className={`game-card-hover rounded-2xl border p-5 shadow-sm animate-game-slide-up stagger-${Math.min(cardIdx + 1, 12)} ${played > 0 ? 'border-green-200 bg-green-50/30' : 'border-[#0F4D92]/10 bg-white'}`}
                     >
+                      {/* Card top: icon + badge */}
                       <div className="mb-3 flex items-center justify-between">
                         <div className="relative">
                           <span className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${played > 0 ? 'bg-green-100 text-green-600' : 'bg-[#0F4D92]/10 text-[#0F4D92]'}`}>
@@ -523,7 +522,33 @@ export default function StudentHome() {
                           </div>
                         </div>
                       )}
-                    </Link>
+                      {/* Quick mode select — tap to jump directly to that mode */}
+                      {lesson.has_games && (
+                        <div className="mt-3 flex gap-1.5 border-t border-gray-100 pt-3">
+                          <Link
+                            to={`/student/game/${lesson.id}?mode=learning`}
+                            onClick={(e) => { e.stopPropagation(); playTap(); }}
+                            className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-purple-50 py-2 text-xs font-semibold text-purple-600 border border-purple-100 hover:bg-purple-100 hover:shadow-sm active:scale-95 transition-all"
+                          >
+                            📺 Learn
+                          </Link>
+                          <Link
+                            to={`/student/game/${lesson.id}?mode=practice`}
+                            onClick={(e) => { e.stopPropagation(); playTap(); }}
+                            className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-green-50 py-2 text-xs font-semibold text-green-600 border border-green-100 hover:bg-green-100 hover:shadow-sm active:scale-95 transition-all"
+                          >
+                            🎯 Practice
+                          </Link>
+                          <Link
+                            to={`/student/game/${lesson.id}?mode=test`}
+                            onClick={(e) => { e.stopPropagation(); playTap(); }}
+                            className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-50 py-2 text-xs font-semibold text-blue-600 border border-blue-100 hover:bg-blue-100 hover:shadow-sm active:scale-95 transition-all"
+                          >
+                            📝 Test
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>

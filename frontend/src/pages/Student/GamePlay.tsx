@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Loader2,
@@ -1233,76 +1233,6 @@ function QuizGame({
 
 /* ── Mode Selector Screen ──────────────────────────────────── */
 
-function ModeSelector({
-  onStart,
-  hasScenes,
-  onSkipIntro,
-}: {
-  onStart: (mode: GameMode) => void;
-  hasScenes: boolean;
-  onSkipIntro: () => void;
-}) {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#E7EEF6] to-white px-6">
-      <div className="w-full max-w-sm text-center">
-        <Gamepad2 className="mx-auto mb-4 h-14 w-14 text-[#0F4D92] animate-game-trophy-drop" />
-        <h1 className="mb-2 text-2xl font-bold text-gray-800 animate-game-slide-up stagger-1">Choose Your Mode</h1>
-        <p className="mb-8 text-sm text-gray-500 animate-game-slide-up stagger-2">How do you want to play?</p>
-
-        <div className="space-y-4">
-          <button
-            onClick={() => { playTap(); onStart('learning'); }}
-            className="w-full rounded-2xl border-2 border-purple-200 bg-purple-50 p-5 text-left transition-all hover:border-purple-400 hover:shadow-md hover:animate-game-squish active:scale-[0.98] animate-game-slide-up stagger-3"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-lg">📺</span>
-              <div>
-                <h3 className="font-bold text-purple-800">Learning Mode</h3>
-                <p className="text-xs text-purple-600">Watch and learn! The game plays itself perfectly.</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => { playTap(); onStart('practice'); }}
-            className="w-full rounded-2xl border-2 border-green-200 bg-green-50 p-5 text-left transition-all hover:border-green-400 hover:shadow-md hover:animate-game-squish active:scale-[0.98] animate-game-slide-up stagger-4"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 text-lg">🎯</span>
-              <div>
-                <h3 className="font-bold text-green-800">Practice Mode</h3>
-                <p className="text-xs text-green-600">See if you're right instantly. Learn as you play!</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => { playTap(); onStart('test'); }}
-            className="w-full rounded-2xl border-2 border-blue-200 bg-blue-50 p-5 text-left transition-all hover:border-blue-400 hover:shadow-md hover:animate-game-squish active:scale-[0.98] animate-game-slide-up stagger-5"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-lg">📝</span>
-              <div>
-                <h3 className="font-bold text-blue-800">Test Mode</h3>
-                <p className="text-xs text-blue-600">No hints! Submit when done and see your score.</p>
-              </div>
-            </div>
-          </button>
-        </div>
-
-        {hasScenes && (
-          <button
-            onClick={() => { playTap(); onSkipIntro(); }}
-            className="mt-6 text-sm text-gray-400 underline underline-offset-2 hover:text-gray-600 animate-game-slide-up stagger-5"
-          >
-            Skip story intro →
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ── Waiting for Submit (Test Mode) ─────────────────────── */
 
 function WaitingSubmit({
@@ -1996,8 +1926,14 @@ function PuzzleGame({
 export default function GamePlay() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<Phase>('play');
-  const [mode, setMode] = useState<GameMode>('practice');
+  const [searchParams] = useSearchParams();
+  const urlMode = (searchParams.get('mode') || '').toLowerCase();
+  const validUrlMode = (['learning', 'practice', 'test'] as string[]).includes(urlMode) ? urlMode as GameMode : null;
+  // Restore last-used mode from localStorage, or use URL param, or default to practice
+  const savedModeKey = lessonId ? `kids_mode_${lessonId}` : '';
+  const savedMode = savedModeKey ? (localStorage.getItem(savedModeKey) as GameMode | null) : null;
+  const [phase, setPhase] = useState<Phase>(validUrlMode ? 'play' : 'play');
+  const [mode, setMode] = useState<GameMode>(validUrlMode || savedMode || 'practice');
   const [config, setConfig] = useState<GameConfig | null>(null);
   const [scenes, setScenes] = useState<SceneWrapper[]>([]);
   const [sceneIdx, setSceneIdx] = useState(0);
@@ -2021,6 +1957,13 @@ export default function GamePlay() {
   // Mode lock state (Teacher > Parent > Child hierarchy)
   const [modeLock, setModeLock] = useState<{ locked_mode: string; locked_by_role: string; locked_by_name?: string; class_code?: string } | null>(null);
   const [modeLocked, setModeLocked] = useState(false);
+
+  // Persist mode to localStorage per lesson (so next visit remembers)
+  useEffect(() => {
+    if (lessonId && mode) {
+      try { localStorage.setItem(`kids_mode_${lessonId}`, mode); } catch {}
+    }
+  }, [mode, lessonId]);
   const isModeLocked = modeLocked;
 
   // Trigger score bounce on change
@@ -2072,10 +2015,18 @@ export default function GamePlay() {
       .finally(() => setLoading(false));
   }, [lessonId]);
 
-  // After loading, if there are scenes, show intro first
+  // After loading, if there are scenes, show intro first — UNLESS mode was pre-selected from URL or saved
   const introShown = useRef(false);
   useEffect(() => {
     if (!loading && config && scenes.length > 0 && !introShown.current) {
+      // If mode was pre-selected (URL param or localStorage), skip intro → go straight to play
+      if (validUrlMode || savedMode) {
+        introShown.current = true;
+        setPhase('play');
+        setTimerRunning(mode !== 'learning');
+        setTimerKey((k) => k + 1);
+        return;
+      }
       introShown.current = true;
       setPhase('intro');
       setSceneIdx(0);
@@ -2398,18 +2349,26 @@ export default function GamePlay() {
           </button>
         </header>
 
-        {/* ── Mode picker on intro — choose before you play ── */}
+        {/* ── Mode picker on intro — tap to start playing immediately ── */}
         <div className="px-4 py-2 bg-white/60 backdrop-blur border-b border-white/50">
+          <p className="text-center text-[10px] text-gray-400 mb-1.5">Tap a mode to start playing</p>
           <div className="mx-auto flex max-w-md gap-1 rounded-xl bg-white p-1 shadow-sm">
             {([
-              { key: 'learning' as GameMode, icon: '📺', label: 'Learn' },
-              { key: 'practice' as GameMode, icon: '🎯', label: 'Practice' },
-              { key: 'test' as GameMode, icon: '📝', label: 'Test' },
+              { key: 'learning' as GameMode, icon: '📺', label: 'Learn', color: 'purple' },
+              { key: 'practice' as GameMode, icon: '🎯', label: 'Practice', color: 'green' },
+              { key: 'test' as GameMode, icon: '📝', label: 'Test', color: 'blue' },
             ]).map((m) => (
               <button
                 key={m.key}
-                onClick={() => handleModeSelect(m.key)}
-                className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-2 text-sm font-semibold transition-all active:scale-95 ${
+                onClick={() => {
+                  playTap();
+                  handleModeSelect(m.key);
+                  // Start playing immediately — skip intro
+                  setPhase('play');
+                  setTimerKey((k) => k + 1);
+                  setTimerRunning(m.key !== 'learning');
+                }}
+                className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-2.5 text-sm font-semibold transition-all active:scale-95 ${
                   mode === m.key
                     ? m.key === 'learning'
                       ? 'bg-purple-500 text-white shadow-sm'
