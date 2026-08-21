@@ -1,0 +1,13 @@
+{
+  "name": "elite-kids",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EliteKids — nursery learning platform (root workspace)",
+  "scripts": {
+    "start:dev": "bash -c 'DIR=$(pwd); cd $DIR/backend && node src/index.js & sleep 4 && cd $DIR/frontend && VITE_API_URL=http://localhost:34600 npx vite --host --port 5173'",
+    "start:api": "cd backend && node src/index.js",
+    "start:fe": "cd frontend && VITE_API_URL=http://localhost:34600 npx vite --host --port 5173",
+    "build": "cd frontend && npm run build",
+    "test": "cd backend && npm test"
+  }
+}

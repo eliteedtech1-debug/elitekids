@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FillInBlankGameConfig",
+  "type": "object",
+  "required": ["gameId", "template", "lessonId", "ageLevel", "category", "tier", "item_id", "sentence", "blanks", "wordBank", "rewards", "successThresholdPct"],
+  "properties": {
+    "gameId": { "type": "string" },
+    "template": { "const": "fill-in-blank" },
+    "lessonId": { "type": "string" },
+    "ageLevel": { "type": "string", "enum": ["Creche", "Nursery", "KG1", "KG2", "Primary"] },
+    "category": { "type": "string" },
+    "tier": { "type": "integer", "minimum": 0, "maximum": 3 },
+    "item_id": { "type": "string" },
+    "durationTargetSec": { "type": "integer", "minimum": 15, "maximum": 300 },
+    "sentence": { "type": "string", "minLength": 10 },
+    "blanks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["id", "answer"],
+        "properties": {
+          "id": { "type": "integer", "minimum": 0 },
+          "answer": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "wordBank": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 12,
+      "items": { "type": "string" }
+    },
+    "rewards": {
+      "type": "object",
+      "required": ["starsOnComplete", "xp"],
+      "properties": {
+        "starsOnComplete": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "xp": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "successThresholdPct": { "type": "integer", "minimum": 0, "maximum": 100 }
+  }
+}

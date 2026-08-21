@@ -1,0 +1,272 @@
+@import "tailwindcss";
+@import "./lib/utils/animations.css";
+
+/* ══════════════════════════════════════════════════════════════════
+   CSS CUSTOM PROPERTIES — Accessibility Palette Tokens
+   ══════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+
+  /* ── Brand ─────────────────────────────────────────────── */
+  --color-primary: #0F4D92;
+  --color-primary-light: #E7EEF6;
+  --color-primary-hover: #0D3F7A;
+
+  /* ── Feedback (standard) ───────────────────────────────── */
+  --color-correct: #16A34A;
+  --color-correct-bg: #F0FDF4;
+  --color-correct-border: #4ADE80;
+  --color-wrong: #DC2626;
+  --color-wrong-bg: #FEF2F2;
+  --color-wrong-border: #F87171;
+
+  /* ── Feedback (colorblind-safe: blue/orange) ───────────── */
+  --color-cb-correct: #2563EB;
+  --color-cb-correct-bg: #EFF6FF;
+  --color-cb-correct-border: #60A5FA;
+  --color-cb-wrong: #EA580C;
+  --color-cb-wrong-bg: #FFF7ED;
+  --color-cb-wrong-border: #FB923C;
+
+  /* ── Timer ─────────────────────────────────────────────── */
+  --color-timer-safe: #16A34A;
+  --color-timer-warning: #F59E0B;
+  --color-timer-urgent: #DC2626;
+  --color-timer-urgent-cb: #D946EF;
+
+  /* ── Status ────────────────────────────────────────────── */
+  --color-online: #16A34A;
+  --color-offline: #F59E0B;
+  --color-error: #DC2626;
+
+  /* ── Touch targets ─────────────────────────────────────── */
+  --tap-target-min: 48px;
+  --tap-target-game: 56px;
+  --tap-spacing: 12px;
+
+  /* ── Focus ring ────────────────────────────────────────── */
+  --focus-ring-color: #3B82F6;
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+
+  /* ── Animation ─────────────────────────────────────────── */
+  --animation-duration: 1ms; /* overridden by data-reduced-motion */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Nunito',
+    'Fredoka',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background-color: var(--color-primary-light);
+  color: #1f2937;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Kid-friendly typography ─────────────────────────────── */
+.font-kid {
+  font-family: 'Fredoka', 'Nunito', sans-serif;
+  letter-spacing: 0.01em;
+}
+.font-kid-body {
+  font-family: 'Nunito', 'Fredoka', sans-serif;
+}
+
+/* Bigger touch targets for kids */
+.kid-btn {
+  min-height: var(--tap-target-game);
+  min-width: var(--tap-target-min);
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  font-family: 'Fredoka', 'Nunito', sans-serif;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.kid-btn:active {
+  transform: scale(0.95);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Focus Visible
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Remove default outline, add visible ring for keyboard users only */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: 8px;
+}
+
+/* Game buttons get a thicker ring */
+button:focus-visible,
+.kid-btn:focus-visible {
+  outline: 4px solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Skip-to-content link for keyboard navigation */
+.skip-to-content {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 9999;
+  padding: 12px 24px;
+  background: var(--color-primary);
+  color: white;
+  font-weight: 700;
+  border-radius: 0 0 12px 12px;
+  transition: top var(--transition-fast);
+}
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Reduced Motion
+   ══════════════════════════════════════════════════════════════════ */
+
+/* OS preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Manual toggle via data attribute */
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] *::before,
+[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — High Contrast
+   ══════════════════════════════════════════════════════════════════ */
+
+.high-contrast {
+  --color-correct: #0D7A3A;
+  --color-wrong: #B91C1C;
+  --color-primary: #0A3D75;
+  --focus-ring-width: 4px;
+  --focus-ring-color: #1D4ED8;
+}
+
+.high-contrast body,
+.high-contrast {
+  color: #111827;
+}
+
+.high-contrast .border-gray-100,
+.high-contrast .border-gray-200 {
+  border-color: #9CA3AF;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Large Text
+   ══════════════════════════════════════════════════════════════════ */
+
+.large-text {
+  font-size: 120%;
+}
+
+.large-text .text-xs { font-size: 0.875rem; }
+.large-text .text-sm { font-size: 1rem; }
+.large-text .text-base { font-size: 1.125rem; }
+.large-text .text-lg { font-size: 1.25rem; }
+.large-text .text-xl { font-size: 1.375rem; }
+.large-text .text-2xl { font-size: 1.625rem; }
+
+/* ══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Touch Targets
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Ensure all interactive elements meet minimum tap target */
+a, button, input, select, textarea,
+[role="button"], [role="tab"], [role="option"] {
+  min-height: var(--tap-target-min);
+}
+
+/* Game grid buttons get extra spacing for small fingers */
+.game-grid button {
+  min-height: var(--tap-target-game);
+  min-width: var(--tap-target-game);
+  padding: 12px;
+  margin: 4px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Screen Reader Only
+   ══════════════════════════════════════════════════════════════════ */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   COLORBLIND MODE — data attribute overrides
+   ══════════════════════════════════════════════════════════════════ */
+
+/* When data-colorblind=true, swap feedback colors */
+[data-colorblind="true"] {
+  --color-correct: #2563EB;
+  --color-correct-bg: #EFF6FF;
+  --color-correct-border: #60A5FA;
+  --color-wrong: #EA580C;
+  --color-wrong-bg: #FFF7ED;
+  --color-wrong-border: #FB923C;
+  --color-timer-urgent: #D946EF;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SCROLLBAR STYLING
+   ══════════════════════════════════════════════════════════════════ */
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PRINT STYLES
+   ══════════════════════════════════════════════════════════════════ */
+
+@media print {
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DragSortGameConfig",
+  "type": "object",
+  "required": [
+    "gameId",
+    "template",
+    "lessonId",
+    "ageLevel",
+    "category",
+    "tier",
+    "item_id",
+    "assets",
+    "rewards",
+    "successThresholdPct"
+  ],
+  "properties": {
+    "gameId": {
+      "type": "string"
+    },
+    "template": {
+      "const": "drag-sort"
+    },
+    "lessonId": {
+      "type": "string"
+    },
+    "ageLevel": {
+      "type": "string",
+      "enum": [
+        "Creche",
+        "Nursery",
+        "KG1",
+        "KG2",
+        "Primary"
+      ]
+    },
+    "category": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "item_id": {
+      "type": "string"
+    },
+    "series_id": {
+      "type": "string"
+    },
+    "unit_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "durationTargetSec": {
+      "type": "integer",
+      "minimum": 15,
+      "maximum": 300
+    },
+    "assets": {
+      "type": "object",
+      "required": [
+        "background",
+        "items",
+        "buckets"
+      ],
+      "properties": {
+        "background": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "image",
+              "bucketId"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "image": {
+                "type": "string"
+              },
+              "audio": {
+                "type": "string"
+              },
+              "bucketId": {
+                "type": "string",
+                "description": "correct bucket for this item"
+              }
+            }
+          }
+        },
+        "buckets": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label",
+              "image"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "image": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "rewards": {
+      "type": "object",
+      "required": [
+        "starsOnComplete",
+        "xp"
+      ],
+      "properties": {
+        "starsOnComplete": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "xp": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "successThresholdPct": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  }
+}

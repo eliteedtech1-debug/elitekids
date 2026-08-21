@@ -1,0 +1,381 @@
+/* ══════════════════════════════════════════════════════════════════
+   GAME ANIMATION LIBRARY — Modern Game Feel
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Entrance animations ──────────────────────────────────── */
+
+@keyframes game-slide-in-left {
+  0% { transform: translateX(-40px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes game-slide-in-right {
+  0% { transform: translateX(40px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes game-slide-in-up {
+  0% { transform: translateY(30px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes game-slide-in-down {
+  0% { transform: translateY(-30px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes game-zoom-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes game-flip-in {
+  0% { transform: perspective(400px) rotateY(90deg); opacity: 0; }
+  40% { transform: perspective(400px) rotateY(-10deg); }
+  70% { transform: perspective(400px) rotateY(5deg); }
+  100% { transform: perspective(400px) rotateY(0); opacity: 1; }
+}
+
+@keyframes game-drop-in {
+  0% { transform: translateY(-60px) rotate(-5deg); opacity: 0; }
+  50% { transform: translateY(8px) rotate(2deg); opacity: 1; }
+  70% { transform: translateY(-4px) rotate(-1deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+
+@keyframes game-spring-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  40% { transform: scale(1.15); opacity: 1; }
+  60% { transform: scale(0.9); }
+  80% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* ── Idle / breathing animations ──────────────────────────── */
+
+@keyframes game-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes game-float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-3px) rotate(1deg); }
+  75% { transform: translateY(-3px) rotate(-1deg); }
+}
+
+@keyframes game-bob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.02); }
+}
+
+@keyframes game-wobble-idle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+@keyframes game-glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(52, 199, 89, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(52, 199, 89, 0.6), 0 0 40px rgba(52, 199, 89, 0.2); }
+}
+
+@keyframes game-shine {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ── Tap / select animations ──────────────────────────────── */
+
+@keyframes game-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+@keyframes game-jelly {
+  0% { transform: scale(1, 1); }
+  25% { transform: scale(0.95, 1.05); }
+  50% { transform: scale(1.05, 0.95); }
+  75% { transform: scale(0.98, 1.02); }
+  100% { transform: scale(1, 1); }
+}
+
+@keyframes game-squish {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.1, 0.9); }
+  60% { transform: scale(0.95, 1.05); }
+  100% { transform: scale(1, 1); }
+}
+
+@keyframes game-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes game-pop-out {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes game-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes game-tap-ripple {
+  0% { box-shadow: 0 0 0 0 rgba(15, 77, 146, 0.4); }
+  100% { box-shadow: 0 0 0 20px rgba(15, 77, 146, 0); }
+}
+
+/* ── Feedback animations ──────────────────────────────────── */
+
+@keyframes game-correct {
+  0% { transform: scale(1); }
+  20% { transform: scale(1.2) rotate(-5deg); }
+  40% { transform: scale(1.1) rotate(5deg); }
+  60% { transform: scale(1.15) rotate(-3deg); }
+  80% { transform: scale(1.05) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes game-wrong {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-8px); }
+  20% { transform: translateX(8px); }
+  30% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  50% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+}
+
+@keyframes game-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px) rotate(-1deg); }
+  30% { transform: translateX(5px) rotate(1deg); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(3px); }
+}
+
+@keyframes game-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(-14deg); }
+  20% { transform: rotate(12deg); }
+  30% { transform: rotate(-10deg); }
+  40% { transform: rotate(8deg); }
+  50% { transform: rotate(-4deg); }
+  60% { transform: rotate(2deg); }
+}
+
+@keyframes game-dance {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  20% { transform: rotate(-8deg) scale(1.08); }
+  40% { transform: rotate(8deg) scale(1.08); }
+  60% { transform: rotate(-5deg) scale(1.05); }
+  80% { transform: rotate(3deg) scale(1.03); }
+}
+
+@keyframes game-spin-in {
+  0% { transform: rotate(-180deg) scale(0); opacity: 0; }
+  100% { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+
+@keyframes game-flip {
+  0% { transform: perspective(400px) rotateY(0); }
+  100% { transform: perspective(400px) rotateY(180deg); }
+}
+
+/* ── Score & reward animations ────────────────────────────── */
+
+@keyframes game-score-pop {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateY(-30px) scale(1.4); opacity: 1; }
+  100% { transform: translateY(-50px) scale(0.8); opacity: 0; }
+}
+
+@keyframes game-score-bounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.5); color: #FFD700; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes game-star-spin {
+  0% { transform: rotate(0deg) scale(0); opacity: 0; }
+  50% { transform: rotate(180deg) scale(1.4); opacity: 1; }
+  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+}
+
+@keyframes game-confetti {
+  0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: translateY(-80px) rotate(720deg) scale(0); opacity: 0; }
+}
+
+@keyframes game-confetti-rain {
+  0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes game-combo-flash {
+  0%, 100% { opacity: 1; text-shadow: 0 0 0 transparent; }
+  50% { opacity: 1; text-shadow: 0 0 20px #FFD700, 0 0 40px #FF9500; }
+}
+
+@keyframes game-xp-float {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
+}
+
+/* ── Level complete ───────────────────────────────────────── */
+
+@keyframes game-trophy-drop {
+  0% { transform: translateY(-100px) rotate(-15deg) scale(0); opacity: 0; }
+  50% { transform: translateY(10px) rotate(5deg) scale(1.2); opacity: 1; }
+  70% { transform: translateY(-5px) rotate(-3deg) scale(0.95); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
+}
+
+@keyframes game-firework {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes game-ribbon-wave {
+  0%, 100% { transform: rotate(-3deg) scaleY(1); }
+  25% { transform: rotate(2deg) scaleY(1.02); }
+  75% { transform: rotate(-1deg) scaleY(0.98); }
+}
+
+/* ── UI animations ────────────────────────────────────────── */
+
+@keyframes game-timer-pulse {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(1.02); }
+}
+
+@keyframes game-timer-danger {
+  0%, 100% { background-color: #EF4444; }
+  50% { background-color: #F87171; }
+}
+
+@keyframes game-tab-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UTILITY CLASSES
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Entrances */
+.animate-game-slide-left { animation: game-slide-in-left 0.4s ease-out both; }
+.animate-game-slide-right { animation: game-slide-in-right 0.4s ease-out both; }
+.animate-game-slide-up { animation: game-slide-in-up 0.4s ease-out both; }
+.animate-game-slide-down { animation: game-slide-in-down 0.4s ease-out both; }
+.animate-game-zoom-in { animation: game-zoom-in 0.4s ease-out both; }
+.animate-game-flip-in { animation: game-flip-in 0.5s ease-out both; }
+.animate-game-drop-in { animation: game-drop-in 0.5s ease-out both; }
+.animate-game-spring-in { animation: game-spring-in 0.5s ease-out both; }
+
+/* Idle */
+.animate-game-float { animation: game-float 2s ease-in-out infinite; }
+.animate-game-float-slow { animation: game-float-slow 3s ease-in-out infinite; }
+.animate-game-bob { animation: game-bob 1.5s ease-in-out infinite; }
+.animate-game-wobble-idle { animation: game-wobble-idle 2s ease-in-out infinite; }
+.animate-game-glow-pulse { animation: game-glow-pulse 1.5s ease-in-out infinite; }
+
+/* Tap */
+.animate-game-bounce { animation: game-bounce 0.4s ease-out; }
+.animate-game-jelly { animation: game-jelly 0.5s ease-out; }
+.animate-game-squish { animation: game-squish 0.35s ease-out; }
+.animate-game-pop { animation: game-pop 0.35s ease-out both; }
+.animate-game-pop-out { animation: game-pop-out 0.3s ease-in both; }
+.animate-game-pulse { animation: game-pulse 0.3s ease-in-out; }
+.animate-game-tap-ripple { animation: game-tap-ripple 0.4s ease-out; }
+
+/* Feedback */
+.animate-game-correct { animation: game-correct 0.5s ease-out; }
+.animate-game-wrong { animation: game-wrong 0.5s ease-out; }
+.animate-game-shake { animation: game-shake 0.4s ease-out; }
+.animate-game-wiggle { animation: game-wiggle 0.6s ease-out; }
+.animate-game-dance { animation: game-dance 0.5s ease-out; }
+.animate-game-spin-in { animation: game-spin-in 0.5s ease-out both; }
+.animate-game-flip { animation: game-flip 0.4s ease-in-out; }
+
+/* Score */
+.animate-game-score-pop { animation: game-score-pop 0.8s ease-out both; }
+.animate-game-score-bounce { animation: game-score-bounce 0.4s ease-out; }
+.animate-game-star-spin { animation: game-star-spin 0.6s ease-out both; }
+.animate-game-confetti { animation: game-confetti 1s ease-out both; }
+.animate-game-combo-flash { animation: game-combo-flash 0.5s ease-in-out; }
+.animate-game-xp-float { animation: game-xp-float 1s ease-out both; }
+
+/* Level complete */
+.animate-game-trophy-drop { animation: game-trophy-drop 0.7s ease-out both; }
+.animate-game-firework { animation: game-firework 0.8s ease-out both; }
+
+/* Timer */
+.animate-game-timer-pulse { animation: game-timer-pulse 1s ease-in-out infinite; }
+.animate-game-timer-danger { animation: game-timer-danger 0.5s ease-in-out infinite; }
+
+/* ── Stagger delays (use with animation-delay) ─────────── */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+.stagger-9 { animation-delay: 0.45s; }
+.stagger-10 { animation-delay: 0.5s; }
+.stagger-11 { animation-delay: 0.55s; }
+.stagger-12 { animation-delay: 0.6s; }
+
+/* ── Hover effects for game cards ────────────────────────── */
+
+.game-card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.game-card-hover:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(15, 77, 146, 0.15);
+}
+.game-card-hover:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Tab active indicator */
+.tab-active {
+  position: relative;
+}
+.tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 20%;
+  right: 20%;
+  height: 3px;
+  border-radius: 2px;
+  background: #0F4D92;
+}
+
+/* ── Confetti particles ──────────────────────────────────── */
+.confetti-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+}
+.confetti-particle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  animation: game-confetti-rain 2.5s ease-in forwards;
+}

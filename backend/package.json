@@ -1,0 +1,57 @@
+{
+  "name": "elite-kids-api",
+  "version": "0.1.0",
+  "description": "EliteKids — Nursery learning addon API for EliteCore (mirrors elscholar-exam-api)",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "debug": "node --inspect src/index.js",
+    "migrate": "node database/migrate.js",
+    "migrate:apply": "node database/migrate.js --apply",
+    "media-worker": "node src/media/media.worker.js",
+    "generation-worker": "node src/media/generation.worker.js",
+    "test": "jest",
+    "test:integration": "jest test/auth.test.js test/school.test.js --runInBand"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/test/setup-env.js"
+    ],
+    "globalSetup": "<rootDir>/test/global-setup.js",
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ],
+    "testTimeout": 30000,
+    "verbose": true
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1111.0",
+    "@aws-sdk/s3-request-presigner": "^3.1111.0",
+    "@google/generative-ai": "^0.24.1",
+    "ajv": "^8.17.1",
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.0.0",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.16.4",
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.2",
+    "mysql2": "^3.15.3",
+    "nodemon": "^3.1.4",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.0",
+    "sequelize": "^6.37.7",
+    "sharp": "^0.33.5",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  }
+}

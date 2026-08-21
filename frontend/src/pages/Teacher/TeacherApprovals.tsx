@@ -1,0 +1,206 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import {
+  ShieldCheck,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  ArrowLeft,
+  Gamepad2,
+  BookOpen,
+  Eye,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
+import apiClient from '@/lib/api/client';
+import { ENDPOINTS } from '@/lib/api/endpoints';
+import { STORAGE_KEYS } from '@/lib/utils/constants';
+
+/* ── Types ────────────────────────────────────────────── */
+
+interface Approval {
+  id: string;
+  content_type: string;
+  content_id: string;
+  status: string;
+  school_id: string;
+  branch_id: string;
+  rejection_reason?: string;
+  created_at: string;
+}
+
+/* ── Content type display ────────────────────────────── */
+
+function ContentTypeBadge({ type }: { type: string }) {
+  const labels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+    game_config: { label: 'Game Config', color: 'bg-blue-100 text-blue-700', icon: <Gamepad2 className="h-3 w-3" /> },
+    scene_script: { label: 'Scene Script', color: 'bg-purple-100 text-purple-700', icon: <BookOpen className="h-3 w-3" /> },
+    lesson: { label: 'Lesson', color: 'bg-green-100 text-green-700', icon: <BookOpen className="h-3 w-3" /> },
+  };
+  const info = labels[type] || { label: type, color: 'bg-gray-100 text-gray-600', icon: null };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${info.color}`}>
+      {info.icon}
+      {info.label}
+    </span>
+  );
+}
+
+/* ── Main Component ──────────────────────────────────── */
+
+export default function TeacherApprovals() {
+  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  const loadApprovals = useCallback(async () => {
+    try {
+      const res = await apiClient.get(ENDPOINTS.APPROVALS.LIST);
+      setApprovals(res.data?.data || []);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to load approvals');
+    }
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    loadApprovals().finally(() => setLoading(false));
+  }, [loadApprovals]);
+
+  const handleDecide = async (id: string, decision: 'approve' | 'reject') => {
+    setProcessing(id);
+    try {
+      await apiClient.post(ENDPOINTS.APPROVALS.DECIDE(id), {
+        decision,
+        reason: decision === 'reject' ? 'Content did not meet review standards' : undefined,
+      });
+      toast.success(decision === 'approve' ? 'Approved and published!' : 'Rejected');
+      await loadApprovals();
+    } catch (err: any) {
+      toast.error(err?.message || `Failed to ${decision}`);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#E7EEF6]">
+      {/* Header */}
+      <header className="border-b border-[#0F4D92]/10 bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-center gap-4 px-4 py-3">
+          <ShieldCheck className="h-6 w-6 text-amber-500" />
+          <h1 className="text-lg font-bold text-[#0F4D92]">Content Review</h1>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-4 py-6">
+        {/* Back link */}
+        <Link
+          to="/teacher/lessons"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-[#0F4D92] hover:underline"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Lessons
+        </Link>
+
+        {/* Info */}
+        <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">Review Queue</p>
+              <p className="text-xs text-amber-600">
+                AI-generated game configs and scene scripts need your approval before students can play them.
+                Review the content and approve or reject each item.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Approvals list */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0F4D92]" />
+          </div>
+        ) : approvals.length === 0 ? (
+          <div className="rounded-2xl bg-white p-12 text-center shadow-sm">
+            <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-300" />
+            <p className="text-gray-500">All caught up! No pending reviews.</p>
+            <Link
+              to="/teacher/lessons"
+              className="mt-4 inline-flex items-center gap-1 text-sm text-[#0F4D92] hover:underline"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to Lessons
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {approvals.map((approval) => (
+              <div
+                key={approval.id}
+                className="rounded-xl bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ContentTypeBadge type={approval.content_type} />
+                      <span className="text-xs text-gray-400">
+                        {new Date(approval.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {approval.content_type === 'game_config'
+                        ? `AI-generated game config ready for review`
+                        : approval.content_type === 'scene_script'
+                        ? `Scene script with animated narration ready for review`
+                        : `Content ready for review`}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      ID: {approval.content_id?.slice(0, 8)}...
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 ml-4">
+                    {processing === approval.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleDecide(approval.id, 'approve')}
+                          className="inline-flex items-center gap-1 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 transition-colors"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleDecide(approval.id, 'reject')}
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Refresh button */}
+        {approvals.length > 0 && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={loadApprovals}
+              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

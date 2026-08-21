@@ -1,0 +1,35 @@
+# Local dev for elite-kids. NOTE (DEC-002): no separate "elitekids" database —
+# the addon's tables live in elite_content / the AI DB (elite_bot, matching the
+# prod server), so this compose creates those alongside the main school DB.
+#
+# For a full dev environment that mirrors prod, point backend/.env at your real
+# elite_db instead and only use this for elite_content / AI DB / redis.
+version: "3.9"
+services:
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: elite
+      MYSQL_PASSWORD: elite
+      # Main school DB (shared) + the two addon DBs (elite_content + elite_bot
+      # via ./init). In production these are already provisioned — local dev only.
+      MYSQL_DATABASE: elite_db
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d
+      - mysqldata:/var/lib/mysql
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+volumes:
+  mysqldata:

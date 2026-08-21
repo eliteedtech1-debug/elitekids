@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QuizGameConfig",
+  "type": "object",
+  "required": [
+    "gameId",
+    "template",
+    "lessonId",
+    "ageLevel",
+    "category",
+    "tier",
+    "item_id",
+    "questions",
+    "rewards",
+    "successThresholdPct"
+  ],
+  "properties": {
+    "gameId": {
+      "type": "string"
+    },
+    "template": {
+      "const": "quiz"
+    },
+    "lessonId": {
+      "type": "string"
+    },
+    "ageLevel": {
+      "type": "string",
+      "enum": [
+        "Creche",
+        "Nursery",
+        "KG1",
+        "KG2",
+        "Primary"
+      ]
+    },
+    "category": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "item_id": {
+      "type": "string"
+    },
+    "series_id": {
+      "type": "string"
+    },
+    "unit_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "durationTargetSec": {
+      "type": "integer",
+      "minimum": 15,
+      "maximum": 300
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "prompt",
+          "options",
+          "correctIndex"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "promptAudio": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label",
+                "image"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "image": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "correctIndex": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "rewards": {
+      "type": "object",
+      "required": [
+        "starsOnComplete",
+        "xp"
+      ],
+      "properties": {
+        "starsOnComplete": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "xp": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "successThresholdPct": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  }
+}

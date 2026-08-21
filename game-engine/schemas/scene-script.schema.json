@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SceneScript",
+  "type": "object",
+  "required": ["sceneId", "lessonId", "background", "narrationText", "durationSec"],
+  "properties": {
+    "sceneId": { "type": "string" },
+    "lessonId": { "type": "string" },
+    "sceneType": { "enum": ["teach", "reinforce", "game_checkpoint"], "default": "teach" },
+    "background": { "type": "string", "description": "key into the approved background library, e.g. farm-daytime" },
+    "characters": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["rigId", "animation", "position"],
+        "properties": {
+          "rigId": { "type": "string", "description": "key into the approved character rig library, e.g. buddy-the-fox" },
+          "animation": { "type": "string" },
+          "position": { "enum": ["left", "center", "right"] }
+        }
+      }
+    },
+    "narrationText": { "type": "string" },
+    "narrationAudio": { "type": "string" },
+    "durationSec": { "type": "integer", "minimum": 3, "maximum": 60 },
+    "subtitles": { "type": "boolean", "default": true },
+    "gameId": { "type": "string", "description": "required when sceneType = game_checkpoint — references a published game config" }
+  }
+}
