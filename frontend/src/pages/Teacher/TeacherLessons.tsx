@@ -334,49 +334,51 @@ export default function TeacherLessons() {
             {lessons.map((lesson) => (
               <div
                 key={lesson.id}
-                className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+                className="rounded-xl bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-gray-800">{lesson.title}</h3>
-                    <StateBadge state={lesson.content_state} />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <h3 className="font-semibold text-gray-800 text-sm truncate">{lesson.title}</h3>
+                      <StateBadge state={lesson.content_state} />
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                      <span>{lesson.subject}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${AGE_COLORS[lesson.age_level] || 'bg-gray-100 text-gray-600'}`}>
+                        {lesson.age_level}
+                      </span>
+                      <span className="text-gray-400">{new Date(lesson.created_at).toLocaleDateString()}</span>
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                    <span>{lesson.subject}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${AGE_COLORS[lesson.age_level] || 'bg-gray-100 text-gray-600'}`}>
-                      {lesson.age_level}
-                    </span>
-                    <span>{new Date(lesson.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {lesson.content_state === 'pending_human_review' && (
+                      <>
+                        {processingApproval === lesson.id ? (
+                          <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleInlineApprove(lesson.id, 'approve')}
+                              className="inline-flex items-center gap-1 rounded-lg bg-green-500 px-3 py-2 sm:py-1.5 text-xs font-medium text-white hover:bg-green-600 transition-colors active:scale-95"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                            </button>
+                            <button
+                              onClick={() => handleInlineApprove(lesson.id, 'reject')}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 sm:py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors active:scale-95"
+                            >
+                              <XCircle className="h-3.5 w-3.5" /> Reject
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                    {lesson.content_state === 'published' && lesson.has_games && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-green-100 px-3 py-2 sm:py-1.5 text-xs font-medium text-green-700">
+                        <Gamepad2 className="h-3.5 w-3.5" /> Live
+                      </span>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {lesson.content_state === 'pending_human_review' && (
-                    <>
-                      {processingApproval === lesson.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleInlineApprove(lesson.id, 'approve')}
-                            className="inline-flex items-center gap-1 rounded-lg bg-green-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 transition-colors"
-                          >
-                            <CheckCircle2 className="h-3 w-3" /> Approve
-                          </button>
-                          <button
-                            onClick={() => handleInlineApprove(lesson.id, 'reject')}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
-                          >
-                            <XCircle className="h-3 w-3" /> Reject
-                          </button>
-                        </>
-                      )}
-                    </>
-                  )}
-                  {lesson.content_state === 'published' && lesson.has_games && (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700">
-                      <Gamepad2 className="h-3 w-3" /> Live
-                    </span>
-                  )}
                 </div>
               </div>
             ))}

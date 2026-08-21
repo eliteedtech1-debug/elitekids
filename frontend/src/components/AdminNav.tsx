@@ -48,14 +48,15 @@ export default function AdminNav({ pendingCount = 0 }: { pendingCount?: number }
               <Link
                 key={item.to}
                 to={item.to}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 sm:py-1.5 text-sm font-medium transition-all active:scale-95 ${
+                title={item.label}
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 sm:px-3 sm:py-1.5 text-sm font-medium transition-all active:scale-95 ${
                   isActive
                     ? 'bg-[#0F4D92] text-white shadow-sm'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
                 }`}
               >
                 <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
+                <span className="hidden sm:inline">{item.label}</span>
                 {showBadge && (
                   <span className="ml-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
                     {pendingCount}

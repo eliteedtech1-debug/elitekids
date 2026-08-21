@@ -755,6 +755,17 @@ async function approveLesson(req, res) {
     });
 
     if (approvals.length === 0) {
+      // No approval records — still allow direct publish for lessons that
+      // were imported or created outside the approval flow
+      if (decision === 'approve') {
+        // Publish game configs that aren't already published
+        await db.KidGameConfig.update(
+          { content_state: 'published', approved_by: req.user.id, approved_at: new Date(), published_at: new Date() },
+          { where: { lesson_id: id, content_state: { [db.Sequelize.Op.ne]: 'published' } } },
+        );
+        await lesson.update({ content_state: 'published', approved_by: req.user.id, approved_at: new Date(), published_at: new Date() });
+        return res.json({ success: true, message: 'Lesson published (no approval records to review).', reviewed: [] });
+      }
       return res.status(404).json({ success: false, message: 'No pending approvals for this lesson.' });
     }
 
