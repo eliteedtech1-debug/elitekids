@@ -7,6 +7,7 @@ import {
   Link2,
   Loader2,
   LogOut,
+  Plus,
   RefreshCw,
   Star,
   Zap,
@@ -69,6 +70,9 @@ export default function ParentChildren() {
   const [error, setError] = useState('');
   const [linkAdmission, setLinkAdmission] = useState('');
   const [linking, setLinking] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ full_name: '', age_level: 'Creche', admission_no: '' });
+  const [creating, setCreating] = useState(false);
 
   const loadChildren = useCallback(async () => {
     setLoading(true);
@@ -113,6 +117,23 @@ export default function ParentChildren() {
       toast.error(err?.message || 'Could not link this child. Check the admission number and try again.');
     } finally {
       setLinking(false);
+    }
+  };
+
+  const handleCreateChild = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createForm.full_name.trim()) return;
+    setCreating(true);
+    try {
+      const res = await apiClient.post(ENDPOINTS.CHILDREN.CREATE_FOR_PARENT, createForm);
+      toast.success(res.data?.data?.full_name + ' added!');
+      setCreateForm({ full_name: '', age_level: 'Creche', admission_no: '' });
+      setShowCreate(false);
+      await loadChildren();
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not create child.');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -333,6 +354,53 @@ export default function ParentChildren() {
               {linking ? 'Linking…' : 'Link child'}
             </button>
           </form>
+        </div>
+
+        {/* Create a new child */}
+        <div className="mt-4 rounded-2xl border border-[#0F4D92]/10 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+              <Plus className="h-5 w-5" />
+            </span>
+            <div>
+              <h3 className="font-semibold text-gray-800">Add a new child</h3>
+              <p className="text-xs text-gray-500">Create a profile for your child to start playing games.</p>
+            </div>
+          </div>
+          {!showCreate ? (
+            <button onClick={() => setShowCreate(true)}
+              className="w-full rounded-xl border-2 border-dashed border-emerald-300 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50">
+              <Plus className="mr-1 inline h-4 w-4" /> Create Child Profile
+            </button>
+          ) : (
+            <form onSubmit={handleCreateChild} className="space-y-3">
+              <input name="full_name" value={createForm.full_name} onChange={(e) => setCreateForm(p => ({ ...p, full_name: e.target.value }))}
+                placeholder="Child's full name" required
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
+              <select name="age_level" value={createForm.age_level} onChange={(e) => setCreateForm(p => ({ ...p, age_level: e.target.value }))}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none">
+                <option value="Creche">Creche (0-2 years)</option>
+                <option value="Nursery">Nursery (3-4 years)</option>
+                <option value="KG1">KG1 (4-5 years)</option>
+                <option value="KG2">KG2 (5-6 years)</option>
+                <option value="Primary">Primary (6+ years)</option>
+              </select>
+              <input name="admission_no" value={createForm.admission_no} onChange={(e) => setCreateForm(p => ({ ...p, admission_no: e.target.value }))}
+                placeholder="Admission number (optional — auto-generated if blank)"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
+              <div className="flex gap-2">
+                <button type="submit" disabled={creating || !createForm.full_name.trim()}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {creating ? 'Creating…' : 'Create'}
+                </button>
+                <button type="button" onClick={() => setShowCreate(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </main>
     </div>

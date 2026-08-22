@@ -6,6 +6,7 @@ const {
   verifyToken,
   forgotPassword,
   resetPassword,
+  parentSignup,
 } = require('../controllers/auth');
 const { flagshipIdForAlias } = require('../seeders/flagshipKidsSeed');
 const db = require('../models');
@@ -29,6 +30,7 @@ module.exports = (app) => {
   app.get('/verify-token', verifyToken);
   app.post('/auth/forgot-password', authLimiter, forgotPassword);
   app.post('/auth/reset-password', authLimiter, resetPassword);
+  app.post('/auth/parent-signup', authLimiter, parentSignup);
 
   // ── Multi-school selection (port of elite-cbt-api /auth/select-school) ───
   app.post('/auth/select-school', async (req, res) => {

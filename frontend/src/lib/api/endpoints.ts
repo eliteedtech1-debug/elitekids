@@ -7,6 +7,7 @@ export const ENDPOINTS = {
     VERIFY_TOKEN: '/verify-token',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
+    PARENT_SIGNUP: '/auth/parent-signup',
   },
 
   // School (branding + module gate)
@@ -20,6 +21,7 @@ export const ENDPOINTS = {
     LIST: '/kids/children',
     GET: (admissionNo: string) => `/kids/children/detail?admission_no=${encodeURIComponent(admissionNo)}`,
     CREATE: '/kids/children',
+    CREATE_FOR_PARENT: '/kids/children/create-for-parent',
     UPDATE: (admissionNo: string) => `/kids/children/detail?admission_no=${encodeURIComponent(admissionNo)}`,
     DELETE: (admissionNo: string) => `/kids/children/detail?admission_no=${encodeURIComponent(admissionNo)}`,
     LINK: '/kids/children/link',
