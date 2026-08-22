@@ -53,8 +53,41 @@ export function playWrong() {
 
 /** Celebration jingle for game complete */
 export function playComplete() {
-  const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
-  notes.forEach((f, i) => setTimeout(() => playTone(f, 0.2, 'sine', 0.2), i * 120));
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+
+  // Iconic "level-up" fanfare (original composition): ta-da-da-DAA!
+  // Layered sine+triangle oscillators for a rich, memorable arcade victory sound.
+  const t = ctx.currentTime;
+  const note = (freq: number, start: number, dur: number, vol = 0.22) => {
+    for (const [type, v] of [
+      ['sine', vol],
+      ['triangle', vol * 0.5],
+    ] as const) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t + start);
+      gain.gain.exponentialRampToValueAtTime(v, t + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + start + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t + start);
+      osc.stop(t + start + dur);
+    }
+  };
+
+  note(523.25, 0.0, 0.14);          // C5 — ta
+  note(523.25, 0.16, 0.14);         // C5 — da
+  note(523.25, 0.32, 0.14);         // C5 — da
+  note(659.26, 0.48, 0.28);         // E5 — daa
+  note(783.99, 0.72, 0.55);         // G5 — DAAA (held)
+  // Final shimmer chord: C-major sparkle
+  note(1046.5, 1.05, 0.7, 0.18);    // C6
+  note(1318.5, 1.12, 0.62, 0.13);   // E6
+  note(1567.98, 1.19, 0.55, 0.11);  // G6
 }
 
 /** Button tap sound — bright pop */
@@ -165,11 +198,13 @@ export async function speakScene(text: string): Promise<void> {
   await speak(text);
 }
 
-/** Say "Well done!" on completion */
+/**
+ * Completion celebration — plays the iconic victory fanfare ONLY.
+ * The "Super Star!" message is shown as on-screen TEXT (see GamePlay screens);
+ * deliberately NO text-to-speech here.
+ */
 export async function speakComplete(score: number): Promise<void> {
   playComplete();
-  const msg = score >= 30 ? 'Well done! You are a superstar!' : score >= 20 ? 'Great job!' : 'Good try!';
-  await speak(msg);
 }
 
 // ── Game-specific speech (fallback when no audio file) ─────────
