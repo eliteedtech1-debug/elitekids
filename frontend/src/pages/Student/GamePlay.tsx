@@ -1325,8 +1325,13 @@ function ResultBreakdown({
         {pct >= 50 && <div className="confetti-container"><div className="confetti-particle" style={{ left: '10%', backgroundColor: '#FFD700', animationDelay: '0.1s' }} /><div className="confetti-particle" style={{ left: '25%', backgroundColor: '#FF6B6B', animationDelay: '0.3s' }} /><div className="confetti-particle" style={{ left: '50%', backgroundColor: '#4ECDC4', animationDelay: '0.2s' }} /><div className="confetti-particle" style={{ left: '75%', backgroundColor: '#A78BFA', animationDelay: '0.4s' }} /><div className="confetti-particle" style={{ left: '90%', backgroundColor: '#F59E0B', animationDelay: '0.15s' }} /></div>}
         <Trophy className="mx-auto mb-4 h-16 w-16 text-amber-400 animate-game-trophy-drop" />
         <h1 className="mb-1 text-3xl font-bold text-gray-800 animate-game-spring-in">
-          {pct >= 80 ? '🎉 Excellent!' : pct >= 50 ? '⭐ Good Job!' : pct > 0 ? '💪 Keep Trying!' : '⏰ Time\'s Up!'}
+          {pct >= 80 ? '⭐ SUPER STAR! ⭐' : pct >= 50 ? '🎉 Great Job!' : pct > 0 ? '💪 Keep Trying!' : '⏰ Time\'s Up!'}
         </h1>
+        {pct >= 80 && (
+          <p className="mb-2 animate-game-pop text-xl font-extrabold tracking-wide text-amber-500">
+            YOU ARE A SUPER STAR!
+          </p>
+        )}
         <p className="mb-4 text-gray-500 animate-game-slide-up stagger-1">
           {mode === 'test' ? 'Test Results' : 'Practice Results'}
         </p>
@@ -1425,7 +1430,10 @@ function LearningComplete({
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-purple-100 mx-auto animate-game-trophy-drop">
           <span className="text-4xl">📺</span>
         </div>
-        <h1 className="mb-2 text-3xl font-bold text-gray-800 animate-game-spring-in">You Learned It!</h1>
+        <h1 className="mb-2 text-3xl font-bold text-gray-800 animate-game-spring-in">⭐ SUPER STAR! ⭐</h1>
+        <p className="mb-1 animate-game-pop text-xl font-extrabold tracking-wide text-amber-500">
+          YOU ARE A SUPER STAR!
+        </p>
         <p className="mb-6 text-sm text-gray-500 animate-game-slide-up stagger-1">
           You watched <span className="font-semibold text-purple-700">{lessonTitle}</span> and learned {totalItems} items.
         </p>
