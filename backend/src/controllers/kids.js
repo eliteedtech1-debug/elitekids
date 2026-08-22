@@ -316,6 +316,43 @@ async function createChild(req, res) {
   }
 }
 
+/** POST /kids/children/create-for-parent — parent creates a new child (no shared students table required). */
+async function createChildForParent(req, res) {
+  try {
+    const user = req.user;
+    const userType = String(user.user_type || '').toLowerCase();
+    if (!userType.includes('parent')) {
+      return res.status(403).json({ success: false, message: 'Only parents can create children.' });
+    }
+    const { full_name, age_level, admission_no } = req.body || {};
+    if (!full_name) {
+      return res.status(400).json({ success: false, message: 'full_name is required.' });
+    }
+    const school_id = req.headers['x-school-id'] || user.school_id;
+    const branch_id = req.headers['x-branch-id'] || user.branch_id || 'BR-MAIN';
+    const parentKey = String(user.id || user.user_id || '');
+
+    // Generate admission number if not provided
+    const childAdmission = admission_no || `KIDS-${Date.now().toString(36).toUpperCase()}`;
+
+    const child = await db.KidChild.create({
+      id: uuidv4(),
+      admission_no: childAdmission,
+      school_id,
+      branch_id,
+      full_name,
+      age_level: age_level || 'Creche',
+      class_code: null,
+      parent_user_id: parentKey,
+      status: 'Active',
+    });
+    return res.status(201).json({ success: true, data: child });
+  } catch (err) {
+    console.error('createChildForParent error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 // ── Lessons ──────────────────────────────────────────────────────────────
 
 /** GET /kids/lessons — list lessons (published for children, all for staff).
@@ -452,6 +489,100 @@ async function createLesson(req, res) {
     return res.status(201).json({ success: true, data: lesson, message: 'Generation started.' });
   } catch (err) {
     console.error('createLesson error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/** POST /kids/lessons/manual — create a lesson + game config MANUALLY (no AI).
+ * Body: { title, subject, age_level, template, config_json, is_global?, lesson_text?, scenes? }
+ */
+async function createLessonManual(req, res) {
+  try {
+    const { title, subject, age_level, template, config_json, is_global, lesson_text, scenes } = req.body || {};
+    if (!title || !subject || !age_level || !template || !config_json) {
+      return res.status(400).json({ success: false, message: 'title, subject, age_level, template, and config_json are required.' });
+    }
+
+    const VALID_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split'];
+    if (!VALID_TEMPLATES.includes(template)) {
+      return res.status(400).json({ success: false, message: `template must be one of: ${VALID_TEMPLATES.join(', ')}` });
+    }
+
+    const school_id = req.headers['x-school-id'] || req.user.school_id;
+    const branch_id = req.headers['x-branch-id'] || req.user.branch_id;
+    const isGlobal = (school_id === PLATFORM_SCHOOL_ID && is_global) ? 1 : 0;
+
+    // Create the lesson
+    const lesson = await db.KidLesson.create({
+      id: uuidv4(),
+      school_id,
+      branch_id,
+      title,
+      subject,
+      age_level,
+      lesson_text: lesson_text || null,
+      created_by: req.user.id,
+      content_state: 'pending_human_review',
+      lesson_type: 'game',
+      is_global: isGlobal,
+    });
+
+    // Create the game config directly (no AI)
+    const configId = uuidv4();
+    await db.KidGameConfig.create({
+      id: configId,
+      lesson_id: lesson.id,
+      template,
+      age_level,
+      config_json,
+      schema_version: '1.0',
+      content_state: 'pending_human_review',
+      model_version: 'manual',
+      created_by: req.user.id,
+    });
+
+    // Create approval record
+    await db.KidContentApproval.create({
+      id: uuidv4(),
+      school_id,
+      branch_id,
+      content_type: 'game_config',
+      content_id: configId,
+      status: 'pending',
+    }).catch(() => {});
+
+    // Optionally create scene scripts
+    if (Array.isArray(scenes) && scenes.length > 0) {
+      for (const scene of scenes) {
+        const sceneId = uuidv4();
+        await db.KidSceneScript.create({
+          id: sceneId,
+          lesson_id: lesson.id,
+          scene_type: scene.sceneType || 'teach',
+          script_json: scene,
+          schema_version: '1.0',
+          content_state: 'pending_human_review',
+          model_version: 'manual',
+          created_by: req.user.id,
+        });
+        await db.KidContentApproval.create({
+          id: uuidv4(),
+          school_id,
+          branch_id,
+          content_type: 'scene_script',
+          content_id: lesson.id,
+          status: 'pending',
+        }).catch(() => {});
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: { lesson_id: lesson.id, config_id: configId, template },
+      message: 'Lesson created manually. Pending review.',
+    });
+  } catch (err) {
+    console.error('createLessonManual error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 }
@@ -947,10 +1078,12 @@ module.exports = {
   listChildrenForParent,
   getChild,
   createChild,
+  createChildForParent,
   updateChild,
   deleteChild,
   linkChildForParent,
   createLesson,
+  createLessonManual,
   getPublishedGame,
   getPublishedScenes,
   getGenerationJob,

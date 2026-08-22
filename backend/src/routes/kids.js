@@ -3,10 +3,12 @@ const {
   listChildrenForParent,
   getChild,
   createChild,
+  createChildForParent,
   updateChild,
   deleteChild,
   linkChildForParent,
   createLesson,
+  createLessonManual,
   getPublishedGame,
   getPublishedScenes,
   getGenerationJob,
@@ -83,10 +85,12 @@ module.exports = (app) => {
   // ── Lessons (listing for students/parents + CRUD for staff) ──────────────
   app.get('/kids/lessons', auth, listLessons);
   app.post('/kids/lessons', auth, requireStaff, createLesson);
+  app.post('/kids/lessons/manual', auth, requireStaff, createLessonManual);
 
   // ── Children ────────────────────────────────────────────────────────────
   app.get('/kids/children', auth, listChildrenForParent);
   app.post('/kids/children', auth, requireStaff, createChild);
+  app.post('/kids/children/create-for-parent', auth, createChildForParent);
   // Parent self-service linking (registered before any POST :param route).
   app.post('/kids/children/link', auth, linkChildForParent);
   // Admission numbers contain slashes (e.g. 213232/1/0029), so we use query

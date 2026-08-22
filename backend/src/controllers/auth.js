@@ -71,17 +71,14 @@ async function login(req, res) {
       }
     );
 
-    if (!users.length) {
-      return res.status(404).json({ errors: { username: 'No account found with this email.' } });
-    }
-
     // Parent fallback: user_type='parent' accounts live in the `parents` table
-    // (linked by user_id). The login page uses the Teacher/Parent toggle but
-    // parents authenticate through the same /users/login endpoint.
+    // (linked by user_id). Parents can log in with phone number which only
+    // exists in the parents table, so we always check parents when users
+    // table has no password-bearing match.
     let parentRows = [];
-    if (!users.some((u) => u.password)) {
+    if (!users.length || !users.some((u) => u.password)) {
       parentRows = await safeQuery(
-        `SELECT p.*, u.email, 'parent' AS user_type
+        `SELECT p.*, u.email, u.password, u.status AS user_status, 'parent' AS user_type
          FROM parents p
          LEFT JOIN users u ON u.id = p.user_id
          WHERE (u.email = :username OR p.phone = :username)
@@ -93,6 +90,11 @@ async function login(req, res) {
         }
       );
     }
+
+    if (!users.length && !parentRows.length) {
+      return res.status(404).json({ errors: { username: 'No account found with this email.' } });
+    }
+
     const allCandidates = parentRows.length
       ? parentRows.map((r) => ({ ...r, id: r.user_id || r.id }))
       : users;
@@ -152,10 +154,11 @@ async function login(req, res) {
       branch_id: user.branch_id,
     });
 
+    const { password: _pw, ...safeUser } = user;
     return res.json({
       success: true,
       token: 'Bearer ' + token,
-      user: { ...user, user_type: userType },
+      user: { ...safeUser, user_type: userType },
       school_id: user.school_id,
       sessionInfo: {
         lastActivity: new Date().toISOString(),
@@ -515,6 +518,62 @@ async function resetPassword(req, res) {
   }
 }
 
+/** POST /auth/parent-signup — create a parent account (users + parents tables). */
+async function parentSignup(req, res) {
+  try {
+    const { name, email, phone, password, school_id } = req.body || {};
+    if (!name || !phone || !password || !school_id) {
+      return res.status(400).json({ success: false, message: 'name, phone, password and school_id are required.' });
+    }
+
+    // Check phone not already registered
+    const [existing] = await db.sequelize.query(
+      `SELECT id FROM users WHERE phone = :phone AND school_id = :school LIMIT 1`,
+      { replacements: { phone, school: school_id }, type: db.sequelize.QueryTypes.SELECT }
+    ).catch(() => []);
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'A parent with this phone number already exists.' });
+    }
+
+    // Create user row (email is NOT NULL in shared users table — generate placeholder if not provided)
+    const bcrypt = require('bcryptjs');
+    const hashed = await bcrypt.hash(password, 10);
+    const userEmail = (email && email.trim()) || `parent${Date.now()}@elitekids.com`;
+    const [userResult] = await db.sequelize.query(
+      `INSERT INTO users (name, email, phone, user_type, password, school_id, status, is_activated)
+       VALUES (:name, :email, :phone, 'Parent', :password, :school_id, 'Active', 1)`,
+      { replacements: { name, email: userEmail, phone, password: hashed, school_id } }
+    );
+    const userId = userResult;
+
+    // Create parent row
+    const parentId = `P${userId}`;
+    await db.sequelize.query(
+      `INSERT INTO parents (parent_id, fullname, phone, email, user_id, school_id, user_type, status)
+       VALUES (:pid, :name, :phone, :email, :uid, :school_id, 'Parent', 'Active')`,
+      { replacements: { pid: parentId, name, phone, email: userEmail, uid: userId, school_id } }
+    );
+
+    // Generate token (matching login function's payload shape)
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { id: userId, user_type: 'parent', email: userEmail, school_id, branch_id: null },
+      process.env.JWT_SECRET_KEY,
+      { expiresIn: '24h' }
+    );
+
+    return res.status(201).json({
+      success: true,
+      token,
+      school_id,
+      user: { id: userId, name, email: userEmail, phone, user_type: 'parent', school_id },
+    });
+  } catch (err) {
+    console.error('parentSignup error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 module.exports = {
   login,
   studentLogin,
@@ -522,4 +581,5 @@ module.exports = {
   verifyToken,
   forgotPassword,
   resetPassword,
+  parentSignup,
 };

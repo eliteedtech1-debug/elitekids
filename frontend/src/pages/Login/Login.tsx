@@ -19,6 +19,7 @@ interface SchoolDetails {
 }
 
 type LoginMode = 'users' | 'students';
+type AuthView = 'login' | 'signup';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -30,6 +31,9 @@ export default function Login() {
   const [school, setSchool] = useState<SchoolDetails | null>(null);
   const [schoolError, setSchoolError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [authView, setAuthView] = useState<AuthView>('login');
+  const [signupForm, setSignupForm] = useState({ name: '', phone: '', email: '', password: '' });
+  const [signupLoading, setSignupLoading] = useState(false);
 
   // Resolve a school short name → crest + name + real school_id (public
   // endpoint, no token needed). Shared by the subdomain auto-detect and the
@@ -116,6 +120,36 @@ export default function Login() {
     }
   };
 
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.school_id) {
+      setError('Please enter a valid school short name first.');
+      return;
+    }
+    setSignupLoading(true);
+    setError('');
+    try {
+      const res = await apiClient.post(ENDPOINTS.AUTH.PARENT_SIGNUP, {
+        ...signupForm,
+        school_id: form.school_id,
+      });
+      const data = res.data;
+      if (data?.success && data.token) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token.replace(/^Bearer\s+/i, ''));
+        localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, form.school_id);
+        localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: 'Parent' }));
+        toast.success('Account created! Welcome to Elite Kids.');
+        navigate('/dashboard');
+      } else {
+        setError(data?.message || 'Signup failed.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Signup failed.');
+    } finally {
+      setSignupLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#E7EEF6] p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
@@ -181,10 +215,10 @@ export default function Login() {
             <User className="absolute left-3 top-3 text-gray-400" />
             <input
               name="email"
-              type={mode === 'students' ? 'text' : 'email'}
+              type="text"
               value={form.email}
               onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              placeholder={mode === 'students' ? 'Admission number' : 'Email address'}
+              placeholder={mode === 'students' ? 'Admission number' : 'Email or phone number'}
               required
               className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none"
             />
@@ -229,6 +263,52 @@ export default function Login() {
             {loading ? 'Signing In…' : 'Sign In'}
           </button>
         </form>
+
+        {/* Parent signup link */}
+        {mode === 'users' && (
+          <p className="mt-3 text-center text-sm text-gray-500">
+            Don't have an account?{' '}
+            <button onClick={() => { setAuthView(authView === 'signup' ? 'login' : 'signup'); setError(''); }}
+              className="font-semibold text-[#0F4D92] hover:underline">
+              {authView === 'signup' ? 'Sign In instead' : 'Create Account'}
+            </button>
+          </p>
+        )}
+
+        {/* Parent signup form */}
+        {authView === 'signup' && mode === 'users' && (
+          <form onSubmit={handleSignup} className="mt-4 space-y-3 border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-600">Parent Registration</p>
+            <div className="relative">
+              <User className="absolute left-3 top-3 text-gray-400" />
+              <input name="name" value={signupForm.name} onChange={(e) => setSignupForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="Full name" required
+                className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none" />
+            </div>
+            <div className="relative">
+              <User className="absolute left-3 top-3 text-gray-400" />
+              <input name="phone" type="tel" value={signupForm.phone} onChange={(e) => setSignupForm(p => ({ ...p, phone: e.target.value }))}
+                placeholder="Phone number" required
+                className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none" />
+            </div>
+            <div className="relative">
+              <User className="absolute left-3 top-3 text-gray-400" />
+              <input name="email" type="email" value={signupForm.email} onChange={(e) => setSignupForm(p => ({ ...p, email: e.target.value }))}
+                placeholder="Email (optional)"
+                className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none" />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 text-gray-400" />
+              <input name="password" type="password" value={signupForm.password} onChange={(e) => setSignupForm(p => ({ ...p, password: e.target.value }))}
+                placeholder="Create password" required minLength={6}
+                className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none" />
+            </div>
+            <button type="submit" disabled={signupLoading || !form.school_id}
+              className="w-full rounded-xl bg-emerald-600 py-2.5 font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60">
+              {signupLoading ? 'Creating Account…' : 'Create Parent Account'}
+            </button>
+          </form>
+        )}
 
         <p className="mt-4 text-center text-xs text-gray-400">Powered by Elite Edu Tech Systems</p>
       </div>
