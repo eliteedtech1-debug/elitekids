@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
         { name: 'kids_game_item_responses_student', fields: ['student_id'] },
         { name: 'kids_game_item_responses_item', fields: ['item_id'] },
         { name: 'kids_game_item_responses_student_item', fields: ['student_id', 'item_id'] },
-        { name: 'kids_game_item_responses_created', fields: ['created_at'] },
+        { name: 'kids_game_item_responses_created', fields: ['createdAt'] },
       ],
     }
   );

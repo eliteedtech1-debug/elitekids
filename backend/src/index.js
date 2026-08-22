@@ -38,14 +38,16 @@ async function ensureSchemaMigrations() {
   const CONTENT_COLUMN_PLAN = [
     ['kids_lessons', 'duration_target_sec', 'INT NULL DEFAULT NULL'],
     ['kids_lessons', 'published_at', 'DATETIME NULL DEFAULT NULL'],
+    ['kids_session_state', 'session_id', 'VARCHAR(50) NULL DEFAULT NULL'],
   ];
   try {
-    const [lessonCols] = await content.query(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'kids_lessons'`
-    );
-    const existing = new Set(lessonCols.map((c) => c.COLUMN_NAME));
     for (const [table, col, ddl] of CONTENT_COLUMN_PLAN) {
+      const [tblCols] = await content.query(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${table}'`
+      );
+      if (!tblCols.length) continue; // table not created yet — sync() will make it
+      const existing = new Set(tblCols.map((c) => c.COLUMN_NAME));
       if (existing.has(col)) continue;
       await content.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${ddl}`);
       console.log(`➕ Added column ${table}.${col}`);
