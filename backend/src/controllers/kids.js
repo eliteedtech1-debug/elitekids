@@ -503,7 +503,7 @@ async function createLessonManual(req, res) {
       return res.status(400).json({ success: false, message: 'title, subject, age_level, template, and config_json are required.' });
     }
 
-    const VALID_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split'];
+    const VALID_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split', 'memory-pairs'];
     if (!VALID_TEMPLATES.includes(template)) {
       return res.status(400).json({ success: false, message: `template must be one of: ${VALID_TEMPLATES.join(', ')}` });
     }
@@ -587,6 +587,63 @@ async function createLessonManual(req, res) {
   }
 }
 
+/** Adapt a schema-format game config (nested under `assets`, e.g. produced by the
+ * AI generator or content seeds) to the flat runtime shape GamePlay.tsx renders.
+ * Runtime shapes (must stay in sync with frontend/src/pages/Student/GamePlay.tsx):
+ *   matching        → pairs: [{ a, b }]
+ *   tap-recognition → items: [{ label, color?, emoji?, image?, hex? }] — one round per item
+ *   drag-sort       → items: [{ num, label }] — ordering game
+ * Flat configs pass through untouched.
+ */
+function toRuntimeGameConfig(cfg) {
+  if (!cfg || typeof cfg !== 'object') return cfg;
+  const out = { ...cfg };
+  const assets = cfg.assets && typeof cfg.assets === 'object' ? cfg.assets : {};
+
+  // matching: schema items {id,image,label?,matches} come in mutual pairs → runtime pairs
+  if (cfg.template === 'matching' && !Array.isArray(out.pairs) && Array.isArray(assets.items)) {
+    const byId = new Map(assets.items.map((it) => [it.id, it]));
+    const seen = new Set();
+    const pairs = [];
+    for (const it of assets.items) {
+      if (seen.has(it.id)) continue;
+      const partner = byId.get(it.matches);
+      if (!partner) continue;
+      pairs.push({ a: it.label || it.image || it.id, b: partner.image || partner.label || partner.id });
+      seen.add(it.id);
+      seen.add(partner.id);
+    }
+    if (pairs.length) out.pairs = pairs;
+  }
+
+  // tap-recognition: schema objects → ordered tap rounds (each item is one round's target)
+  if (cfg.template === 'tap-recognition' && !Array.isArray(out.items) && Array.isArray(assets.objects)) {
+    const items = assets.objects
+      .map((o) => ({
+        label: o.label,
+        color: o.color,
+        emoji: o.emoji,
+        image: o.image,
+        audio: o.audio,
+      }))
+      .filter((o) => o.label || o.emoji || o.image);
+    if (items.length >= 2) out.items = items;
+  }
+
+  // drag-sort: bucket configs have no meaningful runtime order — degrade to a
+  // stable ordering (by bucket order, then listed order) so the game stays playable
+  // instead of rendering blank.
+  if (cfg.template === 'drag-sort' && !Array.isArray(out.items) && Array.isArray(assets.items)) {
+    const bucketOrder = new Map((assets.buckets || []).map((b, i) => [b.id, i]));
+    const ordered = [...assets.items].sort(
+      (x, y) => (bucketOrder.get(x.bucketId) ?? 99) - (bucketOrder.get(y.bucketId) ?? 99),
+    );
+    out.items = ordered.map((it, i) => ({ num: i + 1, label: it.image || it.label || it.id }));
+  }
+
+  return out;
+}
+
 /** GET /kids/lessons/:id/game — CHILD-FACING: published game config only.
  * Resolves global platform lessons (from SCH-KIDS) for any school.
  */
@@ -614,7 +671,7 @@ async function getPublishedGame(req, res) {
     if (!config) {
       return res.status(404).json({ success: false, message: 'No published game for this lesson.' });
     }
-    return res.json({ success: true, data: config.config_json });
+    return res.json({ success: true, data: toRuntimeGameConfig(config.config_json) });
   } catch (err) {
     console.error('getPublishedGame error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });

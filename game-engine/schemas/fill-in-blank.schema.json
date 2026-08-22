@@ -12,6 +12,9 @@
     "tier": { "type": "integer", "minimum": 0, "maximum": 3 },
     "item_id": { "type": "string" },
     "durationTargetSec": { "type": "integer", "minimum": 15, "maximum": 300 },
+    "promptMode": { "type": "string", "enum": ["text", "image", "audio", "context"], "description": "How the sentence is presented" },
+    "responseMode": { "type": "string", "enum": ["text"], "description": "Fill-in-blank responses are always text" },
+    "context": { "type": "string", "description": "Contextual clue when promptMode is 'context'" },
     "sentence": { "type": "string", "minLength": 10 },
     "blanks": {
       "type": "array",

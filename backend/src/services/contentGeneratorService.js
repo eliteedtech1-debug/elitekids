@@ -101,7 +101,7 @@ CRITICAL RULES:
 - starsOnComplete: always 3; xp: 10 + (itemCount * 5)
 - durationTargetSec: Creche/Nursery=30, KG1=45, KG2=60, Primary=90
 
-Available templates: matching, tap-recognition, drag-sort, quiz, fill-in-blank
+Available templates: matching, tap-recognition, drag-sort, quiz, fill-in-blank, memory-pairs
 For fill-in-blank: create a sentence with ___ blanks, provide blanks array [{id, answer}] and wordBank (correct words + distractors).`;
 }
 
@@ -126,9 +126,16 @@ Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
-The child sees multiple objects on screen and must tap the CORRECT one. The "prompt" field is the instruction (e.g. "Tap the red apple"). "correctId" tells the engine which object is right. Objects should be visually distinct.
+PEDAGOGY RULE (cross-modal learning):
+- Set promptMode: "image" — show a big image/emoji of the item, NO text label
+- Set responseMode: "text" — options show text labels ONLY, NO images/emojis
+- This tests if the child can READ the word, not just match pictures
+- Example: Show a big 🐱 image. Options: "Cat", "Dog", "Fish", "Bird". Child taps "Cat".
+- The child must recognize the image AND know the correct spelling/word
 
-Output a JSON object with exactly these keys: gameId, template ("tap-recognition"), lessonId, ageLevel, durationTargetSec, prompt, assets (with background, objects array, correctId), rewards, successThresholdPct.`;
+The child sees an image/emoji on screen and must tap the CORRECT text label from options. "correctId" tells the engine which option is right.
+
+Output a JSON object with exactly these keys: gameId, template ("tap-recognition"), lessonId, ageLevel, durationTargetSec, promptMode ("image"), responseMode ("text"), prompt, assets (with background, objects array, correctId), rewards, successThresholdPct.`;
 }
 
 function dragSortPrompt(lesson, ageLevel) {
@@ -152,9 +159,15 @@ Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
+PEDAGOGY RULE (cross-modal learning):
+- Set promptMode: "image" — questions show an image/emoji, no text hint
+- Set responseMode: "text" — options show text labels ONLY, no images/emojis
+- This tests if the child can READ the word, not just match pictures
+- Example: Show 🐱 image. Question: "What is this?" Options: "Cat", "Dog", "Bird". Answer: Cat
+
 Multiple-choice quiz: 3-5 questions, each with 2-4 options. Questions should test understanding of the lesson. "correctIndex" is the 0-based index of the correct option. Use simple language appropriate for the age level.
 
-Output a JSON object with exactly these keys: gameId, template ("quiz"), lessonId, ageLevel, durationTargetSec, questions (array with id/prompt/options/correctIndex), rewards, successThresholdPct.`;
+Output a JSON object with exactly these keys: gameId, template ("quiz"), lessonId, ageLevel, durationTargetSec, promptMode ("image"), responseMode ("text"), questions (array with id/prompt/options/correctIndex), rewards, successThresholdPct.`;
 }
 
 function sceneScriptPrompt(lesson, ageLevel) {
@@ -199,12 +212,26 @@ Output a JSON object with exactly these keys:
 - successThresholdPct: age-appropriate threshold`;
 }
 
+function memoryPairsPrompt(lesson, ageLevel) {
+  return `Generate a MEMORY PAIRS (flip-card concentration) game config JSON for this lesson.
+
+Lesson: "${lesson.title}"
+Subject: ${lesson.subject}
+Age Level: ${ageLevel}
+${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
+
+The child flips face-down cards two at a time to find matching partners. Use an EVEN number of items (4-12 cards): each item has a "matches" key pointing to its partner's id, and the partner points back. Good pair themes: letter-to-picture, word-to-picture, number-to-count, animal-to-sound-name, shape-to-name.
+
+Output a JSON object with exactly these keys: gameId, template ("memory-pairs"), lessonId, ageLevel, durationTargetSec, assets (with background key and items array where every item has id/image/matches), rewards (starsOnComplete:3, xp:N), successThresholdPct.`;
+}
+
 const TEMPLATE_PROMPT_BUILDERS = {
   matching: matchingPrompt,
   'tap-recognition': tapPrompt,
   'drag-sort': dragSortPrompt,
   quiz: quizPrompt,
   'fill-in-blank': fillBlankPrompt,
+  'memory-pairs': memoryPairsPrompt,
 };
 
 // ── AI call with structured JSON output ──────────────────────────────────────
@@ -236,7 +263,7 @@ async function callGemini(systemPrompt, userPrompt) {
 
 // ── Game Config generation ───────────────────────────────────────────────────
 async function generateGameConfig({ lesson, school_id }) {
-  const templates = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split'];
+  const templates = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'memory-pairs', 'puzzle-split'];
   const model_provider = 'gemini';
   const model_version = getModelName();
 
@@ -262,6 +289,14 @@ async function generateGameConfig({ lesson, school_id }) {
         if (!raw.rewards) raw.rewards = { starsOnComplete: 3, xp: 25 };
         if (raw.successThresholdPct === undefined) {
           raw.successThresholdPct = { Creche: 50, Nursery: 50, KG1: 60, KG2: 70, Primary: 75 }[lesson.age_level] || 60;
+        }
+
+        // Cross-modal defaults: enforce pedagogically correct prompt/response modes
+        if (!raw.promptMode) {
+          raw.promptMode = { 'tap-recognition': 'image', quiz: 'image', matching: 'text', 'memory-pairs': 'text', 'drag-sort': 'text', 'fill-in-blank': 'text' }[template] || 'text';
+        }
+        if (!raw.responseMode) {
+          raw.responseMode = { 'tap-recognition': 'text', quiz: 'text', matching: 'image', 'memory-pairs': 'image', 'drag-sort': 'image', 'fill-in-blank': 'text' }[template] || 'text';
         }
 
         const config = validateConfig(template, raw);

@@ -102,6 +102,9 @@ interface GameConfig {
   question?: string;
   options?: { id: string; label: string; image?: string; emoji?: string; audio?: string }[];
   answer?: string;
+  questions?: { id?: string; prompt?: string; question?: string; image?: string; options?: { id: string; label: string; image?: string; emoji?: string; audio?: string }[]; correctIndex?: number; correctId?: string; answer?: string }[];
+  context?: string;
+  sentences?: { sentence: string; blanks: { id: number; answer: string }[]; wordBank?: string[]; context?: string }[];
   durationSec?: number;
   sentence?: string;
   blanks?: { id: number; answer: string }[];
@@ -790,14 +793,23 @@ function FillBlankGame({
 }) {
   const { colorblindMode } = useA11yStore();
   const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
-  const fbConfig = config as FillBlankConfig;
-  const blanks = fbConfig.blanks || [];
-  const sentence = fbConfig.sentence || '';
-  const wordBank = useMemo(() => shuffle(fbConfig.wordBank || []), [fbConfig.wordBank]);
+  // Multi-sentence rounds with backward-compatible single-sentence shape
+  const sentences = useMemo(() => {
+    if (config.sentences && config.sentences.length > 0) return config.sentences;
+    if (config.sentence || (config.blanks && config.blanks.length > 0)) {
+      return [{ sentence: config.sentence || '', blanks: config.blanks || [], wordBank: config.wordBank, context: config.context }];
+    }
+    return [];
+  }, [config]);
+  const [sIdx, setSIdx] = useState(0);
+  const scoreRef = useRef(0);
+  const currentS = sentences[sIdx];
+  const blanks = currentS?.blanks || [];
+  const sentence = currentS?.sentence || '';
+  const wordBank = useMemo(() => shuffle(currentS?.wordBank || []), [currentS]);
 
   const [filledSlots, setFilledSlots] = useState<Record<number, string>>({});
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
-  const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [completed, setCompleted] = useState(false);
   const isTest = mode === 'test';
@@ -832,10 +844,18 @@ function FillBlankGame({
       if (allCorrect) {
         if (!isTest && soundOn) playCorrect();
         if (!isTest) setFeedback('correct');
-        const pts = blanks.length * 10;
-        setScore(pts);
-        blanks.forEach((b) => onAnswer?.({ correct: true, expected: b.answer, given: filledSlots[b.id] }));
-        setTimeout(() => onComplete(pts), 800);
+        blanks.forEach((b) => {
+          scoreRef.current += 10;
+          onAnswer?.({ correct: true, expected: b.answer, given: filledSlots[b.id] });
+        });
+        setTimeout(() => {
+          setFeedback(null);
+          setFilledSlots({});
+          setSelectedWord(null);
+          setCompleted(false);
+          if (sIdx + 1 >= sentences.length) onComplete(scoreRef.current);
+          else setSIdx((i) => i + 1);
+        }, 800);
       } else {
         if (!isTest && soundOn) playWrong();
         if (!isTest) setFeedback('wrong');
@@ -846,13 +866,14 @@ function FillBlankGame({
         setTimeout(() => {
           setFeedback(null);
           setFilledSlots({});
+          setSelectedWord(null);
           setCompleted(false);
         }, 1500);
       }
       setCompleted(true);
     }, 400);
     return () => clearTimeout(timer);
-  }, [allFilled, completed, feedback, blanks, filledSlots, isTest, soundOn, onComplete, onAnswer]);
+  }, [allFilled, completed, feedback, blanks, filledSlots, isTest, soundOn, onComplete, onAnswer, sIdx, sentences.length]);
 
   // ── Tap-to-place (primary for kids) ────────────────────────────────
   const handleWordTap = (word: string) => {
@@ -970,7 +991,7 @@ function FillBlankGame({
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode, feedback, completed, blanks, filledSlots, soundOn]);
 
-  if (blanks.length === 0) {
+  if (sentences.length === 0 || !currentS) {
     return <p className="text-center text-gray-500">No fill-in-the-blank data available.</p>;
   }
 
@@ -986,7 +1007,25 @@ function FillBlankGame({
           ⚠️ Test Mode — Fill in the blanks correctly
         </p>
       )}
+      {sentences.length > 1 && (
+        <div className="flex justify-center gap-1.5">
+          {sentences.map((_, i) => (
+            <div
+              key={i}
+              className={`h-2.5 w-2.5 rounded-full transition-all ${
+                i < sIdx ? 'bg-green-400' : i === sIdx ? 'bg-[#0F4D92] scale-125' : 'bg-gray-200'
+              }`}
+            />
+          ))}
+        </div>
+      )}
       <p className="text-center text-lg font-semibold text-gray-700">Complete the sentence 📝</p>
+      {(currentS.context || sentences.length > 1) && (
+        <p className="text-center text-sm text-gray-500">
+          {sentences.length > 1 ? `Sentence ${sIdx + 1} of ${sentences.length}` : ''}
+          {currentS.context ? `${sentences.length > 1 ? ' — ' : ''}${currentS.context}` : ''}
+        </p>
+      )}
       <p className="text-center text-xs text-gray-400">Tap a word, then tap a blank — or drag it!</p>
       {/* Sentence with blank slots */}
       <div className="rounded-2xl bg-white p-6 shadow-md border border-gray-100">
@@ -1121,54 +1160,95 @@ function QuizGame({
   const { colorblindMode } = useA11yStore();
   const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
   const cbWrong = getFeedbackClasses(colorblindMode, 'wrong');
-  const options = config.options || [];
+  // Multi-question quiz (>=5 questions) with backward-compatible single-question shape
+  const questions = useMemo(() => {
+    if (config.questions && config.questions.length > 0) return config.questions;
+    return [{
+      id: 'q-single',
+      prompt: config.question || 'Choose the correct answer',
+      options: config.options || [],
+      correctIndex: -1,
+      correctId: config.correctId,
+      answer: config.answer,
+    }];
+  }, [config]);
+  const [qIdx, setQIdx] = useState(0);
+  const scoreRef = useRef(0);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [tapping, setTapping] = useState<number | null>(null);
   const isTest = mode === 'test';
+  const currentQ = questions[qIdx];
+  const options = currentQ?.options || [];
+
+  const isCorrectOption = useCallback((idx: number): boolean => {
+    const opt = options[idx];
+    if (!opt) return false;
+    if (typeof currentQ?.correctIndex === 'number' && currentQ.correctIndex >= 0) return idx === currentQ.correctIndex;
+    return opt.id === currentQ?.correctId || opt.label === currentQ?.answer;
+  }, [options, currentQ]);
+
+  const advance = useCallback((totalScore: number) => {
+    setSelectedIdx(null);
+    setFeedback(null);
+    setTapping(null);
+    if (qIdx + 1 >= questions.length) {
+      onComplete(totalScore);
+    } else {
+      setQIdx((i) => i + 1);
+    }
+  }, [qIdx, questions.length, onComplete]);
 
   const handleAnswer = (idx: number) => {
     if (feedback) return;
-    const isCorrect = options[idx]?.id === config.correctId || options[idx]?.label === config.answer;
+    const isCorrect = isCorrectOption(idx);
     // In test mode: no sound, no tapping animation, no selection highlight for wrong answers
     if (!isTest && soundOn) playTap();
     if (!isCorrect || !isTest) {
       setTapping(idx);
       setTimeout(() => setTapping(null), 300);
     }
-    onAnswer?.({ correct: isCorrect, expected: config.answer || config.correctId || '', given: options[idx]?.label || '' });
+    onAnswer?.({ correct: isCorrect, expected: currentQ?.answer || currentQ?.correctId || options[currentQ?.correctIndex ?? -1]?.label || '', given: options[idx]?.label || '' });
 
     if (isCorrect) {
       if (!isTest && soundOn) playCorrect();
       if (!isTest) setFeedback('correct');
       setSelectedIdx(idx);
-      setTimeout(() => onComplete(10), isTest ? 200 : 800);
-    } else {
-      // Wrong answer — in test mode: silently record, no visual feedback
+      scoreRef.current += 10;
+      setTimeout(() => advance(scoreRef.current), isTest ? 200 : 800);
+    } else if (!isTest) {
+      // Wrong answer in practice — brief shake then retry
+      setFeedback('wrong');
+      setSelectedIdx(idx);
+      setTimeout(() => { setFeedback(null); setSelectedIdx(null); }, 600);
     }
+    // Wrong answer in test mode — silently record, no visual feedback
   };
 
-  // ── Learning mode auto-play — speak question + answer ──
+  // ── Learning mode auto-play — speak question + answer per round ──
   useEffect(() => {
-    if (mode !== 'learning' || feedback) return;
-    const correctIdx = options.findIndex((opt) => opt.id === config.correctId || opt.label === config.answer);
+    if (mode !== 'learning' || !currentQ) return;
+    const correctIdx = options.findIndex((_, i) => isCorrectOption(i));
     if (correctIdx === -1) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       // Step 1: Read the question
-      if (soundOn) await speak(stripEmoji(config.question || 'Choose the correct answer'));
+      if (soundOn) await speak(stripEmoji(currentQ.prompt || currentQ.question || 'Choose the correct answer'));
       if (cancelled) return;
       // Step 2: Highlight + play teacher audio or speak the answer
       if (soundOn) playCorrect();
       setFeedback('correct');
       setSelectedIdx(correctIdx);
-      onAnswer?.({ correct: true, expected: config.answer || config.correctId || '', given: options[correctIdx]?.label || '' });
+      onAnswer?.({ correct: true, expected: options[correctIdx]?.label || '', given: options[correctIdx]?.label || '' });
       const answerName = speakLabel(options[correctIdx]?.label, undefined, options[correctIdx]?.emoji);
       if (soundOn) await speakOrPlay(options[correctIdx]?.audio, `The answer is ${answerName}`);
-      setTimeout(() => onComplete(0), 600);
+      if (cancelled) return;
+      setTimeout(() => advance(scoreRef.current), 600);
     }, 600);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, feedback, options, config, soundOn, onComplete, onAnswer]);
+  }, [mode, qIdx, questions.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!currentQ) return null;
 
   return (
     <div className="space-y-6">
@@ -1182,8 +1262,20 @@ function QuizGame({
           ⚠️ Test Mode — Choose carefully
         </p>
       )}
+      {questions.length > 1 && (
+        <div className="flex justify-center gap-1.5">
+          {questions.map((_, i) => (
+            <div
+              key={i}
+              className={`h-2.5 w-2.5 rounded-full transition-all ${
+                i < qIdx ? 'bg-green-400' : i === qIdx ? 'bg-[#0F4D92] scale-125' : 'bg-gray-200'
+              }`}
+            />
+          ))}
+        </div>
+      )}
       <p className="text-center text-xl font-semibold text-gray-700 animate-game-drop-in">
-        {config.question || 'Choose the correct answer'}
+        {currentQ.prompt || currentQ.question || 'Choose the correct answer'}
       </p>
       <div className="grid grid-cols-2 gap-4">
         {options.map((opt, i) => (
@@ -1191,9 +1283,9 @@ function QuizGame({
             key={i}
             onClick={() => handleAnswer(i)}
             className={`rounded-xl border-2 p-5 text-center font-semibold transition-all animate-game-slide-up stagger-${Math.min(i + 1, 12)} ${
-              !isTest && feedback === 'correct' && (opt.id === config.correctId || opt.label === config.answer)
+              !isTest && feedback === 'correct' && isCorrectOption(i)
                 ? `${cbCorrect.border} ${cbCorrect.bg} ${cbCorrect.text} animate-game-correct shadow-lg ${cbCorrect.shadow}`
-                : selectedIdx === i && !isTest && feedback === 'wrong'
+                : !isTest && selectedIdx === i && feedback === 'wrong'
                 ? `${cbWrong.border} ${cbWrong.bg} animate-game-wrong`
                 : !isTest && feedback === 'wrong'
                 ? 'border-gray-200 bg-white opacity-60 scale-95'
@@ -1989,7 +2081,7 @@ export default function GamePlay() {
     if (config.template === 'matching') return config.pairs?.length || 0;
     if (config.template === 'tap-recognition') return config.items?.length || 0;
     if (config.template === 'drag-sort') return config.items?.length || 0;
-    if (config.template === 'quiz') return 1;
+    if (config.template === 'quiz') return config.questions?.length || 1;
     if (config.template === 'fill-in-blank') return config.blanks?.length || 0;
     if (config.template === 'puzzle-split') return config.pieces?.length || 0;
     return 0;

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "MatchingGameConfig",
+  "title": "MemoryPairsGameConfig",
   "type": "object",
   "required": [
     "gameId",
@@ -19,7 +19,7 @@
       "type": "string"
     },
     "template": {
-      "const": "matching"
+      "const": "memory-pairs"
     },
     "lessonId": {
       "type": "string"
@@ -52,6 +52,9 @@
       "type": "integer",
       "minimum": 1
     },
+    "domain": {
+      "type": "string"
+    },
     "durationTargetSec": {
       "type": "integer",
       "minimum": 15,
@@ -60,12 +63,12 @@
     "promptMode": {
       "type": "string",
       "enum": ["text", "image", "audio"],
-      "description": "How the left side of the match is presented"
+      "description": "How each card face is presented"
     },
     "responseMode": {
       "type": "string",
       "enum": ["text", "image", "audio"],
-      "description": "How the right side (response) is presented"
+      "description": "How the child responds — always by flipping cards"
     },
     "assets": {
       "type": "object",
@@ -79,8 +82,9 @@
         },
         "items": {
           "type": "array",
-          "minItems": 2,
+          "minItems": 4,
           "maxItems": 16,
+          "description": "Every card is an item; partner cards point at each other via 'matches'. Total items must be even (pairs).",
           "items": {
             "type": "object",
             "required": [

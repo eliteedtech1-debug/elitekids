@@ -263,8 +263,12 @@ class PedagogyValidator {
    * Count distractors in the GDL.
    */
   countDistractors(gdl) {
-    // For matching games: items minus the correct match
+    // For matching/memory-pairs games: items minus the correct match
     if (gdl.template === 'matching' && gdl.assets && gdl.assets.items) {
+      return gdl.assets.items.length;
+    }
+
+    if (gdl.template === 'memory-pairs' && gdl.assets && gdl.assets.items) {
       return gdl.assets.items.length;
     }
 
