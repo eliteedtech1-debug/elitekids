@@ -41,4 +41,4 @@ export const ADMIN_ROLES = ['admin', 'branchadmin', 'superadmin'] as const;
 export const AGE_LEVELS = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'] as const;
 
 // Game templates (must match game-engine/schemas/*.schema.json)
-export const GAME_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz'] as const;
+export const GAME_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split'] as const;

@@ -31,6 +31,7 @@ export const ENDPOINTS = {
   LESSONS: {
     LIST: '/kids/lessons',
     CREATE: '/kids/lessons',
+    CREATE_MANUAL: '/kids/lessons/manual',
     GET: (id: string) => `/kids/lessons/${id}`,
     GENERATE: (id: string) => `/kids/lessons/${id}/generate`,
     GAME: (id: string) => `/kids/lessons/${id}/game`,

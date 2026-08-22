@@ -616,6 +616,14 @@ function toRuntimeGameConfig(cfg) {
     if (pairs.length) out.pairs = pairs;
   }
 
+  // memory-pairs: flip-card items live under assets.items — hoist to runtime items
+  if (cfg.template === 'memory-pairs' && !Array.isArray(out.items) && Array.isArray(assets.items)) {
+    out.items = assets.items
+      .map((it) => ({ id: it.id, image: it.image, audio: it.audio, matches: it.matches }))
+      .filter((it) => it.id && (it.image || it.matches));
+    if (out.items.length < 4) out.items = assets.items;
+  }
+
   // tap-recognition: schema objects → ordered tap rounds (each item is one round's target)
   if (cfg.template === 'tap-recognition' && !Array.isArray(out.items) && Array.isArray(assets.objects)) {
     const items = assets.objects

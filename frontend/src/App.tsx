@@ -7,6 +7,7 @@ import StudentHome from '@/pages/Student/StudentHome';
 import GamePlay from '@/pages/Student/GamePlay';
 import TeacherLessons from '@/pages/Teacher/TeacherLessons';
 import TeacherApprovals from '@/pages/Teacher/TeacherApprovals';
+import GameCreator from '@/pages/Teacher/GameCreator';
 import AssetLibrary from '@/pages/Admin/AssetLibrary';
 import AuthGuard from '@/components/AuthGuard';
 
@@ -71,6 +72,14 @@ export default function App() {
         element={
           <AuthGuard>
             <TeacherApprovals />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/create-game"
+        element={
+          <AuthGuard>
+            <GameCreator />
           </AuthGuard>
         }
       />

@@ -44,8 +44,8 @@ if [ "$DEPLOY_FRONTEND" = "1" ]; then
   if [ "$DRY_RUN" = "1" ]; then
     echo "  [dry-run] rsync frontend/ → $VPS_HOST:$REMOTE_DIR/frontend/"
   else
-    rsync -az --delete -e "ssh -i $VPS_KEY -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15" \
-      "$SRC_DIR/frontend/dist/" "$VPS_USER@$VPS_HOST:$REMOTE_DIR/frontend/"
+    rsync -az --delete --exclude 'node_modules' --exclude 'src' -e "ssh -i $VPS_KEY -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15" \
+      "$SRC_DIR/frontend/dist/" "$VPS_USER@$VPS_HOST:$REMOTE_DIR/frontend/dist/"
     echo "  ✅ Frontend deployed"
   fi
 fi
