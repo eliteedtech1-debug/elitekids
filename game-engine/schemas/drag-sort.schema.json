@@ -71,7 +71,7 @@
         "items": {
           "type": "array",
           "minItems": 2,
-          "maxItems": 8,
+          "maxItems": 12,
           "items": {
             "type": "object",
             "required": [
