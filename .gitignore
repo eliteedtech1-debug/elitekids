@@ -11,3 +11,9 @@ uploads/
 *.db-wal
 .DS_Store
 logs/
+
+# internal ops - never public
+01-PLANNING/04-AI-AGENT-ORCHESTRATION-GUIDE.md
+PROJECT_STATE.md
+09-DECISIONS-LOG.local.md
+team-docs/
