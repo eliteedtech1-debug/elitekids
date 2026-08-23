@@ -12,6 +12,11 @@
  *                     (lessons, game configs, scene scripts, progress, …).
  *   3. `ai`         → AI DB (AI_DB_NAME; elite_bot on the prod server) —
  *                     kids_content_generation_audit.
+ *   4. `kids`       → dedicated kids DB (KIDS_DB_NAME, elite_kids) — C1 target
+ *                     home for kids/game-domain tables. Provisioned; kids
+ *                     models still read/write elite_content until a supervised
+ *                     data move is approved (elite_content also hosts other
+ *                     apps' tables, so moves need human review).
  *
  * The shared school DB is NEVER altered by this service. Addon tables are only
  * created in elite_content / the AI DB via syncKidsTables() (create-if-missing,
@@ -153,6 +158,16 @@ const aiSequelize = new Sequelize(
   buildOptions(process.env.AI_DB_NAME || 'elite_bot')
 );
 
+// 4) Dedicated kids-domain DB (KIDS_DB_NAME, e.g. elite_kids). C1 target home.
+//    No models bound yet — kids tables still live in elite_content; this
+//    instance is ready for the supervised data move (see team-docs reports).
+const kidsSequelize = new Sequelize(
+  process.env.KIDS_DB_NAME || 'elite_kids',
+  process.env.DB_USERNAME,
+  process.env.DB_PASSWORD,
+  buildOptions(process.env.KIDS_DB_NAME || 'elite_kids')
+);
+
 // Auto-load model files
 fs.readdirSync(__dirname)
   .filter((file) => file.indexOf('.') !== 0 && file !== basename && file.slice(-3) === '.js' && !file.startsWith('index'))
@@ -176,6 +191,7 @@ Object.keys(db).forEach((modelName) => {
 db.sequelize = sequelize;
 db.content = contentSequelize;
 db.ai = aiSequelize;
+db.kids = kidsSequelize;
 db.Sequelize = Sequelize;
 
 /**

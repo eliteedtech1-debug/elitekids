@@ -18,6 +18,8 @@
  *   Admin/superadmin treated as teacher-level.
  */
 const db = require('../models');
+// kids_mode_locks lives in the kids/content DB (elite_content) — NOT in
+// elite_db. All queries here MUST use db.content (C1).
 const crypto = require('crypto');
 
 // Role hierarchy: higher number = more authority. Mirrors elite-api roleBasedAuth.js.
@@ -45,21 +47,21 @@ function callerRank(req) {
  */
 async function findEffectiveLock(childAdmissionNo, lessonId, classCode) {
   // 1. Per-student lock
-  const [studentLock] = await db.sequelize.query(
+  const [studentLock] = await db.content.query(
     `SELECT * FROM kids_mode_locks
      WHERE child_admission_no = :child AND lesson_id = :lesson
      LIMIT 1`,
-    { replacements: { child: childAdmissionNo, lesson: lessonId }, type: db.sequelize.QueryTypes.SELECT }
+    { replacements: { child: childAdmissionNo, lesson: lessonId }, type: db.content.QueryTypes.SELECT }
   );
 
   // 2. Class-wide lock (if class_code provided)
   let classLock = null;
   if (classCode) {
-    [classLock] = await db.sequelize.query(
+    [classLock] = await db.content.query(
       `SELECT * FROM kids_mode_locks
        WHERE class_code = :classCode AND lesson_id = :lesson AND school_id != ''
        ORDER BY updated_at DESC LIMIT 1`,
-      { replacements: { classCode, lesson: lessonId }, type: db.sequelize.QueryTypes.SELECT }
+      { replacements: { classCode, lesson: lessonId }, type: db.content.QueryTypes.SELECT }
     );
   }
 
@@ -120,11 +122,11 @@ async function setModeLock(req, res) {
 
     if (isClassWide) {
       /* ── Class-wide lock ───────────────────────────── */
-      const [existing] = await db.sequelize.query(
+      const [existing] = await db.content.query(
         `SELECT * FROM kids_mode_locks
          WHERE class_code = :classCode AND lesson_id = :lesson AND school_id = :school
          LIMIT 1`,
-        { replacements: { classCode: class_code, lesson: lesson_id, school: school_id }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { classCode: class_code, lesson: lesson_id, school: school_id }, type: db.content.QueryTypes.SELECT }
       );
 
       if (existing) {
@@ -132,7 +134,7 @@ async function setModeLock(req, res) {
         if (callerRank(req) <= eRank) {
           return res.status(403).json({ success: false, message: `Cannot override: class lock set by a ${existing.locked_by_role}.` });
         }
-        await db.sequelize.query(
+        await db.content.query(
           `UPDATE kids_mode_locks SET locked_mode=:mode, locked_by=:by, locked_by_role=:role,
            locked_by_name=:name, updated_at=NOW()
            WHERE class_code=:classCode AND lesson_id=:lesson AND school_id=:school`,
@@ -140,7 +142,7 @@ async function setModeLock(req, res) {
         );
       } else {
         const lockId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        await db.sequelize.query(
+        await db.content.query(
           `INSERT INTO kids_mode_locks
            (id, school_id, branch_id, child_admission_no, class_code, lesson_id, locked_mode, locked_by, locked_by_role, locked_by_name, created_at, updated_at)
            VALUES (:id, :school, :branch, '*', :classCode, :lesson, :mode, :by, :role, :name, NOW(), NOW())`,
@@ -155,11 +157,11 @@ async function setModeLock(req, res) {
         return res.status(400).json({ success: false, message: 'child_admission_no is required for per-student lock.' });
       }
 
-      const [existing] = await db.sequelize.query(
+      const [existing] = await db.content.query(
         `SELECT * FROM kids_mode_locks
          WHERE child_admission_no = :child AND lesson_id = :lesson
          LIMIT 1`,
-        { replacements: { child: child_admission_no, lesson: lesson_id }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { child: child_admission_no, lesson: lesson_id }, type: db.content.QueryTypes.SELECT }
       );
 
       if (existing) {
@@ -167,7 +169,7 @@ async function setModeLock(req, res) {
         if (callerRank(req) <= eRank) {
           return res.status(403).json({ success: false, message: `Cannot override: locked by a ${existing.locked_by_role}.` });
         }
-        await db.sequelize.query(
+        await db.content.query(
           `UPDATE kids_mode_locks SET locked_mode=:mode, locked_by=:by, locked_by_role=:role,
            locked_by_name=:name, updated_at=NOW()
            WHERE child_admission_no=:child AND lesson_id=:lesson`,
@@ -175,7 +177,7 @@ async function setModeLock(req, res) {
         );
       } else {
         const lockId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        await db.sequelize.query(
+        await db.content.query(
           `INSERT INTO kids_mode_locks
            (id, school_id, branch_id, child_admission_no, lesson_id, locked_mode, locked_by, locked_by_role, locked_by_name, created_at, updated_at)
            VALUES (:id, :school, :branch, :child, :lesson, :mode, :by, :role, :name, NOW(), NOW())`,
@@ -203,18 +205,18 @@ async function removeModeLock(req, res) {
     const isClassWide = !!class_code && (child_admission_no === '*' || !child_admission_no);
 
     if (isClassWide) {
-      const [existing] = await db.sequelize.query(
+      const [existing] = await db.content.query(
         `SELECT * FROM kids_mode_locks
          WHERE class_code = :classCode AND lesson_id = :lesson
          LIMIT 1`,
-        { replacements: { classCode: class_code, lesson: lesson_id }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { classCode: class_code, lesson: lesson_id }, type: db.content.QueryTypes.SELECT }
       );
       if (!existing) return res.json({ success: true, message: 'No class lock to remove.' });
       const eRank = ROLE_HIERARCHY[existing.locked_by_role] || 0;
       if (callerRank(req) <= eRank) {
         return res.status(403).json({ success: false, message: `Cannot unlock: class lock set by a ${existing.locked_by_role}.` });
       }
-      await db.sequelize.query(
+      await db.content.query(
         `DELETE FROM kids_mode_locks WHERE class_code = :classCode AND lesson_id = :lesson`,
         { replacements: { classCode: class_code, lesson: lesson_id } }
       );
@@ -224,18 +226,18 @@ async function removeModeLock(req, res) {
       if (!child_admission_no) {
         return res.status(400).json({ success: false, message: 'child_admission_no is required.' });
       }
-      const [existing] = await db.sequelize.query(
+      const [existing] = await db.content.query(
         `SELECT * FROM kids_mode_locks
          WHERE child_admission_no = :child AND lesson_id = :lesson
          LIMIT 1`,
-        { replacements: { child: child_admission_no, lesson: lesson_id }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { child: child_admission_no, lesson: lesson_id }, type: db.content.QueryTypes.SELECT }
       );
       if (!existing) return res.json({ success: true, message: 'No lock to remove.' });
       const eRank = ROLE_HIERARCHY[existing.locked_by_role] || 0;
       if (callerRank(req) <= eRank) {
         return res.status(403).json({ success: false, message: `Cannot unlock: locked by a ${existing.locked_by_role}.` });
       }
-      await db.sequelize.query(
+      await db.content.query(
         `DELETE FROM kids_mode_locks WHERE child_admission_no = :child AND lesson_id = :lesson`,
         { replacements: { child: child_admission_no, lesson: lesson_id } }
       );
@@ -255,14 +257,14 @@ async function listModeLocks(req, res) {
 
     let locks;
     if (class_code) {
-      locks = await db.sequelize.query(
+      locks = await db.content.query(
         `SELECT * FROM kids_mode_locks WHERE class_code = :classCode ORDER BY lesson_id`,
-        { replacements: { classCode: class_code }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { classCode: class_code }, type: db.content.QueryTypes.SELECT }
       );
     } else if (child_admission_no) {
-      locks = await db.sequelize.query(
+      locks = await db.content.query(
         `SELECT * FROM kids_mode_locks WHERE child_admission_no = :child ORDER BY lesson_id`,
-        { replacements: { child: child_admission_no }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { child: child_admission_no }, type: db.content.QueryTypes.SELECT }
       );
     } else {
       return res.status(400).json({ success: false, message: 'child_admission_no or class_code is required.' });
