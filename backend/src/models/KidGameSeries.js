@@ -9,12 +9,12 @@ module.exports = (sequelize, DataTypes) => {
     {
       id: { type: DataTypes.STRING(50), primaryKey: true },
       name: { type: DataTypes.STRING(255), allowNull: false },
-      category: {
-        type: DataTypes.ENUM('Animals', 'Letters', 'Shapes'),
-        allowNull: false,
-      },
+      // E3b: free-text display group — canonical taxonomy lives in subject_code
+      category: { type: DataTypes.STRING(100), allowNull: false },
       description: { type: DataTypes.TEXT, allowNull: true },
       created_by: { type: DataTypes.STRING(50), allowNull: true },
+      subject_code: { type: DataTypes.STRING(50), allowNull: true },
+      term_hint: { type: DataTypes.STRING(20), allowNull: true },
     },
     {
       tableName: 'kids_game_series',

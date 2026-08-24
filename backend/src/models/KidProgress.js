@@ -19,6 +19,10 @@ module.exports = (sequelize, DataTypes) => {
       xp: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       completed_at: { type: DataTypes.DATE, allowNull: false },
       idempotency_key: { type: DataTypes.STRING(100), allowNull: true },
+      difficulty: { type: DataTypes.STRING(20), allowNull: true },
+      // E3f: which mode produced this attempt ('learning'|'practice'|'test') — drives the
+      // practice+test completion gate on /kids/curriculum. NULL = legacy row.
+      mode: { type: DataTypes.STRING(20), allowNull: true },
     },
     {
       tableName: 'kids_progress',

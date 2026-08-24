@@ -41,6 +41,12 @@ import {
   speakShape,
   speakColor,
 } from '@/lib/utils/sound';
+import { playCombo, playComboBreak, playRageFill, playRageActive, playBossAttack, playBossDefeated, playVictory } from '@/lib/game/sound-effects';
+import { createCombo, recordCorrect as comboCorrect, recordIncorrect as comboIncorrect, getComboFireLevel } from '@/lib/game/combo';
+import type { ComboState } from '@/lib/game/combo';
+import { awardPowerUps, getAvailable, usePowerUp } from '@/lib/game/power-ups';
+import { launchConfetti } from '@/lib/game/victory';
+import apiClientBoss from '@/lib/api/client';
 import type { PromptMode, ResponseMode } from '@/lib/types/game';
 import { getPromptDisplay, getResponseDisplay } from '@/lib/types/game';
 
@@ -2404,6 +2410,9 @@ export default function GamePlay() {
   const [searchParams] = useSearchParams();
   const urlMode = (searchParams.get('mode') || '').toLowerCase();
   const validUrlMode = (['learning', 'practice', 'test'] as string[]).includes(urlMode) ? urlMode as GameMode : null;
+  // E6: Boss raid URL params
+  const urlBossMode = searchParams.get('boss_mode');
+  const urlRaidId = searchParams.get('raid_id');
   // Restore last-used mode from localStorage, or use URL param, or default to practice
   const savedModeKey = lessonId ? `kids_mode_${lessonId}` : '';
   const savedMode = savedModeKey ? (localStorage.getItem(savedModeKey) as GameMode | null) : null;
@@ -2425,6 +2434,13 @@ export default function GamePlay() {
   const [retryMessage, setRetryMessage] = useState('');
   const [showBreakSuggestion, setShowBreakSuggestion] = useState(false);
   const [breakDismissed, setBreakDismissed] = useState(false);
+  // E6: Boss raid state
+  const [bossMode, setBossMode] = useState(false);
+  const [raidId, setRaidId] = useState<string | null>(null);
+  const [bossKey, setBossKey] = useState<string | null>(null);
+  const comboRef = useRef<ComboState>({ current: 0, max: 0, rageCounter: 0, rageActive: false, rageRemaining: 0 });
+  const [rageActive, setRageActive] = useState(false);
+  const [comboCount, setComboCount] = useState(0);
   const [puzzleDifficulty, setPuzzleDifficulty] = useState<string>('easy');
   const sessionStartRef = useRef(Date.now());
   const { colorblindMode, toggleColorblind } = useA11yStore();
@@ -2489,6 +2505,11 @@ export default function GamePlay() {
       })
       .catch((err) => setError(err?.message || 'Failed to load game'))
       .finally(() => setLoading(false));
+        // E6: Initialize boss mode from URL
+        if (urlBossMode === 'raid' && urlRaidId) {
+          setBossMode(true);
+          setRaidId(urlRaidId);
+        }
   }, [lessonId]);
 
   // After loading, if there are scenes, show intro first — UNLESS mode was pre-selected from URL or saved
@@ -2575,6 +2596,26 @@ export default function GamePlay() {
 
   // Record each answer
   const handleAnswer = useCallback((result: AnswerResult) => {
+    // E6: Boss mode combo tracking
+    if (bossMode) {
+      if (result.correct) {
+        const { combo, justRaged, damageMultiplier } = comboCorrect(comboRef.current);
+        comboRef.current = combo;
+        setComboCount(combo.current);
+        if (justRaged) {
+          setRageActive(true);
+          playRageActive();
+        } else if (soundOn && combo.current >= 2) {
+          playCombo(getComboFireLevel(combo.current));
+        }
+      } else {
+        const { combo } = comboIncorrect(comboRef.current);
+        comboRef.current = combo;
+        setComboCount(0);
+        setRageActive(false);
+        if (soundOn) playComboBreak();
+      }
+    }
     setAnswers((prev) => [...prev, result]);
   }, []);
 

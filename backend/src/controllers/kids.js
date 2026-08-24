@@ -3,6 +3,7 @@
  * SAFETY RULE: child-facing reads filter content_state='published' in SQL.
  */
 const { v4: uuidv4 } = require('uuid');
+const { recordAttemptPoints } = require('./kidsLeaderboard');
 const db = require('../models');
 const { generateGameConfig, persistGameConfig, generateSceneScript, persistSceneScript } = require('../services/contentGeneratorService');
 const { enqueueLessonGeneration } = require('../media/generation.queue');
@@ -751,10 +752,70 @@ async function listGenerationJobs(req, res) {
 
 // ── Progress ───────────────────────────────────────────────────────────────
 
+/** POST /kids/sync/batch — offline queue drain (E2). Per-item created|duplicate|error; order preserved. */
+async function syncBatch(req, res) {
+  try {
+    const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ success: false, message: 'items[] required.' });
+    if (items.length > 50) return res.status(400).json({ success: false, message: 'Max 50 items per batch.' });
+
+    const user = req.user || {};
+    const isStudent = String(user.user_type || '').toLowerCase() === 'student';
+    const mine = String(user.admission_no || user.id || '');
+    const school_id = req.headers['x-school-id'] || user.school_id;
+    const branch_id = req.headers['x-branch-id'] || user.branch_id;
+
+    const results = [];
+    for (const it of items) {
+      const { child_admission_no, lesson_id, game_config_id, score, stars_earned, xp, idempotency_key, difficulty, mode } = it || {};
+      try {
+        if (!child_admission_no || !lesson_id) {
+          results.push({ status: 'error', message: 'child_admission_no and lesson_id are required.' });
+          continue;
+        }
+        if (isStudent && String(child_admission_no).trim() !== mine) {
+          results.push({ status: 'error', message: 'You can only access your own data' });
+          continue;
+        }
+        if (idempotency_key) {
+          const existing = await db.KidProgress.findOne({
+            where: { child_admission_no, lesson_id, game_config_id: game_config_id || null, idempotency_key },
+          });
+          if (existing) { results.push({ status: 'duplicate', id: existing.id }); continue; }
+        }
+        const record = await db.KidProgress.create({
+          id: uuidv4(),
+          school_id,
+          branch_id,
+          child_admission_no,
+          lesson_id,
+          game_config_id: game_config_id || null,
+          score: Number(score) || 0,
+          stars_earned: Number(stars_earned) || 0,
+          xp: Number(xp) || 0,
+          completed_at: new Date(),
+          idempotency_key: idempotency_key || null,
+          difficulty: difficulty || null,
+          mode: ['learning', 'practice', 'test'].includes(mode) ? mode : null,
+        });
+        recordAttemptPoints({ school_id, branch_id, child_admission_no, score: record.score });
+        results.push({ status: 'created', id: record.id });
+      } catch (e) {
+        results.push({ status: 'error', message: e.message });
+      }
+    }
+    const failed = results.filter((r) => r.status === 'error').length;
+    return res.json({ success: true, data: { results, failed } });
+  } catch (err) {
+    console.error('syncBatch error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 /** POST /kids/progress/game-complete — idempotent progress record. */
 async function recordGameComplete(req, res) {
   try {
-    const { child_admission_no, lesson_id, game_config_id, score, stars_earned, xp, idempotency_key, difficulty } = req.body || {};
+    const { child_admission_no, lesson_id, game_config_id, score, stars_earned, xp, idempotency_key, difficulty, mode } = req.body || {};
     if (!child_admission_no || !lesson_id) {
       return res.status(400).json({ success: false, message: 'child_admission_no and lesson_id are required.' });
     }
@@ -782,7 +843,10 @@ async function recordGameComplete(req, res) {
       completed_at: new Date(),
       idempotency_key: idempotency_key || null,
       difficulty: difficulty || null,
+      mode: ['learning', 'practice', 'test'].includes(mode) ? mode : null,
     });
+    // FB-17: weekly competition points (effort+performance), fire-and-forget
+    recordAttemptPoints({ school_id, branch_id, child_admission_no, score: record.score });
     return res.status(201).json({ success: true, data: record });
   } catch (err) {
     console.error('recordGameComplete error:', err.message);
@@ -871,6 +935,10 @@ async function decideApproval(req, res) {
 
     // Flip the referenced content's state machine.
     const nextState = decision === 'approve' ? 'published' : 'generated';
+    // Declared here (not inside the else branch) so the response builder
+    // below can always read it — a block-scoped declaration 500'd every
+    // decide call with "assetsSaved is not defined".
+    let assetsSaved = 0;
 
     if (approval.content_type === 'scene_script') {
       // Scene scripts are batched per lesson — content_id = lesson_id.
@@ -889,7 +957,6 @@ async function decideApproval(req, res) {
         lesson: db.KidLesson,
       }[approval.content_type];
 
-      let assetsSaved = 0;
       if (modelFor) {
         const content = await modelFor.findByPk(approval.content_id);
         if (content) {
@@ -1140,6 +1207,7 @@ async function listParentActivities(req, res) {
 }
 
 module.exports = {
+  syncBatch,
   listChildrenForParent,
   getChild,
   createChild,

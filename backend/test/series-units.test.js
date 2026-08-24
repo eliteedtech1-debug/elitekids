@@ -57,10 +57,10 @@ describe('POST /kids/series (create series)', () => {
       .post('/kids/series')
       .set('authorization', token)
       .set(SCHOOL_HEADER)
-      .send({ name: 'Bad', category: 'InvalidCat' });
+      .send({ name: 'Bad', category: 'x'.repeat(101) }); // E3b: free-form, capped at 100 chars
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/category must be one of/);
+    expect(res.body.message).toMatch(/category/i);
   });
 
   it('rejects non-staff users', async () => {
@@ -258,7 +258,34 @@ describe('GET /kids/units/:id/lock-status', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.locked).toBe(true);
-    expect(res.body.data.reason).toMatch(/Complete unit/);
+    expect(res.body.data.reason).toMatch(/Finish unit/);
+  });
+
+  it('unlocks once every prerequisite lesson has practice AND a passed test (E3f gate)', async () => {
+    const db = require('../src/models');
+    for (const lessonId of ['lesson-unit1-cat', 'lesson-unit1-dog']) {
+      for (const [mode, score] of [['practice', 88], ['test', 72]]) {
+        await db.KidProgress.create({
+          id: `fix-e3f-${lessonId}-${mode}`,
+          school_id: 'SCH-TEST',
+          branch_id: 'BR-TEST',
+          child_admission_no: 'NUR-002',
+          lesson_id: lessonId,
+          score,
+          stars_earned: 2,
+          xp: 5,
+          completed_at: new Date(),
+          mode,
+        });
+      }
+    }
+    const token = await loginAs('admin@kids.test', 'Admin@123');
+    const res = await request(app)
+      .get('/kids/units/UNIT-2/lock-status?student_id=NUR-002')
+      .set('authorization', token);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.locked).toBe(false);
   });
 
   it('requires student_id', async () => {

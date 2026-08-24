@@ -38,6 +38,7 @@ export const ENDPOINTS = {
     SCENES: (id: string) => `/kids/lessons/${id}/scenes`,
     APPROVE: (id: string) => `/kids/lessons/${id}/approve`,
     SUGGESTED_MODE: (lessonId: string, studentId: string) => `/kids/lessons/${lessonId}/suggested-mode?student_id=${encodeURIComponent(studentId)}`,
+    NEXT_UP: (lessonId: string, studentId: string) => `/kids/lessons/${lessonId}/next-up?student_id=${encodeURIComponent(studentId)}`,
   },
 
   // Progress — same query-param pattern for admission numbers
@@ -68,6 +69,8 @@ export const ENDPOINTS = {
     CREATE_UNIT: (seriesId: string) => `/kids/series/${seriesId}/units`,
     UPDATE_UNIT: (seriesId: string, unitId: string) => `/kids/series/${seriesId}/units/${unitId}`,
     LOCK_STATUS: (unitId: string, studentId: string) => `/kids/units/${unitId}/lock-status?student_id=${encodeURIComponent(studentId)}`,
+    DOMESTICATE: (seriesId: string) => `/kids/series/${seriesId}/domesticate`,
+    DOMESTICATIONS: '/kids/series-domestications',
   },
 
   // Interface Onboarding (Doc 16)
@@ -110,10 +113,25 @@ export const ENDPOINTS = {
     DELETE: (id: string) => `/kids/session/${id}`,
   },
 
+  // E3f: weekend push notifications
+  PUSH: {
+    KEY: '/kids/push/public-key',
+    SUBSCRIBE: '/kids/push/subscribe',
+  },
+
+  // E3f: Class Arena competitions
+  ARENA: {
+    ACTIVE: '/kids/arena/active',
+    LIST: '/kids/arena/list',
+    CREATE: '/kids/arena/create',
+    END: (id: string) => `/kids/arena/${id}/end`,
+  },
+
   // Curriculum Mapping & Library (Doc 15)
   CURRICULUM: {
     LIST: '/kids/curriculum',
     GET: (id: string) => `/kids/curriculum/${id}`,
+    WEEKEND_TEST: '/kids/weekend-test',
   },
   LIBRARY: {
     LIST: '/kids/library',
@@ -135,6 +153,18 @@ export const ENDPOINTS = {
     REMOVE: '/kids/mode-lock',
   },
 
+  // FB-13: publish class-test scores into weekly_scores (CA/EXAM via ca_setup)
+  TEST_SCORES: {
+    CONVERT: '/kids/test-scores/convert',
+  },
+
+  // FB-17: weekly leaderboard, badges, free-week reward
+  LEADERBOARD: {
+    BOARD: '/kids/leaderboard',
+    ME: '/kids/leaderboard/me',
+    BADGES: '/kids/badges',
+  },
+
   // Parental Controls (Doc 17)
   PARENTAL: {
     GET: (studentId: string) => `/kids/parental-controls?student_id=${encodeURIComponent(studentId)}`,
@@ -148,4 +178,52 @@ export const ENDPOINTS = {
     SAVE_BATCH: '/media/save-opensource-batch',
     OPENSOURCE_ASSETS: '/media/opensource-assets',
   },
+
+  // E5 Phase 0: Adaptive Difficulty
+  // E4 Phase 0: Voice Notes
+  VOICE: {
+    LIST: '/kids/voice-notes',
+    MINE: '/kids/voice-notes/mine',
+    AUDIO: (id: string) => `/kids/voice-notes/${id}/audio`,
+  },
+
+
+  ADAPTIVE: {
+    PROFILE: '/kids/adaptive/profile',
+    UPDATE: '/kids/adaptive/update',
+    RECOMMENDED: '/kids/adaptive/recommended',
+    DUE_REVIEWS: '/kids/adaptive/due-reviews',
+  },
+
+  // E5 Phase 0: Spaced Repetition
+  REVIEWS: {
+    DUE: '/kids/reviews/due',
+    COMPLETE: '/kids/reviews/complete',
+    STATS: '/kids/reviews/stats',
+  },
+
+  // E5+E6 Phase 0: Enhanced Arena
+  ARENA_GAMES: {
+    SET: (id: string) => `/kids/arena/${id}/games`,
+    GET: (id: string) => `/kids/arena/${id}/games`,
+    DASHBOARD: (id: string) => `/kids/arena/${id}/dashboard`,
+  },
+
+  // E6 Phase 0: Boss Battles
+  BOSS: {
+    RAID_ACTIVE: '/kids/boss/raid/active',
+    RAID_CREATE: '/kids/boss/raid/create',
+    RAIDS: '/kids/boss/raids',
+    RAID_DASHBOARD: (id: string) => `/kids/boss/raid/${id}/dashboard`,
+    RAID_DAMAGE: (id: string) => `/kids/boss/raid/${id}/damage`,
+    RAID_GAMES: (id: string) => `/kids/boss/raid/${id}/games`,
+    GUARDIANS: '/kids/boss/guardians',
+  },
+
+  // E5 Phase 0: Power-Ups (client-side localStorage, but backend for persistence)
+  POWER_UPS: {
+    AVAILABLE: '/kids/power-ups',
+    USE: '/kids/power-ups/use',
+  },
+
 } as const;

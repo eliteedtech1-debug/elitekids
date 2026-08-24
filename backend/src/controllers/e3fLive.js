@@ -1,0 +1,209 @@
+'use strict';
+/**
+ * E3f — KidsLive: real-time class audio (teacher broadcast + teacher-controlled
+ * student replies). Walkie-talkie model: exactly ONE speaker at a time.
+ *
+ * Transport: WebSocket binary frames (16kHz mono Int16 PCM chunks, ~100ms each)
+ * through nginx WSS on the existing /kids... proxy block (Upgrade headers already
+ * present in the vhost — no nginx changes needed).
+ *
+ * Protocol (path /kids-live?token=JWT):
+ *   server → {type:'welcome', role, floor, live}
+ *   server → {type:'presence', online:[{adm,name,role,floor}]}
+ *   server → {type:'live', on}                       // teacher joined/left
+ *   server → {type:'floor', adm, on}                 // roster change for teachers
+ *   server → {type:'you-floor', on}                  // personal floor grant
+ *   client(staff) → {type:'floor', adm, on}          // grant/revoke student mic
+ *   binary frame: PCM chunk; relayed room-wide iff sender is teacher or floored,
+ *                 single-speaker enforced (teacher preempts).
+ */
+const crypto = require('crypto');
+
+let attached = false;
+
+function verifyJwt(token, secret) {
+  try {
+    const parts = String(token || '').replace(/^Bearer\s+/i, '').split('.');
+    if (parts.length !== 3) return null;
+    const head = JSON.parse(Buffer.from(parts[0], 'base64').toString('utf8'));
+    if ((head.alg || '').toLowerCase() !== 'hs256') return null;
+    const sig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64url');
+    const a = Buffer.from(sig);
+    const b = Buffer.from(parts[2]);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const payload = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    if (payload.exp && payload.exp * 1000 < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeName(row) {
+  if (!row) return 'Friend';
+  const first = String(row.first_name || row.student_name || '').trim();
+  const last = String(row.surname || '').trim();
+  return `${first}${last ? ` ${last.charAt(0).toUpperCase()}.` : ''}` || 'Friend';
+}
+
+function attach(server) {
+  if (attached) return;
+  attached = true;
+  let WebSocketServer;
+  try {
+    ({ WebSocketServer } = require('ws'));
+  } catch {
+    console.error('e3fLive: ws module missing — live audio disabled');
+    return;
+  }
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
+  const rooms = new Map(); // key → { conns:Set<conn>, speaker:null|'teacher'|adm, speakerTimer }
+
+  function roomOf(key) {
+    let r = rooms.get(key);
+    if (!r) {
+      r = { conns: new Set(), speaker: null, speakerTimer: null };
+      rooms.set(key, r);
+    }
+    return r;
+  }
+
+  function presence(r) {
+    return [...r.conns].map((c) => ({
+      adm: c.adm || c.uid,
+      name: c.name,
+      role: c.role,
+      floor: !!c.floor,
+    }));
+  }
+
+  function broadcast(r, obj, except) {
+    const data = JSON.stringify(obj);
+    for (const c of r.conns) {
+      if (c !== except && c.ws.readyState === 1) c.ws.send(data);
+    }
+  }
+
+  function refreshPresence(r) {
+    broadcast(r, { type: 'presence', online: presence(r) });
+    const liveOn = [...r.conns].some((c) => c.role === 'teacher');
+    broadcast(r, { type: 'live', on: liveOn });
+  }
+
+  wss.on('connection', async (ws, req, url) => {
+    try {
+      const secret = process.env.JWT_SECRET_KEY;
+      const payload = verifyJwt(url.searchParams.get('token'), secret);
+      if (!payload) {
+        ws.close(4001, 'unauthorized');
+        return;
+      }
+      const dbm = require('../models');
+      const userType = String(payload.user_type || '').toLowerCase();
+      const schoolId = String(payload.school_id || '');
+      let conn;
+      if (userType === 'student') {
+        const adm = String(payload.admission_no || payload.id || '');
+        const found = await dbm.sequelize.query(
+          `SELECT admission_no, student_name, surname, first_name, class_code FROM students
+           WHERE admission_no=:a AND school_id=:s LIMIT 1`,
+          { replacements: { a: adm, s: schoolId }, type: dbm.Sequelize.QueryTypes.SELECT },
+        );
+        const stu = Array.isArray(found) ? found[0] : found;
+        if (!stu || !stu.class_code) {
+          ws.close(4002, 'no-class');
+          return;
+        }
+        conn = {
+          ws, role: 'student', schoolId,
+          roomKey: `${schoolId}:${stu.class_code}`,
+          adm,
+          name: sanitizeName(stu),
+          floor: false,
+        };
+      } else {
+        // Staff can address any class: target via ?class=CLSxxxx, else first active arena class fallback
+        const cls = String(url.searchParams.get('class') || '').slice(0, 40);
+        if (!cls) {
+          ws.close(4003, 'class-required');
+          return;
+        }
+        conn = {
+          ws, role: 'teacher', schoolId,
+          roomKey: `${schoolId}:${cls}`,
+          adm: `staff:${payload.id || payload.email || ''}`.slice(0, 64),
+          name: 'Teacher',
+          floor: true, // teacher may always speak
+        };
+      }
+      const r = roomOf(conn.roomKey);
+      if (r.conns.size >= 60) {
+        ws.close(4004, 'room-full');
+        return;
+      }
+      r.conns.add(conn);
+
+      ws.send(JSON.stringify({
+        type: 'welcome', role: conn.role, floor: conn.floor, live: true,
+        you: { name: conn.name }, online: presence(r),
+      }));
+      refreshPresence(r);
+
+      ws.on('message', (data, isBinary) => {
+        if (isBinary) {
+          // Single-speaker relay with teacher preemption
+          const isTeacher = conn.role === 'teacher';
+          if (!isTeacher && !conn.floor) return;
+          if (!isTeacher && r.speaker && r.speaker !== conn.adm) return; // preempted
+          if (!r.speaker || isTeacher) r.speaker = isTeacher ? 'teacher' : conn.adm;
+          clearTimeout(r.speakerTimer);
+          r.speakerTimer = setTimeout(() => { r.speaker = null; }, 2000);
+          for (const c of r.conns) {
+            if (c !== conn && c.ws.readyState === 1) c.ws.send(data, { binary: true });
+          }
+          return;
+        }
+        // Control frames
+        let msg;
+        try { msg = JSON.parse(data.toString()); } catch { return; }
+        if (msg.type === 'floor' && conn.role === 'teacher') {
+          const target = String(msg.adm || '').slice(0, 64);
+          const on = !!msg.on;
+          for (const c of r.conns) {
+            if (c.role === 'student' && c.adm.toLowerCase() === target.toLowerCase()) {
+              c.floor = on;
+              if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: 'you-floor', on }));
+            }
+          }
+          refreshPresence(r);
+        }
+      });
+
+      const cleanup = () => {
+        r.conns.delete(conn);
+        if ([...r.conns].length === 0) {
+          clearTimeout(r.speakerTimer);
+          rooms.delete(r.roomKey);
+        } else {
+          refreshPresence(r);
+        }
+      };
+      ws.on('close', cleanup);
+      ws.on('error', cleanup);
+    } catch (err) {
+      console.error('e3fLive connection error:', err.message);
+      try { ws.close(1011, 'error'); } catch {}
+    }
+  });
+
+  server.on('upgrade', (req, socket, head) => {
+    let pathname = '';
+    try { pathname = new URL(req.url, 'http://x').pathname; } catch { return socket.destroy(); }
+    if (!['/kids-live', '/kids/live'].includes(pathname)) return; // not ours — other upgrade handlers/404 proceed
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req, new URL(req.url, 'http://x')));
+  });
+
+  console.log('e3fLive: kids-live audio intercom attached at /kids/live');
+}
+
+module.exports = { attach };

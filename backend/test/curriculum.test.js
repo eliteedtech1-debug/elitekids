@@ -25,8 +25,11 @@ const SCHOOL_HEADER = { 'x-school-id': 'SCH-TEST' };
 
 // ─── Curriculum Points ──────────────────────────────────────────────────────
 
-describe('GET /kids/curriculum', () => {
-  it('lists curriculum points', async () => {
+// NOTE (E3): GET /kids/curriculum is now the subject → series → unit term ladder
+// (supervisor spec: 1 unit per academic week, cumulative practice+test gate).
+// The old points-listing contract moved to GET /kids/curriculum/:id per-point reads.
+describe('GET /kids/curriculum (E3 ladder)', () => {
+  it('returns the ladder envelope for the authed child', async () => {
     const token = await loginAs('admin@kids.test', 'Admin@123');
     const res = await request(app)
       .get('/kids/curriculum')
@@ -34,42 +37,35 @@ describe('GET /kids/curriculum', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.length).toBeGreaterThanOrEqual(2);
-
-    const cp1 = res.body.data.find((c) => c.id === 'CP-1');
-    expect(cp1).toBeDefined();
-    expect(cp1.age_band).toBe('Nursery');
-    expect(cp1.category).toBe('Animals');
-    expect(cp1.published_game_count).toBeGreaterThanOrEqual(1);
+    expect(typeof res.body.data.child_admission_no).toBe('string');
+    expect(Array.isArray(res.body.data.subjects)).toBe(true);
   });
 
-  it('filters by age_band', async () => {
+  it('groups fixture series lacking subject_code under GENERAL with week-numbered units', async () => {
     const token = await loginAs('admin@kids.test', 'Admin@123');
     const res = await request(app)
-      .get('/kids/curriculum?age_band=KG1')
+      .get('/kids/curriculum')
       .set('authorization', token);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.every((c) => c.age_band === 'KG1')).toBe(true);
+    const general = res.body.data.subjects.find((s) => s.subject_code === 'GENERAL');
+    expect(general).toBeDefined();
+    const ids = general.series.map((s) => s.id);
+    expect(ids).toContain('SERIES-1');
+    const s1 = general.series.find((s) => s.id === 'SERIES-1');
+    expect(s1.units).toHaveLength(2);
+    expect(s1.units.map((u) => u.week_number)).toEqual([1, 2]);
+    expect(s1.units[1].locked).toBe(true); // cumulative gate: U1 not completed by this child
   });
 
-  it('filters by category', async () => {
+  it('serves the ladder regardless of legacy query params', async () => {
     const token = await loginAs('admin@kids.test', 'Admin@123');
     const res = await request(app)
-      .get('/kids/curriculum?category=Letters')
+      .get('/kids/curriculum?age_band=KG1&category=Letters')
       .set('authorization', token);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.every((c) => c.category === 'Letters')).toBe(true);
-  });
-
-  it('rejects invalid age_band', async () => {
-    const token = await loginAs('admin@kids.test', 'Admin@123');
-    const res = await request(app)
-      .get('/kids/curriculum?age_band=University')
-      .set('authorization', token);
-
-    expect(res.status).toBe(400);
+    expect(Array.isArray(res.body.data.subjects)).toBe(true);
   });
 });
 

@@ -15,6 +15,8 @@ import {
   Apple,
   Trophy,
   RotateCcw,
+  Swords,
+  Users,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -25,6 +27,9 @@ import SpeechSettings from '@/components/SpeechSettings';
 import OnboardingTour from '@/components/OnboardingTour';
 import CompanionSelect, { CompanionBubble } from '@/components/CompanionSelect';
 import GardenScene from '@/components/GardenScene';
+import StudentLeaderboardPanel from './StudentLeaderboardPanel';
+import StudentFestival from '@/components/StudentFestival';
+import ParentDashboard from '@/components/ParentDashboard';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreak, getStreakEmoji } from '@/lib/utils/streak';
@@ -64,6 +69,7 @@ interface Tab {
   label: string;
   icon: React.ReactNode;
   filter: (l: LessonCard) => boolean;
+  special?: boolean;
 }
 
 const TABS: Tab[] = [
@@ -74,6 +80,9 @@ const TABS: Tab[] = [
   { key: 'shapes', label: 'Shapes', icon: <Shapes className="h-4 w-4" />, filter: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
   { key: 'animals', label: 'Animals', icon: <PawPrint className="h-4 w-4" />, filter: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
   { key: 'food', label: 'Food', icon: <Apple className="h-4 w-4" />, filter: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
+  { key: 'festival', label: 'Festival', icon: <Swords className="h-4 w-4" />, filter: () => true, special: true },
+  { key: 'leaderboard', label: 'Trophy Board', icon: <Trophy className="h-4 w-4" />, filter: () => true, special: true },
+  { key: 'parent', label: 'Parent', icon: <Users className="h-4 w-4" />, filter: () => true, special: true },
 ];
 
 /* ── Age-level badge colors (from accessibility palette) ── */
@@ -431,6 +440,14 @@ export default function StudentHome() {
               })}
             </div>
 
+            {activeTab === 'festival' ? (
+              <StudentFestival onGoPlay={() => navigate('/student/game')} />
+            ) : activeTab === 'leaderboard' ? (
+              <StudentLeaderboardPanel />
+            ) : activeTab === 'parent' ? (
+              <ParentDashboard />
+            ) : (
+            <>
             {/* Section header */}
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800">
@@ -552,6 +569,8 @@ export default function StudentHome() {
                   );
                 })}
               </div>
+            )}
+          </>
             )}
           </>
         )}

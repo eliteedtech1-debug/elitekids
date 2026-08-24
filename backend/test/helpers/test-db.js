@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS kids_progress (
   xp INT NOT NULL DEFAULT 0,
   completed_at DATETIME NOT NULL,
   idempotency_key VARCHAR(100) NULL,
+  difficulty VARCHAR(20) NULL,
+  mode VARCHAR(20) NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_kids_progress_child (child_admission_no),
@@ -143,6 +145,7 @@ CREATE TABLE IF NOT EXISTS kids_lessons (
   created_by VARCHAR(50) NOT NULL,
   content_state ENUM('generated','pre_screened','pending_human_review','approved','published','recalled') NOT NULL DEFAULT 'generated',
   lesson_type ENUM('game','video','story','song','worksheet') NOT NULL DEFAULT 'game',
+  is_global TINYINT(1) NOT NULL DEFAULT 0,
   duration_target_sec INT NULL,
   published_at DATETIME NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
@@ -155,7 +158,7 @@ CREATE TABLE IF NOT EXISTS kids_lessons (
 CREATE TABLE IF NOT EXISTS kids_game_configs (
   id VARCHAR(50) PRIMARY KEY,
   lesson_id VARCHAR(50) NOT NULL,
-  template ENUM('matching','tap-recognition','drag-sort','quiz') NOT NULL,
+  template ENUM('matching','tap-recognition','drag-sort','quiz','fill-in-blank','puzzle-split') NOT NULL,
   age_level VARCHAR(20) NOT NULL,
   item_id VARCHAR(50) NULL,
   tier INT NULL,
@@ -174,6 +177,27 @@ CREATE TABLE IF NOT EXISTS kids_game_configs (
   KEY idx_kids_game_configs_item_id (item_id),
   KEY idx_kids_game_configs_tier (tier),
   KEY idx_kids_game_configs_category (category)
+);
+
+CREATE TABLE IF NOT EXISTS kids_mode_locks (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  school_id VARCHAR(20) NOT NULL,
+  branch_id VARCHAR(20) NOT NULL,
+  child_admission_no VARCHAR(50) NOT NULL DEFAULT '*',
+  class_code VARCHAR(50) NULL,
+  lesson_id VARCHAR(50) NOT NULL,
+  locked_mode ENUM('learning','practice','test') NOT NULL,
+  locked_by VARCHAR(50) NOT NULL,
+  locked_by_role ENUM('teacher','parent') NOT NULL,
+  locked_by_name VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_mode_lock_child_lesson (child_admission_no, lesson_id),
+  UNIQUE KEY uq_mode_lock_class_lesson (class_code, lesson_id, school_id),
+  KEY mode_lock_child (child_admission_no),
+  KEY mode_lock_class (class_code),
+  KEY mode_lock_school (school_id, branch_id)
 );
 
 CREATE TABLE IF NOT EXISTS kids_content_approvals (
@@ -270,9 +294,11 @@ CREATE TABLE IF NOT EXISTS kids_content_generation_audit (
 CREATE TABLE IF NOT EXISTS kids_game_series (
   id VARCHAR(50) PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  category ENUM('Animals','Letters','Shapes') NOT NULL,
+  category VARCHAR(100) NOT NULL,
   description TEXT NULL,
   created_by VARCHAR(50) NULL,
+  subject_code VARCHAR(50) NULL,
+  term_hint VARCHAR(20) NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY kids_game_series_category (category)
@@ -336,6 +362,7 @@ CREATE TABLE IF NOT EXISTS kids_game_item_responses (
   mode ENUM('learning','practice','test') NOT NULL,
   correct TINYINT(1) NOT NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY kids_game_item_responses_student (student_id),
   KEY kids_game_item_responses_item (item_id),
   KEY kids_game_item_responses_student_item (student_id, item_id)
@@ -350,6 +377,7 @@ CREATE TABLE IF NOT EXISTS kids_engagement_snapshots (
   drop_off_point VARCHAR(100) NULL,
   content_format_breakdown JSON NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY kids_engagement_snapshots_student (student_id),
   KEY kids_engagement_snapshots_session (session_id)
 );
@@ -368,7 +396,7 @@ CREATE TABLE IF NOT EXISTS kids_mastery_progress (
 );
 
 CREATE TABLE IF NOT EXISTS kids_test_attempts (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id VARCHAR(50) PRIMARY KEY,
   student_id VARCHAR(50) NOT NULL,
   item_id VARCHAR(50) NOT NULL,
   tier INT NOT NULL,
@@ -376,6 +404,7 @@ CREATE TABLE IF NOT EXISTS kids_test_attempts (
   attempt_number INT NOT NULL,
   routed_to ENUM('retest','practice','teacher_flag') NOT NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY kids_test_attempts_student (student_id),
   KEY kids_test_attempts_item (item_id),
   KEY kids_test_attempts_student_item (student_id, item_id)
@@ -390,19 +419,21 @@ CREATE TABLE IF NOT EXISTS kids_review_schedule (
   interval_stage INT NOT NULL DEFAULT 1,
   last_result ENUM('pass','fail') NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY kids_review_schedule_student_item (student_id, item_id, tier)
 );
 
 CREATE TABLE IF NOT EXISTS kids_interface_onboarding (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id VARCHAR(50) PRIMARY KEY,
   student_id VARCHAR(50) NOT NULL,
   completed_at DATETIME NOT NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY kids_interface_onboarding_student (student_id)
 );
 
 CREATE TABLE IF NOT EXISTS kids_garden_state (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id VARCHAR(50) PRIMARY KEY,
   student_id VARCHAR(50) NOT NULL,
   garden_elements JSON NOT NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
@@ -411,7 +442,7 @@ CREATE TABLE IF NOT EXISTS kids_garden_state (
 );
 
 CREATE TABLE IF NOT EXISTS kids_companion_state (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id VARCHAR(50) PRIMARY KEY,
   student_id VARCHAR(50) NOT NULL,
   companion_type VARCHAR(50) NOT NULL,
   customization JSON NOT NULL,
@@ -461,7 +492,7 @@ async function ensureTestDb() {
 
     // Reset data between runs
     await conn.query('SET FOREIGN_KEY_CHECKS = 0');
-    for (const t of ['users', 'parents', 'students', 'school_setup', 'password_reset_tokens', 'kids_children', 'kids_progress', 'kids_lessons', 'kids_game_configs', 'kids_content_approvals', 'kids_generation_jobs', 'kids_scene_scripts', 'kids_prescreen_log', 'kids_denylist_rules', 'kids_content_generation_audit', 'kids_game_series', 'kids_game_units', 'kids_curriculum_points', 'kids_library_games', 'kids_class_game_variants', 'kids_game_item_responses', 'kids_engagement_snapshots', 'kids_mastery_progress', 'kids_test_attempts', 'kids_review_schedule', 'kids_interface_onboarding', 'kids_garden_state', 'kids_companion_state', 'kids_session_state', 'kids_parental_controls']) {
+    for (const t of ['users', 'parents', 'students', 'school_setup', 'password_reset_tokens', 'kids_children', 'kids_progress', 'kids_lessons', 'kids_game_configs', 'kids_mode_locks', 'kids_content_approvals', 'kids_generation_jobs', 'kids_scene_scripts', 'kids_prescreen_log', 'kids_denylist_rules', 'kids_content_generation_audit', 'kids_game_series', 'kids_game_units', 'kids_curriculum_points', 'kids_library_games', 'kids_class_game_variants', 'kids_game_item_responses', 'kids_engagement_snapshots', 'kids_mastery_progress', 'kids_test_attempts', 'kids_review_schedule', 'kids_interface_onboarding', 'kids_garden_state', 'kids_companion_state', 'kids_session_state', 'kids_parental_controls']) {
       await conn.query('TRUNCATE TABLE `' + t + '`');
     }
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
@@ -601,7 +632,10 @@ async function ensureTestDb() {
        ('UNIT-2', 'SERIES-1', 2, 'UNIT-1', ?, 'Wild Animals'),
        ('UNIT-3', 'SERIES-2', 1, NULL, ?, 'Letter A-C')`,
       [
-        JSON.stringify([{ item_id: 'cat-01', tier: 0 }, { item_id: 'dog-01', tier: 0 }]),
+        JSON.stringify([
+          { item_id: 'cat-01', tier: 0, lesson_id: 'lesson-unit1-cat' },
+          { item_id: 'dog-01', tier: 0, lesson_id: 'lesson-unit1-dog' },
+        ]),
         JSON.stringify([{ item_id: 'lion-01', tier: 0 }]),
         JSON.stringify([{ item_id: 'letter-a', tier: 0 }]),
       ]

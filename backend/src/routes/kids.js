@@ -14,6 +14,7 @@ const {
   getGenerationJob,
   listGenerationJobs,
   recordGameComplete,
+  syncBatch,
   childProgress,
   decideApproval,
   approveLesson,
@@ -26,11 +27,14 @@ const {
   createSeries,
   listSeries,
   getSeries,
+  getCurriculum,
   createUnit,
   updateUnit,
   getUnitLockStatus,
   getUnitSuggestedMode,
 } = require('../controllers/kidsSeries');
+const { getLessonNextUp } = require('../controllers/kidsSeries');
+const { domesticateSeries, listDomestications } = require('../controllers/kidsModeLock');
 const {
   getOnboardingStatus,
   completeOnboarding,
@@ -74,9 +78,21 @@ const {
   checkPlayAllowed,
 } = require('../controllers/kidsParental');
 const { denyForeignChildData, requireStaff } = require('../services/routesHelper');
-const { getModeLock, setModeLock, removeModeLock, listModeLocks } = require('../controllers/kidsModeLock');
+const { getModeLock, setModeLock, removeModeLock, listModeLocks, convertTestScores } = require('../controllers/kidsModeLock');
 
 const auth = passport.authenticate('jwt', { session: false });
+const { getLeaderboard, getMyStatus, getMyBadges } = require('../controllers/kidsLeaderboard');
+const { getWeekendTest } = require('../controllers/e3fWeekend');
+const { getPublicKey, subscribe: pushSubscribe, blastWeekendPush, startPushScheduler } = require('../controllers/e3fPush');
+const { createCompetition, listCompetitions, endCompetition, getActive } = require('../controllers/e3fArena');
+// E5+E6 Phase 0: Competition engine + Boss battles + Adaptive
+const { setCompetitionGames, getCompetitionGames, getDashboard, markStarted, trackProgress } = require('../controllers/kidsCompetition');
+const { createRaid, getRaidDashboard, getActiveRaid, submitDamage, listRaids, setRaidGames, GUARDIANS } = require('../controllers/kidsBoss');
+const { updateProfile: updateAdaptiveProfile, getProfile: getAdaptiveProfile, updateProfileEndpoint, getDueReviews: getAdaptiveDueReviews, getRecommended } = require('../controllers/kidsAdaptive');
+const { getDueReviews: getSpacedDueReviews, markReviewComplete, getReviewStats } = require('../controllers/kidsSpacedRep');
+// Phase 3: Parent Dashboard + Festival of Guardians
+const parentCtrl = require('../controllers/kidsParent');
+const festivalCtrl = require('../controllers/kidsFestival');
 
 module.exports = (app) => {
   // ── Parent read-only activity feed ──────────────────────────────────────
@@ -84,6 +100,22 @@ module.exports = (app) => {
 
   // ── Lessons (listing for students/parents + CRUD for staff) ──────────────
   app.get('/kids/lessons', auth, listLessons);
+  // ── FB-17 weekly competition ───────────────────────────────────────────
+  app.get('/kids/leaderboard/me', auth, getMyStatus);
+  app.get('/kids/leaderboard', auth, getLeaderboard);
+  app.get('/kids/badges', auth, getMyBadges);
+  // ── E3f: Weekend Challenge (personalized weekly review test) ───────────
+  app.get('/kids/weekend-test', auth, getWeekendTest);
+  // ── E3f: weekend push notifications (web-push VAPID) ────────────────────
+  app.get('/kids/push/public-key', auth, getPublicKey);
+  app.post('/kids/push/subscribe', auth, pushSubscribe);
+  blastWeekendPush(false).catch((e) => console.error('e3fPush boot check:', e.message));
+  startPushScheduler();
+  // ── E3f: Class Arena (tug-of-war & trophy competitions) ─────────────────
+  app.get('/kids/arena/active', auth, getActive);
+  app.post('/kids/arena/create', auth, requireStaff, createCompetition);
+  app.get('/kids/arena/list', auth, requireStaff, listCompetitions);
+  app.post('/kids/arena/:id/end', auth, requireStaff, endCompetition);
   app.post('/kids/lessons', auth, requireStaff, createLesson);
   app.post('/kids/lessons/manual', auth, requireStaff, createLessonManual);
 
@@ -119,6 +151,8 @@ module.exports = (app) => {
     if (denied) return res.status(denied.status).json(denied.body);
     next();
   }, recordGameComplete);
+  // E2: offline queue drain — batch progress posts
+  app.post('/kids/sync/batch', auth, syncBatch);
   // Query-param route for admission numbers with slashes
   app.get('/kids/progress/child', auth, (req, res, next) => {
     const denied = denyForeignChildData(req);
@@ -144,10 +178,13 @@ module.exports = (app) => {
   app.post('/kids/series', auth, requireStaff, createSeries);
   app.get('/kids/series', auth, listSeries);
   app.get('/kids/series/:id', auth, getSeries);
+  // E3: subject-grouped curriculum map w/ sequential gating
+  app.get('/kids/curriculum', auth, getCurriculum);
   app.post('/kids/series/:id/units', auth, requireStaff, createUnit);
   app.put('/kids/series/:id/units/:unitId', auth, requireStaff, updateUnit);
   app.get('/kids/units/:id/lock-status', auth, getUnitLockStatus);
   app.get('/kids/lessons/:id/suggested-mode', auth, getUnitSuggestedMode);
+  app.get('/kids/lessons/:id/next-up', auth, getLessonNextUp);
 
   // ── Interface Onboarding (Doc 16) ───────────────────────────────────
   app.get('/kids/onboarding/status', auth, getOnboardingStatus);
@@ -191,9 +228,57 @@ module.exports = (app) => {
   app.get('/kids/mode-locks', auth, listModeLocks);
   app.post('/kids/mode-lock', auth, setModeLock);
   app.delete('/kids/mode-lock', auth, removeModeLock);
+  app.post('/kids/test-scores/convert', auth, convertTestScores);
+  app.post('/kids/series/:id/domesticate', auth, requireStaff, domesticateSeries);
+  app.get('/kids/series-domestications', auth, requireStaff, listDomestications);
 
   // ── Parental Controls (Doc 17) ────────────────────────────────────
   app.get('/kids/parental-controls', auth, getParentalControls);
   app.post('/kids/parental-controls', auth, setParentalControls);
   app.get('/kids/parental-controls/check', auth, checkPlayAllowed);
+
+  // ── E5 Phase 0: Competition Engine (enhanced arena) ────────────────────
+  app.post('/kids/arena/:id/games', auth, requireStaff, setCompetitionGames);
+  app.get('/kids/arena/:id/games', auth, getCompetitionGames);
+  app.get('/kids/arena/:id/dashboard', auth, requireStaff, getDashboard);
+  app.post('/kids/arena/:id/participants/start', auth, markStarted);
+  app.post('/kids/arena/:id/participants/progress', auth, trackProgress);
+
+  // ── E6 Phase 0: Boss Battles ───────────────────────────────────────────
+  app.get('/kids/boss/raid/active', auth, getActiveRaid);
+  app.post('/kids/boss/raid/create', auth, requireStaff, createRaid);
+  app.get('/kids/boss/raids', auth, requireStaff, listRaids);
+  app.get('/kids/boss/raid/:id/dashboard', auth, requireStaff, getRaidDashboard);
+  app.post('/kids/boss/raid/:id/damage', auth, submitDamage);
+  app.post('/kids/boss/raid/:id/games', auth, requireStaff, setRaidGames);
+  app.get('/kids/boss/guardians', auth, (req, res) => {
+    res.json({ success: true, data: GUARDIANS });
+  });
+
+  // ── E5 Phase 0: Adaptive Difficulty ────────────────────────────────────
+  app.get('/kids/adaptive/profile', auth, getAdaptiveProfile);
+  app.post('/kids/adaptive/update', auth, updateProfileEndpoint);
+  app.get('/kids/adaptive/recommended', auth, getRecommended);
+  app.get('/kids/adaptive/due-reviews', auth, getAdaptiveDueReviews);
+
+  // ── E5 Phase 0: Spaced Repetition ─────────────────────────────────────
+  app.get('/kids/reviews/due', auth, getSpacedDueReviews);
+  app.post('/kids/reviews/complete', auth, markReviewComplete);
+  app.get('/kids/reviews/stats', auth, getReviewStats);
+
+  // ── Phase 3: Parent Dashboard ──────────────────────────────────────────
+  app.post('/kids/parent/login', parentCtrl.login);
+  app.post('/kids/parent/register', parentCtrl.register);
+  app.get('/kids/parent/children', auth, parentCtrl.getChildren);
+  app.get('/kids/parent/child/:adm/progress', auth, parentCtrl.getChildProgress);
+  app.get('/kids/parent/child/:adm/achievements', auth, parentCtrl.getChildAchievements);
+  app.get('/kids/parent/notifications', auth, parentCtrl.getNotifications);
+  app.post('/kids/parent/notifications/:id/read', auth, parentCtrl.markRead);
+
+  // ── Phase 3: Festival of Guardians ─────────────────────────────────────
+  app.get('/kids/festival/active', auth, festivalCtrl.getActiveFestival);
+  app.post('/kids/festival/create', auth, requireStaff, festivalCtrl.createFestival);
+  app.post('/kids/festival/:id/damage', auth, festivalCtrl.dealDamage);
+  app.get('/kids/festival/history', auth, festivalCtrl.getFestivalHistory);
+  app.get('/kids/festival/guardians', auth, festivalCtrl.listGuardians);
 };

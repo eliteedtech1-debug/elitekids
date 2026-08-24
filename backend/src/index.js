@@ -87,6 +87,7 @@ if (SKIP_DB_SYNC) {
   console.log('⚠️ KIDS_SKIP_DB_SYNC=1 — skipping schema migrations/sync (read-only boot)');
   const server = app.listen(port, '0.0.0.0', () => {
     console.log(`🚀 elite-kids-api listening on port ${port} (read-only boot)`);
+    require('./controllers/e3fLive').attach(server);
   });
   server.timeout = 120000;
   return;
@@ -115,6 +116,7 @@ ensureSchemaMigrations()
     console.log('✅ Databases synced');
     const server = app.listen(port, '0.0.0.0', () => {
       console.log(`🚀 elite-kids-api listening on port ${port}`);
+      require('./controllers/e3fLive').attach(server);
     });
     server.timeout = 120000;
 

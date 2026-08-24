@@ -7,9 +7,12 @@ import StudentHome from '@/pages/Student/StudentHome';
 import GamePlay from '@/pages/Student/GamePlay';
 import TeacherLessons from '@/pages/Teacher/TeacherLessons';
 import TeacherApprovals from '@/pages/Teacher/TeacherApprovals';
+import TeacherArena from './pages/Teacher/TeacherArena';
+import TeacherLive from './pages/Teacher/TeacherLive';
 import GameCreator from '@/pages/Teacher/GameCreator';
 import AssetLibrary from '@/pages/Admin/AssetLibrary';
 import AuthGuard from '@/components/AuthGuard';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 /**
  * App shell — routes for the EliteKids SPA.
@@ -47,7 +50,9 @@ export default function App() {
         path="/student"
         element={
           <AuthGuard>
-            <StudentHome />
+            <ErrorBoundary>
+              <StudentHome />
+            </ErrorBoundary>
           </AuthGuard>
         }
       />
@@ -55,7 +60,9 @@ export default function App() {
         path="/student/game/:lessonId"
         element={
           <AuthGuard>
-            <GamePlay />
+            <ErrorBoundary>
+              <GamePlay />
+            </ErrorBoundary>
           </AuthGuard>
         }
       />
@@ -76,10 +83,32 @@ export default function App() {
         }
       />
       <Route
+        path="/teacher/arena"
+        element={
+          <AuthGuard>
+            <ErrorBoundary>
+              <TeacherArena />
+            </ErrorBoundary>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/live"
+        element={
+          <AuthGuard>
+            <ErrorBoundary>
+              <TeacherLive />
+            </ErrorBoundary>
+          </AuthGuard>
+        }
+      />
+      <Route
         path="/teacher/create-game"
         element={
           <AuthGuard>
-            <GameCreator />
+            <ErrorBoundary>
+              <GameCreator />
+            </ErrorBoundary>
           </AuthGuard>
         }
       />
