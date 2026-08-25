@@ -19,8 +19,8 @@ const { Op } = require('sequelize');
 const crypto = require('crypto');
 const dbm = () => require('../models');
 
-// How many items between revision gates
-const GATE_THRESHOLD = 5;
+// How many games between revision gates (like Duolingo streak gates)
+const GATE_THRESHOLD = 3;
 
 function shuffleArr(a) {
   for (let i = a.length - 1; i > 0; i--) {
@@ -124,12 +124,9 @@ async function checkGate(req, res) {
     const rows = Array.isArray(lastRev) ? lastRev : [];
     const lastRevisionAt = rows.length > 0 ? rows[0].created_at : null;
 
-    // Count items played since last revision (or all if never revised)
-    const whereClause = lastRevisionAt
-      ? { child_admission_no: admission, created_at: { [Op.gt]: lastRevisionAt } }
-      : { child_admission_no: admission };
+    // Count games played since last revision (each game = 1, regardless of topic)
     const [countResult] = await dbm().content.query(
-      `SELECT COUNT(DISTINCT lesson_id) AS item_count
+      `SELECT COUNT(*) AS game_count
        FROM kids_progress
        WHERE child_admission_no=:adm
          ${lastRevisionAt ? 'AND created_at > :since' : ''}
@@ -138,8 +135,8 @@ async function checkGate(req, res) {
       { replacements: { adm: admission, since: lastRevisionAt } },
     ).catch(() => [[]]);
     const countRows = Array.isArray(countResult) ? countResult : [];
-    const itemsSinceRevision = countRows[0]?.item_count || 0;
-    const gateActive = itemsSinceRevision >= GATE_THRESHOLD;
+    const gamesSinceRevision = countRows[0]?.game_count || 0;
+    const gateActive = gamesSinceRevision >= GATE_THRESHOLD;
 
     // If gate is active, generate the revision ID
     let revisionId = null;
@@ -152,9 +149,9 @@ async function checkGate(req, res) {
       success: true,
       data: {
         gate_active: gateActive,
-        items_since_revision: itemsSinceRevision,
+        games_since_revision: gamesSinceRevision,
         threshold: GATE_THRESHOLD,
-        items_remaining: Math.max(0, GATE_THRESHOLD - itemsSinceRevision),
+        games_remaining: Math.max(0, GATE_THRESHOLD - gamesSinceRevision),
         revision_id: revisionId,
       },
     });
@@ -403,7 +400,7 @@ async function getRevisionStatus(req, res) {
     const lastRevisionAt = rRows.length > 0 ? rRows[0].created_at : null;
 
     const [countResult] = await dbm().content.query(
-      `SELECT COUNT(DISTINCT lesson_id) AS item_count
+      `SELECT COUNT(*) AS game_count
        FROM kids_progress
        WHERE child_admission_no=:adm
          ${lastRevisionAt ? 'AND created_at > :since' : ''}
@@ -412,7 +409,7 @@ async function getRevisionStatus(req, res) {
       { replacements: { adm: admission, since: lastRevisionAt } },
     ).catch(() => [[]]);
     const cRows = Array.isArray(countResult) ? countResult : [];
-    const itemsSinceRevision = cRows[0]?.item_count || 0;
+    const gamesSinceRevision = cRows[0]?.game_count || 0;
 
     // Weekly status
     const now = new Date();
@@ -432,10 +429,10 @@ async function getRevisionStatus(req, res) {
       success: true,
       data: {
         gate: {
-          active: itemsSinceRevision >= GATE_THRESHOLD,
-          items_since_revision: itemsSinceRevision,
+          active: gamesSinceRevision >= GATE_THRESHOLD,
+          games_since_revision: gamesSinceRevision,
           threshold: GATE_THRESHOLD,
-          items_remaining: Math.max(0, GATE_THRESHOLD - itemsSinceRevision),
+          games_remaining: Math.max(0, GATE_THRESHOLD - gamesSinceRevision),
         },
         weekly: {
           completed: wRows.length > 0,

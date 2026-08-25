@@ -3326,7 +3326,7 @@ export default function GamePlay() {
       const gate = res.data?.data;
       if (gate?.gate_active) {
         // Gate is active — block this game and redirect to revision
-        setError(`📋 Review required! You've learned ${gate.items_since_revision} items. Complete a quick review to continue.`);
+        setError(`📋 Review required! You've played ${gate.games_since_revision} games. Complete a quick review to continue.`);
       }
     }).catch(() => {}); // silently ignore — don't block play if check fails
   }, [lessonId, loading]);

@@ -20,9 +20,9 @@ import { ENDPOINTS } from '@/lib/api/endpoints';
 
 interface GateStatus {
   active: boolean;
-  items_since_revision: number;
+  games_since_revision: number;
   threshold: number;
-  items_remaining: number;
+  games_remaining: number;
 }
 
 interface WeeklyStatus {
@@ -105,9 +105,9 @@ export default function RevisionCard() {
   const gate = status?.gate;
   const weeklyDone = status?.weekly?.completed || false;
   const gateActive = gate?.active || false;
-  const gateThreshold = gate?.threshold || 5;
-  const gateItems = gate?.items_since_revision || 0;
-  const gateProgress = Math.min(100, Math.round((gateItems / gateThreshold) * 100));
+  const gateThreshold = gate?.threshold || 3;
+  const gateGames = gate?.games_since_revision || 0;
+  const gateProgress = Math.min(100, Math.round((gateGames / gateThreshold) * 100));
 
   return (
     <div className="space-y-3">
@@ -148,7 +148,7 @@ export default function RevisionCard() {
           {gateActive ? (
             <div>
               <p className="text-[11px] text-red-600 font-medium mb-1.5">
-                ⚠️ Review required! {gate?.items_remaining || 0} more item{(gate?.items_remaining || 0) !== 1 ? 's' : ''} to unlock.
+                ⚠️ Review required! {gate?.games_remaining || 0} more game{(gate?.games_remaining || 0) !== 1 ? 's' : ''} to unlock.
               </p>
               {/* Progress bar */}
               <div className="h-2 w-full overflow-hidden rounded-full bg-red-100 mb-2">
@@ -164,7 +164,7 @@ export default function RevisionCard() {
           ) : (
             <div>
               <p className="text-[11px] text-gray-500">
-                {gate ? `${gate.items_remaining} more item${gate.items_remaining !== 1 ? 's' : ''} until next review` : 'Keep studying!'}
+                {gate ? `${gate.games_remaining} more game${gate.games_remaining !== 1 ? 's' : ''} until next review` : 'Keep studying!'}
               </p>
               <span className="mt-1.5 inline-flex items-center gap-1 rounded-lg bg-gray-300 px-2.5 py-1 text-[10px] font-bold text-white">
                 <Lock className="h-3 w-3" /> Locked
