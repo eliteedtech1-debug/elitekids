@@ -14,11 +14,20 @@
  *
  * TTS locale: sound.ts reads `useI18n.getState().ttsLocale` so speech
  * follows the same locale switch (default en-NG for Nigerian deployment).
+ *
+ * This module also bridges the parallel strings.ts dictionary (offline.*,
+ * ui.*, error.*, game.* keys): `t()` falls back into it, and its
+ * setLocale/getLocale/addLocale API stays available. Both dictionaries feed
+ * the same lookup, so every key from either implementation resolves.
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { en } from './en';
+import { t as stringsT, setLocale, getLocale, addLocale } from './strings';
+
+// strings.ts module-level API (parallel i18n implementation) — kept exported.
+export { setLocale, getLocale, addLocale };
 
 export type Locale = 'en' | 'en-NG';
 
@@ -51,8 +60,8 @@ export const LOCALES: Array<{ code: Locale; label: string; tts: string }> = [
 
 /**
  * Translate a key using the active locale dictionary.
- * Falls back to the base `en` dictionary, then to the key itself, so
- * untranslated keys never crash or render empty.
+ * Falls back to the base `en` dictionary, then to the strings.ts dictionary,
+ * then to the key itself, so untranslated keys never crash or render empty.
  */
 export function t(key: string, params?: Record<string, string | number>): string {
   let str: string | undefined =
@@ -60,6 +69,7 @@ export function t(key: string, params?: Record<string, string | number>): string
       ? dictionaries[useI18n.getState().locale]?.[key]
       : undefined;
   if (str === undefined) str = dictionaries.en[key];
+  if (str === undefined) str = stringsT(key);
   if (str === undefined) return key;
 
   if (params) {

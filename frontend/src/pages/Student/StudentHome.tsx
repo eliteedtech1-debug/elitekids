@@ -20,6 +20,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import RevisionCard from '@/components/RevisionCard';
 import { playTap } from '@/lib/utils/sound';
 import A11ySettings from '@/components/A11ySettings';
 import SpeechSettings from '@/components/SpeechSettings';
@@ -43,6 +44,9 @@ interface LessonCard {
   lesson_type: string;
   created_at: string;
   has_games: boolean;
+  nerdc_code?: string;
+  nerdc_strand?: string;
+  nerdc_sub_strand?: string;
 }
 
 interface GameStat {
@@ -402,6 +406,11 @@ export default function StudentHome() {
           </div>
         </div>
 
+        {/* Daily & Weekly Revision */}
+        <div className="mb-5">
+          <RevisionCard />
+        </div>
+
         {error && (
           <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
         )}
@@ -517,6 +526,20 @@ export default function StudentHome() {
                         </span>
                         <span className="text-xs text-gray-400">{lesson.subject}</span>
                       </div>
+                      {(lesson.nerdc_code || lesson.nerdc_strand) && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          {lesson.nerdc_code && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-600">
+                              📘 {lesson.nerdc_code}
+                            </span>
+                          )}
+                          {lesson.nerdc_strand && (
+                            <span className="inline-flex items-center rounded-md bg-purple-50 px-1.5 py-0.5 text-[9px] font-medium text-purple-600">
+                              {lesson.nerdc_strand}{lesson.nerdc_sub_strand ? ` · ${lesson.nerdc_sub_strand}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {/* Per-game stats */}
                       {played > 0 && (
                         <div className="mt-3 flex items-center gap-3 border-t border-gray-100 pt-2.5">

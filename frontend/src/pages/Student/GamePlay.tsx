@@ -16,7 +16,10 @@ import {
   Palette,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
+import { offlineApi } from '@/lib/offline/api';
+import { offlineSync } from '@/lib/offline/sync';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { t } from '@/lib/i18n';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import TimerBar from '@/components/Timer';
 import { getItemVisual, getNumberEmoji, getNumberImageUrl } from '@/lib/utils/icons';
@@ -50,7 +53,6 @@ import type { ComboState } from '@/lib/game/combo';
 import { awardPowerUps, getAvailable, usePowerUp } from '@/lib/game/power-ups';
 import { launchConfetti } from '@/lib/game/victory';
 import apiClientBoss from '@/lib/api/client';
-import { offlineSync } from '@/lib/offline/sync';
 import type { PromptMode, ResponseMode } from '@/lib/types/game';
 import { getPromptDisplay, getResponseDisplay } from '@/lib/types/game';
 
@@ -116,7 +118,7 @@ interface GameConfig {
   question?: string;
   options?: { id: string; label: string; image?: string; emoji?: string; audio?: string; text?: string }[];
   answer?: string;
-  questions?: { id?: string; prompt?: string; question?: string; image?: string; scenario?: string; characterName?: string; characterImage?: string; characterEmoji?: string; setting?: string; settingImage?: string; hint?: string; speechText?: string; feedbackCorrect?: string; feedbackWrong?: string; options?: { id: string; label: string; image?: string; emoji?: string; audio?: string }[]; correctIndex?: number; correctId?: string; answer?: string }[];
+  questions?: { id?: string; prompt?: string; question?: string; image?: string; scenario?: string; characterName?: string; characterImage?: string; characterEmoji?: string; setting?: string; settingImage?: string; hint?: string; speechText?: string; feedbackCorrect?: string; feedbackWrong?: string; options?: { id: string; label: string; image?: string; emoji?: string; audio?: string }[]; correctIndex?: number; correctId?: string; answer?: string; isReview?: boolean; lesson_id?: string; question_id?: string }[];
   sentences?: { sentence: string; blanks: { id: number; answer: string }[]; wordBank?: string[]; context?: string }[];
   durationSec?: number;
   sentence?: string;
@@ -167,7 +169,7 @@ interface SceneWrapper {
 
 type GameMode = 'practice' | 'test' | 'learning';
 type Phase = 'intro' | 'play' | 'waiting-submit' | 'result' | 'learning-done' | 'retry-practice';
-type AnswerResult = { correct: boolean; expected: string; given: string };
+type AnswerResult = { correct: boolean; expected: string; given: string; question_id?: string; lesson_id?: string; is_review?: boolean };
 
 /* ── Helpers ────────────────────────────────────────────────── */
 
@@ -264,16 +266,16 @@ function MatchingGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[0] : null;
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
@@ -552,16 +554,16 @@ function TapGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[currentIdx % characters.length] : null;
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn || !current) return;
+    if (!soundOn || !current) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || config.prompt || config.context || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTap = (idx: number) => {
     if (feedback) return;
@@ -910,16 +912,16 @@ function DragSortGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[0] : null;
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
@@ -1288,16 +1290,16 @@ function FillBlankGame({
     return segments;
   }, [sentence, blanks]);
 
-  // Test mode: read scenario/speechText aloud
+  // Read scenario/speechText aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || sentence;
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest, sIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, sIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
@@ -1744,6 +1746,7 @@ function QuizGame({
   const isTest = mode === 'test';
   const currentQ = questions[qIdx];
   const options = currentQ?.options || [];
+  const isReviewQ = !!(currentQ as any)?.isReview;
 
   // Resolve character for current question — Image > Emoji > Text
   const currentCharacter = useMemo(() => {
@@ -1781,6 +1784,8 @@ function QuizGame({
       onComplete(totalScore);
     } else {
       setQIdx((i) => i + 1);
+      // Track if next question is a review
+      const nextQ = questions[qIdx + 1];
     }
   }, [qIdx, questions.length, onComplete]);
 
@@ -1806,7 +1811,7 @@ function QuizGame({
       setTapping(idx);
       setTimeout(() => setTapping(null), 300);
     }
-    onAnswer?.({ correct: isCorrect, expected: currentQ?.answer || currentQ?.correctId || options[currentQ?.correctIndex ?? -1]?.label || '', given: options[idx]?.label || '' });
+    onAnswer?.({ correct: isCorrect, expected: currentQ?.answer || currentQ?.correctId || options[currentQ?.correctIndex ?? -1]?.label || '', given: options[idx]?.label || '', question_id: currentQ?.id, lesson_id: currentQ?.lesson_id || config.lessonId, is_review: !!currentQ?.isReview });
 
     if (isCorrect) {
       if (!isTest && soundOn) playCorrect();
@@ -1841,9 +1846,9 @@ function QuizGame({
     // Wrong answer in test mode — silently record, no visual feedback
   };
 
-  // ── Test mode: read question aloud automatically ──
+  // ── Read question aloud in test + practice mode ──
   useEffect(() => {
-    if (!isTest || !currentQ || !soundOn) return;
+    if (!currentQ || !soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const textToSpeak = currentQ.speechText || currentQ.scenario || currentQ.prompt || currentQ.question || '';
@@ -1852,7 +1857,7 @@ function QuizGame({
       }
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest, qIdx, questions.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, qIdx, questions.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Learning mode auto-play — speak question + answer per round ──
   useEffect(() => {
@@ -2102,6 +2107,11 @@ function QuizGame({
               : 'bg-blue-50 text-blue-700 border border-blue-200'
           }`}>
             {feedback === 'correct' ? '🎉 ' : '🤔 '}{feedbackMsg}
+            {feedback === 'correct' && isReviewQ && (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 align-middle">
+                🔄 Review mastered!
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -2196,16 +2206,16 @@ function MemoryPairsGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[0] : null;
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     if (isTest) return;
@@ -2928,16 +2938,16 @@ function PuzzleGame({
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode, feedback, completed, placed, pieces, grid, totalPieces, soundOn]);
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDifficultyChange = (diff: string) => {
     if (soundOn) playTap();
@@ -3245,6 +3255,9 @@ export default function GamePlay() {
   const [bossKey, setBossKey] = useState<string | null>(null);
   const comboRef = useRef<ComboState>({ current: 0, max: 0, rageCounter: 0, rageActive: false, rageRemaining: 0 });
   const [rageActive, setRageActive] = useState(false);
+  // Review mixing: track which questions are reviews from failed items
+  const [mergedQuestions, setMergedQuestions] = useState<any[] | null>(null);
+  const reviewQuestionIds = useRef(new Set<string>());
   const [comboCount, setComboCount] = useState(0);
   const [puzzleDifficulty, setPuzzleDifficulty] = useState<string>('easy');
   const sessionStartRef = useRef(Date.now());
@@ -3316,6 +3329,57 @@ export default function GamePlay() {
           setRaidId(urlRaidId);
         }
   }, [lessonId]);
+
+  // Review mixing: fetch failed items for this lesson and merge into quiz questions
+  useEffect(() => {
+    if (!lessonId || !config || lessonId.startsWith('revision-')) return;
+    // Only mix into quiz-style templates
+    const quizTemplates = ['quiz', 'tap-recognition', 'matching', 'fill-in-blank'];
+    if (!quizTemplates.includes(config.template)) return;
+
+    apiClient.get(ENDPOINTS.REVISION.FAILED_ITEMS, {
+      params: { lesson_id: lessonId, limit: 2 },
+    }).then((res) => {
+      const failedItems = res.data?.data || [];
+      if (failedItems.length === 0) return;
+
+      // Convert failed items to quiz-format questions
+      const reviewQs = failedItems.map((item: any) => ({
+        id: `review-${item.question_id}`,
+        prompt: item.question_text || 'Review: What was the correct answer?',
+        options: [
+          { id: item.correct_answer, label: item.correct_answer },
+          ...(item.given_answer && item.given_answer !== item.correct_answer
+            ? [{ id: item.given_answer, label: item.given_answer }]
+            : []),
+        ].filter((o) => o.label),
+        correctIndex: 0,
+        isReview: true,
+        question_id: item.question_id,
+        lesson_id: lessonId,
+      }));
+
+      // Filter to valid questions (need at least 2 options)
+      const valid = reviewQs.filter((q: any) => q.options.length >= 2);
+      if (valid.length === 0) return;
+
+      // Merge: insert review questions at random positions
+      const currentQuestions = config.questions || [];
+      const merged = [...currentQuestions];
+      for (const rq of valid) {
+        const insertAt = Math.min(
+          Math.floor(Math.random() * (merged.length + 1)),
+          merged.length,
+        );
+        merged.splice(insertAt, 0, rq);
+        reviewQuestionIds.current.add(rq.id);
+      }
+      setMergedQuestions(merged);
+      // Check if first question is a review
+      if (merged.length > 0 && (merged[0] as any).isReview) {
+      }
+    }).catch(() => {}); // silently ignore
+  }, [lessonId, config]);
 
   // After loading, if there are scenes, show intro first — UNLESS mode was pre-selected from URL or saved
   const introShown = useRef(false);
@@ -3422,7 +3486,27 @@ export default function GamePlay() {
       }
     }
     setAnswers((prev) => [...prev, result]);
-  }, []);
+
+    // Review mixing: track correct/wrong answers for review questions
+    if (result.question_id && lessonId) {
+      if (result.is_review && result.correct) {
+        // Review question answered correctly → mark as improving
+        apiClient.post(ENDPOINTS.REVISION.RETRY_CORRECT, {
+          lesson_id: result.lesson_id || lessonId,
+          question_id: result.question_id,
+        }).catch(() => {});
+      } else if (!result.correct && result.question_id) {
+        // Wrong answer → record as failed item
+        apiClient.post(ENDPOINTS.REVISION.RECORD_FAILED, {
+          lesson_id: result.lesson_id || lessonId,
+          question_id: result.question_id,
+          question_text: result.expected,
+          given_answer: result.given,
+          correct_answer: result.expected,
+        }).catch(() => {});
+      }
+    }
+  }, [lessonId]);
 
   // Game complete — in test mode, pause for submit; in practice, show results; in learning, show learned screen
   const handleGameComplete = useCallback(
@@ -3524,12 +3608,12 @@ export default function GamePlay() {
         const routing = res.data?.data?.routing;
         if (routing === 'practice') {
           // Gently route to practice mode — no discouragement
-          setRetryMessage(res.data?.data?.message || "Let's practice this a bit more!");
+          setRetryMessage(res.data?.data?.message || t('game.practice_mode'));
           setPhase('retry-practice');
           return;
         }
         if (routing === 'teacher_flag') {
-          setRetryMessage("Your teacher will help you with this one. Let's try something else!");
+          setRetryMessage(t('game.teacher_help'));
           setPhase('retry-practice');
           return;
         }
@@ -4006,7 +4090,13 @@ export default function GamePlay() {
             <DragSortGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
           )}
           {config.template === 'quiz' && (
-            <QuizGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
+            <QuizGame
+              config={mergedQuestions ? { ...config, questions: mergedQuestions } : config}
+              onComplete={handleGameComplete}
+              soundOn={soundOn}
+              mode={mode}
+              onAnswer={handleAnswer}
+            />
           )}
           {config.template === 'memory-pairs' && (
             <MemoryPairsGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />

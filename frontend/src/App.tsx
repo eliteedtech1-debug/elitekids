@@ -23,6 +23,7 @@ const TeacherApprovals = lazy(() => import('@/pages/Teacher/TeacherApprovals'));
 const TeacherArena = lazy(() => import('@/pages/Teacher/TeacherArena'));
 const TeacherLive = lazy(() => import('@/pages/Teacher/TeacherLive'));
 const TeacherAnalytics = lazy(() => import('@/pages/Teacher/TeacherAnalytics'));
+const NerdcReport = lazy(() => import('@/pages/Teacher/NerdcReport'));
 const GameCreator = lazy(() => import('@/pages/Teacher/GameCreator'));
 const AssetLibrary = lazy(() => import('@/pages/Admin/AssetLibrary'));
 
@@ -97,6 +98,14 @@ export default function App() {
         element={
           <AuthGuard>
             <LazyRoute element={<TeacherLessons />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/nerdc-report"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<NerdcReport />} />
           </AuthGuard>
         }
       />

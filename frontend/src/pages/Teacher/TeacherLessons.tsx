@@ -35,6 +35,9 @@ interface Lesson {
   created_at: string;
   is_global: number;
   has_games?: boolean;
+  nerdc_code?: string;
+  nerdc_strand?: string;
+  nerdc_sub_strand?: string;
 }
 
 interface GenerationJob {
@@ -87,6 +90,8 @@ const AGE_COLORS: Record<string, string> = {
 
 /* ── Main Component ──────────────────────────────────── */
 
+const NERDC_STRANDS = ['Literacy', 'Numeracy', 'Science', 'Social Studies', 'Creative Arts', 'Physical Development', 'Language Development', 'Civic Education'];
+
 export default function TeacherLessons() {
   const navigate = useNavigate();
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -102,14 +107,23 @@ export default function TeacherLessons() {
     lesson_type: 'game',
   });
 
+  // NERDC curriculum filters
+  const [filterStrand, setFilterStrand] = useState('');
+  const [filterSubStrand, setFilterSubStrand] = useState('');
+  const [filterCode, setFilterCode] = useState('');
+
   const loadLessons = useCallback(async () => {
     try {
-      const res = await apiClient.get(ENDPOINTS.LESSONS.LIST);
+      const params: Record<string, string> = {};
+      if (filterStrand) params.nerdc_strand = filterStrand;
+      if (filterSubStrand) params.nerdc_sub_strand = filterSubStrand;
+      if (filterCode) params.nerdc_code = filterCode;
+      const res = await apiClient.get(ENDPOINTS.LESSONS.LIST, { params });
       setLessons(res.data?.data || []);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to load lessons');
     }
-  }, []);
+  }, [filterStrand, filterSubStrand, filterCode]);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -210,6 +224,12 @@ export default function TeacherLessons() {
             >
               <RefreshCw className="h-3 w-3" /> Refresh
             </button>
+            <Link
+              to="/teacher/nerdc-report"
+              className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+            >
+              📊 NERDC Report
+            </Link>
             <Link
               to="/teacher/create-game"
               className="inline-flex items-center gap-1 rounded-lg bg-[#0F4D92] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0b3d76]"
@@ -326,6 +346,45 @@ export default function TeacherLessons() {
           </div>
         )}
 
+        {/* NERDC curriculum filter bar */}
+        <div className="mb-4 rounded-xl bg-white p-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500">📚 Filter by NERDC:</span>
+            <select
+              value={filterStrand}
+              onChange={(e) => setFilterStrand(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+            >
+              <option value="">All Strands</option>
+              {NERDC_STRANDS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={filterSubStrand}
+              onChange={(e) => setFilterSubStrand(e.target.value)}
+              placeholder="Sub-strand…"
+              className="w-36 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+            />
+            <input
+              type="text"
+              value={filterCode}
+              onChange={(e) => setFilterCode(e.target.value)}
+              placeholder="NERDC code…"
+              className="w-36 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+            />
+            {(filterStrand || filterSubStrand || filterCode) && (
+              <button
+                onClick={() => { setFilterStrand(''); setFilterSubStrand(''); setFilterCode(''); }}
+                className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Lessons list */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -356,6 +415,20 @@ export default function TeacherLessons() {
                       </span>
                       <span className="text-gray-400">{new Date(lesson.created_at).toLocaleDateString()}</span>
                     </div>
+                    {(lesson.nerdc_code || lesson.nerdc_strand) && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {lesson.nerdc_code && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 border border-indigo-100">
+                            📘 {lesson.nerdc_code}
+                          </span>
+                        )}
+                        {lesson.nerdc_strand && (
+                          <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-600 border border-purple-100">
+                            {lesson.nerdc_strand}{lesson.nerdc_sub_strand ? ` · ${lesson.nerdc_sub_strand}` : ''}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {lesson.content_state === 'pending_human_review' && (

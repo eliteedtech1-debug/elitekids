@@ -36,6 +36,19 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+/* ── E4: background sync — drain offline queue when connection returns ── */
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'elitekids-sync') {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        for (const client of clients) {
+          client.postMessage({ type: 'SYNC_REQUESTED' });
+        }
+      })
+    );
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;

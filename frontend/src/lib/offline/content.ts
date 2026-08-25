@@ -55,6 +55,21 @@ interface CachedLesson {
 
 class OfflineContentManager {
   /**
+   * Check if we're within the storage budget.
+   * Uses navigator.storage.estimate() when available; falls back to true.
+   * Default budget: 100 MB for offline content.
+   */
+  private async hasStorageBudget(maxKB = 100 * 1024): Promise<boolean> {
+    try {
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        const { usage = 0 } = await navigator.storage.estimate();
+        return (usage / 1024) < maxKB;
+      }
+    } catch {}
+    return true; // assume OK when API unavailable
+  }
+
+  /**
    * Pre-download a lesson's game config and scene scripts for offline play.
    * Returns true if cached successfully.
    */

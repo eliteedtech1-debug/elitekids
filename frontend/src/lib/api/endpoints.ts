@@ -27,6 +27,12 @@ export const ENDPOINTS = {
     LINK: '/kids/children/link',
   },
 
+  // NERDC curriculum compliance
+  NERDC: {
+    REPORT: '/kids/nerdc/report',
+    REPORT_CSV: '/kids/nerdc/report?format=csv',
+  },
+
   // Lessons & content
   LESSONS: {
     LIST: '/kids/lessons',
@@ -200,6 +206,16 @@ export const ENDPOINTS = {
     DUE: '/kids/reviews/due',
     COMPLETE: '/kids/reviews/complete',
     STATS: '/kids/reviews/stats',
+  },
+
+  // Revision (reinforcement-based)
+  REVISION: {
+    STATUS: '/kids/revision/status',
+    NUDGES: '/kids/revision/nudges',
+    FAILED_ITEMS: '/kids/revision/failed-items',
+    RECORD_FAILED: '/kids/revision/failed',
+    RETRY_CORRECT: '/kids/revision/retry-correct',
+    WEEKLY: '/kids/revision/weekly',
   },
 
   // E5+E6 Phase 0: Enhanced Arena

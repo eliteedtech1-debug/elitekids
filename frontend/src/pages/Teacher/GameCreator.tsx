@@ -279,6 +279,11 @@ export default function GameCreator() {
   const [ageLevel, setAgeLevel] = useState<string>('KG1');
   const [lessonText, setLessonText] = useState('');
 
+  // NERDC curriculum compliance
+  const [nerdcCode, setNerdcCode] = useState('');
+  const [nerdcStrand, setNerdcStrand] = useState('');
+  const [nerdcSubStrand, setNerdcSubStrand] = useState('');
+
   // Step 2: Template
   const [template, setTemplate] = useState<string>('');
 
@@ -357,6 +362,9 @@ export default function GameCreator() {
         is_global: false,
       };
       if (lessonText.trim()) body.lesson_text = lessonText.trim();
+      if (nerdcCode.trim()) body.nerdc_code = nerdcCode.trim();
+      if (nerdcStrand.trim()) body.nerdc_strand = nerdcStrand.trim();
+      if (nerdcSubStrand.trim()) body.nerdc_sub_strand = nerdcSubStrand.trim();
       if (scenesJson.trim()) {
         try {
           body.scenes = JSON.parse(scenesJson);
@@ -458,6 +466,57 @@ export default function GameCreator() {
                   rows={3}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
                 />
+              </div>
+
+              {/* NERDC Curriculum Compliance */}
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/50 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-gray-500" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">NERDC Curriculum Alignment</span>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-600">Optional</span>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">Curriculum Code</label>
+                    <input
+                      type="text"
+                      value={nerdcCode}
+                      onChange={(e) => setNerdcCode(e.target.value)}
+                      placeholder="e.g. NERDC-MATH-KG1-001"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">Strand</label>
+                      <select
+                        value={nerdcStrand}
+                        onChange={(e) => setNerdcStrand(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+                      >
+                        <option value="">Select strand…</option>
+                        <option value="Literacy">Literacy</option>
+                        <option value="Numeracy">Numeracy</option>
+                        <option value="Science">Science</option>
+                        <option value="Social Studies">Social Studies</option>
+                        <option value="Creative Arts">Creative Arts</option>
+                        <option value="Physical Development">Physical Development</option>
+                        <option value="Language Development">Language Development</option>
+                        <option value="Civic Education">Civic Education</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">Sub-Strand</label>
+                      <input
+                        type="text"
+                        value={nerdcSubStrand}
+                        onChange={(e) => setNerdcSubStrand(e.target.value)}
+                        placeholder="e.g. Numbers & Operations"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
