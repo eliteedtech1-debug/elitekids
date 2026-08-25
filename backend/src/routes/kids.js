@@ -274,10 +274,11 @@ module.exports = (app) => {
   app.post('/kids/reviews/complete', auth, markReviewComplete);
   app.get('/kids/reviews/stats', auth, getReviewStats);
 
-  // ── Daily & Weekly Revision ────────────────────────────────────────────
+  // ── Revision (gate + weekly) ──────────────────────────────────────────
   const revision = require('../controllers/kidsRevision');
   app.get('/kids/revision/status', auth, revision.getRevisionStatus);
-  app.get('/kids/revision/daily', auth, revision.getDailyRevision);
+  app.get('/kids/revision/gate/check', auth, revision.checkGate);
+  app.get('/kids/revision/gate', auth, revision.getGateRevision);
   app.get('/kids/revision/weekly', auth, revision.getWeeklyRevision);
   app.post('/kids/revision/complete', auth, revision.markRevisionComplete);
 

@@ -1,41 +1,48 @@
 /**
- * RevisionCard — dashboard component for daily & weekly revision.
+ * RevisionCard — dashboard component for gate + weekly revision.
  *
- * Shows:
- *   - Daily revision card (play / completed status)
- *   - Weekly revision card (play / completed status)
- *   - Quick stats (questions, XP earned)
+ * Gate Revision: shown when child has studied enough items (5+).
+ *   Acts as a checkpoint — must complete before continuing.
+ *   Shows progress bar towards threshold.
  *
- * Auto-generates quizzes from recently played lessons.
+ * Weekly Revision: comprehensive review of everything learned this week.
+ *   Shown on the dashboard, independent of gate.
  */
 
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, CalendarDays, CheckCircle2, Star, Zap, Loader2, RefreshCw } from 'lucide-react';
+import { Shield, CalendarDays, CheckCircle2, Zap, Loader2, Lock, AlertTriangle } from 'lucide-react';
 import { playTap, playScore } from '@/lib/game/sound-effects';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
 /* ── Types ────────────────────────────────────────────── */
 
-interface RevisionStatus {
+interface GateStatus {
+  active: boolean;
+  items_since_revision: number;
+  threshold: number;
+  items_remaining: number;
+}
+
+interface WeeklyStatus {
   completed: boolean;
   score?: number;
   xp?: number;
 }
 
+interface StatusData {
+  gate: GateStatus;
+  weekly: WeeklyStatus;
+}
+
 interface RevisionData {
   completed: boolean;
   revision_id: string;
-  type: 'daily' | 'weekly';
+  type: 'gate' | 'weekly';
   questions: any[];
   lesson_count: number;
   reason?: string;
-}
-
-interface StatusData {
-  daily: RevisionStatus;
-  weekly: RevisionStatus;
 }
 
 /* ── Main Component ──────────────────────────────────── */
@@ -44,7 +51,7 @@ export default function RevisionCard() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<StatusData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [starting, setStarting] = useState<'daily' | 'weekly' | null>(null);
+  const [starting, setStarting] = useState<'gate' | 'weekly' | null>(null);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -60,26 +67,23 @@ export default function RevisionCard() {
     loadStatus().finally(() => setLoading(false));
   }, [loadStatus]);
 
-  const handleStart = async (type: 'daily' | 'weekly') => {
+  const handleStart = async (type: 'gate' | 'weekly') => {
     setStarting(type);
     try {
-      const endpoint = type === 'daily' ? ENDPOINTS.REVISION.DAILY : ENDPOINTS.REVISION.WEEKLY;
+      const endpoint = type === 'gate' ? ENDPOINTS.REVISION.GATE : ENDPOINTS.REVISION.WEEKLY;
       const res = await apiClient.get(endpoint);
       const data: RevisionData = res.data?.data;
 
       if (data.completed) {
-        // Already done
         playScore();
-        setStatus((prev) => prev ? { ...prev, [type]: { completed: true, score: data.questions?.length || 0, xp: 20 } } : prev);
         return;
       }
 
       if (!data.questions || data.questions.length === 0) {
-        // No questions available — still navigate to show the empty state
+        return;
       }
 
-      // Navigate to GamePlay with the revision quiz
-      // We store the revision data in sessionStorage for GamePlay to pick up
+      // Store revision data and navigate to GamePlay
       sessionStorage.setItem(`revision-${type}`, JSON.stringify(data));
       playTap();
       navigate(`/student/game/revision-${type}?mode=test&revision=1`);
@@ -98,56 +102,72 @@ export default function RevisionCard() {
     );
   }
 
-  const dailyDone = status?.daily?.completed || false;
+  const gate = status?.gate;
   const weeklyDone = status?.weekly?.completed || false;
+  const gateActive = gate?.active || false;
+  const gateThreshold = gate?.threshold || 5;
+  const gateItems = gate?.items_since_revision || 0;
+  const gateProgress = Math.min(100, Math.round((gateItems / gateThreshold) * 100));
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
-        <RefreshCw className="h-4 w-4 text-amber-500" />
+        <Shield className="h-4 w-4 text-amber-500" />
         <h3 className="text-sm font-bold text-gray-700">Revision</h3>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {/* Daily Revision */}
+        {/* Gate Revision */}
         <button
-          onClick={() => handleStart('daily')}
-          disabled={starting !== null}
+          onClick={() => handleStart('gate')}
+          disabled={starting !== null || !gateActive}
           className={`relative rounded-xl border p-4 text-left transition-all active:scale-[0.98] ${
-            dailyDone
-              ? 'border-green-200 bg-green-50'
-              : 'border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 hover:border-amber-300 hover:shadow-md'
-          }`}
+            gateActive
+              ? 'border-red-300 bg-gradient-to-br from-red-50 to-orange-50 hover:border-red-400 hover:shadow-md ring-2 ring-red-200'
+              : weeklyDone
+                ? 'border-green-200 bg-green-50'
+                : 'border-gray-200 bg-gray-50 opacity-70'
+          } ${!gateActive && !weeklyDone ? 'cursor-not-allowed' : ''}`}
         >
-          {starting === 'daily' && (
+          {starting === 'gate' && (
             <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/80">
-              <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
+              <Loader2 className="h-5 w-5 animate-spin text-red-500" />
             </div>
           )}
           <div className="flex items-center gap-2 mb-2">
-            <div className={`grid h-8 w-8 place-items-center rounded-lg ${dailyDone ? 'bg-green-100' : 'bg-amber-100'}`}>
-              {dailyDone ? (
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <div className={`grid h-8 w-8 place-items-center rounded-lg ${gateActive ? 'bg-red-100' : 'bg-gray-100'}`}>
+              {gateActive ? (
+                <AlertTriangle className="h-4 w-4 text-red-600" />
               ) : (
-                <Calendar className="h-4 w-4 text-amber-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
               )}
             </div>
-            <span className="text-xs font-bold text-gray-700">Daily Review</span>
+            <span className="text-xs font-bold text-gray-700">Review Gate</span>
           </div>
-          {dailyDone ? (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-green-600 font-medium">✅ Done!</span>
-              {status?.daily?.xp ? (
-                <span className="flex items-center gap-0.5 text-[10px] text-amber-600 ml-auto">
-                  <Zap className="h-3 w-3" />{status.daily.xp} XP
-                </span>
-              ) : null}
+
+          {gateActive ? (
+            <div>
+              <p className="text-[11px] text-red-600 font-medium mb-1.5">
+                ⚠️ Review required! {gate?.items_remaining || 0} more item{(gate?.items_remaining || 0) !== 1 ? 's' : ''} to unlock.
+              </p>
+              {/* Progress bar */}
+              <div className="h-2 w-full overflow-hidden rounded-full bg-red-100 mb-2">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-red-400 to-orange-500 transition-all"
+                  style={{ width: `${gateProgress}%` }}
+                />
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-lg bg-red-500 px-2.5 py-1 text-[10px] font-bold text-white">
+                ▶ Review Now
+              </span>
             </div>
           ) : (
             <div>
-              <p className="text-[11px] text-gray-500">Quick 3-5 question quiz from today's games</p>
-              <span className="mt-1.5 inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-[10px] font-bold text-white">
-                ▶ Start
+              <p className="text-[11px] text-gray-500">
+                {gate ? `${gate.items_remaining} more item${gate.items_remaining !== 1 ? 's' : ''} until next review` : 'Keep studying!'}
+              </p>
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-lg bg-gray-300 px-2.5 py-1 text-[10px] font-bold text-white">
+                <Lock className="h-3 w-3" /> Locked
               </span>
             </div>
           )}
@@ -189,7 +209,7 @@ export default function RevisionCard() {
             </div>
           ) : (
             <div>
-              <p className="text-[11px] text-gray-500">Big review of everything this week (10-15 Qs)</p>
+              <p className="text-[11px] text-gray-500">Comprehensive review of everything this week</p>
               <span className="mt-1.5 inline-flex items-center gap-1 rounded-lg bg-purple-500 px-2.5 py-1 text-[10px] font-bold text-white">
                 ▶ Start
               </span>

@@ -208,10 +208,11 @@ export const ENDPOINTS = {
     STATS: '/kids/reviews/stats',
   },
 
-  // Daily & Weekly Revision
+  // Revision (gate + weekly)
   REVISION: {
     STATUS: '/kids/revision/status',
-    DAILY: '/kids/revision/daily',
+    GATE_CHECK: '/kids/revision/gate/check',
+    GATE: '/kids/revision/gate',
     WEEKLY: '/kids/revision/weekly',
     COMPLETE: '/kids/revision/complete',
   },

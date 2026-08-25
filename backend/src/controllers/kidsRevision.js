@@ -1,22 +1,30 @@
 'use strict';
 /**
- * Daily & Weekly Revision — auto-generated review quizzes.
+ * Revision System — checkpoint-based gating + weekly comprehensive review.
  *
- * Daily: harvests lessons played in the last 2-3 days, picks 3-5 items
- *        per subject, generates MCQ review questions.
- * Weekly: harvests all lessons played in the past 7 days, generates a
- *         comprehensive 10-15 question review quiz.
+ * Gate Revision:
+ *   After a child learns/studies a configurable number of items (default 5),
+ *   a revision quiz is triggered as a gate. The child must complete it before
+ *   continuing to play new games. Questions are drawn from the items studied
+ *   since the last revision.
  *
- * Both use the same question-extraction logic as e3fWeekend (MCQ from
- * game configs) but with different time windows and item counts.
+ * Weekly Revision:
+ *   A comprehensive review of everything learned in the past 7 days.
+ *   Available once per week, independent of gate revisions.
+ *
+ * Both generate MCQ questions from published game configs using the same
+ * extraction logic as e3fWeekend.
  */
 const { Op } = require('sequelize');
 const crypto = require('crypto');
 const dbm = () => require('../models');
 
+// How many items between revision gates
+const GATE_THRESHOLD = 5;
+
 function shuffleArr(a) {
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math(0, (i + 1)));
+    const j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -32,7 +40,15 @@ function questionsFromConfig(cfgRow, seen, limit) {
     if (out.length >= limit || seen.has(id)) return;
     shuffleArr(opts);
     seen.add(id);
-    out.push({ id, prompt, options: opts.map((o) => ({ id: o.label, label: o.label })), correctIndex: opts.findIndex((o) => o.correct) });
+    out.push({
+      id,
+      prompt,
+      options: opts.map((o) => ({ id: o.label, label: o.label })),
+      correctIndex: opts.findIndex((o) => o.correct),
+      lesson_id: cfgRow.lesson_id,
+      lesson_title: cfgRow.lesson_title,
+      subject: cfgRow.subject,
+    });
   };
 
   // Quiz questions
@@ -82,11 +98,77 @@ function questionsFromConfig(cfgRow, seen, limit) {
   return out;
 }
 
+// ─── Gate Revision ──────────────────────────────────────────────────────────
+
 /**
- * GET /kids/revision/daily — today's daily revision.
- * Harvests lessons played in the last 3 days, picks up to 5 questions.
+ * GET /kids/revision/gate/check — check if a revision gate is active.
+ * Returns { gate_active, items_since_revision, threshold, revision_id }
  */
-async function getDailyRevision(req, res) {
+async function checkGate(req, res) {
+  try {
+    const u = req.user || {};
+    if (String(u.user_type || '').toLowerCase() !== 'student') {
+      return res.status(403).json({ success: false, message: 'Students only.' });
+    }
+    const admission = String(u.admission_no || u.id || '');
+    if (!admission) return res.json({ success: true, data: { gate_active: false } });
+
+    // Find the last completed revision (gate or weekly)
+    const [lastRev] = await dbm().content.query(
+      `SELECT lesson_id, created_at FROM kids_progress
+       WHERE child_admission_no=:adm
+         AND (lesson_id LIKE 'revision-gate-%' OR lesson_id LIKE 'revision-weekly-%')
+       ORDER BY created_at DESC LIMIT 1`,
+      { replacements: { adm: admission } },
+    ).catch(() => [[]]);
+    const rows = Array.isArray(lastRev) ? lastRev : [];
+    const lastRevisionAt = rows.length > 0 ? rows[0].created_at : null;
+
+    // Count items played since last revision (or all if never revised)
+    const whereClause = lastRevisionAt
+      ? { child_admission_no: admission, created_at: { [Op.gt]: lastRevisionAt } }
+      : { child_admission_no: admission };
+    const [countResult] = await dbm().content.query(
+      `SELECT COUNT(DISTINCT lesson_id) AS item_count
+       FROM kids_progress
+       WHERE child_admission_no=:adm
+         ${lastRevisionAt ? 'AND created_at > :since' : ''}
+         AND lesson_id IS NOT NULL
+         AND lesson_id NOT LIKE 'revision-%'`,
+      { replacements: { adm: admission, since: lastRevisionAt } },
+    ).catch(() => [[]]);
+    const countRows = Array.isArray(countResult) ? countResult : [];
+    const itemsSinceRevision = countRows[0]?.item_count || 0;
+    const gateActive = itemsSinceRevision >= GATE_THRESHOLD;
+
+    // If gate is active, generate the revision ID
+    let revisionId = null;
+    if (gateActive) {
+      const today = new Date().toISOString().slice(0, 10);
+      revisionId = `revision-gate-${admission}-${today}-${crypto.randomUUID().slice(0, 8)}`;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        gate_active: gateActive,
+        items_since_revision: itemsSinceRevision,
+        threshold: GATE_THRESHOLD,
+        items_remaining: Math.max(0, GATE_THRESHOLD - itemsSinceRevision),
+        revision_id: revisionId,
+      },
+    });
+  } catch (err) {
+    console.error('checkGate error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/**
+ * GET /kids/revision/gate — generate the gate revision quiz.
+ * Questions from items studied since last revision.
+ */
+async function getGateRevision(req, res) {
   try {
     const u = req.user || {};
     if (String(u.user_type || '').toLowerCase() !== 'student') {
@@ -95,37 +177,34 @@ async function getDailyRevision(req, res) {
     const admission = String(u.admission_no || u.id || '');
     if (!admission) return res.status(403).json({ success: false, message: 'Student profile required.' });
 
-    // Deterministic daily ID (same all day)
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const revisionId = `revision-daily-${admission}-${today}`;
-
-    // Check if already completed today
-    const existing = await dbm().content.query(
-      `SELECT id FROM kids_progress WHERE child_admission_no=:adm AND lesson_id=:rid LIMIT 1`,
-      { replacements: { adm: admission, rid: revisionId } },
+    // Find last revision timestamp
+    const [lastRev] = await dbm().content.query(
+      `SELECT created_at FROM kids_progress
+       WHERE child_admission_no=:adm
+         AND (lesson_id LIKE 'revision-gate-%' OR lesson_id LIKE 'revision-weekly-%')
+       ORDER BY created_at DESC LIMIT 1`,
+      { replacements: { adm: admission } },
     ).catch(() => [[]]);
-    const rows = Array.isArray(existing[0]) ? existing[0] : [];
-    if (rows.length > 0) {
-      return res.json({ success: true, data: { completed: true, revision_id: revisionId } });
-    }
+    const rows = Array.isArray(lastRev) ? lastRev : [];
+    const lastRevisionAt = rows.length > 0 ? rows[0].created_at : null;
 
-    // Harvest recent lessons (last 3 days)
-    const threeDaysAgo = new Date(Date.now() - 3 * 86400000);
+    // Get lessons studied since last revision
     const [recent] = await dbm().content.query(
       `SELECT DISTINCT p.lesson_id
        FROM kids_progress p
        WHERE p.child_admission_no=:adm
-         AND p.created_at >= :since
-         AND p.lesson_id IS NOT NULL`,
-      { replacements: { adm: admission, since: threeDaysAgo } },
+         ${lastRevisionAt ? 'AND p.created_at > :since' : ''}
+         AND p.lesson_id IS NOT NULL
+         AND p.lesson_id NOT LIKE 'revision-%'`,
+      { replacements: { adm: admission, since: lastRevisionAt } },
     ).catch(() => [[]]);
     const lessonIds = (Array.isArray(recent) ? recent : []).map((r) => r.lesson_id).filter(Boolean);
 
     if (lessonIds.length === 0) {
-      return res.json({ success: true, data: { completed: false, questions: [], reason: 'No lessons played recently. Play some games first!' } });
+      return res.json({ success: true, data: { completed: false, questions: [], reason: 'No items to review yet.' } });
     }
 
-    // Fetch game configs for these lessons
+    // Fetch game configs
     const [configs] = await dbm().content.query(
       `SELECT gc.*, l.title AS lesson_title, l.subject
        FROM kids_game_configs gc
@@ -134,35 +213,36 @@ async function getDailyRevision(req, res) {
       { replacements: { ids: lessonIds } },
     ).catch(() => [[]]);
 
-    // Extract questions (up to 5)
+    // Extract questions (up to 5 for gate)
     const seen = new Set();
     let questions = [];
     for (const cfg of (Array.isArray(configs) ? configs : [])) {
       if (questions.length >= 5) break;
       questions.push(...questionsFromConfig(cfg, seen, 5 - questions.length));
     }
-    questions = questions.slice(0, 5);
+    questions = shuffleArr(questions.slice(0, 5));
 
     return res.json({
       success: true,
       data: {
         completed: false,
-        revision_id: revisionId,
-        type: 'daily',
-        date: today,
+        type: 'gate',
         questions,
         lesson_count: lessonIds.length,
+        subjects: [...new Set((Array.isArray(configs) ? configs : []).map((c) => c.subject).filter(Boolean))],
       },
     });
   } catch (err) {
-    console.error('getDailyRevision error:', err.message);
+    console.error('getGateRevision error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 }
 
+// ─── Weekly Revision ────────────────────────────────────────────────────────
+
 /**
- * GET /kids/revision/weekly — this week's comprehensive review.
- * Harvests all lessons played in the past 7 days, up to 15 questions.
+ * GET /kids/revision/weekly — comprehensive weekly review.
+ * All items played in the past 7 days, up to 15 questions.
  */
 async function getWeeklyRevision(req, res) {
   try {
@@ -173,9 +253,9 @@ async function getWeeklyRevision(req, res) {
     const admission = String(u.admission_no || u.id || '');
     if (!admission) return res.status(403).json({ success: false, message: 'Student profile required.' });
 
-    // Deterministic weekly ID (same all week)
+    // Deterministic weekly ID
     const now = new Date();
-    const dayOfWeek = now.getUTCDay() || 7; // Mon=1..Sun=7
+    const dayOfWeek = now.getUTCDay() || 7;
     const monday = new Date(now);
     monday.setUTCDate(now.getUTCDate() - dayOfWeek + 1);
     const weekKey = monday.toISOString().slice(0, 10);
@@ -186,8 +266,8 @@ async function getWeeklyRevision(req, res) {
       `SELECT id FROM kids_progress WHERE child_admission_no=:adm AND lesson_id=:rid LIMIT 1`,
       { replacements: { adm: admission, rid: revisionId } },
     ).catch(() => [[]]);
-    const rows = Array.isArray(existing[0]) ? existing[0] : [];
-    if (rows.length > 0) {
+    const eRows = Array.isArray(existing[0]) ? existing[0] : [];
+    if (eRows.length > 0) {
       return res.json({ success: true, data: { completed: true, revision_id: revisionId } });
     }
 
@@ -198,13 +278,14 @@ async function getWeeklyRevision(req, res) {
        FROM kids_progress p
        WHERE p.child_admission_no=:adm
          AND p.created_at >= :since
-         AND p.lesson_id IS NOT NULL`,
+         AND p.lesson_id IS NOT NULL
+         AND p.lesson_id NOT LIKE 'revision-%'`,
       { replacements: { adm: admission, since: weekAgo } },
     ).catch(() => [[]]);
     const lessonIds = (Array.isArray(recent) ? recent : []).map((r) => r.lesson_id).filter(Boolean);
 
     if (lessonIds.length === 0) {
-      return res.json({ success: true, data: { completed: false, questions: [], reason: 'No lessons played this week. Play some games first!' } });
+      return res.json({ success: true, data: { completed: false, questions: [], reason: 'No lessons played this week.' } });
     }
 
     // Fetch game configs
@@ -223,10 +304,7 @@ async function getWeeklyRevision(req, res) {
       if (questions.length >= 15) break;
       questions.push(...questionsFromConfig(cfg, seen, 15 - questions.length));
     }
-    questions = questions.slice(0, 15);
-
-    // Shuffle final order
-    shuffleArr(questions);
+    questions = shuffleArr(questions.slice(0, 15));
 
     return res.json({
       success: true,
@@ -245,9 +323,11 @@ async function getWeeklyRevision(req, res) {
   }
 }
 
+// ─── Complete Revision ──────────────────────────────────────────────────────
+
 /**
- * POST /kids/revision/complete — mark a revision as done, award bonus XP.
- * Body: { revision_id, score, total, type: 'daily'|'weekly' }
+ * POST /kids/revision/complete — mark revision done, award XP.
+ * Body: { revision_id, score, total, type: 'gate'|'weekly' }
  */
 async function markRevisionComplete(req, res) {
   try {
@@ -261,17 +341,18 @@ async function markRevisionComplete(req, res) {
       return res.status(400).json({ success: false, message: 'revision_id required.' });
     }
 
-    // Award bonus XP: daily = 20 XP, weekly = 50 XP, + 5 per correct answer
-    const baseXP = type === 'weekly' ? 50 : 20;
+    // XP: gate = 30 base, weekly = 50 base, + 5 per correct
+    const baseXP = type === 'weekly' ? 50 : 30;
     const bonusXP = (Number(score) || 0) * 5;
     const xp = baseXP + bonusXP;
-    const stars = (Number(score) || 0) >= (Number(total) || 1) * 0.8 ? 3
-      : (Number(score) || 0) >= (Number(total) || 1) * 0.5 ? 2 : 1;
+    const pct = (Number(score) || 0) / Math.max(1, Number(total) || 1);
+    const stars = pct >= 0.8 ? 3 : pct >= 0.5 ? 2 : 1;
 
-    // Record as a progress entry (idempotent — same revision_id)
+    // Record (idempotent via INSERT IGNORE pattern)
     await dbm().content.query(
-      `INSERT IGNORE INTO kids_progress (id, child_admission_no, lesson_id, score, stars_earned, xp, created_at, updated_at)
-       VALUES (:id, :adm, :rid, :score, :stars, :xp, NOW(), NOW())`,
+      `INSERT INTO kids_progress (id, child_admission_no, lesson_id, score, stars_earned, xp, created_at, updated_at)
+       VALUES (:id, :adm, :rid, :score, :stars, :xp, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE score=VALUES(score), stars_earned=VALUES(stars_earned), xp=VALUES(xp)`,
       {
         replacements: {
           id: crypto.randomUUID(),
@@ -294,9 +375,10 @@ async function markRevisionComplete(req, res) {
   }
 }
 
+// ─── Status ─────────────────────────────────────────────────────────────────
+
 /**
- * GET /kids/revision/status — quick status for dashboard cards.
- * Returns whether daily/weekly are completed today/this week.
+ * GET /kids/revision/status — dashboard status for both gate and weekly.
  */
 async function getRevisionStatus(req, res) {
   try {
@@ -305,37 +387,55 @@ async function getRevisionStatus(req, res) {
       return res.status(403).json({ success: false, message: 'Students only.' });
     }
     const admission = String(u.admission_no || u.id || '');
-    if (!admission) return res.json({ success: true, data: { daily: { completed: false }, weekly: { completed: false } } });
+    if (!admission) {
+      return res.json({ success: true, data: { gate: { active: false, items_remaining: GATE_THRESHOLD }, weekly: { completed: false } } });
+    }
 
-    const today = new Date().toISOString().slice(0, 10);
+    // Gate status
+    const [lastRev] = await dbm().content.query(
+      `SELECT created_at FROM kids_progress
+       WHERE child_admission_no=:adm
+         AND (lesson_id LIKE 'revision-gate-%' OR lesson_id LIKE 'revision-weekly-%')
+       ORDER BY created_at DESC LIMIT 1`,
+      { replacements: { adm: admission } },
+    ).catch(() => [[]]);
+    const rRows = Array.isArray(lastRev) ? lastRev : [];
+    const lastRevisionAt = rRows.length > 0 ? rRows[0].created_at : null;
+
+    const [countResult] = await dbm().content.query(
+      `SELECT COUNT(DISTINCT lesson_id) AS item_count
+       FROM kids_progress
+       WHERE child_admission_no=:adm
+         ${lastRevisionAt ? 'AND created_at > :since' : ''}
+         AND lesson_id IS NOT NULL
+         AND lesson_id NOT LIKE 'revision-%'`,
+      { replacements: { adm: admission, since: lastRevisionAt } },
+    ).catch(() => [[]]);
+    const cRows = Array.isArray(countResult) ? countResult : [];
+    const itemsSinceRevision = cRows[0]?.item_count || 0;
+
+    // Weekly status
     const now = new Date();
     const dayOfWeek = now.getUTCDay() || 7;
     const monday = new Date(now);
     monday.setUTCDate(now.getUTCDate() - dayOfWeek + 1);
     const weekKey = monday.toISOString().slice(0, 10);
-
-    const dailyId = `revision-daily-${admission}-${today}`;
     const weeklyId = `revision-weekly-${admission}-${weekKey}`;
 
-    const [dailyCheck] = await dbm().content.query(
-      `SELECT score, xp FROM kids_progress WHERE child_admission_no=:adm AND lesson_id=:rid LIMIT 1`,
-      { replacements: { adm: admission, rid: dailyId } },
-    ).catch(() => [[]]);
     const [weeklyCheck] = await dbm().content.query(
       `SELECT score, xp FROM kids_progress WHERE child_admission_no=:adm AND lesson_id=:rid LIMIT 1`,
       { replacements: { adm: admission, rid: weeklyId } },
     ).catch(() => [[]]);
-
-    const dRows = Array.isArray(dailyCheck) ? dailyCheck : [];
     const wRows = Array.isArray(weeklyCheck) ? weeklyCheck : [];
 
     return res.json({
       success: true,
       data: {
-        daily: {
-          completed: dRows.length > 0,
-          score: dRows[0]?.score || 0,
-          xp: dRows[0]?.xp || 0,
+        gate: {
+          active: itemsSinceRevision >= GATE_THRESHOLD,
+          items_since_revision: itemsSinceRevision,
+          threshold: GATE_THRESHOLD,
+          items_remaining: Math.max(0, GATE_THRESHOLD - itemsSinceRevision),
         },
         weekly: {
           completed: wRows.length > 0,
@@ -351,7 +451,8 @@ async function getRevisionStatus(req, res) {
 }
 
 module.exports = {
-  getDailyRevision,
+  checkGate,
+  getGateRevision,
   getWeeklyRevision,
   markRevisionComplete,
   getRevisionStatus,
