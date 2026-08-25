@@ -51,7 +51,7 @@ async function ensureSchema() {
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY idx_arena_class (school_id, class_code, status),
     KEY idx_arena_status (status, ends_at)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
   await c.query(`CREATE TABLE IF NOT EXISTS kids_competition_members (
     id CHAR(36) NOT NULL PRIMARY KEY,
     competition_id CHAR(36) NOT NULL,
@@ -59,7 +59,7 @@ async function ensureSchema() {
     team TINYINT NULL COMMENT '0=A, 1=B, NULL=individual',
     UNIQUE KEY uq_arena_member (competition_id, child_admission_no),
     KEY idx_arena_member_comp (competition_id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 }
 
 function sanitizeName(row) {
