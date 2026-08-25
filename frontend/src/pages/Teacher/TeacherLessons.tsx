@@ -90,6 +90,8 @@ const AGE_COLORS: Record<string, string> = {
 
 /* ── Main Component ──────────────────────────────────── */
 
+const NERDC_STRANDS = ['Literacy', 'Numeracy', 'Science', 'Social Studies', 'Creative Arts', 'Physical Development', 'Language Development', 'Civic Education'];
+
 export default function TeacherLessons() {
   const navigate = useNavigate();
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -105,14 +107,23 @@ export default function TeacherLessons() {
     lesson_type: 'game',
   });
 
+  // NERDC curriculum filters
+  const [filterStrand, setFilterStrand] = useState('');
+  const [filterSubStrand, setFilterSubStrand] = useState('');
+  const [filterCode, setFilterCode] = useState('');
+
   const loadLessons = useCallback(async () => {
     try {
-      const res = await apiClient.get(ENDPOINTS.LESSONS.LIST);
+      const params: Record<string, string> = {};
+      if (filterStrand) params.nerdc_strand = filterStrand;
+      if (filterSubStrand) params.nerdc_sub_strand = filterSubStrand;
+      if (filterCode) params.nerdc_code = filterCode;
+      const res = await apiClient.get(ENDPOINTS.LESSONS.LIST, { params });
       setLessons(res.data?.data || []);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to load lessons');
     }
-  }, []);
+  }, [filterStrand, filterSubStrand, filterCode]);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -328,6 +339,45 @@ export default function TeacherLessons() {
             </div>
           </div>
         )}
+
+        {/* NERDC curriculum filter bar */}
+        <div className="mb-4 rounded-xl bg-white p-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500">📚 Filter by NERDC:</span>
+            <select
+              value={filterStrand}
+              onChange={(e) => setFilterStrand(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+            >
+              <option value="">All Strands</option>
+              {NERDC_STRANDS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={filterSubStrand}
+              onChange={(e) => setFilterSubStrand(e.target.value)}
+              placeholder="Sub-strand…"
+              className="w-36 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+            />
+            <input
+              type="text"
+              value={filterCode}
+              onChange={(e) => setFilterCode(e.target.value)}
+              placeholder="NERDC code…"
+              className="w-36 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+            />
+            {(filterStrand || filterSubStrand || filterCode) && (
+              <button
+                onClick={() => { setFilterStrand(''); setFilterSubStrand(''); setFilterCode(''); }}
+                className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Lessons list */}
         {loading ? (

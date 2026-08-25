@@ -387,6 +387,14 @@ async function listLessons(req, res) {
       };
     }
 
+    // NERDC curriculum filters (staff only)
+    if (isStaff) {
+      const { nerdc_strand, nerdc_sub_strand, nerdc_code } = req.query;
+      if (nerdc_strand) where.nerdc_strand = nerdc_strand;
+      if (nerdc_sub_strand) where.nerdc_sub_strand = nerdc_sub_strand;
+      if (nerdc_code) where.nerdc_code = { [Op.like]: `%${nerdc_code}%` };
+    }
+
     const lessons = await db.KidLesson.findAll({ where, order: [['is_global', 'DESC'], ['createdAt', 'DESC']] });
 
     // Enrich with has_games flag for student-facing view
