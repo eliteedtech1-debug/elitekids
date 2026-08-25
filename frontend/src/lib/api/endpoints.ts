@@ -208,6 +208,14 @@ export const ENDPOINTS = {
     STATS: '/kids/reviews/stats',
   },
 
+  // Daily & Weekly Revision
+  REVISION: {
+    STATUS: '/kids/revision/status',
+    DAILY: '/kids/revision/daily',
+    WEEKLY: '/kids/revision/weekly',
+    COMPLETE: '/kids/revision/complete',
+  },
+
   // E5+E6 Phase 0: Enhanced Arena
   ARENA_GAMES: {
     SET: (id: string) => `/kids/arena/${id}/games`,

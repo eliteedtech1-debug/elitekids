@@ -20,6 +20,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import RevisionCard from '@/components/RevisionCard';
 import { playTap } from '@/lib/utils/sound';
 import A11ySettings from '@/components/A11ySettings';
 import SpeechSettings from '@/components/SpeechSettings';
@@ -403,6 +404,11 @@ export default function StudentHome() {
             </div>
             <p className="text-xs text-gray-500">Games Played</p>
           </div>
+        </div>
+
+        {/* Daily & Weekly Revision */}
+        <div className="mb-5">
+          <RevisionCard />
         </div>
 
         {error && (
