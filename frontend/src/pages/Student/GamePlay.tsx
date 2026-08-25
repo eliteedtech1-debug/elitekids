@@ -266,16 +266,16 @@ function MatchingGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[0] : null;
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
@@ -554,16 +554,16 @@ function TapGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[currentIdx % characters.length] : null;
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn || !current) return;
+    if (!soundOn || !current) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || config.prompt || config.context || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTap = (idx: number) => {
     if (feedback) return;
@@ -912,16 +912,16 @@ function DragSortGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[0] : null;
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
@@ -1290,16 +1290,16 @@ function FillBlankGame({
     return segments;
   }, [sentence, blanks]);
 
-  // Test mode: read scenario/speechText aloud
+  // Read scenario/speechText aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || sentence;
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest, sIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, sIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
@@ -1843,9 +1843,9 @@ function QuizGame({
     // Wrong answer in test mode — silently record, no visual feedback
   };
 
-  // ── Test mode: read question aloud automatically ──
+  // ── Read question aloud in test + practice mode ──
   useEffect(() => {
-    if (!isTest || !currentQ || !soundOn) return;
+    if (!currentQ || !soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const textToSpeak = currentQ.speechText || currentQ.scenario || currentQ.prompt || currentQ.question || '';
@@ -1854,7 +1854,7 @@ function QuizGame({
       }
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest, qIdx, questions.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, qIdx, questions.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Learning mode auto-play — speak question + answer per round ──
   useEffect(() => {
@@ -2198,16 +2198,16 @@ function MemoryPairsGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[0] : null;
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     if (isTest) return;
@@ -2930,16 +2930,16 @@ function PuzzleGame({
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode, feedback, completed, placed, pieces, grid, totalPieces, soundOn]);
 
-  // Test mode: read scenario/prompt aloud
+  // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!isTest || !soundOn) return;
+    if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [isTest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDifficultyChange = (diff: string) => {
     if (soundOn) playTap();
