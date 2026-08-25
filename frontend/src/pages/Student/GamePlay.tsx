@@ -1746,6 +1746,7 @@ function QuizGame({
   const isTest = mode === 'test';
   const currentQ = questions[qIdx];
   const options = currentQ?.options || [];
+  const isReviewQ = !!(currentQ as any)?.isReview;
 
   // Resolve character for current question — Image > Emoji > Text
   const currentCharacter = useMemo(() => {
@@ -1783,6 +1784,8 @@ function QuizGame({
       onComplete(totalScore);
     } else {
       setQIdx((i) => i + 1);
+      // Track if next question is a review
+      const nextQ = questions[qIdx + 1];
     }
   }, [qIdx, questions.length, onComplete]);
 
@@ -2104,6 +2107,11 @@ function QuizGame({
               : 'bg-blue-50 text-blue-700 border border-blue-200'
           }`}>
             {feedback === 'correct' ? '🎉 ' : '🤔 '}{feedbackMsg}
+            {feedback === 'correct' && isReviewQ && (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 align-middle">
+                🔄 Review mastered!
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -3367,6 +3375,9 @@ export default function GamePlay() {
         reviewQuestionIds.current.add(rq.id);
       }
       setMergedQuestions(merged);
+      // Check if first question is a review
+      if (merged.length > 0 && (merged[0] as any).isReview) {
+      }
     }).catch(() => {}); // silently ignore
   }, [lessonId, config]);
 
