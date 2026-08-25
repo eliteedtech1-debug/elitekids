@@ -25,6 +25,9 @@ interface LessonActivity {
   created_at: string;
   has_games: boolean;
   has_scenes: boolean;
+  nerdc_code?: string;
+  nerdc_strand?: string;
+  nerdc_sub_strand?: string;
 }
 
 interface ProgressSummary {
@@ -251,6 +254,18 @@ export default function ParentActivities() {
                                 {lesson.subject} · {lesson.age_level}
                                 {lesson.has_games && lesson.has_scenes && ' · Interactive'}
                               </p>
+                              {(lesson.nerdc_code || lesson.nerdc_strand) && (
+                                <div className="mt-1 flex flex-wrap items-center gap-1">
+                                  {lesson.nerdc_code && (
+                                    <span className="inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-600">📘 {lesson.nerdc_code}</span>
+                                  )}
+                                  {lesson.nerdc_strand && (
+                                    <span className="inline-flex items-center rounded-md bg-purple-50 px-1.5 py-0.5 text-[9px] font-medium text-purple-600">
+                                      {lesson.nerdc_strand}{lesson.nerdc_sub_strand ? ` · ${lesson.nerdc_sub_strand}` : ''}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               {lesson.has_games && (

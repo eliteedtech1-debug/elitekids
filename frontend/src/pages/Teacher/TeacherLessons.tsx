@@ -35,6 +35,9 @@ interface Lesson {
   created_at: string;
   is_global: number;
   has_games?: boolean;
+  nerdc_code?: string;
+  nerdc_strand?: string;
+  nerdc_sub_strand?: string;
 }
 
 interface GenerationJob {
@@ -356,6 +359,20 @@ export default function TeacherLessons() {
                       </span>
                       <span className="text-gray-400">{new Date(lesson.created_at).toLocaleDateString()}</span>
                     </div>
+                    {(lesson.nerdc_code || lesson.nerdc_strand) && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {lesson.nerdc_code && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 border border-indigo-100">
+                            📘 {lesson.nerdc_code}
+                          </span>
+                        )}
+                        {lesson.nerdc_strand && (
+                          <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-600 border border-purple-100">
+                            {lesson.nerdc_strand}{lesson.nerdc_sub_strand ? ` · ${lesson.nerdc_sub_strand}` : ''}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {lesson.content_state === 'pending_human_review' && (
