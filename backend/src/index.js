@@ -38,6 +38,9 @@ async function ensureSchemaMigrations() {
   const CONTENT_COLUMN_PLAN = [
     ['kids_lessons', 'duration_target_sec', 'INT NULL DEFAULT NULL'],
     ['kids_lessons', 'published_at', 'DATETIME NULL DEFAULT NULL'],
+    ['kids_lessons', 'nerdc_code', 'VARCHAR(100) NULL DEFAULT NULL'],
+    ['kids_lessons', 'nerdc_strand', 'VARCHAR(100) NULL DEFAULT NULL'],
+    ['kids_lessons', 'nerdc_sub_strand', 'VARCHAR(100) NULL DEFAULT NULL'],
     ['kids_session_state', 'session_id', 'VARCHAR(50) NULL DEFAULT NULL'],
   ];
   try {

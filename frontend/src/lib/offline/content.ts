@@ -54,6 +54,21 @@ interface CachedLesson {
 
 class OfflineContentManager {
   /**
+   * Check if we're within the storage budget.
+   * Uses navigator.storage.estimate() when available; falls back to true.
+   * Default budget: 100 MB for offline content.
+   */
+  private async hasStorageBudget(maxKB = 100 * 1024): Promise<boolean> {
+    try {
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        const { usage = 0 } = await navigator.storage.estimate();
+        return (usage / 1024) < maxKB;
+      }
+    } catch {}
+    return true; // assume OK when API unavailable
+  }
+
+  /**
    * Pre-download a lesson's game config and scene scripts for offline play.
    * Returns true if cached successfully.
    */
@@ -115,10 +130,15 @@ class OfflineContentManager {
         });
       }
 
-      // Prefetch game configs in parallel (max 5 at a time)
+      // Prefetch game configs in parallel (max 5 at a time), with quota guard
       const gameLessons = lessons.filter((l: any) => l.has_games);
       const batchSize = 5;
       for (let i = 0; i < gameLessons.length; i += batchSize) {
+        // #6: check storage budget before each batch
+        if (!(await this.hasStorageBudget())) {
+          console.warn('⚠️ Storage budget exhausted — stopping prefetch');
+          break;
+        }
         const batch = gameLessons.slice(i, i + batchSize);
         await Promise.allSettled(
           batch.map((l: any) => this.prefetchLesson(l.id, schoolId))

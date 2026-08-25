@@ -68,6 +68,12 @@ class OfflineSyncService {
   private handleOnline = () => {
     console.log('🌐 Back online — draining sync queue');
     this.drainNow().catch(() => {});
+    // E4: request background sync via service worker for mobile reliability
+    if ('serviceWorker' in navigator && navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.ready.then((reg) => {
+        (reg as any).sync?.register('elitekids-sync').catch(() => {});
+      });
+    }
   };
 
   private handleOffline = () => {

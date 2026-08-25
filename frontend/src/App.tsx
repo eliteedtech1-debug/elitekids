@@ -1,10 +1,10 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Login from '@/pages/Login/Login';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ParentChildren from '@/pages/Parent/ParentChildren';
 import ParentActivities from '@/pages/Parent/ParentActivities';
 import StudentHome from '@/pages/Student/StudentHome';
-import GamePlay from '@/pages/Student/GamePlay';
 import TeacherLessons from '@/pages/Teacher/TeacherLessons';
 import TeacherApprovals from '@/pages/Teacher/TeacherApprovals';
 import TeacherArena from './pages/Teacher/TeacherArena';
@@ -13,6 +13,20 @@ import GameCreator from '@/pages/Teacher/GameCreator';
 import AssetLibrary from '@/pages/Admin/AssetLibrary';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
+
+// #11 perf: lazy-split GamePlay (4000+ lines) into its own chunk
+const GamePlay = lazy(() => import('@/pages/Student/GamePlay'));
+
+function SuspenseFallback() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
+      <div className="text-center">
+        <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+        <p className="text-sm font-medium text-gray-500">Loading game…</p>
+      </div>
+    </div>
+  );
+}
 
 /**
  * App shell — routes for the EliteKids SPA.
@@ -61,7 +75,9 @@ export default function App() {
         element={
           <AuthGuard>
             <ErrorBoundary>
-              <GamePlay />
+              <Suspense fallback={<SuspenseFallback />}>
+                <GamePlay />
+              </Suspense>
             </ErrorBoundary>
           </AuthGuard>
         }

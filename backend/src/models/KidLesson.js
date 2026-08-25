@@ -38,6 +38,10 @@ module.exports = (sequelize, DataTypes) => {
       duration_target_sec: { type: DataTypes.INTEGER, allowNull: true },
       is_global: { type: DataTypes.TINYINT(1), allowNull: false, defaultValue: 0 },
       published_at: { type: DataTypes.DATE, allowNull: true },
+      // NERDC curriculum compliance (#1)
+      nerdc_code: { type: DataTypes.STRING(100), allowNull: true },
+      nerdc_strand: { type: DataTypes.STRING(100), allowNull: true },
+      nerdc_sub_strand: { type: DataTypes.STRING(100), allowNull: true },
     },
     {
       tableName: 'kids_lessons',

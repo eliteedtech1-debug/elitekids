@@ -1,10 +1,11 @@
-/* EliteKids app-shell service worker — v1 (E3-offline)
+/* EliteKids app-shell service worker — v3 (E4-sw-hardening)
  * Bootstraps the SPA when the device has no connectivity.
  *   - Navigations: network-first, cached index.html fallback
  *   - Static assets (/assets/*, logo.svg): cache-first (hashed = immutable)
  *   - API calls (nginx-proxied same-origin) are NEVER intercepted.
+ *   - Background sync: listens for 'sync' events to drain the offline queue.
  */
-const CACHE = 'elitekids-shell-v2';
+const CACHE = 'elitekids-shell-v3';
 const SHELL_URL = '/index.html';
 const ASSET_PREFIXES = ['/assets/', '/logo.svg'];
 
@@ -22,6 +23,19 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+/* ── E4: background sync — drain offline queue when connection returns ── */
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'elitekids-sync') {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        for (const client of clients) {
+          client.postMessage({ type: 'SYNC_REQUESTED' });
+        }
+      })
+    );
+  }
 });
 
 self.addEventListener('fetch', (event) => {

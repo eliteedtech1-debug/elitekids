@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Search, Clock, X } from 'lucide-react';
-import { EMOJI_CATEGORIES, searchEmojis, type EmojiEntry, type EmojiCategory } from '@/lib/utils/emojiData';
+import type { EmojiEntry, EmojiCategory } from '@/lib/utils/emojiData';
 
 const TWEMOJI_CDN = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72';
 const RECENT_KEY = 'emoji_picker_recent';
@@ -57,19 +57,34 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
     setRecentEmojis(getRecent());
   }, [onSelect]);
 
+  // #11 perf: lazy-load emoji data (684 lines) only when picker opens
+  const [categories, setCategories] = useState<EmojiCategory[]>([]);
+  const [searchFn, setSearchFn] = useState<((q: string) => EmojiEntry[]) | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('@/lib/utils/emojiData').then((mod) => {
+      if (!cancelled) {
+        setCategories(mod.EMOJI_CATEGORIES);
+        setSearchFn(() => mod.searchEmojis);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Determine which emojis to show
   const displayEmojis = useMemo(() => {
-    if (search) return searchEmojis(search);
+    if (search && searchFn) return searchFn(search);
     if (activeTab === 'recent') return recentEmojis;
-    const cat = EMOJI_CATEGORIES.find((c) => c.id === activeTab);
+    const cat = categories.find((c) => c.id === activeTab);
     return cat?.emojis || [];
-  }, [activeTab, search, recentEmojis]);
+  }, [activeTab, search, recentEmojis, categories, searchFn]);
 
   // Available tabs — always show "recent" first
   const tabs: { id: string; label: string; icon: string }[] = useMemo(() => {
     const recentTab = { id: 'recent', label: 'Recent', icon: '🕐' };
-    return [recentTab, ...EMOJI_CATEGORIES.map((c) => ({ id: c.id, label: c.label, icon: c.icon }))];
-  }, []);
+    return [recentTab, ...categories.map((c) => ({ id: c.id, label: c.label, icon: c.icon }))];
+  }, [categories]);
 
   const isModal = mode === 'modal';
 

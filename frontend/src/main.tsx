@@ -27,8 +27,16 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 );
 
 // E3-offline: app-shell service worker lets kids reopen and play offline.
+// E4: listen for background sync messages to drain the offline queue.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'SYNC_REQUESTED') {
+      if (navigator.onLine) {
+        offlineSync.drainNow().catch(() => {});
+      }
+    }
   });
 }

@@ -441,6 +441,9 @@ async function createLesson(req, res) {
       lesson_type: lesson_type || 'game',
       duration_target_sec: duration_target_sec || null,
       is_global,
+      nerdc_code: req.body.nerdc_code || null,
+      nerdc_strand: req.body.nerdc_strand || null,
+      nerdc_sub_strand: req.body.nerdc_sub_strand || null,
     });
 
     // Enqueue AI generation on the BullMQ queue (kids-content-generation). The
@@ -526,6 +529,9 @@ async function createLessonManual(req, res) {
       content_state: 'pending_human_review',
       lesson_type: 'game',
       is_global: isGlobal,
+      nerdc_code: req.body.nerdc_code || null,
+      nerdc_strand: req.body.nerdc_strand || null,
+      nerdc_sub_strand: req.body.nerdc_sub_strand || null,
     });
 
     // Create the game config directly (no AI)

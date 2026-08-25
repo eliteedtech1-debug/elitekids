@@ -16,7 +16,10 @@ import {
   Palette,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
+import { offlineApi } from '@/lib/offline/api';
+import { offlineSync } from '@/lib/offline/sync';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { t } from '@/lib/i18n';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import TimerBar from '@/components/Timer';
 import { getItemVisual, getNumberEmoji, getNumberImageUrl } from '@/lib/utils/icons';
@@ -3459,7 +3462,7 @@ export default function GamePlay() {
         // XP = score × mode multiplier (learning gets less XP since no effort)
         const modeMultiplier = mode === 'learning' ? 0.5 : mode === 'test' ? 1.5 : 1;
         const xp = Math.round(finalScore * modeMultiplier);
-        await apiClient.post(ENDPOINTS.PROGRESS.GAME_COMPLETE, {
+        const progressPayload = {
           child_admission_no: admissionNo,
           lesson_id: lessonId,
           score: finalScore,
@@ -3468,7 +3471,26 @@ export default function GamePlay() {
           mode,
           answers_count: answers.length,
           difficulty: config?.template === 'puzzle-split' ? puzzleDifficulty : undefined,
-        }).catch(() => {});
+        };
+        try {
+          await apiClient.post(ENDPOINTS.PROGRESS.GAME_COMPLETE, progressPayload);
+        } catch (err: any) {
+          // #2 offline fix: if network error, queue for retry instead of silently swallowing
+          if (!navigator.onLine || err?.network || err?.code === 'ERR_NETWORK') {
+            const queued = await offlineSync.enqueue({
+              endpoint: ENDPOINTS.PROGRESS.GAME_COMPLETE,
+              method: 'POST',
+              body: progressPayload as Record<string, unknown>,
+            });
+            if (queued) {
+              console.log('📥 Progress queued for offline sync');
+            } else {
+              console.warn('⚠️ Sync queue full — progress may be lost');
+            }
+          } else {
+            console.error('❌ Progress submit failed:', err?.message || err);
+          }
+        }
       } finally {
         setSubmitting(false);
       }
@@ -3508,12 +3530,12 @@ export default function GamePlay() {
         const routing = res.data?.data?.routing;
         if (routing === 'practice') {
           // Gently route to practice mode — no discouragement
-          setRetryMessage(res.data?.data?.message || "Let's practice this a bit more!");
+          setRetryMessage(res.data?.data?.message || t('game.practice_mode'));
           setPhase('retry-practice');
           return;
         }
         if (routing === 'teacher_flag') {
-          setRetryMessage("Your teacher will help you with this one. Let's try something else!");
+          setRetryMessage(t('game.teacher_help'));
           setPhase('retry-practice');
           return;
         }
