@@ -70,6 +70,40 @@
       "enum": ["text", "image", "audio"],
       "description": "How the child responds — always by flipping cards"
     },
+    "characters": {
+      "type": "array",
+      "description": "Recurring child-friendly characters. Image > Emoji > Text.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
+          "emoji": { "type": "string", "description": "Character emoji fallback" },
+          "personality": { "type": "string" }
+        }
+      }
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Short story/scenario wrapping the memory game (shown to child)"
+    },
+    "hint": {
+      "type": "string",
+      "description": "Encouraging hint shown after wrong match"
+    },
+    "feedbackCorrect": {
+      "type": "string",
+      "description": "Custom encouraging message for correct pair"
+    },
+    "feedbackWrong": {
+      "type": "string",
+      "description": "Custom gentle message for wrong flip"
+    },
+    "speechText": {
+      "type": "string",
+      "description": "Exact text to read aloud via TTS"
+    },
     "assets": {
       "type": "object",
       "required": [

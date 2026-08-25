@@ -89,7 +89,7 @@ async function getActiveFestival(req, res) {
         `SELECT class_code FROM elite_db.students WHERE admission_no = :adm LIMIT 1`,
         { replacements: { adm: u.admission_no } },
       );
-      const s = (Array.isArray(stu[0]) ? stu[0] : [])[0] || {};
+      const s = stu[0] || {};
       resolvedClass = s.class_code || '';
     }
 
@@ -109,7 +109,8 @@ async function getActiveFestival(req, res) {
     if (!f) return res.json({ success: true, data: null });
 
     // Build guardian progress
-    const completed = f.completed_guardians ? JSON.parse(f.completed_guardians) : [];
+    let completed = [];
+    try { completed = f.completed_guardians ? JSON.parse(String(f.completed_guardians)) : []; } catch { completed = []; }
     const guardians = GUARDIANS.map(g => ({
       ...g,
       status: completed.includes(g.slug) ? 'defeated' :
@@ -164,7 +165,7 @@ async function createFestival(req, res) {
        WHERE school_id = :sid AND class_code = :cc AND status IN ('scheduled','active') LIMIT 1`,
       { replacements: { sid, cc: class_code } },
     );
-    if (Array.isArray(existing[0]) ? existing[0].length > 0 : false) {
+    if ((existing || []).length > 0) {
       return res.status(400).json({ success: false, message: 'An active or scheduled festival already exists for this class.' });
     }
 
@@ -211,7 +212,7 @@ async function dealDamage(req, res) {
   try {
     await ensureSchema();
     const u = req.user || {};
-    if (u.user_type !== 'student') return res.status(403).json({ success: false, message: 'Students only.' });
+    if (String(u.user_type || '').toLowerCase() !== 'student') return res.status(403).json({ success: false, message: 'Students only.' });
 
     const festivalId = String(req.params.id || '');
     const { score, combo_max, rage_used, lesson_id, config_id } = req.body || {};
@@ -223,7 +224,7 @@ async function dealDamage(req, res) {
       `SELECT * FROM kids_festival_state WHERE id = :id LIMIT 1`,
       { replacements: { id: festivalId } },
     );
-    const f = (Array.isArray(festivals[0]) ? festivals[0] : [])[0];
+    const f = (festivals || [])[0];
     if (!f || f.status !== 'active') {
       return res.status(400).json({ success: false, message: 'No active festival.' });
     }
@@ -242,9 +243,10 @@ async function dealDamage(req, res) {
     damage = Math.max(1, damage);
 
     // Apply damage
-    const newHp = Math.max(0, f.current_guardian_hp - damage);
+    let newHp = Math.max(0, f.current_guardian_hp - damage);
     const guardian = GUARDIANS.find(g => g.slug === f.current_guardian_slug);
-    const completed = f.completed_guardians ? JSON.parse(f.completed_guardians) : [];
+    let completed = [];
+    try { completed = f.completed_guardians ? JSON.parse(String(f.completed_guardians)) : []; } catch { completed = []; }
 
     // Log boss run
     await dbm().content.query(
@@ -269,6 +271,7 @@ async function dealDamage(req, res) {
       // Guardian defeated!
       defeated = true;
       completed.push(f.current_guardian_slug);
+      newHp = 0; // clamp for badge logic
 
       // Award guardian badge to this student
       const badgeInfo = BADGE_NAMES[f.current_guardian_slug];
@@ -277,7 +280,7 @@ async function dealDamage(req, res) {
           `SELECT id FROM kids_badges WHERE child_admission_no = :adm AND badge_name = :bn LIMIT 1`,
           { replacements: { adm, bn: badgeInfo.name } },
         );
-        const exRows = Array.isArray(existingBadge[0]) ? existingBadge[0] : [];
+        const exRows = (existingBadge || [])[0] || [];
         if (exRows.length === 0) {
           await dbm().content.query(
             `INSERT INTO kids_badges (id, child_admission_no, school_id, badge_name, badge_emoji, badge_type, awarded_at)
@@ -300,7 +303,7 @@ async function dealDamage(req, res) {
           `SELECT id FROM kids_badges WHERE child_admission_no = :adm AND badge_name = :bn LIMIT 1`,
           { replacements: { adm, bn: MEGA_BADGE.name } },
         );
-        const exMega = Array.isArray(existingMega[0]) ? existingMega[0] : [];
+        const exMega = (existingMega || [])[0] || [];
         if (exMega.length === 0) {
           await dbm().content.query(
             `INSERT INTO kids_badges (id, child_admission_no, school_id, badge_name, badge_emoji, badge_type, awarded_at)

@@ -119,6 +119,44 @@ export function playPlace() {
   playTone(500, 0.08, 'triangle', 0.15);
 }
 
+/** Streak milestone — ascending chime (3, 5, 7 correct in a row) */
+export function playStreak(level: number) {
+  const base = 600 + level * 100;
+  playTone(base, 0.1, 'sine', 0.2);
+  setTimeout(() => playTone(base + 200, 0.1, 'sine', 0.2), 80);
+  setTimeout(() => playTone(base + 400, 0.15, 'sine', 0.25), 160);
+}
+
+/** Hint reveal — soft encouraging tone */
+export function playHint() {
+  playTone(520, 0.12, 'triangle', 0.15);
+  setTimeout(() => playTone(660, 0.15, 'triangle', 0.12), 120);
+}
+
+/** Brief celebration burst — for mini-celebrations between questions */
+export function playCelebration() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  const t = ctx.currentTime;
+  const note = (freq: number, start: number, dur: number, vol = 0.18) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t + start);
+    gain.gain.exponentialRampToValueAtTime(vol, t + start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + start + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t + start);
+    osc.stop(t + start + dur);
+  };
+  note(784, 0.0, 0.12);    // G5
+  note(988, 0.1, 0.12);    // B5
+  note(1175, 0.2, 0.2);    // D6
+}
+
 // ── Speech Synthesis ──────────────────────────────────────────
 
 /**

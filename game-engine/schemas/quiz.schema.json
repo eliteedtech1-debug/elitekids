@@ -71,6 +71,32 @@
       "type": "string",
       "description": "Contextual riddle/description when promptMode is 'context'"
     },
+    "characters": {
+      "type": "array",
+      "description": "Recurring child-friendly characters. Image > Emoji > Text: provide an image URL for best visual, emoji as fallback, name as last resort.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Character name (e.g. Alex, Maya, Tobi)"
+          },
+          "image": {
+            "type": "string",
+            "description": "Character image URL (preferred over emoji). Asset key like 'media/{lessonId}/character-alex.webp'"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Character emoji fallback if no image (e.g. 👦, 🧒)"
+          },
+          "personality": {
+            "type": "string",
+            "description": "Brief personality trait (e.g. curious, playful)"
+          }
+        }
+      }
+    },
     "questions": {
       "type": "array",
       "minItems": 3,
@@ -88,13 +114,54 @@
             "type": "string"
           },
           "prompt": {
-            "type": "string"
+            "type": "string",
+            "description": "The core question text (kept for backward compatibility)"
           },
           "promptAudio": {
             "type": "string"
           },
           "image": {
             "type": "string"
+          },
+          "scenario": {
+            "type": "string",
+            "description": "Short story/situation wrapping the question (e.g. 'Alex is at the zoo. He sees a big animal. Sam says: ___ is very tall.')"
+          },
+          "characterName": {
+            "type": "string",
+            "description": "Name of the character involved in this question"
+          },
+          "characterImage": {
+            "type": "string",
+            "description": "Character image URL for this question (preferred over characterEmoji). Asset key like 'media/{lessonId}/character-maya.webp'"
+          },
+          "characterEmoji": {
+            "type": "string",
+            "description": "Character emoji fallback if no image (e.g. 👦)"
+          },
+          "setting": {
+            "type": "string",
+            "description": "Where the scenario takes place (e.g. 'at the zoo', 'at school')"
+          },
+          "settingImage": {
+            "type": "string",
+            "description": "Setting/location image URL (preferred over setting text). Asset key like 'media/{lessonId}/zoo.webp'"
+          },
+          "hint": {
+            "type": "string",
+            "description": "Encouraging hint shown after wrong answer (e.g. 'Sam is a boy, so let's use a word for boys!')"
+          },
+          "speechText": {
+            "type": "string",
+            "description": "Exact text to read aloud via TTS (overrides scenario+prompt for voice)"
+          },
+          "feedbackCorrect": {
+            "type": "string",
+            "description": "Custom encouraging message for correct answer"
+          },
+          "feedbackWrong": {
+            "type": "string",
+            "description": "Custom gentle message for wrong answer"
           },
           "options": {
             "type": "array",

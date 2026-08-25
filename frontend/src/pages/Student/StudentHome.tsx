@@ -16,7 +16,6 @@ import {
   Trophy,
   RotateCcw,
   Swords,
-  Users,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -29,7 +28,6 @@ import CompanionSelect, { CompanionBubble } from '@/components/CompanionSelect';
 import GardenScene from '@/components/GardenScene';
 import StudentLeaderboardPanel from './StudentLeaderboardPanel';
 import StudentFestival from '@/components/StudentFestival';
-import ParentDashboard from '@/components/ParentDashboard';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreak, getStreakEmoji } from '@/lib/utils/streak';
@@ -82,7 +80,6 @@ const TABS: Tab[] = [
   { key: 'food', label: 'Food', icon: <Apple className="h-4 w-4" />, filter: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
   { key: 'festival', label: 'Festival', icon: <Swords className="h-4 w-4" />, filter: () => true, special: true },
   { key: 'leaderboard', label: 'Trophy Board', icon: <Trophy className="h-4 w-4" />, filter: () => true, special: true },
-  { key: 'parent', label: 'Parent', icon: <Users className="h-4 w-4" />, filter: () => true, special: true },
 ];
 
 /* ── Age-level badge colors (from accessibility palette) ── */
@@ -444,8 +441,6 @@ export default function StudentHome() {
               <StudentFestival onGoPlay={() => navigate('/student/game')} />
             ) : activeTab === 'leaderboard' ? (
               <StudentLeaderboardPanel />
-            ) : activeTab === 'parent' ? (
-              <ParentDashboard />
             ) : (
             <>
             {/* Section header */}

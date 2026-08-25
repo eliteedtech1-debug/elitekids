@@ -44,9 +44,11 @@ async function ensureSchema() {
     rage_used TINYINT DEFAULT 0,
     response_time_ms INT DEFAULT 0,
     duration_s INT DEFAULT 0,
+    festival_id VARCHAR(50) NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY idx_boss_child (child_admission_no, created_at),
-    KEY idx_boss_lesson (lesson_id)
+    KEY idx_boss_lesson (lesson_id),
+    KEY idx_boss_festival (festival_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
   await c.query(`CREATE TABLE IF NOT EXISTS kids_boss_raid_games (
     id CHAR(36) NOT NULL PRIMARY KEY,
@@ -102,6 +104,18 @@ async function createRaid(req, res) {
     const startsAt = new Date();
     const endsAt = new Date(Date.now() + durH * 3600000);
     const id = crypto.randomUUID();
+
+    // Prevent duplicate active raids for same class
+    const [existingActive] = await dbm().content.query(
+      `SELECT id FROM kids_boss_raid_state
+       WHERE school_id=:s AND class_code=:c AND status='active'
+       AND NOW() BETWEEN starts_at AND COALESCE(ends_at, DATE_ADD(NOW(), INTERVAL 7 DAY))
+       LIMIT 1`,
+      { replacements: { s: String(schoolId), c: String(class_code) } },
+    );
+    if ((existingActive || []).length > 0) {
+      return res.status(400).json({ success: false, message: 'An active raid already exists for this class. End it first.' });
+    }
 
     // Enroll class roster
     const roster = await dbm().sequelize.query(
@@ -193,7 +207,7 @@ async function getRaidDashboard(req, res) {
     const adms = (parts || []).map((p) => p.adm);
     let nameMap = new Map();
     if (adms.length) {
-      const [nameRows] = await dbm().sequelize.query(
+      const nameRows = await dbm().sequelize.query(
         `SELECT admission_no, student_name, surname, first_name FROM students WHERE admission_no IN (:adms) LIMIT 300`,
         { replacements: { adms }, type: dbm().Sequelize.QueryTypes.SELECT },
       ).catch(() => []);
@@ -282,11 +296,11 @@ async function getActiveRaid(req, res) {
     );
     const topNames = new Map();
     for (const r of (topRows || [])) {
-      const [n] = await dbm().sequelize.query(
+      const n = await dbm().sequelize.query(
         `SELECT student_name, surname, first_name FROM students WHERE admission_no=:a LIMIT 1`,
         { replacements: { a: r.adm }, type: dbm().Sequelize.QueryTypes.SELECT },
       ).catch(() => []);
-      topNames.set(r.adm, sanitizeName((n || [])[0]));
+      topNames.set(r.adm, sanitizeName((Array.isArray(n) ? n : [])[0]));
     }
 
     return res.json({
