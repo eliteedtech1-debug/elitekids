@@ -1,23 +1,51 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Login from '@/pages/Login/Login';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ParentChildren from '@/pages/Parent/ParentChildren';
 import ParentActivities from '@/pages/Parent/ParentActivities';
 import StudentHome from '@/pages/Student/StudentHome';
-import GamePlay from '@/pages/Student/GamePlay';
-import TeacherLessons from '@/pages/Teacher/TeacherLessons';
-import TeacherApprovals from '@/pages/Teacher/TeacherApprovals';
-import TeacherArena from './pages/Teacher/TeacherArena';
-import TeacherLive from './pages/Teacher/TeacherLive';
-import GameCreator from '@/pages/Teacher/GameCreator';
-import AssetLibrary from '@/pages/Admin/AssetLibrary';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 /**
  * App shell — routes for the EliteKids SPA.
- * Sprints 2–3 will add /play and /teacher/* behind the same guard.
+ *
+ * Perf (#11): heavy pages (GamePlay is 4k+ lines, teacher tools bundle Phaser-adjacent
+ * renderers and pickers) are lazy-loaded per-route so the initial chunk stays lean.
+ * The shell (Login/Dashboard/StudentHome) stays eager for first-paint speed.
  */
+
+// Lazy route pages — loaded on first navigation to their route.
+const GamePlay = lazy(() => import('@/pages/Student/GamePlay'));
+const TeacherLessons = lazy(() => import('@/pages/Teacher/TeacherLessons'));
+const TeacherApprovals = lazy(() => import('@/pages/Teacher/TeacherApprovals'));
+const TeacherArena = lazy(() => import('@/pages/Teacher/TeacherArena'));
+const TeacherLive = lazy(() => import('@/pages/Teacher/TeacherLive'));
+const TeacherAnalytics = lazy(() => import('@/pages/Teacher/TeacherAnalytics'));
+const GameCreator = lazy(() => import('@/pages/Teacher/GameCreator'));
+const AssetLibrary = lazy(() => import('@/pages/Admin/AssetLibrary'));
+
+/** Minimal loading fallback so lazy chunks don't flash a blank screen. */
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="animate-pulse text-3xl" role="status" aria-label="Loading">
+        ⭐
+      </div>
+    </div>
+  );
+}
+
+/** Wrap a lazy page in Suspense + ErrorBoundary with an optional guard. */
+function LazyRoute({ element }: { element: React.ReactNode }) {
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <ErrorBoundary>{element}</ErrorBoundary>
+    </Suspense>
+  );
+}
+
 export default function App() {
   return (
     <Routes>
@@ -60,9 +88,7 @@ export default function App() {
         path="/student/game/:lessonId"
         element={
           <AuthGuard>
-            <ErrorBoundary>
-              <GamePlay />
-            </ErrorBoundary>
+            <LazyRoute element={<GamePlay />} />
           </AuthGuard>
         }
       />
@@ -70,7 +96,7 @@ export default function App() {
         path="/teacher/lessons"
         element={
           <AuthGuard>
-            <TeacherLessons />
+            <LazyRoute element={<TeacherLessons />} />
           </AuthGuard>
         }
       />
@@ -78,7 +104,7 @@ export default function App() {
         path="/teacher/approvals"
         element={
           <AuthGuard>
-            <TeacherApprovals />
+            <LazyRoute element={<TeacherApprovals />} />
           </AuthGuard>
         }
       />
@@ -86,9 +112,7 @@ export default function App() {
         path="/teacher/arena"
         element={
           <AuthGuard>
-            <ErrorBoundary>
-              <TeacherArena />
-            </ErrorBoundary>
+            <LazyRoute element={<TeacherArena />} />
           </AuthGuard>
         }
       />
@@ -96,9 +120,15 @@ export default function App() {
         path="/teacher/live"
         element={
           <AuthGuard>
-            <ErrorBoundary>
-              <TeacherLive />
-            </ErrorBoundary>
+            <LazyRoute element={<TeacherLive />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/analytics"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<TeacherAnalytics />} />
           </AuthGuard>
         }
       />
@@ -106,9 +136,7 @@ export default function App() {
         path="/teacher/create-game"
         element={
           <AuthGuard>
-            <ErrorBoundary>
-              <GameCreator />
-            </ErrorBoundary>
+            <LazyRoute element={<GameCreator />} />
           </AuthGuard>
         }
       />
@@ -116,7 +144,7 @@ export default function App() {
         path="/admin/assets"
         element={
           <AuthGuard>
-            <AssetLibrary />
+            <LazyRoute element={<AssetLibrary />} />
           </AuthGuard>
         }
       />

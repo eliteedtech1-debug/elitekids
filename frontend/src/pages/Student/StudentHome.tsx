@@ -30,7 +30,7 @@ import StudentLeaderboardPanel from './StudentLeaderboardPanel';
 import StudentFestival from '@/components/StudentFestival';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
-import { recordPlayDay, getStreak, getStreakEmoji } from '@/lib/utils/streak';
+import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
 
 /* ── Types ────────────────────────────────────────────────────── */
@@ -192,7 +192,7 @@ export default function StudentHome() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [companion, setCompanion] = useState<any>(null);
   const [showCompanionSelect, setShowCompanionSelect] = useState(false);
-  const [streak, setStreak] = useState(() => getStreak());
+  const [streak, setStreak] = useState(() => getStreakLocal());
   const { colorblindMode } = useA11yStore();
 
   const loadData = useCallback(async () => {
@@ -236,8 +236,8 @@ export default function StudentHome() {
     } finally {
       setLoading(false);
       // Record daily play for streak tracking
-      const updatedStreak = recordPlayDay();
-      setStreak(updatedStreak);
+      const admissionNo = student?.admission_no || student?.id || '';
+      recordPlayDay(admissionNo).then(setStreak).catch(() => {});
       // Warm IndexedDB cache with game assets in background
       try {
         const allUrls: string[] = [];

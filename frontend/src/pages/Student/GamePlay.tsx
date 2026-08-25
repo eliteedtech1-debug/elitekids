@@ -50,6 +50,7 @@ import type { ComboState } from '@/lib/game/combo';
 import { awardPowerUps, getAvailable, usePowerUp } from '@/lib/game/power-ups';
 import { launchConfetti } from '@/lib/game/victory';
 import apiClientBoss from '@/lib/api/client';
+import { offlineSync } from '@/lib/offline/sync';
 import type { PromptMode, ResponseMode } from '@/lib/types/game';
 import { getPromptDisplay, getResponseDisplay } from '@/lib/types/game';
 
@@ -3459,7 +3460,7 @@ export default function GamePlay() {
         // XP = score × mode multiplier (learning gets less XP since no effort)
         const modeMultiplier = mode === 'learning' ? 0.5 : mode === 'test' ? 1.5 : 1;
         const xp = Math.round(finalScore * modeMultiplier);
-        await apiClient.post(ENDPOINTS.PROGRESS.GAME_COMPLETE, {
+        const payload = {
           child_admission_no: admissionNo,
           lesson_id: lessonId,
           score: finalScore,
@@ -3468,7 +3469,22 @@ export default function GamePlay() {
           mode,
           answers_count: answers.length,
           difficulty: config?.template === 'puzzle-split' ? puzzleDifficulty : undefined,
-        }).catch(() => {});
+        };
+        try {
+          await apiClient.post(ENDPOINTS.PROGRESS.GAME_COMPLETE, payload);
+        } catch (err: any) {
+          // Queue for retry when back online instead of silently dropping
+          const queued = await offlineSync.enqueue({
+            endpoint: ENDPOINTS.PROGRESS.GAME_COMPLETE,
+            method: 'POST',
+            body: payload,
+          });
+          if (queued) {
+            console.log('[offline] Progress queued for sync:', lessonId);
+          } else {
+            console.warn('[offline] Progress lost — sync queue full');
+          }
+        }
       } finally {
         setSubmitting(false);
       }

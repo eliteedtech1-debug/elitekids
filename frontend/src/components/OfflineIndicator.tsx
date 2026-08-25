@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Wifi, WifiOff, RefreshCw, CloudOff } from 'lucide-react';
 import { offlineSync } from '@/lib/offline/sync';
 import { offlineDB, STORES } from '@/lib/offline/db';
+import { t } from '@/lib/i18n';
 
 /**
  * Offline indicator banner — shows connection status and pending sync count.
@@ -105,16 +106,16 @@ export default function OfflineIndicator({ compact = false, className = '' }: Of
           {isOnline ? (
             pendingCount > 0 ? (
               <>
-                <span className="font-semibold">Back online</span> — {pendingCount} item{pendingCount !== 1 ? 's' : ''} to sync
+                <span className="font-semibold">{t('offline.indicator.backOnline')}</span> — {t('offline.indicator.itemsToSync', { count: pendingCount })}
               </>
             ) : (
-              <span className="text-green-600">Online</span>
+              <span className="text-green-600">{t('offline.indicator.online')}</span>
             )
           ) : (
             <>
-              <span className="font-semibold">Offline</span>
+              <span className="font-semibold">{t('offline.indicator.offline')}</span>
               {pendingCount > 0 && (
-                <> — {pendingCount} item{pendingCount !== 1 ? 's' : ''} saved</>
+                <> — {t('offline.indicator.saved', { count: pendingCount })}</>
               )}
             </>
           )}
@@ -128,7 +129,7 @@ export default function OfflineIndicator({ compact = false, className = '' }: Of
           className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
         >
           <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Syncing...' : 'Sync now'}
+          {syncing ? t('offline.indicator.syncing') : t('offline.indicator.syncNow')}
         </button>
       )}
 

@@ -3,6 +3,10 @@
  * All functions are safe to call in SSR (no-op on server).
  */
 
+// #3 i18n: TTS follows the app locale (default en-NG for Nigeria) instead of
+// a hardcoded en-US tag. Safe to import directly — i18n has no dep on sound.
+import { getTtsLocale } from '@/lib/i18n';
+
 let audioCtx: AudioContext | null = null;
 
 function getCtx(): AudioContext | null {
@@ -175,7 +179,7 @@ export function stripEmojiForSpeech(text: string): string {
     .trim();
 }
 
-export function speak(text: string, lang = 'en-US', overrideRate?: number): Promise<void> {
+export function speak(text: string, lang?: string, overrideRate?: number): Promise<void> {
   return new Promise((resolve) => {
     if (!text || typeof window === 'undefined' || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
       resolve();
@@ -204,7 +208,7 @@ export function speak(text: string, lang = 'en-US', overrideRate?: number): Prom
     const spokenText = stripEmojiForSpeech(text);
     if (!spokenText) { resolve(); return; }
     const utterance = new SpeechSynthesisUtterance(spokenText);
-    utterance.lang = lang;
+    utterance.lang = lang || getTtsLocale();
     utterance.rate = rate;
     utterance.volume = 1;
     utterance.pitch = pitch;
@@ -277,7 +281,7 @@ export async function speakAnimal(name: string): Promise<void> {
 /** Speak a number with emphasis */
 export async function speakNumber(num: number): Promise<void> {
   playDance();
-  await speak(`${num}!`, 'en-NG', 0.85);
+  await speak(`${num}!`, undefined, 0.85);
 }
 
 /** Speak a shape name */

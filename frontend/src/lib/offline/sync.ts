@@ -21,9 +21,21 @@
 import apiClient from '@/lib/api/client';
 import { offlineDB, STORES } from './db';
 
+// #4 hardening (E2 design, ecce-offline-design.md): progress records carry an
+// idempotency_key and are safe to retry far more aggressively than other
+// mutations — rural devices routinely drop >45s. Progress items get a 10-retry
+// cap with the backoff array cycled; everything else keeps the 3-retry cap.
 const MAX_RETRIES = 3;
+const MAX_RETRIES_PROGRESS = 10;
 const MAX_QUEUE_SIZE = 100;
-const RETRY_DELAYS = [2000, 5000, 15000]; // ms
+const RETRY_DELAYS = [2000, 5000, 15000, 30000, 60000, 120000, 300000]; // ms
+
+/** Endpoints whose payloads are idempotent (safe to retry long). */
+const PROGRESS_ENDPOINTS = ['/kids/progress/game-complete', '/kids/progress/item'];
+
+function isProgressEndpoint(endpoint: string): boolean {
+  return PROGRESS_ENDPOINTS.some((e) => endpoint.includes(e));
+}
 
 type SyncStatus = 'idle' | 'draining' | 'error';
 
@@ -48,6 +60,8 @@ class OfflineSyncService {
 
     window.addEventListener('online', this.handleOnline);
     window.addEventListener('offline', this.handleOffline);
+    // #4: listen for background-sync nudges from the service worker.
+    navigator.serviceWorker?.addEventListener('message', this.handleSWMessage);
 
     // If already online, attempt to drain any leftover queue
     if (navigator.onLine) {
@@ -60,9 +74,33 @@ class OfflineSyncService {
     if (typeof window === 'undefined') return;
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('offline', this.handleOffline);
+    navigator.serviceWorker?.removeEventListener('message', this.handleSWMessage);
     if (this.drainTimer) clearTimeout(this.drainTimer);
     if (this.backoffTimer) clearTimeout(this.backoffTimer);
     this.started = false;
+  }
+
+  /** SW background-sync nudge → drain the queue immediately. */
+  private handleSWMessage = (event: MessageEvent) => {
+    if (event.data?.type === 'ELITEKIDS_SYNC') {
+      console.log('🔔 Background sync fired — draining queue');
+      this.drainNow().catch(() => {});
+    }
+  };
+
+  /**
+   * #4: register a one-shot background sync with the service worker so a
+   * reconnect drains the queue even if the tab was backgrounded.
+   */
+  private async registerBackgroundSync(): Promise<void> {
+    try {
+      if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+      const reg = await navigator.serviceWorker.ready;
+      if (!reg.sync) return; // not supported (older browsers) — fine, online-event drain covers it
+      await reg.sync.register('progress-sync');
+    } catch {
+      // Non-fatal — periodic drain + online event are the fallbacks.
+    }
   }
 
   private handleOnline = () => {
@@ -97,6 +135,8 @@ class OfflineSyncService {
     await offlineDB.enqueueSync(item);
     const newSize = await offlineDB.syncQueueSize();
     this.setStatus('idle', newSize);
+    // #4: arm background sync so reconnect drains even from a background tab.
+    this.registerBackgroundSync().catch(() => {});
     return true;
   }
 
@@ -133,9 +173,12 @@ class OfflineSyncService {
           continue;
         }
 
-        // Network error or 5xx — increment retry count
-        if (item.retries >= MAX_RETRIES - 1) {
-          console.warn(`❌ Dropping sync item after ${MAX_RETRIES} retries: ${item.endpoint}`);
+        // Network error or 5xx — increment retry count.
+        // Progress endpoints get the extended cap (idempotency_key makes them
+        // safe to retry); everything else keeps the conservative 3-retry cap.
+        const cap = isProgressEndpoint(item.endpoint) ? MAX_RETRIES_PROGRESS : MAX_RETRIES;
+        if (item.retries >= cap - 1) {
+          console.warn(`❌ Dropping sync item after ${cap} retries: ${item.endpoint}`);
           await offlineDB.dequeueSync(item.id);
         } else {
           // Update retry count

@@ -16,6 +16,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { getSchoolId } from '@/lib/utils/school';
+import { t } from '@/lib/i18n';
 import A11ySettings from '@/components/A11ySettings';
 import AdminNav from '@/components/AdminNav';
 
@@ -39,58 +40,77 @@ interface NavCard {
   to?: string;
 }
 
-const NAV_CARDS: NavCard[] = [
+interface NavCardI18n {
+  titleKey: string;
+  descriptionKey: string;
+}
+
+const NAV_CARDS: Array<NavCard & NavCardI18n> = [
   {
-    title: 'My Children',
-    description: "View each child's games, stars and progress.",
+    titleKey: 'dashboard.card.children',
+    descriptionKey: 'dashboard.card.childrenDesc',
+    title: 'My Children', // legacy — resolved via t(titleKey) at render
+    description: '',
     icon: Baby,
     audience: 'parent',
     sprint: 'Live',
     to: '/parent',
   },
   {
+    titleKey: 'dashboard.card.activities',
+    descriptionKey: 'dashboard.card.activitiesDesc',
     title: 'Child Activities',
-    description: 'See published lessons and games your children can play.',
+    description: '',
     icon: Eye,
     audience: 'parent',
     sprint: 'Live',
     to: '/parent/activities',
   },
   {
+    titleKey: 'dashboard.card.progressReport',
+    descriptionKey: 'dashboard.card.progressReportDesc',
     title: 'Progress Report',
-    description: "Detailed breakdown of each child's XP, stars and games.",
+    description: '',
     icon: BarChart3,
     audience: 'parent',
     sprint: 'Live',
     to: '/parent',
   },
   {
+    titleKey: 'dashboard.card.lessons',
+    descriptionKey: 'dashboard.card.lessonsDesc',
     title: 'Lessons',
-    description: 'Create lessons and review AI-generated games.',
+    description: '',
     icon: BookOpen,
     audience: 'staff',
     sprint: 'Live',
     to: '/teacher/lessons',
   },
   {
+    titleKey: 'dashboard.card.approvals',
+    descriptionKey: 'dashboard.card.approvalsDesc',
     title: 'Approvals',
-    description: 'Review and publish pending game content.',
+    description: '',
     icon: ShieldCheck,
     audience: 'staff',
     sprint: 'Live',
     to: '/teacher/approvals',
   },
   {
+    titleKey: 'dashboard.card.myGames',
+    descriptionKey: 'dashboard.card.myGamesDesc',
     title: 'My Games',
-    description: 'Play educational games and earn stars and XP!',
+    description: '',
     icon: Gamepad2,
     audience: 'student',
     sprint: 'Live',
     to: '/student',
   },
   {
+    titleKey: 'dashboard.card.myProgress',
+    descriptionKey: 'dashboard.card.myProgressDesc',
     title: 'My Progress',
-    description: 'Check your stars, XP and games completed.',
+    description: '',
     icon: BarChart3,
     audience: 'student',
     sprint: 'Live',
@@ -123,7 +143,7 @@ export default function Dashboard() {
     localStorage.removeItem(STORAGE_KEYS.BRANCH_ID);
     localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCH);
     localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-    toast.success('Signed out');
+    toast.success(t('dashboard.signedOut'));
     navigate('/login');
   }, [navigate]);
 
@@ -131,6 +151,11 @@ export default function Dashboard() {
   const isStaff = /admin|teacher|superadmin/i.test(role);
   const isStudent = /student/i.test(role);
   const isParent = /parent/i.test(role);
+
+  // Parents should be on /parent — redirect if they land here
+  useEffect(() => {
+    if (isParent) navigate('/parent', { replace: true });
+  }, [isParent, navigate]);
 
   // Staff auto-redirects to lessons — but still renders if they navigate here directly
   const cards = NAV_CARDS.filter((c) => {
@@ -150,9 +175,9 @@ export default function Dashboard() {
       <header className="border-b border-[#0F4D92]/10 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Elite Kids" className="h-10 w-10 rounded-full object-contain" />
+            <img src="/logo.svg" alt={t('dashboard.brand')} className="h-10 w-10 rounded-full object-contain" />
             <div>
-              <h1 className="text-lg font-bold leading-tight text-[#0F4D92]">Elite Kids</h1>
+              <h1 className="text-lg font-bold leading-tight text-[#0F4D92]">{t('dashboard.brand')}</h1>
               <p className="text-xs text-gray-500">
                 {schoolId ? `${schoolId} · ` : ''}
                 <span className="capitalize">{role}</span>
@@ -170,7 +195,7 @@ export default function Dashboard() {
                     ? 'bg-green-50 text-green-700'
                     : 'bg-red-50 text-red-700'
               }`}
-              title={apiOk === null ? 'Checking API...' : apiOk ? 'API reachable' : 'API unreachable'}
+              title={apiOk === null ? t('dashboard.checkingApi') : apiOk ? t('dashboard.apiReachable') : t('dashboard.apiUnreachable')}
             >
               {apiOk === null ? (
                 <GraduationCap className="h-3.5 w-3.5" />
@@ -179,14 +204,14 @@ export default function Dashboard() {
               ) : (
                 <XCircle className="h-3.5 w-3.5" />
               )}
-              {apiOk === null ? 'Checking...' : apiOk ? 'API online' : 'API offline'}
+              {apiOk === null ? t('dashboard.checking') : apiOk ? t('dashboard.apiOnline') : t('dashboard.apiOffline')}
             </span>
 
             <button
               onClick={handleLogout}
               className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
             >
-              <LogOut className="h-4 w-4" /> Sign out
+              <LogOut className="h-4 w-4" /> {t('dashboard.signOut')}
             </button>
           </div>
         </div>
@@ -196,25 +221,25 @@ export default function Dashboard() {
       {/* Body */}
       <main className="mx-auto max-w-5xl px-4 py-8">
         <h2 className="text-xl font-semibold text-gray-800">
-          Welcome, {welcomeLabel} 👋
+          {t('dashboard.welcomeUser', { role: welcomeLabel })} 👋
         </h2>
         <p className="mb-6 text-sm text-gray-500">
           {isStaff
-            ? 'Manage lessons, review AI content and approve games for your students.'
+            ? t('dashboard.staffBlurb')
             : isStudent
-              ? 'Play educational games and earn stars and XP!'
-              : "Track your children's learning progress, view their activities and published games."}
+              ? t('dashboard.studentBlurb')
+              : t('dashboard.parentBlurb')}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
           {cards.map((card) => {
             const badge = card.to ? (
               <span className="rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-semibold text-green-700">
-                {card.sprint}
+                {t('dashboard.live')}
               </span>
             ) : (
               <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                {card.sprint}
+                {t('dashboard.live')}
               </span>
             );
             const body = (
@@ -225,8 +250,8 @@ export default function Dashboard() {
                 {badge}
               </div>
             );
-            const title = <h3 className="font-semibold text-gray-800">{card.title}</h3>;
-            const desc = <p className="mt-1 text-sm text-gray-500">{card.description}</p>;
+            const title = <h3 className="font-semibold text-gray-800">{t(card.titleKey)}</h3>;
+            const desc = <p className="mt-1 text-sm text-gray-500">{t(card.descriptionKey)}</p>;
 
             return card.to ? (
               <Link

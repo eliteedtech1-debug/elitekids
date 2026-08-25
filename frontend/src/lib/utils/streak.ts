@@ -1,8 +1,8 @@
 /**
  * Daily Streak Tracker — Doc 16 §3 (Reward Equity).
  *
- * Tracks consecutive days of play using localStorage.
- * Streak is participation-based, not performance-based (reward equity).
+ * Tracks consecutive days of play. Backend is source of truth;
+ * localStorage serves as offline cache / fallback.
  *
  * Streak milestones unlock sticker rewards:
  *   1 day  → First sticker (🌰 Seed Starter)
@@ -12,9 +12,12 @@
  *  30 days → 🌈 Legend
  */
 
+import apiClient from '@/lib/api/client';
+import { ENDPOINTS } from '@/lib/api/endpoints';
+
 const STREAK_KEY = 'elitekids-streak';
 
-interface StreakState {
+export interface StreakState {
   currentStreak: number;
   longestStreak: number;
   lastPlayDate: string;  // YYYY-MM-DD
@@ -26,13 +29,9 @@ function todayKey(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-function daysBetween(d1: string, d2: string): number {
-  const a = new Date(d1);
-  const b = new Date(d2);
-  return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
-}
+// ── localStorage helpers (offline fallback) ──────────────────────────────
 
-export function getStreak(): StreakState {
+export function getStreakLocal(): StreakState {
   try {
     const raw = localStorage.getItem(STREAK_KEY);
     if (raw) return JSON.parse(raw);
@@ -40,19 +39,21 @@ export function getStreak(): StreakState {
   return { currentStreak: 0, longestStreak: 0, lastPlayDate: '', totalDaysPlayed: 0, milestones: [] };
 }
 
-export function saveStreak(state: StreakState): void {
+function saveStreakLocal(state: StreakState): void {
   localStorage.setItem(STREAK_KEY, JSON.stringify(state));
 }
 
-/**
- * Record a play session. Returns the updated streak state.
- * Call this once per day when the student plays.
- */
-export function recordPlayDay(): StreakState {
-  const state = getStreak();
-  const today = todayKey();
+function daysBetween(d1: string, d2: string): number {
+  const a = new Date(d1);
+  const b = new Date(d2);
+  return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+}
 
-  // Already recorded today — no change
+// ── Offline record (localStorage only) ──────────────────────────────────
+
+function recordPlayDayLocal(): StreakState {
+  const state = getStreakLocal();
+  const today = todayKey();
   if (state.lastPlayDate === today) return state;
 
   const yesterday = new Date();
@@ -60,13 +61,10 @@ export function recordPlayDay(): StreakState {
   const yesterdayKey = yesterday.toISOString().split('T')[0];
 
   if (state.lastPlayDate === yesterdayKey) {
-    // Consecutive day — extend streak
     state.currentStreak += 1;
   } else if (state.lastPlayDate) {
-    // Streak broken — restart from 1
     state.currentStreak = 1;
   } else {
-    // First ever play
     state.currentStreak = 1;
   }
 
@@ -74,24 +72,75 @@ export function recordPlayDay(): StreakState {
   state.totalDaysPlayed += 1;
   state.longestStreak = Math.max(state.longestStreak, state.currentStreak);
 
-  // Check milestones
   const MILESTONES = [
-    { id: 'seed_starter', days: 1, emoji: '🌰', label: 'Seed Starter' },
-    { id: 'green_thumb', days: 3, emoji: '🌱', label: 'Green Thumb' },
-    { id: 'super_star', days: 7, emoji: '⭐', label: 'Super Star' },
-    { id: 'champion', days: 14, emoji: '🏆', label: 'Champion' },
-    { id: 'legend', days: 30, emoji: '🌈', label: 'Legend' },
+    { id: 'seed_starter', days: 1 },
+    { id: 'green_thumb', days: 3 },
+    { id: 'super_star', days: 7 },
+    { id: 'champion', days: 14 },
+    { id: 'legend', days: 30 },
   ];
-
   for (const m of MILESTONES) {
     if (state.currentStreak >= m.days && !state.milestones.includes(m.id)) {
       state.milestones.push(m.id);
     }
   }
 
-  saveStreak(state);
+  saveStreakLocal(state);
   return state;
 }
+
+// ── Public API ──────────────────────────────────────────────────────────
+
+/**
+ * Get streak state. Tries backend first, falls back to localStorage.
+ */
+export async function getStreak(childAdmissionNo?: string): Promise<StreakState> {
+  try {
+    const url = childAdmissionNo
+      ? `${ENDPOINTS.STREAK.GET}?child_admission_no=${encodeURIComponent(childAdmissionNo)}`
+      : ENDPOINTS.STREAK.GET;
+    const res = await apiClient.get(url);
+    const data = res.data?.data;
+    if (data) {
+      const state: StreakState = {
+        currentStreak: data.currentStreak || 0,
+        longestStreak: data.longestStreak || 0,
+        lastPlayDate: data.lastPlayDate || '',
+        totalDaysPlayed: data.totalDaysPlayed || 0,
+        milestones: data.milestones || [],
+      };
+      saveStreakLocal(state); // cache for offline
+      return state;
+    }
+  } catch {}
+  return getStreakLocal();
+}
+
+/**
+ * Record a play day. Tries backend first, falls back to localStorage.
+ */
+export async function recordPlayDay(childAdmissionNo?: string): Promise<StreakState> {
+  try {
+    const res = await apiClient.post(ENDPOINTS.STREAK.RECORD, {
+      child_admission_no: childAdmissionNo || '',
+    });
+    const data = res.data?.data;
+    if (data) {
+      const state: StreakState = {
+        currentStreak: data.currentStreak || 0,
+        longestStreak: data.longestStreak || 0,
+        lastPlayDate: data.lastPlayDate || '',
+        totalDaysPlayed: data.totalDaysPlayed || 0,
+        milestones: data.milestones || [],
+      };
+      saveStreakLocal(state);
+      return state;
+    }
+  } catch {}
+  return recordPlayDayLocal();
+}
+
+// ── Helpers (no async needed) ───────────────────────────────────────────
 
 export function getStreakEmoji(streak: number): string {
   if (streak >= 30) return '🌈';
@@ -103,7 +152,7 @@ export function getStreakEmoji(streak: number): string {
 }
 
 export function getMilestoneRewards(): Array<{ id: string; days: number; emoji: string; label: string; earned: boolean }> {
-  const state = getStreak();
+  const state = getStreakLocal(); // sync read is fine for display
   return [
     { id: 'seed_starter', days: 1, emoji: '🌰', label: 'Seed Starter', earned: state.milestones.includes('seed_starter') },
     { id: 'green_thumb', days: 3, emoji: '🌱', label: 'Green Thumb', earned: state.milestones.includes('green_thumb') },

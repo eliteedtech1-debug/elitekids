@@ -1,12 +1,18 @@
-/* EliteKids app-shell service worker — v1 (E3-offline)
+/* EliteKids app-shell service worker — v3 (#4 SW & Sync Hardening)
  * Bootstraps the SPA when the device has no connectivity.
  *   - Navigations: network-first, cached index.html fallback
  *   - Static assets (/assets/*, logo.svg): cache-first (hashed = immutable)
  *   - API calls (nginx-proxied same-origin) are NEVER intercepted.
+ *   - Background Sync: 'progress-sync' tag pokes open clients to drain the
+ *     IndexedDB sync queue (the page owns auth/queueing, the SW just nudges).
  */
-const CACHE = 'elitekids-shell-v2';
+const CACHE = 'elitekids-shell-v3';
 const SHELL_URL = '/index.html';
 const ASSET_PREFIXES = ['/assets/', '/logo.svg'];
+
+// CACHE_VERSION gates a hard purge of stale caches from older builds.
+const CACHE_VERSION = 3;
+const OLD_CACHE_PREFIX = 'elitekids-shell-';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -18,7 +24,13 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          // Delete any elitekids-shell-* cache that isn't this exact version,
+          // plus the pre-versioning v1/v2 names.
+          .filter((k) => k !== CACHE && (k.startsWith(OLD_CACHE_PREFIX) || k === 'elitekids-shell' || k === 'elitekids-shell-v2'))
+          .map((k) => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
@@ -70,6 +82,22 @@ self.addEventListener('fetch', (event) => {
           return res;
         })
         .catch(() => Response.error());
+    })
+  );
+});
+
+/* ── #4: background sync — nudge clients to drain the sync queue ──────────
+ * The page owns the IndexedDB queue + auth; the SW only signals that the
+ * network is back so open tabs can drainNow(). If no client is open, the
+ * sync event still fires on next open (sync registration persists).
+ */
+self.addEventListener('sync', (event) => {
+  if (event.tag !== 'progress-sync') return;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        client.postMessage({ type: 'ELITEKIDS_SYNC' });
+      }
     })
   );
 });

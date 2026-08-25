@@ -9,6 +9,7 @@ import { short_name, hasKidsAccess, getSchoolShortName } from '@/lib/utils/schoo
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { t } from '@/lib/i18n';
 
 interface SchoolDetails {
   school_id: string;
@@ -53,11 +54,11 @@ export default function Login() {
         setForm((p) => ({ ...p, school_id: s.school_id }));
       } else {
         setSchool(null);
-        setSchoolError(res.data?.message || 'No active school found for this short name.');
+        setSchoolError(res.data?.message || t('login.noSchoolFound'));
       }
     } catch {
       setSchool(null);
-      setSchoolError('Unable to reach the server. Please check your connection.');
+      setSchoolError(t('login.serverUnreachable'));
     }
   }, []);
 
@@ -72,12 +73,12 @@ export default function Login() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#E7EEF6] p-4">
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg">
-          <img src={school.badge_url || '/logo.svg'} alt="School Logo" className="mx-auto mb-4 h-20 w-20 rounded-full object-contain" />
-          <h2 className="text-2xl font-bold text-[#0F4D92]">Elite Kids</h2>
-          <p className="mb-4 text-sm text-gray-500">Nursery Learning Platform</p>
+          <img src={school.badge_url || '/logo.svg'} alt={t('login.schoolLogoAlt')} className="mx-auto mb-4 h-20 w-20 rounded-full object-contain" />
+          <h2 className="text-2xl font-bold text-[#0F4D92]">{t('login.brand')}</h2>
+          <p className="mb-4 text-sm text-gray-500">{t('login.subtitle')}</p>
           <div className="rounded-xl bg-yellow-50 p-4 text-sm text-yellow-800">
-            <p className="font-semibold">Access Restricted</p>
-            <p>Your school doesn't subscribe to the Kids module. Please contact your administrator.</p>
+            <p className="font-semibold">{t('login.accessRestricted')}</p>
+            <p>{t('login.noSubscription')}</p>
           </div>
         </div>
       </div>
@@ -90,7 +91,7 @@ export default function Login() {
     setError('');
     // For localhost/manual entry: a short name must have resolved to a school_id.
     if ((!short_name || short_name === 'localhost') && !form.school_id) {
-      setError('Please enter a valid school short name and wait for it to resolve.');
+      setError(t('login.invalidShortName'));
       setLoading(false);
       return;
     }
@@ -107,14 +108,16 @@ export default function Login() {
         // Also store user type so the Dashboard can distinguish roles
         const userType = data.user?.user_type || data.user_type || '';
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: userType }));
-        toast.success('Login successful!');
-        // Route students to their own page; everyone else to dashboard
-        navigate(/student/i.test(userType) ? '/student' : '/dashboard');
+        toast.success(t('login.loginSuccess'));
+        // Route students to their own page; parents to their dashboard; staff to main dashboard
+        if (/student/i.test(userType)) navigate('/student');
+        else if (/parent/i.test(userType)) navigate('/parent');
+        else navigate('/dashboard');
       } else {
-        setError(data?.message || 'Login failed.');
+        setError(data?.message || t('login.loginFailed'));
       }
     } catch (err: any) {
-      setError(err?.message || 'Login failed.');
+      setError(err?.message || t('login.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -123,7 +126,7 @@ export default function Login() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.school_id) {
-      setError('Please enter a valid school short name first.');
+      setError(t('login.shortNameFirst'));
       return;
     }
     setSignupLoading(true);
@@ -138,13 +141,13 @@ export default function Login() {
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token.replace(/^Bearer\s+/i, ''));
         localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, form.school_id);
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: 'Parent' }));
-        toast.success('Account created! Welcome to Elite Kids.');
+        toast.success(t('login.signupSuccess'));
         navigate('/dashboard');
       } else {
-        setError(data?.message || 'Signup failed.');
+        setError(data?.message || t('login.signupFailed'));
       }
     } catch (err: any) {
-      setError(err?.message || 'Signup failed.');
+      setError(err?.message || t('login.signupFailed'));
     } finally {
       setSignupLoading(false);
     }
@@ -155,11 +158,11 @@ export default function Login() {
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
         {/* Crest + brand */}
         <div className="mb-4 text-center">
-          <img src={school?.badge_url || '/logo.svg'} alt="School Logo" className="mx-auto mb-3 h-20 w-20 rounded-full object-contain" />
+          <img src={school?.badge_url || '/logo.svg'} alt={t('login.schoolLogoAlt')} className="mx-auto mb-3 h-20 w-20 rounded-full object-contain" />
           <h2 className="text-2xl font-bold text-[#0F4D92]">
-            {school?.school_name ? `Welcome to ${school.school_name}` : 'Welcome'}
+            {school?.school_name ? t('login.welcomeTo', { school: school.school_name }) : t('dashboard.welcomeUser', { role: t('login.brand') })}
           </h2>
-          <p className="text-sm text-gray-500">Elite Kids · Nursery Learning Platform</p>
+          <p className="text-sm text-gray-500">{t('login.brand')} · {t('login.subtitle')}</p>
         </div>
 
         {/* Teacher / Parent toggle */}
@@ -171,7 +174,7 @@ export default function Login() {
               mode === 'users' ? 'bg-[#0F4D92] text-white' : 'border border-[#0F4D92] text-[#0F4D92]'
             }`}
           >
-            <GraduationCap className="mr-2 inline" /> Teacher / Parent
+            <GraduationCap className="mr-2 inline" /> {t('login.modeTeacher')}
           </button>
           <button
             type="button"
@@ -180,7 +183,7 @@ export default function Login() {
               mode === 'students' ? 'bg-[#0F4D92] text-white' : 'border border-[#0F4D92] text-[#0F4D92]'
             }`}
           >
-            <Users className="mr-2 inline" /> Student (Tablet)
+            <Users className="mr-2 inline" /> {t('login.modeStudent')}
           </button>
         </div>
 
@@ -205,7 +208,7 @@ export default function Login() {
                   const sn = e.target.value.trim();
                   if (sn) loadSchool(sn);
                 }}
-                placeholder="School Short Name (e.g. DKG)"
+                placeholder={t('login.schoolShortName')}
                 required
                 className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none"
               />
@@ -218,7 +221,7 @@ export default function Login() {
               type="text"
               value={form.email}
               onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              placeholder={mode === 'students' ? 'Admission number' : 'Email or phone number'}
+              placeholder={mode === 'students' ? t('login.admissionNo') : t('login.emailOrPhone')}
               required
               className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none"
             />
@@ -230,7 +233,7 @@ export default function Login() {
               type={showPassword ? 'text' : 'password'}
               value={form.password}
               onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-              placeholder="Password"
+              placeholder={t('login.password')}
               required
               className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-10 focus:border-[#0F4D92] focus:outline-none"
             />
@@ -239,7 +242,7 @@ export default function Login() {
               tabIndex={-1}
               onClick={() => setShowPassword((v) => !v)}
               className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
             >
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
@@ -247,9 +250,9 @@ export default function Login() {
 
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 text-gray-600">
-              <input type="checkbox" className="accent-[#0F4D92]" /> Remember me
+              <input type="checkbox" className="accent-[#0F4D92]" /> {t('login.rememberMe')}
             </label>
-            <a href="#" className="text-[#C90016]">Forgot Password?</a>
+            <a href="#" className="text-[#C90016]">{t('login.forgotPassword')}</a>
           </div>
 
           {schoolError && <p className="rounded-lg bg-yellow-50 p-2 text-xs text-yellow-800">{schoolError}</p>}
@@ -260,17 +263,17 @@ export default function Login() {
             disabled={loading}
             className="w-full rounded-xl bg-[#0F4D92] py-2.5 font-semibold text-white transition hover:bg-[#0b3d76] disabled:opacity-60"
           >
-            {loading ? 'Signing In…' : 'Sign In'}
+            {loading ? t('login.signingIn') : t('login.signIn')}
           </button>
         </form>
 
         {/* Parent signup link */}
         {mode === 'users' && (
           <p className="mt-3 text-center text-sm text-gray-500">
-            Don't have an account?{' '}
+            {t('login.noAccount')}{' '}
             <button onClick={() => { setAuthView(authView === 'signup' ? 'login' : 'signup'); setError(''); }}
               className="font-semibold text-[#0F4D92] hover:underline">
-              {authView === 'signup' ? 'Sign In instead' : 'Create Account'}
+              {authView === 'signup' ? t('login.signInInstead') : t('login.createAccount')}
             </button>
           </p>
         )}
@@ -278,39 +281,39 @@ export default function Login() {
         {/* Parent signup form */}
         {authView === 'signup' && mode === 'users' && (
           <form onSubmit={handleSignup} className="mt-4 space-y-3 border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold text-gray-600">Parent Registration</p>
+            <p className="text-xs font-semibold text-gray-600">{t('login.registerTitle')}</p>
             <div className="relative">
               <User className="absolute left-3 top-3 text-gray-400" />
               <input name="name" value={signupForm.name} onChange={(e) => setSignupForm(p => ({ ...p, name: e.target.value }))}
-                placeholder="Full name" required
+                placeholder={t('login.registerFullName')} required
                 className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none" />
             </div>
             <div className="relative">
               <User className="absolute left-3 top-3 text-gray-400" />
               <input name="phone" type="tel" value={signupForm.phone} onChange={(e) => setSignupForm(p => ({ ...p, phone: e.target.value }))}
-                placeholder="Phone number" required
+                placeholder={t('login.registerPhone')} required
                 className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none" />
             </div>
             <div className="relative">
               <User className="absolute left-3 top-3 text-gray-400" />
               <input name="email" type="email" value={signupForm.email} onChange={(e) => setSignupForm(p => ({ ...p, email: e.target.value }))}
-                placeholder="Email (optional)"
+                placeholder={t('login.registerEmail')}
                 className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none" />
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-3 text-gray-400" />
               <input name="password" type="password" value={signupForm.password} onChange={(e) => setSignupForm(p => ({ ...p, password: e.target.value }))}
-                placeholder="Create password" required minLength={6}
+                placeholder={t('login.registerPassword')} required minLength={6}
                 className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-3 focus:border-[#0F4D92] focus:outline-none" />
             </div>
             <button type="submit" disabled={signupLoading || !form.school_id}
               className="w-full rounded-xl bg-emerald-600 py-2.5 font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60">
-              {signupLoading ? 'Creating Account…' : 'Create Parent Account'}
+              {signupLoading ? t('login.creatingAccount') : t('login.createParentAccount')}
             </button>
           </form>
         )}
 
-        <p className="mt-4 text-center text-xs text-gray-400">Powered by Elite Edu Tech Systems</p>
+        <p className="mt-4 text-center text-xs text-gray-400">{t('common.poweredBy')}</p>
       </div>
     </div>
   );
