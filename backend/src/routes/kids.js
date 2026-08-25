@@ -274,13 +274,14 @@ module.exports = (app) => {
   app.post('/kids/reviews/complete', auth, markReviewComplete);
   app.get('/kids/reviews/stats', auth, getReviewStats);
 
-  // ── Revision (gate + weekly) ──────────────────────────────────────────
+  // ── Revision (reinforcement-based) ────────────────────────────────────
   const revision = require('../controllers/kidsRevision');
   app.get('/kids/revision/status', auth, revision.getRevisionStatus);
-  app.get('/kids/revision/gate/check', auth, revision.checkGate);
-  app.get('/kids/revision/gate', auth, revision.getGateRevision);
-  app.get('/kids/revision/weekly', auth, revision.getWeeklyRevision);
-  app.post('/kids/revision/complete', auth, revision.markRevisionComplete);
+  app.get('/kids/revision/nudges', auth, revision.getNudges);
+  app.get('/kids/revision/failed-items', auth, revision.getFailedItems);
+  app.post('/kids/revision/failed', auth, revision.recordFailed);
+  app.post('/kids/revision/retry-correct', auth, revision.markRetryCorrect);
+  app.get('/kids/revision/weekly', auth, revision.getWeeklySummary);
 
   // ── Phase 3: Parent Dashboard ──────────────────────────────────────────
   app.post('/kids/parent/login', parentCtrl.login);

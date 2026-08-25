@@ -3319,18 +3319,6 @@ export default function GamePlay() {
         }
   }, [lessonId]);
 
-  // Revision gate check — redirect to revision if needed (skip for revision games)
-  useEffect(() => {
-    if (!lessonId || loading || lessonId.startsWith('revision-')) return;
-    apiClient.get(ENDPOINTS.REVISION.GATE_CHECK).then((res) => {
-      const gate = res.data?.data;
-      if (gate?.gate_active) {
-        // Gate is active — block this game and redirect to revision
-        setError(`📋 Review required! You've played ${gate.games_since_revision} games. Complete a quick review to continue.`);
-      }
-    }).catch(() => {}); // silently ignore — don't block play if check fails
-  }, [lessonId, loading]);
-
   // After loading, if there are scenes, show intro first — UNLESS mode was pre-selected from URL or saved
   const introShown = useRef(false);
   useEffect(() => {

@@ -208,13 +208,14 @@ export const ENDPOINTS = {
     STATS: '/kids/reviews/stats',
   },
 
-  // Revision (gate + weekly)
+  // Revision (reinforcement-based)
   REVISION: {
     STATUS: '/kids/revision/status',
-    GATE_CHECK: '/kids/revision/gate/check',
-    GATE: '/kids/revision/gate',
+    NUDGES: '/kids/revision/nudges',
+    FAILED_ITEMS: '/kids/revision/failed-items',
+    RECORD_FAILED: '/kids/revision/failed',
+    RETRY_CORRECT: '/kids/revision/retry-correct',
     WEEKLY: '/kids/revision/weekly',
-    COMPLETE: '/kids/revision/complete',
   },
 
   // E5+E6 Phase 0: Enhanced Arena
