@@ -191,12 +191,14 @@ async function getTeacherFlags(req, res) {
       : [];
     const studentMap = new Map(students.map((s) => [s.admission_no, s.toJSON()]));
 
-    const enriched = flagged.map((f) => ({
-      ...f,
-      student: studentMap.get(f.student_id) || null,
-      total_attempts: Number(f.total_attempts),
-      fail_count: Number(f.fail_count),
-    }));
+    const enriched = flagged
+      .filter((f) => studentMap.has(f.student_id))
+      .map((f) => ({
+        ...f,
+        student: studentMap.get(f.student_id) || null,
+        total_attempts: Number(f.total_attempts),
+        fail_count: Number(f.fail_count),
+      }));
 
     return res.json({ success: true, data: enriched });
   } catch (err) {

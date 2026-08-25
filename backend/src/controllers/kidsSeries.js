@@ -13,7 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const db = require('../models');
 
-const CATEGORIES = ['Animals', 'Letters', 'Shapes'];
+const CATEGORY_MAX_LEN = 100;
 
 // ── Series CRUD ─────────────────────────────────────────────────────────────
 
@@ -26,19 +26,22 @@ async function createSeries(req, res) {
       return res.status(403).json({ success: false, message: 'Only staff can create series.' });
     }
 
-    const { name, category, description } = req.body || {};
+    let { name, category, description, subject_code, term_hint } = req.body || {};
     if (!name || !category) {
       return res.status(400).json({ success: false, message: 'name and category are required.' });
     }
-    if (!CATEGORIES.includes(category)) {
-      return res.status(400).json({ success: false, message: `category must be one of: ${CATEGORIES.join(', ')}` });
+    if (typeof category !== 'string' || !category.trim() || category.length > CATEGORY_MAX_LEN) {
+      return res.status(400).json({ success: false, message: `category must be a non-empty string of up to ${CATEGORY_MAX_LEN} characters.` });
     }
+    category = category.trim();
 
     const series = await db.KidGameSeries.create({
       id: uuidv4(),
       name,
       category,
       description: description || null,
+      subject_code: subject_code ? String(subject_code).trim().slice(0, 50) : null,
+      term_hint: term_hint ? String(term_hint).trim().slice(0, 20) : null,
       created_by: String(user.id || user.user_id || ''),
     });
 
@@ -55,8 +58,8 @@ async function listSeries(req, res) {
     const { category } = req.query;
     const where = {};
     if (category) {
-      if (!CATEGORIES.includes(category)) {
-        return res.status(400).json({ success: false, message: `category must be one of: ${CATEGORIES.join(', ')}` });
+      if (typeof category !== 'string' || !category.trim() || category.length > CATEGORY_MAX_LEN) {
+        return res.status(400).json({ success: false, message: `category must be a non-empty string of up to ${CATEGORY_MAX_LEN} characters.` });
       }
       where.category = category;
     }
@@ -91,7 +94,22 @@ async function getSeries(req, res) {
       order: [['unit_number', 'ASC']],
     });
 
-    return res.json({ success: true, data: { ...series.toJSON(), units } });
+    // E1: surface NERDC-coded curriculum points mapped to this series' games (additive key).
+    let curriculumPoints = [];
+    try {
+      const [rows] = await db.content.query(
+        `SELECT DISTINCT cp.id, cp.category, cp.nerdc_code, cp.nerdc_strand, cp.nerdc_sub_strand
+           FROM kids_curriculum_points cp
+           JOIN kids_game_configs gc ON JSON_CONTAINS(cp.mapped_item_ids, JSON_QUOTE(gc.item_id))
+          WHERE JSON_UNQUOTE(JSON_EXTRACT(gc.config_json, \x27$.series_id\x27)) = :sid`,
+        { replacements: { sid: id } }
+      );
+      curriculumPoints = rows;
+    } catch (e) {
+      console.error('getSeries curriculumPoints:', e.message);
+    }
+
+    return res.json({ success: true, data: { ...series.toJSON(), units, curriculum_points: curriculumPoints } });
   } catch (err) {
     console.error('getSeries error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
@@ -101,6 +119,23 @@ async function getSeries(req, res) {
 // ── Unit CRUD ───────────────────────────────────────────────────────────────
 
 /** POST /kids/series/:id/units — create a unit in a series. */
+/** E-hardening (f41 follow-up): lesson_ids in content_items that belong to a DIFFERENT series ([] = clean). */
+async function findCrossSeriesItems(seriesId, contentItems) {
+  const ids = (Array.isArray(contentItems) ? contentItems : [])
+    .map((it) => (typeof it === 'string' ? it : it && it.lesson_id))
+    .filter(Boolean);
+  if (!ids.length) return [];
+  const rows = await db.content.query(
+    `SELECT JSON_UNQUOTE(JSON_EXTRACT(gc.config_json,'$.lessonId')) AS lid,
+            JSON_UNQUOTE(JSON_EXTRACT(gc.config_json,'$.series_id')) AS sid
+       FROM kids_game_configs gc
+      WHERE JSON_UNQUOTE(JSON_EXTRACT(gc.config_json,'$.lessonId')) IN (:lids)`,
+    { replacements: { lids: ids }, type: db.Sequelize.QueryTypes.SELECT }
+  );
+  const foreign = new Set(rows.filter((r) => r.sid && r.sid !== seriesId).map((r) => r.lid));
+  return [...foreign];
+}
+
 async function createUnit(req, res) {
   try {
     const user = req.user;
@@ -123,6 +158,9 @@ async function createUnit(req, res) {
     if (unit_number < 1) {
       return res.status(400).json({ success: false, message: 'unit_number must be >= 1.' });
     }
+    if (unit_number > 10) {
+      return res.status(400).json({ success: false, message: 'Series are term ladders: max 10 units (one per academic week).' });
+    }
 
     // Validate prerequisite exists in same series
     if (prerequisite_unit_id) {
@@ -144,6 +182,12 @@ async function createUnit(req, res) {
     });
     if (existing) {
       return res.status(409).json({ success: false, message: `Unit ${unit_number} already exists in this series.` });
+    }
+
+    // Cross-series guard: reject lessons placed in another series (subject-binding invariant)
+    const crossNew = await findCrossSeriesItems(seriesId, content_items);
+    if (crossNew.length) {
+      return res.status(400).json({ success: false, message: `content_items contain lessons from another series: ${crossNew.join(", ")}` });
     }
 
     const unit = await db.KidGameUnit.create({
@@ -182,7 +226,13 @@ async function updateUnit(req, res) {
     const allowed = {};
     const { title, content_items, prerequisite_unit_id } = req.body || {};
     if (title !== undefined) allowed.title = title;
-    if (content_items !== undefined) allowed.content_items = content_items;
+    if (content_items !== undefined) {
+      const crossUpd = await findCrossSeriesItems(seriesId, content_items);
+      if (crossUpd.length) {
+        return res.status(400).json({ success: false, message: `content_items contain lessons from another series: ${crossUpd.join(", ")}` });
+      }
+      allowed.content_items = content_items;
+    }
     if (prerequisite_unit_id !== undefined) {
       if (prerequisite_unit_id) {
         const prereq = await db.KidGameUnit.findOne({
@@ -206,6 +256,84 @@ async function updateUnit(req, res) {
     return res.json({ success: true, data: unit });
   } catch (err) {
     console.error('updateUnit error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/** GET /kids/curriculum (E3) — subject → series → units with per-child done/locked state. */
+async function getCurriculum(req, res) {
+  try {
+    const user = req.user || {};
+    const admission = String(user.admission_no || user.id || '');
+    if (!admission) {
+      return res.status(400).json({ success: false, message: 'Child admission required.' });
+    }
+
+    const [seriesRows, unitRows] = await Promise.all([
+      db.KidGameSeries.findAll({ order: [['name', 'ASC']] }),
+      db.KidGameUnit.findAll({ order: [['unit_number', 'ASC']] }),
+    ]);
+
+    const prog = await db.KidProgress.findAll({
+      where: { child_admission_no: admission },
+      attributes: ['lesson_id', 'mode', 'score'],
+    });
+    // E3f SUPERVISOR GATE (non-negotiable): a lesson counts as complete ONLY when the
+    // child has BOTH a practice completion AND a passed test (score >= 50) on it.
+    // Legacy rows (mode NULL from before this gate) never satisfy the pair.
+    const lessonState = {};
+    for (const r of prog) {
+      const st = lessonState[r.lesson_id] || (lessonState[r.lesson_id] = { practice: false, testPass: false });
+      if (r.mode === 'practice') st.practice = true;
+      if (r.mode === 'test' && Number(r.score) >= 50) st.testPass = true;
+    }
+    const lessonComplete = (l) => {
+      const st = lessonState[l];
+      return !!st && st.practice && st.testPass;
+    };
+
+    const unitsBySeries = {};
+    for (const u of unitRows) (unitsBySeries[u.series_id] = unitsBySeries[u.series_id] || []).push(u);
+
+    const subjects = {};
+    for (const s of seriesRows) {
+      const list = unitsBySeries[s.id] || [];
+      if (!list.length) continue;
+      let chainOk = true; // cumulative: any earlier unit unfinished locks everything after
+      const unitRowsOut = list.map((u) => {
+        const items = Array.isArray(u.content_items) ? u.content_items : [];
+        const lids = items.map((it) => it && it.lesson_id).filter(Boolean);
+        const completed = lids.filter((l) => lessonComplete(l)).length;
+        const done = lids.length > 0 && completed === lids.length;
+        const row = {
+          id: u.id,
+          unit_number: u.unit_number,
+          // E3 spec: one unit per academic week — unit N of the series = week N of its term
+          week_number: u.unit_number,
+          title: u.title || null,
+          total_lessons: lids.length,
+          completed_lessons: completed,
+          done,
+          locked: !chainOk,
+          // one-tap play: first unfinished game, else the first game (replay)
+          next_lesson_id: lids.find((l) => !lessonComplete(l)) || lids[0] || null,
+        };
+        chainOk = chainOk && done;
+        return row;
+      });
+      const code = s.subject_code || 'GENERAL';
+      (subjects[code] = subjects[code] || { subject_code: code, series: [] }).series.push({
+        id: s.id,
+        name: s.name,
+        category: s.category || null,
+        term_hint: s.term_hint || null,
+        units: unitRowsOut,
+      });
+    }
+
+    return res.json({ success: true, data: { child_admission_no: admission, subjects: Object.values(subjects) } });
+  } catch (err) {
+    console.error('getCurriculum error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 }
@@ -242,22 +370,47 @@ async function getUnitLockStatus(req, res) {
       return res.json({ success: true, data: { locked: false, reason: null } });
     }
 
-    // Extract item_ids from prerequisite unit's content_items
-    const prereqItemIds = Array.isArray(prereqUnit.content_items)
-      ? prereqUnit.content_items.map((ci) => ci.item_id || ci.id).filter(Boolean)
+    // E3f SUPERVISOR GATE (non-negotiable): every game in the prerequisite unit must be
+    // completed in practice AND its test passed (score >= 50) before this unit unlocks.
+    const prereqLessonIds = Array.isArray(prereqUnit.content_items)
+      ? prereqUnit.content_items.map((ci) => ci && ci.lesson_id).filter(Boolean)
       : [];
 
-    if (prereqItemIds.length === 0) {
-      return res.json({ success: true, data: { locked: false, reason: null } });
+    if (prereqLessonIds.length === 0) {
+      // Legacy fallback: pre-E3 units carry item-only shapes — keep the historical
+      // item-mastery check instead of silently unlocking the next unit.
+      const prereqItemIds = Array.isArray(prereqUnit.content_items)
+        ? prereqUnit.content_items.map((ci) => (ci && (ci.item_id || ci.id)) || ci).filter(Boolean)
+        : [];
+      if (prereqItemIds.length === 0) {
+        return res.json({ success: true, data: { locked: false, reason: null } });
+      }
+      const passedLegacy = await db.KidTestAttempt.findOne({
+        where: { student_id: studentId, item_id: { [Op.in]: prereqItemIds }, result: 'pass' },
+      });
+      return res.json({
+        success: true,
+        data: {
+          locked: !passedLegacy,
+          reason: passedLegacy ? null : `Finish unit ${prereqUnit.unit_number}: play Practice AND pass the Test for every game first.`,
+          prerequisite_unit_id: unit.prerequisite_unit_id,
+        },
+      });
     }
 
-    // Check mastery: student has at least one pass on any item in the prereq
-    const passed = await db.KidTestAttempt.findOne({
-      where: {
-        student_id: studentId,
-        item_id: { [Op.in]: prereqItemIds },
-        result: 'pass',
-      },
+    const progRows = await db.KidProgress.findAll({
+      where: { child_admission_no: studentId, lesson_id: { [Op.in]: prereqLessonIds } },
+      attributes: ['lesson_id', 'mode', 'score'],
+    });
+    const pstate = {};
+    for (const r of progRows) {
+      const s = pstate[r.lesson_id] || (pstate[r.lesson_id] = { practice: false, testPass: false });
+      if (r.mode === 'practice') s.practice = true;
+      if (r.mode === 'test' && Number(r.score) >= 50) s.testPass = true;
+    }
+    const passed = prereqLessonIds.every((l) => {
+      const s = pstate[l];
+      return !!s && s.practice && s.testPass;
     });
 
     const locked = !passed;
@@ -265,7 +418,7 @@ async function getUnitLockStatus(req, res) {
       success: true,
       data: {
         locked,
-        reason: locked ? `Complete unit ${prereqUnit.unit_number} ("${prereqUnit.title || prereqUnit.id}") first.` : null,
+        reason: locked ? `Finish unit ${prereqUnit.unit_number}: play Practice AND pass the Test for every game first.` : null,
         prerequisite_unit_id: unit.prerequisite_unit_id,
       },
     });
@@ -384,3 +537,32 @@ module.exports = {
   getUnitLockStatus,
   getUnitSuggestedMode,
 };
+
+
+/** GET /kids/lessons/:id/next-up?student_id=X — FB-10: next lesson in series order. */
+async function getLessonNextUp(req, res) {
+  try {
+    const lessonId = String(req.params.id || '');
+    const units = await db.KidGameUnit.findAll({ order: [['series_id', 'ASC'], ['unit_number', 'ASC']] });
+    const itemIds = (u) => (Array.isArray(u.content_items) ? u.content_items : [])
+      .map((x) => String(x && (x.item_id || x.lesson_id || x)))
+      .filter(Boolean);
+    let cur = null;
+    for (const u of units) {
+      if (itemIds(u).includes(lessonId)) { cur = u; break; }
+    }
+    if (!cur) return res.json({ success: true, data: { next_lesson_id: null, title: null } });
+    const siblings = units.filter((u) => u.series_id === cur.series_id);
+    const idx = siblings.findIndex((u) => u.id === cur.id);
+    const next = siblings[idx + 1];
+    if (!next) return res.json({ success: true, data: { next_lesson_id: null, title: null } });
+    const nid = itemIds(next)[0] || null;
+    return res.json({ success: true, data: { next_lesson_id: nid, title: next.title || null } });
+  } catch (err) {
+    console.error('getLessonNextUp error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+module.exports.getLessonNextUp = getLessonNextUp;
+module.exports.getCurriculum = getCurriculum;
+module.exports.findCrossSeriesItems = findCrossSeriesItems;

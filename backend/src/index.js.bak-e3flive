@@ -1,0 +1,151 @@
+require('dotenv').config();
+
+const app = require('./app');
+const models = require('./models');
+const { ensureFlagshipKidsSchool, ensureFlagshipKidsAdmin } = require('./seeders/flagshipKidsSeed');
+const DENYLIST_SEED = require('./seeders/denylistSeed');
+
+/**
+ * Additive schema migrations for addon-owned tables + shared-DB columns.
+ * sync() only creates missing tables (never alters); new columns are added
+ * idempotently via information_schema existence checks.
+ */
+async function ensureSchemaMigrations() {
+  const { sequelize, content, ai } = models;
+
+  // Shared DB: module gate column (additive, default 0 = off)
+  try {
+    const [cols] = await sequelize.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'school_setup'`
+    );
+    const existing = new Set(cols.map((c) => c.COLUMN_NAME));
+    const additions = [
+      ['kids_stand_alone', 'TINYINT(1) NOT NULL DEFAULT 0'],
+      ['kids_url', 'VARCHAR(50) NULL DEFAULT NULL'],
+    ];
+    for (const [name, ddl] of additions) {
+      if (!existing.has(name)) {
+        await sequelize.query(`ALTER TABLE school_setup ADD COLUMN ${name} ${ddl}`);
+        console.log(`🧱 Added column school_setup.${name}`);
+      }
+    }
+  } catch (err) {
+    console.error('⚠️ school_setup column migration skipped:', err.message);
+  }
+
+  // Content DB + AI DB additive column reconciles (kids_* tables)
+  const CONTENT_COLUMN_PLAN = [
+    ['kids_lessons', 'duration_target_sec', 'INT NULL DEFAULT NULL'],
+    ['kids_lessons', 'published_at', 'DATETIME NULL DEFAULT NULL'],
+    ['kids_session_state', 'session_id', 'VARCHAR(50) NULL DEFAULT NULL'],
+  ];
+  try {
+    for (const [table, col, ddl] of CONTENT_COLUMN_PLAN) {
+      const [tblCols] = await content.query(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${table}'`
+      );
+      if (!tblCols.length) continue; // table not created yet — sync() will make it
+      const existing = new Set(tblCols.map((c) => c.COLUMN_NAME));
+      if (existing.has(col)) continue;
+      await content.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${ddl}`);
+      console.log(`➕ Added column ${table}.${col}`);
+    }
+  } catch (err) {
+    console.error('⚠️ kids content column reconcile skipped:', err.message);
+  }
+
+  // AI DB audit table columns
+  try {
+    const [auditCols] = await ai.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'kids_content_generation_audit'`
+    );
+    const existing = new Set(auditCols.map((c) => c.COLUMN_NAME));
+    if (!existing.has('denylist_result')) {
+      await ai.query(
+        `ALTER TABLE kids_content_generation_audit ADD COLUMN denylist_result VARCHAR(20) NULL DEFAULT NULL`
+      );
+      console.log('➕ Added column kids_content_generation_audit.denylist_result');
+    }
+  } catch (err) {
+    console.error('⚠️ kids AI column reconcile skipped:', err.message);
+  }
+}
+
+// ─── Database sync + server start ─────────────────────────────────────────────
+const port = process.env.PORT || 34600;
+
+// KIDS_SKIP_DB_SYNC=1 → boot without touching any database schema (local smoke
+// tests against a live DB, or read-only debugging). Routes still work; the
+// kids_* tables are expected to already exist (or be absent). Schema changes
+// only ever happen through database/migrate.js.
+const SKIP_DB_SYNC = process.env.KIDS_SKIP_DB_SYNC === '1' || process.env.KIDS_SKIP_DB_SYNC === 'true';
+
+if (SKIP_DB_SYNC) {
+  console.log('⚠️ KIDS_SKIP_DB_SYNC=1 — skipping schema migrations/sync (read-only boot)');
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`🚀 elite-kids-api listening on port ${port} (read-only boot)`);
+    require('./controllers/e3fLive').attach(server);
+  });
+  server.timeout = 120000;
+  return;
+}
+
+// Migrations FIRST, then model sync, then idempotent seeds.
+ensureSchemaMigrations()
+  .then(() => models.syncKidsTables())
+  .then(() => ensureFlagshipKidsSchool())
+  .then((fs) => {
+    if (fs?.created) console.log('🏫 Flagship kids school created:', fs.school_id);
+    return ensureFlagshipKidsAdmin();
+  })
+  .then(async () => {
+    // Seed denylist rules if empty (idempotent)
+    const count = await models.KidDenylistRule.count().catch(() => 0);
+    if (count === 0) {
+      for (const rule of DENYLIST_SEED) {
+        await models.KidDenylistRule.create({ rule: rule.rule, category: rule.category, active: 1, added_by: 'seed' }).catch(() => {});
+      }
+      console.log(`🚫 Seeded ${DENYLIST_SEED.length} denylist rules`);
+    }
+    return null;
+  })
+  .then(() => {
+    console.log('✅ Databases synced');
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 elite-kids-api listening on port ${port}`);
+    });
+    server.timeout = 120000;
+
+    const shutdown = async (signal) => {
+      console.log(`\n${signal} received — shutting down...`);
+      server.close(async () => {
+        try {
+          await models.sequelize.close();
+          if (models.content) await models.content.close();
+          if (models.ai) await models.ai.close();
+          console.log('✅ Databases closed');
+        } catch (e) {
+          console.error('Error closing DB:', e.message);
+        }
+        process.exit(0);
+      });
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+  })
+  .catch((err) => {
+    console.error('❌ DB sync failed:', err.message);
+    process.exit(1);
+  });
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});

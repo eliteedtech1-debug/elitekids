@@ -153,7 +153,9 @@ async function addGardenElement(req, res) {
       });
     }
 
-    await garden.update({ garden_elements: elements });
+    // Clone on write: updating with the same (mutated) array reference can be
+    // treated as unchanged by Sequelize and silently skip the JSON column.
+    await garden.update({ garden_elements: [...elements] });
 
     return res.json({ success: true, data: garden });
   } catch (err) {

@@ -18,6 +18,22 @@ import { offlineDB, STORES } from './db';
 /** Cache TTL: 24 hours in milliseconds. */
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Freshness window for kid-facing offline caches (catalog, games): 7 days. */
+const OFFLINE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+const CATALOG_KEY = '__catalog__';
+
+export interface LessonCardLike {
+  id: string;
+  title: string;
+  subject?: string;
+  age_level?: string;
+  lesson_type?: string;
+  created_at?: string;
+  has_games?: boolean;
+  [key: string]: unknown;
+}
+
 interface CachedGameConfig {
   id: string;
   config: unknown;
@@ -170,6 +186,95 @@ class OfflineContentManager {
   async isAvailableOffline(lessonId: string): Promise<boolean> {
     const config = await this.getGameConfig(lessonId);
     return config !== null;
+  }
+
+  /**
+   * Save the published-games catalog so the dashboard renders offline
+   * instead of an empty "All Games(0)" shell.
+   */
+  async saveCatalog(lessons: LessonCardLike[]): Promise<boolean> {
+    if (!Array.isArray(lessons) || lessons.length === 0) return false;
+    return offlineDB.put(STORES.gameConfigs, CATALOG_KEY, {
+      lessons,
+      cachedAt: Date.now(),
+    });
+  }
+
+  /**
+   * Load the cached catalog (7-day freshness).
+   * Returns null when missing, expired, or IndexedDB unavailable.
+   */
+  async loadCatalog(): Promise<LessonCardLike[] | null> {
+    const entry = await offlineDB.get<{ lessons: LessonCardLike[]; cachedAt: number }>(
+      STORES.gameConfigs,
+      CATALOG_KEY
+    );
+    if (!entry?.lessons || entry.lessons.length === 0) return null;
+    if (Date.now() - entry.cachedAt > OFFLINE_TTL_MS) return null;
+    return entry.lessons;
+  }
+
+  /**
+   * Save a lesson's full game payload (same shape GET /kids/lessons/:id/game
+   * returns) right after a successful online fetch, for later offline play.
+   */
+  async saveGamePayload(lessonId: string, gameData: unknown): Promise<boolean> {
+    if (!gameData || typeof gameData !== 'object') return false;
+    return offlineDB.put(STORES.gameConfigs, `game-${lessonId}`, {
+      gameData,
+      cachedAt: Date.now(),
+    });
+  }
+
+  /** Load a cached game payload for offline play (7-day freshness). */
+  async loadGamePayload(lessonId: string): Promise<unknown | null> {
+    const entry = await offlineDB.get<{ gameData: unknown; cachedAt: number }>(
+      STORES.gameConfigs,
+      `game-${lessonId}`
+    );
+    if (!entry?.gameData) return null;
+    if (Date.now() - entry.cachedAt > OFFLINE_TTL_MS) return null;
+    return entry.gameData;
+  }
+
+  /** Save a lesson's scene scripts for offline intro playback. */
+  async saveScenes(lessonId: string, sceneData: unknown): Promise<boolean> {
+    if (!Array.isArray(sceneData) || sceneData.length === 0) return false;
+    return offlineDB.put(STORES.gameConfigs, `scenes-${lessonId}`, {
+      sceneData,
+      cachedAt: Date.now(),
+    });
+  }
+
+  /** Load cached scene scripts (7-day freshness). */
+  async loadScenes(lessonId: string): Promise<unknown | null> {
+    const entry = await offlineDB.get<{ sceneData: unknown; cachedAt: number }>(
+      STORES.gameConfigs,
+      `scenes-${lessonId}`
+    );
+    if (!entry?.sceneData) return null;
+    if (Date.now() - entry.cachedAt > OFFLINE_TTL_MS) return null;
+    return entry.sceneData;
+  }
+
+  /** Save a child's progress summary so XP/stars render offline. */
+  async saveProgress(admissionNo: string, progress: unknown): Promise<boolean> {
+    if (!admissionNo || !progress) return false;
+    return offlineDB.put(STORES.gameConfigs, `progress-${admissionNo}`, {
+      progress,
+      cachedAt: Date.now(),
+    });
+  }
+
+  /** Load a cached progress summary (24h freshness). */
+  async loadProgress(admissionNo: string): Promise<unknown | null> {
+    const entry = await offlineDB.get<{ progress: unknown; cachedAt: number }>(
+      STORES.gameConfigs,
+      `progress-${admissionNo}`
+    );
+    if (!entry?.progress) return null;
+    if (Date.now() - entry.cachedAt > CACHE_TTL_MS) return null;
+    return entry.progress;
   }
 
   /**

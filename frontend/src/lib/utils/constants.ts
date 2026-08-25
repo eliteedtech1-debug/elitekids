@@ -1,6 +1,7 @@
 // API Configuration (mirrors elite-cbt/src/lib/utils/constants.ts)
+// Default '' = same-origin: nginx serves the SPA and proxies /kids,/media,... to the API.
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : 'http://localhost:34600',
+  BASE_URL: (import.meta.env.VITE_API_URL as string | undefined) ?? '',
   TIMEOUT: 30000,
 } as const;
 

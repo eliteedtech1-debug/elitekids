@@ -1,0 +1,356 @@
+/** FB-17 — Weekly kids competition (privacy-first).
+ *  Points = attempts (effort) + scores (performance). Ranking per CLASS per week.
+ *  Privacy: responses NEVER include admission_no/full names/photos — sanitized
+ *  display_name (first name + last initial) and hashed avatar emoji only.
+ *  Tables live in MAIN db (db.sequelize) alongside weekly_scores — same
+ *  documented exception as FB-14 conversion writes.
+ */
+const crypto = require('crypto');
+const db = require('../models');
+
+const AVATARS = ['🐱','🐶','🦁','🐼','🦊','🐸','🐵','🦄','🐧','🐝','🐬','🦉'];
+function avatarFor(admissionNo) {
+  const h = crypto.createHash('md5').update(String(admissionNo)).digest('hex');
+  return AVATARS[parseInt(h.slice(0, 4), 16) % AVATARS.length];
+}
+
+/** FB-17b — leaderboard weeks run Monday 00:00Z -> Sunday 23:59:59Z (GMT reset). */
+const WEEK_MS = 7 * 86400000;
+function weekStartDate(d) {
+  const s = new Date(d);
+  s.setUTCHours(0, 0, 0, 0);
+  s.setUTCDate(s.getUTCDate() - ((s.getUTCDay() + 6) % 7));
+  return s;
+}
+function weekEndDate(d) {
+  const e = new Date(d);
+  e.setUTCHours(23, 59, 59, 999);
+  e.setUTCDate(e.getUTCDate() + ((7 - e.getUTCDay()) % 7));
+  return e;
+}
+/** Week number on the Sunday-GMT grid; week 1 = the (possibly partial) week containing term begin_date. */
+function weekNumberFor(termBeginDate, refDate) {
+  const t0 = weekStartDate(termBeginDate).getTime();
+  const wEnd = weekEndDate(refDate || new Date()).getTime();
+  return Math.max(1, Math.floor((wEnd - t0) / WEEK_MS) + 1);
+}
+
+/** Free-week reward applies ONLY to the school whose short_name is 'elite'. */
+const FREE_WEEK_SCHOOL_SHORT_NAME = 'elite';
+const _freeWeekSchoolCache = new Map();
+async function schoolAllowsFreeWeek(schoolId) {
+  const key = String(schoolId || '');
+  const hit = _freeWeekSchoolCache.get(key);
+  if (hit && Date.now() - hit.at < 300000) return hit.v;
+  let v = false;
+  try {
+    const [row] = await db.sequelize.query(
+      `SELECT LOWER(short_name) AS sn FROM school_setup WHERE school_id = :s LIMIT 1`,
+      { replacements: { s: key }, type: db.Sequelize.QueryTypes.SELECT }
+    );
+    v = String((row && row.sn) || '').trim() === FREE_WEEK_SCHOOL_SHORT_NAME;
+  } catch (e) { v = false; }
+  _freeWeekSchoolCache.set(key, { v, at: Date.now() });
+  return v;
+}
+
+/** Excellence gate: podium candidates must average >= this score over the target week. */
+const EXCELLENCE_MIN_AVG_SCORE = 80;
+async function weekAverageScore(schoolId, admissionNo, ws, we) {
+  try {
+    const row = await db.KidProgress.findOne({
+      where: {
+        child_admission_no: String(admissionNo),
+        school_id: String(schoolId),
+        completed_at: { [db.Sequelize.Op.between]: [ws, we] },
+      },
+      attributes: [
+        [db.Sequelize.fn('AVG', db.Sequelize.col('score')), 'avg_score'],
+        [db.Sequelize.fn('COUNT', db.Sequelize.col('id')), 'n'],
+      ],
+      raw: true,
+    });
+    return { avg: Number(row && row.avg_score) || 0, n: Number(row && row.n) || 0 };
+  } catch (e) { return { avg: 0, n: 0 }; }
+}
+
+let _schemaReady = false;
+async function ensureSchema() {
+  if (_schemaReady) return;
+  await db.sequelize.query(`CREATE TABLE IF NOT EXISTS kids_weekly_points (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id VARCHAR(40) NOT NULL,
+    academic_year VARCHAR(20) NOT NULL,
+    term VARCHAR(20) NOT NULL,
+    week_number INT NOT NULL,
+    class_code VARCHAR(30) NOT NULL,
+    admission_no VARCHAR(40) NOT NULL,
+    points INT NOT NULL DEFAULT 0,
+    attempts INT NOT NULL DEFAULT 0,
+    games_played INT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_week_child (school_id, academic_year, term, week_number, class_code, admission_no),
+    KEY idx_board (school_id, academic_year, term, week_number, class_code, points DESC)
+  ) ENGINE=InnoDB`);
+  await db.sequelize.query(`CREATE TABLE IF NOT EXISTS kids_badges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id VARCHAR(40) NOT NULL,
+    academic_year VARCHAR(20) NOT NULL,
+    term VARCHAR(20) NOT NULL,
+    week_number INT NOT NULL,
+    class_code VARCHAR(30) NOT NULL,
+    admission_no VARCHAR(40) NOT NULL,
+    position TINYINT NOT NULL,
+    badge ENUM('gold','silver','bronze') NOT NULL,
+    free_access_until DATETIME NULL,
+    awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_badge (school_id, academic_year, term, week_number, class_code, position)
+  ) ENGINE=InnoDB`);
+  _schemaReady = true;
+}
+
+async function currentTerm(schoolId, branchId, refDate) {
+  const d = refDate || new Date();
+  const [cal] = await db.sequelize.query(
+    `SELECT academic_year, term, begin_date, end_date FROM academic_calendar
+     WHERE school_id = :s AND (:b IS NULL OR branch_id = :b)
+       AND :now BETWEEN begin_date AND COALESCE(end_date, DATE_ADD(begin_date, INTERVAL 90 DAY))
+     ORDER BY begin_date DESC LIMIT 1`,
+    { replacements: { s: String(schoolId), b: branchId || null, now: d }, type: db.Sequelize.QueryTypes.SELECT }
+  );
+  if (!cal) return null;
+  const beginDate = new Date(cal.begin_date);
+  return {
+    academic_year: String(cal.academic_year),
+    term: String(cal.term),
+    week_number: weekNumberFor(beginDate, d),
+    term_start_week: weekStartDate(beginDate),
+    week_start: weekStartDate(d),
+    week_end: weekEndDate(d),
+  };
+}
+
+/** Internal: called from recordGameComplete after a KidProgress row is created. */
+async function recordAttemptPoints({ school_id, branch_id, child_admission_no, score }) {
+  try {
+    await ensureSchema();
+    const term = await currentTerm(school_id, branch_id);
+    if (!term) return;
+
+    // class_code from main-db students row (never exposed downstream)
+    const [stu] = await db.sequelize.query(
+      `SELECT class_code FROM students WHERE admission_no = :a AND school_id = :s LIMIT 1`,
+      { replacements: { a: String(child_admission_no), s: String(school_id) }, type: db.Sequelize.QueryTypes.SELECT }
+    ).catch(() => []);
+    if (!stu || !stu.class_code) return;
+
+    // effort+performance: base 2 + quality up to 10 (score treated as 0-100+)
+    let delta = 2 + Math.min(10, Math.round((Number(score) || 0) / 10));
+    const [[cnt]] = await db.sequelize.query(
+      `SELECT attempts AS n FROM kids_weekly_points
+       WHERE school_id=:s AND academic_year=:y AND term=:t AND week_number=:w AND class_code=:c AND admission_no=:a`,
+      { replacements: { s: String(school_id), y: term.academic_year, t: term.term, w: term.week_number, c: stu.class_code, a: String(child_admission_no) }, type: db.Sequelize.QueryTypes.SELECT }
+    ).catch(() => [[{ n: 0 }]]) || [[{ n: 0 }]];
+    const attemptsSoFar = (cnt && Number(cnt.n)) || 0;
+    if (attemptsSoFar >= 3) delta = Math.ceil(delta / 2); // diminishing returns past 3/day-equivalent attempts
+
+    await db.sequelize.query(
+      `INSERT INTO kids_weekly_points
+         (school_id, academic_year, term, week_number, class_code, admission_no, points, attempts, games_played)
+       VALUES (:s,:y,:t,:w,:c,:a,:p,1,1)
+       ON DUPLICATE KEY UPDATE points = points + VALUES(points), attempts = attempts + 1, games_played = games_played + 1`,
+      { replacements: { s: String(school_id), y: term.academic_year, t: term.term, w: term.week_number, c: stu.class_code, a: String(child_admission_no), p: delta } }
+    );
+  } catch (err) {
+    console.error("[leaderboard] recordAttemptPoints:", err.stack); // never break game flow
+  }
+}
+
+const SANITIZED_COLS = `p.points, p.attempts, p.games_played`;
+function displayName(row) {
+  const f = (row.first_name || row.firstname || row.name || '').toString().trim();
+  const l = (row.last_name || row.lastname || '').toString().trim();
+  const first = f.split(/\s+/)[0] || 'Scholar';
+  const initial = l ? ` ${l[0].toUpperCase()}.` : '';
+  return `${first}${initial}`;
+}
+
+/** GET /kids/leaderboard — student: own class board; staff: ?class_code= */
+async function getLeaderboard(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    const school_id = req.headers['x-school-id'] || u.school_id;
+    const term = await currentTerm(school_id, req.headers['x-branch-id'] || u.branch_id);
+    if (!term) return res.json({ success: true, data: { entries: [], term: null } });
+
+    let classCode = req.query.class_code;
+    let admission = null;
+    if (String(u.user_type || '').toLowerCase() === 'student') {
+      admission = u.admission_no;
+      const [stu] = await db.sequelize.query(
+        `SELECT class_code FROM students WHERE admission_no=:a AND school_id=:s LIMIT 1`,
+        { replacements: { a: String(admission), s: String(school_id) }, type: db.Sequelize.QueryTypes.SELECT }
+      ).catch(() => []);
+      classCode = stu && stu.class_code;
+      if (!classCode) return res.json({ success: true, data: { entries: [], term } });
+    }
+    if (!classCode) return res.status(400).json({ success: false, message: 'class_code required.' });
+
+    await awardTop3IfNeeded(school_id, term, classCode);
+
+    const rows = await db.sequelize.query(
+      `SELECT p.admission_no, ${SANITIZED_COLS}, s.first_name, s.surname AS last_name, s.student_name AS name
+       FROM kids_weekly_points p LEFT JOIN students s
+         ON s.admission_no = p.admission_no AND s.school_id = p.school_id
+       WHERE p.school_id=:s AND p.academic_year=:y AND p.term=:t AND p.week_number=:w AND p.class_code=:c
+       ORDER BY p.points DESC, p.attempts ASC LIMIT 10`,
+      { replacements: { s: String(school_id), y: term.academic_year, t: term.term, w: term.week_number, c: classCode }, type: db.Sequelize.QueryTypes.SELECT }
+    );
+
+    const entries = rows.map((r, i) => ({
+      rank: i + 1,
+      display_name: displayName(r),
+      avatar: avatarFor(r.admission_no),
+      points: r.points,
+      attempts: r.attempts,
+      medal: i < 3 ? ['🥇', '🥈', '🥉'][i] : null,
+    }));
+    const mine = admission ? rows.findIndex((r) => String(r.admission_no) === String(admission)) : -1;
+    return res.json({
+      success: true,
+      data: {
+        term: { academic_year: term.academic_year, term: term.term, week_number: term.week_number },
+        class_code: classCode,
+        entries,
+        my_rank: mine >= 0 ? mine + 1 : null,
+      },
+    });
+  } catch (err) {
+    console.error('getLeaderboard error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/** Lazy rollover: badge + free-access the previous week's top 3 of this class. */
+async function awardTop3IfNeeded(schoolId, term, classCode) {
+  try {
+    if (!term || !term.term_start_week || !(term.week_number > 1)) return;
+    const allowFree = await schoolAllowsFreeWeek(schoolId); // badges for all schools; free week = elite only
+    const minWk = Math.max(1, term.week_number - 4); // bounded backfill of missed weeks
+    for (let wk = term.week_number - 1; wk >= minWk; wk--) {
+      const [doneRow] = await db.sequelize.query(
+        `SELECT COUNT(*) AS n FROM kids_badges WHERE school_id=:s AND academic_year=:y AND term=:t AND week_number=:w AND class_code=:c`,
+        { replacements: { s: String(schoolId), y: term.academic_year, t: term.term, w: wk, c: classCode }, type: db.Sequelize.QueryTypes.SELECT }
+      );
+      if (doneRow && Number(doneRow.n) >= 3) continue;
+      const already = await db.sequelize.query(
+        `SELECT admission_no, position FROM kids_badges WHERE school_id=:s AND academic_year=:y AND term=:t AND week_number=:w AND class_code=:c`,
+        { replacements: { s: String(schoolId), y: term.academic_year, t: term.term, w: wk, c: classCode }, type: db.Sequelize.QueryTypes.SELECT }
+      );
+      const takenAdm = new Set(already.map((r) => String(r.admission_no)));
+      let nextPos = already.length ? Math.max.apply(null, already.map((r) => Number(r.position)).concat([0])) + 1 : 1;
+      if (nextPos > 3) continue;
+      const ws = new Date(term.term_start_week.getTime() + (wk - 1) * WEEK_MS);
+      const we = new Date(ws.getTime() + WEEK_MS - 1);
+      const tops = await db.sequelize.query(
+        `SELECT admission_no FROM kids_weekly_points
+         WHERE school_id=:s AND academic_year=:y AND term=:t AND week_number=:w AND class_code=:c
+         ORDER BY points DESC, attempts ASC LIMIT 10`,
+        { replacements: { s: String(schoolId), y: term.academic_year, t: term.term, w: wk, c: classCode }, type: db.Sequelize.QueryTypes.SELECT }
+      );
+      const badges = ['gold', 'silver', 'bronze'];
+      for (const t of tops) {
+        if (nextPos > 3) break;
+        if (takenAdm.has(String(t.admission_no))) continue;
+        const perf = await weekAverageScore(schoolId, t.admission_no, ws, we);
+        if (perf.n < 1 || perf.avg < EXCELLENCE_MIN_AVG_SCORE) continue; // top-3 AND excellent required
+        const freeUntil = allowFree ? new Date(Date.now() + WEEK_MS) : null; // one free week from award
+        await db.sequelize.query(
+          `INSERT IGNORE INTO kids_badges
+             (school_id, academic_year, term, week_number, class_code, admission_no, position, badge, free_access_until)
+           VALUES (:s,:y,:t,:w,:c,:a,:pos,:b,:until)`,
+          { replacements: { s: String(schoolId), y: term.academic_year, t: term.term, w: wk, c: classCode, a: t.admission_no, pos: nextPos, b: badges[nextPos - 1], until: freeUntil } }
+        );
+        nextPos++;
+      }
+    }
+  } catch (err) {
+    console.error('[leaderboard] awardTop3IfNeeded:', err.message);
+  }
+}
+
+/** GET /kids/leaderboard/me — rank + free-access flag for the caller. */
+async function getMyStatus(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (String(u.user_type || '').toLowerCase() !== 'student') {
+      return res.status(403).json({ success: false, message: 'Students only.' });
+    }
+    const school_id = req.headers['x-school-id'] || u.school_id;
+    const term = await currentTerm(school_id, req.headers['x-branch-id'] || u.branch_id);
+    if (!term) return res.json({ success: true, data: { ranked: false } });
+    const [stu] = await db.sequelize.query(
+      `SELECT class_code FROM students WHERE admission_no=:a AND school_id=:s LIMIT 1`,
+      { replacements: { a: String(u.admission_no), s: String(school_id) }, type: db.Sequelize.QueryTypes.SELECT }
+    ).catch(() => []);
+    if (!stu || !stu.class_code) return res.json({ success: true, data: { ranked: false } });
+    const [row] = await db.sequelize.query(
+      `SELECT points, attempts FROM kids_weekly_points
+       WHERE school_id=:s AND academic_year=:y AND term=:t AND week_number=:w AND class_code=:c AND admission_no=:a LIMIT 1`,
+      { replacements: { s: String(school_id), y: term.academic_year, t: term.term, w: term.week_number, c: stu.class_code, a: String(u.admission_no) }, type: db.Sequelize.QueryTypes.SELECT }
+    );
+    const [better] = await db.sequelize.query(
+      `SELECT COUNT(*) AS n FROM kids_weekly_points
+       WHERE school_id=:s AND academic_year=:y AND term=:t AND week_number=:w AND class_code=:c AND points > COALESCE(:p,0)`,
+      { replacements: { s: String(school_id), y: term.academic_year, t: term.term, w: term.week_number, c: stu.class_code, p: row ? row.points : null }, type: db.Sequelize.QueryTypes.SELECT }
+    );
+    const [badge] = await db.sequelize.query(
+      `SELECT badge, free_access_until FROM kids_badges
+       WHERE school_id=:s AND academic_year=:y AND term=:t AND class_code=:c AND admission_no=:a
+         AND free_access_until IS NOT NULL AND free_access_until > NOW()
+       ORDER BY id DESC LIMIT 1`,
+      { replacements: { s: String(school_id), y: term.academic_year, t: term.term, c: stu.class_code, a: String(u.admission_no) }, type: db.Sequelize.QueryTypes.SELECT }
+    );
+    return res.json({
+      success: true,
+      data: {
+        ranked: !!row,
+        points: row ? row.points : 0,
+        attempts: row ? row.attempts : 0,
+        rank: row ? (better ? better.n + 1 : 1) : null,
+        free_access_active: !!badge,
+        free_access_until: badge ? badge.free_access_until : null,
+        badge: badge ? badge.badge : null,
+      },
+    });
+  } catch (err) {
+    console.error('getMyStatus error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/** GET /kids/badges — own badge shelf. */
+async function getMyBadges(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (String(u.user_type || '').toLowerCase() !== 'student') {
+      return res.status(403).json({ success: false, message: 'Students only.' });
+    }
+    const school_id = req.headers['x-school-id'] || u.school_id;
+    await ensureSchema();
+    const rows = await db.sequelize.query(
+      `SELECT academic_year, term, week_number, class_code, position, badge, awarded_at
+       FROM kids_badges WHERE school_id=:s AND admission_no=:a ORDER BY id DESC LIMIT 50`,
+      { replacements: { s: String(school_id), a: String(u.admission_no) }, type: db.Sequelize.QueryTypes.SELECT }
+    );
+    return res.json({ success: true, data: rows }); // no admission_no echoed back
+  } catch (err) {
+    console.error('getMyBadges error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+module.exports = { recordAttemptPoints, getLeaderboard, getMyStatus, getMyBadges, ensureSchema, weekNumberFor, weekStartDate, weekEndDate, schoolAllowsFreeWeek };

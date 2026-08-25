@@ -35,6 +35,7 @@ class OfflineSyncService {
   private status: SyncStatus = 'idle';
   private listener: SyncListener | null = null;
   private drainTimer: ReturnType<typeof setTimeout> | null = null;
+  private backoffTimer: ReturnType<typeof setTimeout> | null = null;
   private started = false;
 
   /** Initialize the sync service — starts listening for online events. */
@@ -60,6 +61,7 @@ class OfflineSyncService {
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('offline', this.handleOffline);
     if (this.drainTimer) clearTimeout(this.drainTimer);
+    if (this.backoffTimer) clearTimeout(this.backoffTimer);
     this.started = false;
   }
 
@@ -147,6 +149,17 @@ class OfflineSyncService {
 
     const remaining = await offlineDB.syncQueueSize();
     this.setStatus(remaining > 0 ? 'error' : 'idle', remaining);
+
+    // E2: capped exponential backoff — re-drain remaining items after a delay
+    if (this.backoffTimer) { clearTimeout(this.backoffTimer); this.backoffTimer = null; }
+    if (remaining > 0) {
+      const head = (await offlineDB.getSyncQueue())[0];
+      const idx = Math.min(head?.retries ?? 0, RETRY_DELAYS.length - 1);
+      this.backoffTimer = setTimeout(() => {
+        this.backoffTimer = null;
+        if (navigator.onLine) this.drainNow().catch(() => {});
+      }, RETRY_DELAYS[idx]);
+    }
 
     if (sent > 0) {
       console.log(`✅ Synced ${sent} items, ${failed} failed, ${remaining} remaining`);

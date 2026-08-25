@@ -98,16 +98,17 @@ const COLOR_HEX: Record<string, string> = {
 
 // ── Number emojis ─────────────────────────────────────────
 
+// Keycap emojis: digit + FE0F + U+20E3 (Twemoji file "3X-20e3.png"); 🔟 = 1f51f
 const NUMBER_ICONS: Record<number, { emoji: string; codepoint: string }> = {
-  1: { emoji: '1️⃣', codepoint: '1f51f' },
-  2: { emoji: '2️⃣', codepoint: '1f51f' },
-  3: { emoji: '3️⃣', codepoint: '1f51f' },
-  4: { emoji: '4️⃣', codepoint: '1f51f' },
-  5: { emoji: '5️⃣', codepoint: '1f51f' },
-  6: { emoji: '6️⃣', codepoint: '1f51f' },
-  7: { emoji: '7️⃣', codepoint: '1f51f' },
-  8: { emoji: '8️⃣', codepoint: '1f51f' },
-  9: { emoji: '9️⃣', codepoint: '1f51f' },
+  1: { emoji: '1️⃣', codepoint: '31-20e3' },
+  2: { emoji: '2️⃣', codepoint: '32-20e3' },
+  3: { emoji: '3️⃣', codepoint: '33-20e3' },
+  4: { emoji: '4️⃣', codepoint: '34-20e3' },
+  5: { emoji: '5️⃣', codepoint: '35-20e3' },
+  6: { emoji: '6️⃣', codepoint: '36-20e3' },
+  7: { emoji: '7️⃣', codepoint: '37-20e3' },
+  8: { emoji: '8️⃣', codepoint: '38-20e3' },
+  9: { emoji: '9️⃣', codepoint: '39-20e3' },
   10: { emoji: '🔟', codepoint: '1f51f' },
 };
 

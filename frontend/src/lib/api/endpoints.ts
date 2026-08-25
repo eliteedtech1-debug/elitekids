@@ -226,4 +226,31 @@ export const ENDPOINTS = {
     USE: '/kids/power-ups/use',
   },
 
+
+  // Phase 4: Teacher Quick-Create
+  QUICK_CREATE: {
+    LIST: '/kids/teacher/quizzes',
+    CREATE: '/kids/teacher/quizzes',
+    QUESTIONS: (id: string) => `/kids/teacher/quizzes/${id}/questions`,
+    PUBLISH: (id: string) => `/kids/teacher/quizzes/${id}/publish`,
+    UNPUBLISH: (id: string) => `/kids/teacher/quizzes/${id}/unpublish`,
+    DELETE: (id: string) => `/kids/teacher/quizzes/${id}`,
+  },
+
+  // Phase 4: Multi-School Analytics
+  ANALYTICS: {
+    OVERVIEW: '/kids/analytics/overview',
+    CLASSES: '/kids/analytics/classes',
+    STRUGGLING: '/kids/analytics/struggling',
+    GAMES: '/kids/analytics/games',
+    LEADERBOARD: '/kids/analytics/leaderboard',
+  },
+
+  // Phase 4: Match History
+  MATCH_HISTORY: {
+    LIST: '/kids/match-history',
+    RIVALRY: '/kids/match-history/rivalry',
+    STATS: '/kids/match-history/stats',
+  },
+
 } as const;

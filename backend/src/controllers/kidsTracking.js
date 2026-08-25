@@ -141,8 +141,8 @@ async function getDigest(req, res) {
     // Recent responses (last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const recentResponses = await db.KidGameItemResponse.findAll({
-      where: { student_id, created_at: { [Op.gte]: thirtyDaysAgo } },
-      order: [['created_at', 'DESC']],
+      where: { student_id, createdAt: { [Op.gte]: thirtyDaysAgo } },
+      order: [['createdAt', 'DESC']],
     });
 
     // Engagement stats
@@ -243,7 +243,7 @@ async function updateMasteryProgress(student_id, item_id, tier) {
     if (correctResponses > 0 && totalResponses >= 3) {
       const recent = await db.KidGameItemResponse.findAll({
         where: { student_id, item_id },
-        order: [['created_at', 'DESC']],
+        order: [['createdAt', 'DESC']],
         limit: 3,
       });
       const allWrong = recent.every((r) => !r.correct);

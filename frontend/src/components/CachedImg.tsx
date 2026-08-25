@@ -62,9 +62,12 @@ export default function CachedImg({ src, onError, ...props }: ImgHTMLAttributes<
         }
         onError?.(e);
       }}
+      aria-busy={!loaded}
       style={{
         ...props.style,
         opacity: loaded ? 1 : 0.5,
+        backgroundColor: loaded ? props.style?.backgroundColor : '#E7EEF6',
+        animation: loaded ? undefined : 'img-loading-pulse 1.5s ease-in-out infinite',
         transition: 'opacity 0.2s ease-in',
       }}
     />

@@ -125,6 +125,18 @@ export function playPlace() {
  * Speak text aloud. Uses browser SpeechSynthesis if available.
  * Returns a promise that resolves when speech ends (or immediately if unavailable).
  */
+// ── FB-16: strip emoji before TTS ────────────────────────────
+// Emoji glyphs are visual fallbacks only; TTS engines voice glyph names
+// ("🐱" -> "cat face"), which teaches kids wrong labels ("Cat cat face").
+const EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{20E3}]/gu;
+
+export function stripEmojiForSpeech(text: string): string {
+  return String(text || '')
+    .replace(EMOJI_RE, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export function speak(text: string, lang = 'en-US', overrideRate?: number): Promise<void> {
   return new Promise((resolve) => {
     if (!text || typeof window === 'undefined' || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
@@ -150,7 +162,10 @@ export function speak(text: string, lang = 'en-US', overrideRate?: number): Prom
     } catch { /* use defaults */ }
     if (overrideRate !== undefined) rate = overrideRate;
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    // FB-16: never voice emoji glyph names
+    const spokenText = stripEmojiForSpeech(text);
+    if (!spokenText) { resolve(); return; }
+    const utterance = new SpeechSynthesisUtterance(spokenText);
     utterance.lang = lang;
     utterance.rate = rate;
     utterance.volume = 1;

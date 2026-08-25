@@ -74,7 +74,8 @@ async function resumeSession(req, res) {
 
     const record = await db.KidSessionState.findOne({
       where,
-      order: [['updated_at', 'DESC']],
+      // Column is camelCase `updatedAt` (matches prod schema).
+      order: [['updatedAt', 'DESC']],
     });
 
     if (!record) {

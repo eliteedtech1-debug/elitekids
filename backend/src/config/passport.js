@@ -55,7 +55,14 @@ module.exports = (passport) => {
           return student ? done(null, student) : done(null, false);
         }
 
-        // ── Non-student auth (Admin / Teacher / Parent) ───────────────────
+        // ── Parent auth (kidsParent.js tokens: phone + children, no id) ───
+        if (user_type.toLowerCase() === 'parent') {
+          const { phone, children } = jwt_payload;
+          if (!phone) return done(null, false);
+          return done(null, { user_type: 'parent', phone, children: children || [] });
+        }
+
+        // ── Non-student auth (Admin / Teacher) ─────────────────────────
         if (!id) return done(null, false);
 
         const [userRow] = await db.sequelize.query(

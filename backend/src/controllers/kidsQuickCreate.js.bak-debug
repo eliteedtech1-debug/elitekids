@@ -1,0 +1,346 @@
+'use strict';
+/**
+ * Teacher Quick-Create — phone-first quiz creator.
+ * Teachers create quizzes in 2 minutes from a phone.
+ * Draft → Publish → Students see it in their game list.
+ *
+ * Tables: kids_teacher_quizzes, kids_teacher_questions
+ */
+const crypto = require('crypto');
+const dbm = () => require('../models');
+
+let _schemaReady = false;
+async function ensureSchema() {
+  if (_schemaReady) return;
+  const c = dbm().content;
+  await c.query(`CREATE TABLE IF NOT EXISTS kids_teacher_quizzes (
+    id CHAR(36) NOT NULL PRIMARY KEY,
+    school_id VARCHAR(40) NOT NULL,
+    class_code VARCHAR(40) NOT NULL,
+    created_by VARCHAR(64) NOT NULL,
+    title VARCHAR(120) NOT NULL,
+    subject VARCHAR(50) NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'draft',
+    question_count INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at DATETIME NULL,
+    KEY idx_tq_class (school_id, class_code, status),
+    KEY idx_tq_teacher (created_by)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+  await c.query(`CREATE TABLE IF NOT EXISTS kids_teacher_questions (
+    id CHAR(36) NOT NULL PRIMARY KEY,
+    quiz_id CHAR(36) NOT NULL,
+    question_text TEXT NOT NULL,
+    option_a VARCHAR(255) NOT NULL,
+    option_b VARCHAR(255) NOT NULL,
+    option_c VARCHAR(255) NOT NULL,
+    option_d VARCHAR(255) NOT NULL,
+    correct_option CHAR(1) NOT NULL,
+    image_url VARCHAR(500) NULL,
+    order_index INT NOT NULL DEFAULT 0,
+    KEY idx_tq_quiz (quiz_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+  _schemaReady = true;
+}
+
+// ─── POST /kids/teacher/quizzes { title, subject, class_code } ──────────────
+async function createQuiz(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (!['admin', 'staff', 'teacher'].includes(String(u.user_type || '').toLowerCase())) {
+      return res.status(403).json({ success: false, message: 'Teachers only.' });
+    }
+
+    const { title, subject, class_code } = req.body || {};
+    if (!title || !title.trim()) return res.status(400).json({ success: false, message: 'Title required.' });
+    if (!class_code || !class_code.trim()) return res.status(400).json({ success: false, message: 'Class code required.' });
+    if (title.length > 120) return res.status(400).json({ success: false, message: 'Title too long (max 120 chars).' });
+
+    const sid = u.school_id || '';
+    const quizId = crypto.randomUUID();
+
+    await dbm().content.query(
+      `INSERT INTO kids_teacher_quizzes (id, school_id, class_code, created_by, title, subject, status)
+       VALUES (:id, :sid, :cc, :creator, :title, :subject, 'draft')`,
+      {
+        replacements: {
+          id: quizId, sid,
+          cc: class_code.trim(),
+          creator: u.id || u.admission_no || '',
+          title: title.trim(),
+          subject: (subject || '').trim() || null,
+        },
+      },
+    );
+
+    return res.json({
+      success: true,
+      data: { id: quizId, title: title.trim(), status: 'draft', question_count: 0 },
+    });
+  } catch (err) {
+    console.error('quickCreate createQuiz error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+// ─── POST /kids/teacher/quizzes/:id/questions ────────────────────────────────
+// Body: { questions: [{ question_text, option_a, option_b, option_c, option_d, correct_option, image_url? }] }
+async function addQuestions(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (!['admin', 'staff', 'teacher'].includes(String(u.user_type || '').toLowerCase())) {
+      return res.status(403).json({ success: false, message: 'Teachers only.' });
+    }
+
+    const quizId = String(req.params.id || '');
+    const { questions } = req.body || {};
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ success: false, message: 'questions array required (1-20 items).' });
+    }
+    if (questions.length > 20) {
+      return res.status(400).json({ success: false, message: 'Max 20 questions per quiz.' });
+    }
+
+    // Verify quiz exists and is owned by this teacher
+    const [existing] = await dbm().content.query(
+      `SELECT id, status FROM kids_teacher_quizzes WHERE id = :id AND created_by = :creator LIMIT 1`,
+      { replacements: { id: quizId, creator: u.id || u.admission_no || '' } },
+    );
+    const rows = Array.isArray(existing[0]) ? existing[0] : [];
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Quiz not found.' });
+    }
+
+    // Get current max order_index
+    const [maxOrder] = await dbm().content.query(
+      `SELECT COALESCE(MAX(order_index), -1) AS max_idx FROM kids_teacher_questions WHERE quiz_id = :qid`,
+      { replacements: { qid: quizId } },
+    );
+    let nextOrder = ((Array.isArray(maxOrder[0]) ? maxOrder[0] : [])[0]?.max_idx || 0) + 1;
+
+    // Insert questions
+    let inserted = 0;
+    for (const q of questions) {
+      if (!q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d || !q.correct_option) continue;
+      const correct = String(q.correct_option).toUpperCase().charAt(0);
+      if (!['A', 'B', 'C', 'D'].includes(correct)) continue;
+
+      await dbm().content.query(
+        `INSERT INTO kids_teacher_questions (id, quiz_id, question_text, option_a, option_b, option_c, option_d, correct_option, image_url, order_index)
+         VALUES (:id, :qid, :qt, :oa, :ob, :oc, :od, :co, :iu, :oi)`,
+        {
+          replacements: {
+            id: crypto.randomUUID(), qid: quizId,
+            qt: String(q.question_text).slice(0, 2000),
+            oa: String(q.option_a).slice(0, 255),
+            ob: String(q.option_b).slice(0, 255),
+            oc: String(q.option_c).slice(0, 255),
+            od: String(q.option_d).slice(0, 255),
+            co: correct,
+            iu: q.image_url || null,
+            oi: nextOrder++,
+          },
+        },
+      );
+      inserted++;
+    }
+
+    // Update question count
+    await dbm().content.query(
+      `UPDATE kids_teacher_quizzes SET question_count = (SELECT COUNT(*) FROM kids_teacher_questions WHERE quiz_id = :qid) WHERE id = :qid`,
+      { replacements: { qid: quizId } },
+    );
+
+    return res.json({
+      success: true,
+      data: { inserted, total: nextOrder - (nextOrder - inserted) },
+    });
+  } catch (err) {
+    console.error('quickCreate addQuestions error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+// ─── POST /kids/teacher/quizzes/:id/publish ──────────────────────────────────
+async function publishQuiz(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (!['admin', 'staff', 'teacher'].includes(String(u.user_type || '').toLowerCase())) {
+      return res.status(403).json({ success: false, message: 'Teachers only.' });
+    }
+
+    const quizId = String(req.params.id || '');
+
+    // Verify ownership
+    const [existing] = await dbm().content.query(
+      `SELECT id, status, question_count FROM kids_teacher_quizzes WHERE id = :id AND created_by = :creator LIMIT 1`,
+      { replacements: { id: quizId, creator: u.id || u.admission_no || '' } },
+    );
+    const rows = Array.isArray(existing[0]) ? existing[0] : [];
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Quiz not found.' });
+    }
+
+    const quiz = rows[0];
+    if (quiz.status === 'published') {
+      return res.status(400).json({ success: false, message: 'Quiz already published.' });
+    }
+    if (quiz.question_count < 1) {
+      return res.status(400).json({ success: false, message: 'Add at least 1 question before publishing.' });
+    }
+
+    // Publish
+    await dbm().content.query(
+      `UPDATE kids_teacher_quizzes SET status = 'published', published_at = NOW() WHERE id = :id`,
+      { replacements: { id: quizId } },
+    );
+
+    return res.json({
+      success: true,
+      data: { id: quizId, status: 'published', question_count: quiz.question_count },
+    });
+  } catch (err) {
+    console.error('quickCreate publishQuiz error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+// ─── GET /kids/teacher/quizzes?class_code= ───────────────────────────────────
+async function listQuizzes(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    const sid = u.school_id || '';
+    const classCode = String(req.query.class_code || '').trim();
+    const status = String(req.query.status || '').trim();
+
+    let query = `SELECT q.*, COUNT(qq.id) AS actual_questions
+                 FROM kids_teacher_quizzes q
+                 LEFT JOIN kids_teacher_questions qq ON qq.quiz_id = q.id
+                 WHERE q.school_id = :sid`;
+    const replacements = { sid };
+
+    if (classCode) {
+      query += ` AND q.class_code = :cc`;
+      replacements.cc = classCode;
+    }
+    if (status && ['draft', 'published'].includes(status)) {
+      query += ` AND q.status = :status`;
+      replacements.status = status;
+    }
+
+    // Teachers see their own; admins see all
+    if (['staff', 'teacher'].includes(String(u.user_type || '').toLowerCase())) {
+      query += ` AND q.created_by = :creator`;
+      replacements.creator = u.id || u.admission_no || '';
+    }
+
+    query += ` GROUP BY q.id ORDER BY q.created_at DESC LIMIT 50`;
+
+    const [rows] = await dbm().content.query(query, { replacements });
+    const quizzes = Array.isArray(rows) ? rows : [];
+
+    return res.json({ success: true, data: quizzes });
+  } catch (err) {
+    console.error('quickCreate listQuizzes error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+// ─── GET /kids/teacher/quizzes/:id/questions ─────────────────────────────────
+async function getQuizQuestions(req, res) {
+  try {
+    await ensureSchema();
+    const quizId = String(req.params.id || '');
+
+    const [questions] = await dbm().content.query(
+      `SELECT id, question_text, option_a, option_b, option_c, option_d, correct_option, image_url, order_index
+       FROM kids_teacher_questions WHERE quiz_id = :qid ORDER BY order_index ASC`,
+      { replacements: { qid: quizId } },
+    );
+
+    return res.json({ success: true, data: Array.isArray(questions) ? questions : [] });
+  } catch (err) {
+    console.error('quickCreate getQuizQuestions error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+// ─── DELETE /kids/teacher/quizzes/:id ────────────────────────────────────────
+async function deleteQuiz(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    const quizId = String(req.params.id || '');
+
+    // Verify ownership or admin
+    const [existing] = await dbm().content.query(
+      `SELECT id, status FROM kids_teacher_quizzes WHERE id = :id AND (created_by = :creator OR :isAdmin = 1) LIMIT 1`,
+      {
+        replacements: {
+          id: quizId,
+          creator: u.id || u.admission_no || '',
+          isAdmin: ['admin'].includes(String(u.user_type || '').toLowerCase()) ? 1 : 0,
+        },
+      },
+    );
+    const rows = Array.isArray(existing[0]) ? existing[0] : [];
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Quiz not found.' });
+    }
+
+    if (rows[0].status === 'published') {
+      return res.status(400).json({ success: false, message: 'Unpublish before deleting.' });
+    }
+
+    // Delete questions then quiz
+    await dbm().content.query(`DELETE FROM kids_teacher_questions WHERE quiz_id = :qid`, { replacements: { qid: quizId } });
+    await dbm().content.query(`DELETE FROM kids_teacher_quizzes WHERE id = :id`, { replacements: { id: quizId } });
+
+    return res.json({ success: true, message: 'Quiz deleted.' });
+  } catch (err) {
+    console.error('quickCreate deleteQuiz error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+// ─── POST /kids/teacher/quizzes/:id/unpublish ────────────────────────────────
+async function unpublishQuiz(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    const quizId = String(req.params.id || '');
+
+    const [existing] = await dbm().content.query(
+      `SELECT id, status FROM kids_teacher_quizzes WHERE id = :id AND created_by = :creator LIMIT 1`,
+      { replacements: { id: quizId, creator: u.id || u.admission_no || '' } },
+    );
+    const rows = Array.isArray(existing[0]) ? existing[0] : [];
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Quiz not found.' });
+
+    await dbm().content.query(
+      `UPDATE kids_teacher_quizzes SET status = 'draft', published_at = NULL WHERE id = :id`,
+      { replacements: { id: quizId } },
+    );
+
+    return res.json({ success: true, data: { id: quizId, status: 'draft' } });
+  } catch (err) {
+    console.error('quickCreate unpublishQuiz error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+module.exports = {
+  ensureSchema,
+  createQuiz,
+  addQuestions,
+  publishQuiz,
+  listQuizzes,
+  getQuizQuestions,
+  deleteQuiz,
+  unpublishQuiz,
+};

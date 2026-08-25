@@ -93,6 +93,12 @@ const { getDueReviews: getSpacedDueReviews, markReviewComplete, getReviewStats }
 // Phase 3: Parent Dashboard + Festival of Guardians
 const parentCtrl = require('../controllers/kidsParent');
 const festivalCtrl = require('../controllers/kidsFestival');
+// Phase 4: Quick-Create + Analytics + Match History
+const quickCreateCtrl = require('../controllers/kidsQuickCreate');
+const analyticsCtrl = require('../controllers/kidsAnalytics');
+const matchHistoryCtrl = require('../controllers/kidsMatchHistory');
+// E4: Voice Notes (async teacher audio)
+const { voiceNoteUploadMW, createVoiceNote, listVoiceNotes, listMyVoiceNotes, streamVoiceNoteAudio } = require("../controllers/e4VoiceNotes");
 
 module.exports = (app) => {
   // ── Parent read-only activity feed ──────────────────────────────────────
@@ -281,4 +287,31 @@ module.exports = (app) => {
   app.post('/kids/festival/:id/damage', auth, festivalCtrl.dealDamage);
   app.get('/kids/festival/history', auth, festivalCtrl.getFestivalHistory);
   app.get('/kids/festival/guardians', auth, festivalCtrl.listGuardians);
+
+  // ── Phase 4: Teacher Quick-Create ───────────────────────────────────────
+  app.post('/kids/teacher/quizzes', auth, requireStaff, quickCreateCtrl.createQuiz);
+  app.get('/kids/teacher/quizzes', auth, requireStaff, quickCreateCtrl.listQuizzes);
+  app.get('/kids/teacher/quizzes/:id/questions', auth, requireStaff, quickCreateCtrl.getQuizQuestions);
+  app.post('/kids/teacher/quizzes/:id/questions', auth, requireStaff, quickCreateCtrl.addQuestions);
+  app.post('/kids/teacher/quizzes/:id/publish', auth, requireStaff, quickCreateCtrl.publishQuiz);
+  app.post('/kids/teacher/quizzes/:id/unpublish', auth, requireStaff, quickCreateCtrl.unpublishQuiz);
+  app.delete('/kids/teacher/quizzes/:id', auth, requireStaff, quickCreateCtrl.deleteQuiz);
+
+  // ── Phase 4: Multi-School Analytics ─────────────────────────────────────
+  app.get('/kids/analytics/overview', auth, requireStaff, analyticsCtrl.getOverview);
+  app.get('/kids/analytics/classes', auth, requireStaff, analyticsCtrl.getClassComparison);
+  app.get('/kids/analytics/struggling', auth, requireStaff, analyticsCtrl.getStrugglingStudents);
+  app.get('/kids/analytics/games', auth, requireStaff, analyticsCtrl.getGameEngagement);
+  app.get('/kids/analytics/leaderboard', auth, requireStaff, analyticsCtrl.getTopPerformers);
+
+  // ── Phase 4: Match History ──────────────────────────────────────────────
+  app.get('/kids/match-history', auth, matchHistoryCtrl.getMatchHistory);
+  app.get('/kids/match-history/rivalry', auth, matchHistoryCtrl.getRivalry);
+  // ── E4: Voice Notes (async teacher audio) ────────────────────────────────
+  app.post("/kids/voice-notes", auth, requireStaff, voiceNoteUploadMW, createVoiceNote);
+  app.get("/kids/voice-notes", auth, listVoiceNotes);
+  app.get("/kids/voice-notes/mine", auth, requireStaff, listMyVoiceNotes);
+  app.get("/kids/voice-notes/:id/audio", auth, streamVoiceNoteAudio);
+
+  app.get('/kids/match-history/stats', auth, requireStaff, matchHistoryCtrl.getMatchStats);
 };

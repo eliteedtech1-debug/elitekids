@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { playTap, playCorrect, playWrong } from '@/lib/utils/sound';
+import { canonAnswer } from '@/lib/utils/answer';
 
 interface SpeechInputProps {
   /** Expected correct answer(s) — the spoken word is matched against these */
@@ -18,12 +19,8 @@ interface SpeechInputProps {
 }
 
 // Normalize text for fuzzy matching: lowercase, strip punctuation, trim
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+function normalize(s: unknown): string {
+  return canonAnswer(s);
 }
 
 // Check if spoken text matches any expected answer (fuzzy)

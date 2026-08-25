@@ -126,6 +126,12 @@
   50% { transform: scale(1.1); }
 }
 
+/* Gentle opacity shimmer for images while loading (CachedImg skeleton) */
+@keyframes img-loading-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.7; }
+}
+
 @keyframes game-tap-ripple {
   0% { box-shadow: 0 0 0 0 rgba(15, 77, 146, 0.4); }
   100% { box-shadow: 0 0 0 20px rgba(15, 77, 146, 0); }

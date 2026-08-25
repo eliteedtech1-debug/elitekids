@@ -10,12 +10,18 @@ import { WifiOff, Download, RefreshCw } from 'lucide-react';
  */
 interface OfflineBannerProps {
   hasQueuedProgress?: boolean;
+  /** E2: number of progress records waiting to sync */
+  pending?: number;
+  /** E2: number of sync items that errored */
+  failed?: number;
   onRetry?: () => void;
   className?: string;
 }
 
 export default function OfflineBanner({
   hasQueuedProgress = false,
+  pending = 0,
+  failed = 0,
   onRetry,
   className = '',
 }: OfflineBannerProps) {
@@ -32,6 +38,13 @@ export default function OfflineBanner({
           {hasQueuedProgress
             ? 'Your progress is saved and will sync when you reconnect.'
             : 'Playing from cache. Your progress will sync when you reconnect.'}
+          {(pending > 0 || failed > 0) && (
+            <span className="ml-1 font-semibold">
+              {pending > 0 && <>{pending} pending</>}
+              {pending > 0 && failed > 0 && <> · </>}
+              {failed > 0 && <>{failed} failed</>}
+            </span>
+          )}
         </p>
       </div>
       {onRetry && (

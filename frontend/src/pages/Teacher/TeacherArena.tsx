@@ -6,6 +6,7 @@ import { ENDPOINTS } from '@/lib/api/endpoints';
 import AdminNav from '@/components/AdminNav';
 import TeacherBossRaid from '@/components/TeacherBossRaid';
 import TeacherFestival from '@/components/TeacherFestival';
+import TeacherQuickCreate from '@/components/TeacherQuickCreate';
 
 interface Comp {
   id: string;

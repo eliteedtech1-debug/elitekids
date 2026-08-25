@@ -28,9 +28,13 @@ interface MediaAsset {
   speakText?: string;
 }
 
-// Build image URL from emoji codepoint
+// Build image URL from emoji codepoint.
+// Twemoji filenames omit FE0F (variation selector), so strip it from computed joins.
 function toImageUrl(emoji: string, codepoint?: string): string {
-  const cp = codepoint || [...emoji].map((c) => c.codePointAt(0)!.toString(16)).join('-');
+  const cp = codepoint || [...emoji]
+    .map((c) => c.codePointAt(0)!.toString(16))
+    .filter((c) => c !== 'fe0f')
+    .join('-');
   return `${TWEMOJI_CDN}/${cp}.png`;
 }
 
@@ -87,7 +91,7 @@ const WEATHER: MediaAsset[] = [
   { emoji: '🌧️', label: 'Rain', codepoint: '1f327', keywords: 'rain rainy weather cloud', category: 'weather' },
   { emoji: '❄️', label: 'Snow', codepoint: '2744', keywords: 'snow snowy weather cold', category: 'weather' },
   { emoji: '🌈', label: 'Rainbow', codepoint: '1f308', keywords: 'rainbow weather color', category: 'weather' },
-  { emoji: '⛈️', label: 'Storm', codepoint: '1f329', keywords: 'storm thunder lightning', category: 'weather' },
+  { emoji: '⛈️', label: 'Storm', codepoint: '26c8', keywords: 'storm thunder lightning', category: 'weather' },
   { emoji: '🌤️', label: 'Partly Cloudy', codepoint: '1f324', keywords: 'cloudy weather sun', category: 'weather' },
   { emoji: '🌙', label: 'Moon', codepoint: '1f319', keywords: 'moon night weather', category: 'weather' },
   { emoji: '⭐', label: 'Star', codepoint: '2b50', keywords: 'star night weather', category: 'weather' },

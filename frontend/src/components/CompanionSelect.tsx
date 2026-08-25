@@ -89,19 +89,30 @@ export function CompanionBubble({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Dismiss companion greeting"
       className="flex items-center gap-3 rounded-2xl bg-white border border-amber-200 shadow-md p-3 animate-game-slide-up cursor-pointer"
       onClick={() => {
         playTap();
         setDismissed(true);
         onDismiss?.();
       }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          playTap();
+          setDismissed(true);
+          onDismiss?.();
+        }
+      }}
     >
-      <span className="text-3xl animate-game-float">{info.emoji}</span>
+      <span className="text-3xl animate-game-float" aria-hidden="true">{info.emoji}</span>
       <div className="flex-1">
         <p className="text-xs font-bold text-amber-700">{info.name}</p>
         <p className="text-sm text-gray-600">{greeting}</p>
       </div>
-      <span className="text-xs text-gray-400">tap to close</span>
+      <span className="text-xs text-gray-600">tap to close</span>
     </div>
   );
 }
