@@ -190,9 +190,10 @@ async function listCompetitions(req, res) {
       const contribs = await contributionsClean(comp);
       let summary;
       if (comp.comp_type === 'tug') {
-        const a = contribs.filter((x) => x.team === 0).reduce((n, x) => n + x.best, 0);
-        const b = contribs.filter((x) => x.team === 1).reduce((n, x) => n + x.best, 0);
-        summary = { team_a_pts: a, team_b_pts: b };
+        const rawA = contribs.filter((x) => x.team === 0).reduce((n, x) => n + x.best, 0);
+        const rawB = contribs.filter((x) => x.team === 1).reduce((n, x) => n + x.best, 0);
+        const rb = applyRubberBand(rawA, rawB);
+        summary = { team_a_pts: rawA, team_b_pts: rawB, team_a_rb: rb.a, team_b_rb: rb.b };
       } else {
         summary = { leaders: contribs.sort((x, y) => y.best - x.best).slice(0, 3).map((x) => x.adm) };
       }
@@ -214,17 +215,85 @@ async function listCompetitions(req, res) {
 async function endCompetition(req, res) {
   try {
     const school_id = req.headers['x-school-id'] || req.user.school_id;
+    const compId = String(req.params.id || '');
     const [, meta] = await dbm().content.query(
       `UPDATE kids_competitions SET status='ended', ends_at=NOW() WHERE id=:id AND school_id=:s AND status='active'`,
-      { replacements: { id: String(req.params.id || ''), s: String(school_id) } },
+      { replacements: { id: compId, s: String(school_id) } },
     );
     const n = (meta && meta.affectedRows) || 0;
     if (!n) return res.status(404).json({ success: false, message: 'Active competition not found.' });
+
+    // E5: Mint podium badges (1st/2nd/3rd) — fire-and-forget
+    mintPodiumBadges(compId, school_id).catch((e) => console.error('[arena] badge mint:', e.message));
+
     return res.json({ success: true, data: { ended: true } });
   } catch (err) {
     console.error('arena end error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
+}
+
+/** Mint podium badges for top 3 finishers when a competition ends.
+ * Uses content DB kids_badges table (same schema as festival badges). */
+const PODIUM_BADGES = [
+  { position: 1, name: 'Arena Champion', emoji: '🏆', type: 'arena-gold' },
+  { position: 2, name: 'Arena Runner-Up', emoji: '🥈', type: 'arena-silver' },
+  { position: 3, name: 'Arena Third Place', emoji: '🥉', type: 'arena-bronze' },
+];
+
+async function mintPodiumBadges(compId, schoolId) {
+  await ensureSchema();
+  const c = dbm().content;
+  const [compRows] = await c.query(
+    `SELECT id, comp_type, class_code FROM kids_competitions WHERE id=:id LIMIT 1`,
+    { replacements: { id: compId } },
+  );
+  const comp = (compRows || [])[0];
+  if (!comp) return;
+
+  // Get final rankings from contributions
+  const [memberRows] = await c.query(
+    `SELECT child_admission_no AS adm, team FROM kids_competition_members WHERE competition_id=:cid`,
+    { replacements: { cid: compId } },
+  );
+  if (!(memberRows || []).length) return;
+
+  const contribs = await contributionsClean(comp);
+  const byAdm = new Map(contribs.map((x) => [x.adm, x]));
+  const ranked = (memberRows || [])
+    .map((m) => ({ adm: m.adm, team: m.team, pts: (byAdm.get(m.adm) || { best: 0 }).best }))
+    .sort((a, b) => b.pts - a.pts);
+
+  const top3 = ranked.slice(0, 3);
+  for (const entry of top3) {
+    if (entry.pts <= 0) continue; // no badge for 0 points
+    const badge = PODIUM_BADGES.find((b) => b.position === top3.indexOf(entry) + 1);
+    if (!badge) continue;
+
+    // Avoid duplicate badges for same competition
+    const existing = await c.query(
+      `SELECT id FROM kids_badges WHERE child_admission_no=:adm AND badge_name=:bn AND badge_type=:bt LIMIT 1`,
+      { replacements: { adm: entry.adm, bn: badge.name, bt: badge.type } },
+    ).catch(() => [[]]);
+    const exRows = Array.isArray(existing[0]) ? existing[0] : [];
+    if (exRows.length > 0) continue;
+
+    await c.query(
+      `INSERT INTO kids_badges (id, child_admission_no, school_id, badge_name, badge_emoji, badge_type, awarded_at)
+       VALUES (:id, :adm, :sid, :name, :emoji, :type, NOW())`,
+      {
+        replacements: {
+          id: crypto.randomUUID(),
+          adm: entry.adm,
+          sid: String(schoolId),
+          name: badge.name,
+          emoji: badge.emoji,
+          type: badge.type,
+        },
+      },
+    ).catch(() => {});
+  }
+  console.log(`[arena] podium badges minted for comp ${compId}: ${top3.map((t) => t.adm).join(',')}`);
 }
 
 // ── Student: my class's active battle ──────────────────────────────────────
@@ -276,14 +345,16 @@ async function getActive(req, res) {
     if (comp.comp_type === 'tug') {
       const a = decorated.filter((x) => x.team === 0);
       const b = decorated.filter((x) => x.team === 1);
-      const pa = a.reduce((n, x) => n + x.pts, 0);
-      const pb = b.reduce((n, x) => n + x.pts, 0);
+      const rawA = a.reduce((n, x) => n + x.pts, 0);
+      const rawB = b.reduce((n, x) => n + x.pts, 0);
+      // Rubber-band: trailing team gets ×1.15 for display only (raw stored in DB)
+      const rb = applyRubberBand(rawA, rawB);
       const myRow = decorated.find((x) => x.me);
       payload = {
         active: true, comp_type: 'tug', id: comp.id, title: comp.title,
-        team_a: { name: comp.team_a_name || 'Team A', pts: pa, players: a.length, top: a.slice(0, 5) },
-        team_b: { name: comp.team_b_name || 'Team B', pts: pb, players: b.length, top: b.slice(0, 5) },
-        rope_pct: pa + pb > 0 ? Math.round((pa / (pa + pb)) * 100) : 50,
+        team_a: { name: comp.team_a_name || 'Team A', pts: rawA, rb_pts: rb.a, players: a.length, top: a.slice(0, 5) },
+        team_b: { name: comp.team_b_name || 'Team B', pts: rawB, rb_pts: rb.b, players: b.length, top: b.slice(0, 5) },
+        rope_pct: rb.a + rb.b > 0 ? Math.round((rb.a / (rb.a + rb.b)) * 100) : 50,
         my_team: myRow ? myRow.team : null,
         my_pts: myRow ? myRow.pts : 0,
         enrolled: decorated.length, playing: byAdm.size,
@@ -306,4 +377,71 @@ async function getActive(req, res) {
   }
 }
 
-module.exports = { createCompetition, listCompetitions, endCompetition, getActive };
+/**
+ * Rubber-band handicap: trailing team gets ×1.15 multiplier on their total.
+ * This keeps tug-of-war competitive even when one team is weaker.
+ * Only applies to tug format; trophy race is raw scoring.
+ */
+function applyRubberBand(a, b) {
+  const RUBBER_BAND = 1.15;
+  if (a === b) return { a, b };
+  if (a < b) return { a: Math.round(a * RUBBER_BAND), b };
+  return { a, b: Math.round(b * RUBBER_BAND) };
+}
+
+/**
+ * Fire-and-forget: called from recordAttemptPoints after each game complete.
+ * Checks if child is in an active competition and updates analytics.
+ */
+async function onGameComplete({ school_id, child_admission_no, lesson_id, score, mode }) {
+  try {
+    await ensureSchema();
+    const c = dbm().content;
+
+    // Find active competition for this child's class
+    const [stu] = await dbm().sequelize.query(
+      `SELECT class_code FROM students WHERE admission_no=:a AND school_id=:s LIMIT 1`,
+      { replacements: { a: String(child_admission_no), s: String(school_id) }, type: dbm().Sequelize.QueryTypes.SELECT },
+    ).catch(() => []);
+    if (!stu || !stu.class_code) return;
+
+    const [compRows] = await c.query(
+      `SELECT id FROM kids_competitions
+       WHERE school_id=:s AND class_code=:c AND status='active' AND NOW() BETWEEN starts_at AND ends_at
+       LIMIT 1`,
+      { replacements: { s: String(school_id), c: stu.class_code } },
+    );
+    const comp = (compRows || [])[0];
+    if (!comp) return; // no active competition
+
+    // Only practice/test count (legacy NULL-mode counts once)
+    if (mode && mode !== 'practice' && mode !== 'test') return;
+
+    // Update analytics: increment scores, track completion
+    await c.query(
+      `INSERT INTO kids_competition_analytics
+         (id, competition_id, child_admission_no, lesson_id, total_score, questions_answered, questions_correct, status, completed_at)
+       VALUES (:id, :cid, :adm, :lid, :score, 1, :corr, 'completed', NOW())
+       ON DUPLICATE KEY UPDATE
+         total_score = total_score + VALUES(total_score),
+         questions_answered = questions_answered + 1,
+         questions_correct = questions_correct + VALUES(questions_correct),
+         status = 'completed',
+         completed_at = NOW()`,
+      {
+        replacements: {
+          id: crypto.randomUUID(),
+          cid: comp.id,
+          adm: String(child_admission_no),
+          lid: lesson_id || null,
+          score: Number(score) || 0,
+          corr: (Number(score) || 0) >= 50 ? 1 : 0,
+        },
+      },
+    );
+  } catch (err) {
+    console.error('[arena] onGameComplete hook:', err.message); // never break game flow
+  }
+}
+
+module.exports = { createCompetition, listCompetitions, endCompetition, getActive, applyRubberBand, onGameComplete };

@@ -7,6 +7,14 @@
  */
 const crypto = require('crypto');
 const db = require('../models');
+// E5: fire-and-forget competition hook (lazy require to avoid circular deps)
+let _arenaHook = null;
+function getArenaHook() {
+  if (_arenaHook === null) {
+    try { _arenaHook = require('./e3fArena').onGameComplete; } catch { _arenaHook = false; }
+  }
+  return _arenaHook || null;
+}
 
 const AVATARS = ['🐱','🐶','🦁','🐼','🦊','🐸','🐵','🦄','🐧','🐝','🐬','🦉'];
 function avatarFor(admissionNo) {
@@ -161,6 +169,12 @@ async function recordAttemptPoints({ school_id, branch_id, child_admission_no, s
        ON DUPLICATE KEY UPDATE points = points + VALUES(points), attempts = attempts + 1, games_played = games_played + 1`,
       { replacements: { s: String(school_id), y: term.academic_year, t: term.term, w: term.week_number, c: stu.class_code, a: String(child_admission_no), p: delta } }
     );
+
+    // E5: fire-and-forget competition analytics hook
+    const arenaHook = getArenaHook();
+    if (arenaHook) {
+      arenaHook({ school_id, child_admission_no, lesson_id: null, score, mode: null }).catch(() => {});
+    }
   } catch (err) {
     console.error("[leaderboard] recordAttemptPoints:", err.stack); // never break game flow
   }
