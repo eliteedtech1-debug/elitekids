@@ -118,7 +118,7 @@ interface GameConfig {
   question?: string;
   options?: { id: string; label: string; image?: string; emoji?: string; audio?: string; text?: string }[];
   answer?: string;
-  questions?: { id?: string; prompt?: string; question?: string; image?: string; scenario?: string; characterName?: string; characterImage?: string; characterEmoji?: string; setting?: string; settingImage?: string; hint?: string; speechText?: string; feedbackCorrect?: string; feedbackWrong?: string; options?: { id: string; label: string; image?: string; emoji?: string; audio?: string }[]; correctIndex?: number; correctId?: string; answer?: string }[];
+  questions?: { id?: string; prompt?: string; question?: string; image?: string; scenario?: string; characterName?: string; characterImage?: string; characterEmoji?: string; setting?: string; settingImage?: string; hint?: string; speechText?: string; feedbackCorrect?: string; feedbackWrong?: string; options?: { id: string; label: string; image?: string; emoji?: string; audio?: string }[]; correctIndex?: number; correctId?: string; answer?: string; isReview?: boolean; lesson_id?: string; question_id?: string }[];
   sentences?: { sentence: string; blanks: { id: number; answer: string }[]; wordBank?: string[]; context?: string }[];
   durationSec?: number;
   sentence?: string;
@@ -169,7 +169,7 @@ interface SceneWrapper {
 
 type GameMode = 'practice' | 'test' | 'learning';
 type Phase = 'intro' | 'play' | 'waiting-submit' | 'result' | 'learning-done' | 'retry-practice';
-type AnswerResult = { correct: boolean; expected: string; given: string };
+type AnswerResult = { correct: boolean; expected: string; given: string; question_id?: string; lesson_id?: string; is_review?: boolean };
 
 /* ── Helpers ────────────────────────────────────────────────── */
 
@@ -1808,7 +1808,7 @@ function QuizGame({
       setTapping(idx);
       setTimeout(() => setTapping(null), 300);
     }
-    onAnswer?.({ correct: isCorrect, expected: currentQ?.answer || currentQ?.correctId || options[currentQ?.correctIndex ?? -1]?.label || '', given: options[idx]?.label || '' });
+    onAnswer?.({ correct: isCorrect, expected: currentQ?.answer || currentQ?.correctId || options[currentQ?.correctIndex ?? -1]?.label || '', given: options[idx]?.label || '', question_id: currentQ?.id, lesson_id: currentQ?.lesson_id || config.lessonId, is_review: !!currentQ?.isReview });
 
     if (isCorrect) {
       if (!isTest && soundOn) playCorrect();
@@ -3247,6 +3247,9 @@ export default function GamePlay() {
   const [bossKey, setBossKey] = useState<string | null>(null);
   const comboRef = useRef<ComboState>({ current: 0, max: 0, rageCounter: 0, rageActive: false, rageRemaining: 0 });
   const [rageActive, setRageActive] = useState(false);
+  // Review mixing: track which questions are reviews from failed items
+  const [mergedQuestions, setMergedQuestions] = useState<any[] | null>(null);
+  const reviewQuestionIds = useRef(new Set<string>());
   const [comboCount, setComboCount] = useState(0);
   const [puzzleDifficulty, setPuzzleDifficulty] = useState<string>('easy');
   const sessionStartRef = useRef(Date.now());
@@ -3318,6 +3321,54 @@ export default function GamePlay() {
           setRaidId(urlRaidId);
         }
   }, [lessonId]);
+
+  // Review mixing: fetch failed items for this lesson and merge into quiz questions
+  useEffect(() => {
+    if (!lessonId || !config || lessonId.startsWith('revision-')) return;
+    // Only mix into quiz-style templates
+    const quizTemplates = ['quiz', 'tap-recognition', 'matching', 'fill-in-blank'];
+    if (!quizTemplates.includes(config.template)) return;
+
+    apiClient.get(ENDPOINTS.REVISION.FAILED_ITEMS, {
+      params: { lesson_id: lessonId, limit: 2 },
+    }).then((res) => {
+      const failedItems = res.data?.data || [];
+      if (failedItems.length === 0) return;
+
+      // Convert failed items to quiz-format questions
+      const reviewQs = failedItems.map((item: any) => ({
+        id: `review-${item.question_id}`,
+        prompt: item.question_text || 'Review: What was the correct answer?',
+        options: [
+          { id: item.correct_answer, label: item.correct_answer },
+          ...(item.given_answer && item.given_answer !== item.correct_answer
+            ? [{ id: item.given_answer, label: item.given_answer }]
+            : []),
+        ].filter((o) => o.label),
+        correctIndex: 0,
+        isReview: true,
+        question_id: item.question_id,
+        lesson_id: lessonId,
+      }));
+
+      // Filter to valid questions (need at least 2 options)
+      const valid = reviewQs.filter((q: any) => q.options.length >= 2);
+      if (valid.length === 0) return;
+
+      // Merge: insert review questions at random positions
+      const currentQuestions = config.questions || [];
+      const merged = [...currentQuestions];
+      for (const rq of valid) {
+        const insertAt = Math.min(
+          Math.floor(Math.random() * (merged.length + 1)),
+          merged.length,
+        );
+        merged.splice(insertAt, 0, rq);
+        reviewQuestionIds.current.add(rq.id);
+      }
+      setMergedQuestions(merged);
+    }).catch(() => {}); // silently ignore
+  }, [lessonId, config]);
 
   // After loading, if there are scenes, show intro first — UNLESS mode was pre-selected from URL or saved
   const introShown = useRef(false);
@@ -3424,7 +3475,27 @@ export default function GamePlay() {
       }
     }
     setAnswers((prev) => [...prev, result]);
-  }, []);
+
+    // Review mixing: track correct/wrong answers for review questions
+    if (result.question_id && lessonId) {
+      if (result.is_review && result.correct) {
+        // Review question answered correctly → mark as improving
+        apiClient.post(ENDPOINTS.REVISION.RETRY_CORRECT, {
+          lesson_id: result.lesson_id || lessonId,
+          question_id: result.question_id,
+        }).catch(() => {});
+      } else if (!result.correct && result.question_id) {
+        // Wrong answer → record as failed item
+        apiClient.post(ENDPOINTS.REVISION.RECORD_FAILED, {
+          lesson_id: result.lesson_id || lessonId,
+          question_id: result.question_id,
+          question_text: result.expected,
+          given_answer: result.given,
+          correct_answer: result.expected,
+        }).catch(() => {});
+      }
+    }
+  }, [lessonId]);
 
   // Game complete — in test mode, pause for submit; in practice, show results; in learning, show learned screen
   const handleGameComplete = useCallback(
@@ -4012,7 +4083,13 @@ export default function GamePlay() {
             <DragSortGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
           )}
           {config.template === 'quiz' && (
-            <QuizGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
+            <QuizGame
+              config={mergedQuestions ? { ...config, questions: mergedQuestions } : config}
+              onComplete={handleGameComplete}
+              soundOn={soundOn}
+              mode={mode}
+              onAnswer={handleAnswer}
+            />
           )}
           {config.template === 'memory-pairs' && (
             <MemoryPairsGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
