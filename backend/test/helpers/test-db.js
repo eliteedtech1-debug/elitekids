@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS students (
   school_id VARCHAR(20) NOT NULL,
   branch_id VARCHAR(20) NULL,
   student_name VARCHAR(191) NULL,
+  surname VARCHAR(191) NULL,
+  first_name VARCHAR(191) NULL,
   email VARCHAR(191) NULL,
   phone VARCHAR(20) NULL,
   parent_id VARCHAR(50) NULL,
@@ -451,6 +453,34 @@ CREATE TABLE IF NOT EXISTS kids_companion_state (
   UNIQUE KEY kids_companion_state_student (student_id)
 );
 
+CREATE TABLE IF NOT EXISTS kids_badges (
+  id VARCHAR(50) PRIMARY KEY,
+  child_admission_no VARCHAR(64) NOT NULL,
+  school_id VARCHAR(40) NOT NULL,
+  badge_name VARCHAR(120) NOT NULL,
+  badge_emoji VARCHAR(10) NULL,
+  badge_type VARCHAR(30) NOT NULL DEFAULT 'achievement',
+  awarded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_badges_child (child_admission_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS kids_festival_state (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  school_id VARCHAR(40) NOT NULL,
+  class_code VARCHAR(40) NOT NULL,
+  title VARCHAR(120) NOT NULL DEFAULT 'Festival of Guardians',
+  status VARCHAR(20) NOT NULL DEFAULT 'scheduled',
+  current_guardian_slug VARCHAR(30) NULL,
+  current_guardian_hp INT NOT NULL DEFAULT 100,
+  current_guardian_max_hp INT NOT NULL DEFAULT 100,
+  completed_guardians JSON NULL,
+  starts_at DATETIME NOT NULL,
+  ends_at DATETIME NULL,
+  created_by VARCHAR(64) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_fs_class (school_id, class_code, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS kids_session_state (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   session_id VARCHAR(50) NOT NULL,
@@ -492,7 +522,7 @@ async function ensureTestDb() {
 
     // Reset data between runs
     await conn.query('SET FOREIGN_KEY_CHECKS = 0');
-    for (const t of ['users', 'parents', 'students', 'school_setup', 'password_reset_tokens', 'kids_children', 'kids_progress', 'kids_lessons', 'kids_game_configs', 'kids_mode_locks', 'kids_content_approvals', 'kids_generation_jobs', 'kids_scene_scripts', 'kids_prescreen_log', 'kids_denylist_rules', 'kids_content_generation_audit', 'kids_game_series', 'kids_game_units', 'kids_curriculum_points', 'kids_library_games', 'kids_class_game_variants', 'kids_game_item_responses', 'kids_engagement_snapshots', 'kids_mastery_progress', 'kids_test_attempts', 'kids_review_schedule', 'kids_interface_onboarding', 'kids_garden_state', 'kids_companion_state', 'kids_session_state', 'kids_parental_controls']) {
+    for (const t of ['users', 'parents', 'students', 'school_setup', 'password_reset_tokens', 'kids_children', 'kids_progress', 'kids_lessons', 'kids_game_configs', 'kids_mode_locks', 'kids_content_approvals', 'kids_generation_jobs', 'kids_scene_scripts', 'kids_prescreen_log', 'kids_denylist_rules', 'kids_content_generation_audit', 'kids_game_series', 'kids_game_units', 'kids_curriculum_points', 'kids_library_games', 'kids_class_game_variants', 'kids_game_item_responses', 'kids_engagement_snapshots', 'kids_mastery_progress', 'kids_test_attempts', 'kids_review_schedule', 'kids_interface_onboarding', 'kids_garden_state', 'kids_companion_state', 'kids_session_state', 'kids_parental_controls', 'kids_badges', 'kids_festival_state']) {
       await conn.query('TRUNCATE TABLE `' + t + '`');
     }
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
@@ -532,13 +562,13 @@ async function ensureTestDb() {
 
     // Students — tablet login + parent-ownership fixtures for child linking.
     await conn.query(
-      `INSERT INTO students (admission_no, school_id, branch_id, student_name, email, phone, parent_id, guardian_id, class_code, password, user_type, status) VALUES
-       ('NUR-001', 'SCH-TEST', 'BR-TEST', 'Ada Obi',   'ada@kids.test',  '08012345678', 'U2',  NULL,  'NUR-A', ?, 'Student', 'Active'),
-       ('NUR-002', 'SCH-TEST', 'BR-TEST', 'Bola Yusuf', 'bola@kids.test', NULL,          'U2',  NULL,  'NUR-A', ?, 'Student', 'Active'),
-       ('NUR-003', 'SCH-TEST', 'BR-TEST', 'Chidi Eze', 'chidi@kids.test', '08111111111', 'U99', NULL,  'NUR-B', ?, 'Student', 'Active'),
-       ('NUR-004', 'SCH-TEST', 'BR-TEST', 'Dami Ayo',  'dami@kids.test',  NULL,          NULL,  NULL,  'NUR-B', ?, 'Student', 'Active'),
-       ('NUR-005', 'SCH-TEST', 'BR-TEST', 'Emeka Obi', 'emeka@kids.test', '08012345678', 'U2',  NULL,  'NUR-A', ?, 'Student', 'Active'),
-       ('NUR-006', 'SCH-TEST', 'BR-TEST', 'Fatima Lawal', 'fatima@kids.test', NULL,      'U2',  NULL,  'NUR-B', ?, 'Student', 'Active')`,
+      `INSERT INTO students (admission_no, school_id, branch_id, student_name, surname, first_name, email, phone, parent_id, guardian_id, class_code, password, user_type, status) VALUES
+       ('NUR-001', 'SCH-TEST', 'BR-TEST', 'Ada Obi', 'Obi', 'Ada', 'ada@kids.test',  '08012345678', 'U2',  NULL,  'NUR-A', ?, 'Student', 'Active'),
+       ('NUR-002', 'SCH-TEST', 'BR-TEST', 'Bola Yusuf', 'Yusuf', 'Bola', 'bola@kids.test', NULL,          'U2',  NULL,  'NUR-A', ?, 'Student', 'Active'),
+       ('NUR-003', 'SCH-TEST', 'BR-TEST', 'Chidi Eze', 'Eze', 'Chidi', 'chidi@kids.test', '08111111111', 'U99', NULL,  'NUR-B', ?, 'Student', 'Active'),
+       ('NUR-004', 'SCH-TEST', 'BR-TEST', 'Dami Ayo', 'Ayo', 'Dami', 'dami@kids.test',  NULL,          NULL,  NULL,  'NUR-B', ?, 'Student', 'Active'),
+       ('NUR-005', 'SCH-TEST', 'BR-TEST', 'Emeka Obi', 'Obi', 'Emeka', 'emeka@kids.test', '08012345678', 'U2',  NULL,  'NUR-A', ?, 'Student', 'Active'),
+       ('NUR-006', 'SCH-TEST', 'BR-TEST', 'Fatima Lawal', 'Lawal', 'Fatima', 'fatima@kids.test', NULL,      'U2',  NULL,  'NUR-B', ?, 'Student', 'Active')`,
       [h('Nursery@123'), h('Nursery@123'), h('Nursery@123'), h('Nursery@123'), h('Nursery@123'), h('Nursery@123')]
     );
 

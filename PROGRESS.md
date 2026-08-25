@@ -17,11 +17,13 @@ before ending every session.**
   Frontend: app shell (index.html/main.tsx/router/AuthGuard/Dashboard/Tailwind v4) renders at
   :34601; Login now fetches school crest/name from a typed short name (onBlur, resolves real
   school_id). See session log for details.
-- **Last updated:** 2026-08-17
-- **Updated by:** Buffy (Sprint 1 — media module + Redis/workers + frontend shell)
+- **Last updated:** 2026-08-25
+- **Updated by:** Buffy (E6 Boss Battles verification + E4 WebRTC voice Phase 1)
 
 ## Next up (do this first)
 
+- [ ] E4 Phase 2: Install coturn TURN server on VPS (needs sudo — blocked, config ready
+      at `infra/coturn/`). Run `sudo bash setup-coturn.sh` then restart elite-kids.
 - [ ] Sprint 1, remaining: verify a REAL B2-mode upload end to end (upload to :34600 → queued
       on kids-media-processing → media-worker sharp-processes → object lands in the
       elite-kids-* B2 bucket → served via GET /media/<key>). All the moving parts (Redis,
@@ -146,4 +148,39 @@ _(append one short entry per work session — do not delete old entries, this is
   entry. Verified with a real-browser CDP test (headless Chrome + Input.dispatchKeyEvent):
   typed DKG + Tab → "Welcome to DR. KABIRU GWARZO ACADEMY & TAHFEEZ" + cloudinary badge
   shown; typed BHA → badge shown + Kids-module gate correctly blocked (BHA kids_stand_alone=0).
+
+2026-08-25 — E6 Boss Battles verification ("Guardians of the Storm"):
+  Pushed kidsBoss.js + kidsFestival.js + e6-boss-battles.test.js to production.
+  First run: 4/11 pass. Fixed 8 bugs across 4 iterations:
+  (1) Test DB: raid collision — all describe blocks used same class_code NUR-A,
+      so only first createRaid succeeded. Fix: cleanBossState() truncates raid
+      tables between blocks.
+  (2) kidsFestival.js: case-sensitive user_type check (strict !== vs toLowerCase).
+  (3) kidsFestival.js: wrong row parsing pattern — `Array.isArray(festivals[0])`
+      always false for mysql2 row objects. Fixed 5 instances.
+  (4) kidsFestival.js: `const newHp` reassigned to 0 — changed to `let`.
+  (5) kidsBoss.js: missing `festival_id` column in kids_boss_runs DDL.
+  (6) test-db.js: missing kids_badges + kids_festival_state tables in DDL.
+  (7) kidsBoss.js: `const [nameRows]` destructuring wrong for QueryTypes.SELECT
+      (returns array directly, not [rows, metadata]). Fixed 2 instances.
+  (8) webrtc.ts: `pc.addTrack(this.localStream, this.localStream)` should be
+      `pc.addTrack(track, this.localStream)` — TS build error.
+  Final result: **11/11 PASS** on production VPS.
+
+2026-08-25 — E4 Phase 1 — Realtime WebRTC voice:
+  Backend e3fLive.js already had full ws-based WebRTC signaling (offer/answer/
+  ICE relay, broadcast start/stop, floor+mic grants) gated by LIVE_WEBRTC=1.
+  Frontend webrtc.ts + audio.ts with TeacherWebRTC/StudentWebRTC adapters
+  already written. Added:
+  - LIVE_WEBRTC=1 + TURN_URLS/TURN_USER/TURN_PASS/STUN_URLS to production .env
+  - coturn config at infra/coturn/turnserver.conf + setup-coturn.sh (blocked
+      on sudo — needs VPS owner to run)
+  - elite-kids now managed by PM2 (was standalone process)
+  - Fixed 8 bugs found during testing (see E6 entry above)
+  - Wrote e4-webrtc-signaling.test.js (10 tests): welcome flag, ICE config,
+      offer/answer/ICE relay, broadcast signals, floor+mic grants, disabled
+      mode. All **10/10 PASS** on production.
+  BLOCKER: coturn needs sudo to install. TURN credentials set in .env but
+  no TURN server running yet. WebRTC works with STUN fallback; TURN needed
+  for CGNAT environments (Nigerian mobile ISPs).
 ```

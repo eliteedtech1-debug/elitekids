@@ -1,83 +1,70 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Swords, Heart, Clock, Users, Zap, Shield } from 'lucide-react';
-import { playBossAttack, playVictory, playDefeatEncourage } from '@/lib/game/sound-effects';
+import { Swords, Heart, Zap, Shield } from 'lucide-react';
+import { playVictory } from '@/lib/game/sound-effects';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
 /* ── Types ──────────────────────────────────────────────────── */
 
-interface Guardian {
-  key: string;
+interface GuardianInfo {
+  slug: string;
   name: string;
+  emoji: string;
   title: string;
-  hp: number;
-  weakness: string;
-  aura: string;
 }
 
-interface RaidMember {
-  admission_no: string;
-  display_name: string;
-  total_damage: number;
-  correct: number;
-  wrong: number;
+interface HpInfo {
+  current: number;
+  max: number;
+  pct: number;
+}
+
+interface TopDamage {
+  name: string;
+  damage: number;
 }
 
 interface RaidData {
-  raid_id: string;
-  boss_key: string;
-  status: 'active' | 'defeated' | 'failed';
-  current_hp: number;
-  max_hp: number;
-  members: RaidMember[];
-  member_count: number;
-  total_damage: number;
-  game_ids: string[];
-  tier: string;
-  created_at: string;
+  active: boolean;
+  id: string;
+  title: string;
+  guardian: GuardianInfo;
+  hp: HpInfo;
+  games: { lesson_id: string; config_id: string | null; order_index: number }[];
+  my_damage: number;
+  my_status: string;
+  top_damage: TopDamage[];
+  ends_at: string;
 }
 
 interface Props {
   onDismiss?: () => void;
 }
 
-/* ── Guardian avatars (Nigerian mythology) ──────────────────── */
-
-const GUARDIAN_AVATARS: Record<string, string> = {
-  mama_water: '🐍',
-  alajobi: '🦅',
-  efun_spirit: '👻',
-  agwu: '👹',
-  jungle_spirit: '🌿',
-  storm_guardian: '⚡',
-};
-
-const GUARDIAN_TITLES: Record<string, string> = {
-  mama_water: 'Guardian of the Waters',
-  alajobi: 'The Three-Headed Eagle',
-  efun_spirit: 'Spirit of the Ancient Forest',
-  agwu: 'The Wild One',
-  jungle_spirit: 'Voice of the Green',
-  storm_guardian: 'Keeper of Thunder',
+/* ── Guardian wisdom quotes on defeat (Nigerian mythology) ──── */
+const GUARDIAN_WISDOM: Record<string, string> = {
+  sango: 'The thunder remembers your courage, young one.',
+  anansi: 'Three heads bowed to your wisdom.',
+  amina: 'The fortress walls bow to your strength.',
+  baobab: 'The ancient tree bows to your knowledge.',
+  mami: 'The waters remember your courage, young one.',
+  elena: 'Every path leads to those who seek wisely.',
 };
 
 export default function BossBattleOverlay({ onDismiss }: Props) {
   const navigate = useNavigate();
   const [raid, setRaid] = useState<RaidData | null>(null);
-  const [guardian, setGuardian] = useState<Guardian | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [joining, setJoining] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
-  const [defeated, setDefeated] = useState(false);
 
   const loadRaid = useCallback(async () => {
     try {
       const res = await apiClient.get(ENDPOINTS.BOSS.RAID_ACTIVE);
       const data = res.data?.data;
       if (data?.active) {
-        setRaid(data.raid);
-        if (data.guardian) setGuardian(data.guardian);
+        setRaid(data);
       } else {
         setRaid(null);
       }
@@ -95,22 +82,21 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
   }, [loadRaid]);
 
   useEffect(() => {
-    if (raid?.status === 'defeated' && !showVictory) {
+    if (raid && raid.hp.current <= 0 && !showVictory) {
       playVictory();
       setShowVictory(true);
     }
-    if (raid?.status === 'failed' && !defeated) {
-      playDefeatEncourage();
-      setDefeated(true);
-    }
-  }, [raid?.status, showVictory, defeated]);
+  }, [raid, showVictory]);
 
   const handleGoFight = async () => {
     if (!raid) return;
     setJoining(true);
     try {
-      // Navigate to GamePlay in boss raid mode
-      navigate(`/student/play?boss_mode=raid&raid_id=${raid.raid_id}`);
+      // Navigate to first game in the raid
+      const firstGame = raid.games?.[0];
+      if (firstGame?.lesson_id) {
+        navigate(`/student/game/${firstGame.lesson_id}?boss_mode=raid&raid_id=${raid.id}`);
+      }
     } finally {
       setJoining(false);
     }
@@ -126,10 +112,10 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
 
   if (!raid) return null;
 
-  const hpPct = Math.max(0, Math.round((raid.current_hp / raid.max_hp) * 100));
-  const isBossAlive = raid.status === 'active';
-  const avatar = GUARDIAN_AVATARS[raid.boss_key] || '👹';
-  const title = GUARDIAN_TITLES[raid.boss_key] || 'Ancient Guardian';
+  const hpPct = raid.hp.pct;
+  const isBossAlive = raid.hp.current > 0;
+  const avatar = raid.guardian?.emoji || '⚔️';
+  const title = raid.guardian?.title || 'Ancient Guardian';
 
   /* ── Victory Screen ──────────────────────────────────────── */
   if (showVictory) {
@@ -141,11 +127,7 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
           <p className="text-sm text-amber-600 mt-1">{title} has been outwitted</p>
           <div className="mt-4 bg-amber-100 rounded-xl p-3">
             <p className="text-xs text-amber-700 italic">
-              "{raid.boss_key === 'mama_water'
-                ? 'The waters remember your courage, young one.'
-                : raid.boss_key === 'alajobi'
-                ? 'Three heads bowed to your wisdom.'
-                : 'The ancient forest bows to your strength.'}"
+              "{GUARDIAN_WISDOM[raid.guardian?.slug || ''] || 'Knowledge is the greatest weapon!'}"
             </p>
           </div>
           <button
@@ -153,26 +135,6 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
             className="mt-4 px-6 py-2 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition"
           >
             Collect Rewards
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Defeated Screen ─────────────────────────────────────── */
-  if (defeated) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="bg-gradient-to-br from-gray-100 to-slate-200 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl border-2 border-gray-300">
-          <div className="text-6xl mb-3 opacity-60">{avatar}</div>
-          <h2 className="text-xl font-bold text-gray-700">Not This Time...</h2>
-          <p className="text-sm text-gray-500 mt-1">{title} held strong</p>
-          <p className="text-xs text-gray-400 mt-2">Practice more and try again — you can do it!</p>
-          <button
-            onClick={onDismiss}
-            className="mt-4 px-6 py-2 bg-gray-500 text-white rounded-xl font-bold hover:bg-gray-600 transition"
-          >
-            Keep Practicing
           </button>
         </div>
       </div>
@@ -190,13 +152,8 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
             <Swords className="h-4 w-4 text-red-500" />
             <span className="text-xs font-bold text-red-600 uppercase tracking-wide">Boss Raid Active</span>
           </div>
-          <h3 className="text-lg font-bold text-red-800">{title}</h3>
+          <h3 className="text-lg font-bold text-red-800">{raid.title || title}</h3>
         </div>
-        {raid.tier && (
-          <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-600 uppercase">
-            {raid.tier}
-          </span>
-        )}
       </div>
 
       {/* HP Bar */}
@@ -206,7 +163,7 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
             <Heart className="h-3 w-3" /> Guardian HP
           </span>
           <span className="font-mono font-bold text-red-700">
-            {raid.current_hp.toLocaleString()} / {raid.max_hp.toLocaleString()}
+            {raid.hp.current.toLocaleString()} / {raid.hp.max.toLocaleString()}
           </span>
         </div>
         <div className="h-4 bg-red-100 rounded-full overflow-hidden border border-red-200">
@@ -220,31 +177,28 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
       {/* Stats Row */}
       <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
         <span className="flex items-center gap-1">
-          <Users className="h-3 w-3" /> {raid.member_count} fighter{raid.member_count !== 1 ? 's' : ''}
+          <Zap className="h-3 w-3" /> {raid.my_damage} your damage
         </span>
-        <span className="flex items-center gap-1">
-          <Zap className="h-3 w-3" /> {raid.total_damage.toLocaleString()} total damage
-        </span>
-        {raid.game_ids?.length > 0 && (
+        {raid.games?.length > 0 && (
           <span className="flex items-center gap-1">
-            <Shield className="h-3 w-3" /> {raid.game_ids.length} game{raid.game_ids.length !== 1 ? 's' : ''}
+            <Shield className="h-3 w-3" /> {raid.games.length} game{raid.games.length !== 1 ? 's' : ''}
           </span>
         )}
       </div>
 
       {/* Top fighters */}
-      {raid.members.length > 0 && (
+      {raid.top_damage?.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-1">
-          {raid.members.slice(0, 5).map((m, i) => (
+          {raid.top_damage.slice(0, 5).map((m, i) => (
             <span
-              key={m.admission_no}
+              key={m.name}
               className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                 i === 0
                   ? 'bg-amber-100 text-amber-700'
                   : 'bg-white text-gray-600 border border-gray-200'
               }`}
             >
-              {i === 0 ? '🏆 ' : ''}{m.display_name} ({m.total_damage})
+              {i === 0 ? '🏆 ' : ''}{m.name} ({m.damage})
             </span>
           ))}
         </div>
