@@ -225,6 +225,12 @@ export default function TeacherLessons() {
               <RefreshCw className="h-3 w-3" /> Refresh
             </button>
             <Link
+              to="/teacher/nerdc-report"
+              className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+            >
+              📊 NERDC Report
+            </Link>
+            <Link
               to="/teacher/create-game"
               className="inline-flex items-center gap-1 rounded-lg bg-[#0F4D92] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0b3d76]"
             >

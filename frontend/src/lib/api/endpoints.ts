@@ -27,6 +27,12 @@ export const ENDPOINTS = {
     LINK: '/kids/children/link',
   },
 
+  // NERDC curriculum compliance
+  NERDC: {
+    REPORT: '/kids/nerdc/report',
+    REPORT_CSV: '/kids/nerdc/report?format=csv',
+  },
+
   // Lessons & content
   LESSONS: {
     LIST: '/kids/lessons',

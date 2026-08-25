@@ -6,6 +6,7 @@ import ParentChildren from '@/pages/Parent/ParentChildren';
 import ParentActivities from '@/pages/Parent/ParentActivities';
 import StudentHome from '@/pages/Student/StudentHome';
 import TeacherLessons from '@/pages/Teacher/TeacherLessons';
+import NerdcReport from '@/pages/Teacher/NerdcReport';
 import TeacherApprovals from '@/pages/Teacher/TeacherApprovals';
 import TeacherArena from './pages/Teacher/TeacherArena';
 import TeacherLive from './pages/Teacher/TeacherLive';
@@ -87,6 +88,14 @@ export default function App() {
         element={
           <AuthGuard>
             <TeacherLessons />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/nerdc-report"
+        element={
+          <AuthGuard>
+            <NerdcReport />
           </AuthGuard>
         }
       />

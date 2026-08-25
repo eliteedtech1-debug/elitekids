@@ -22,6 +22,7 @@ const {
   listParentActivities,
   listLessons,
   getPuzzleDifficultyStatus,
+  nerdcReport,
 } = require('../controllers/kids');
 const {
   createSeries,
@@ -106,6 +107,7 @@ module.exports = (app) => {
 
   // ── Lessons (listing for students/parents + CRUD for staff) ──────────────
   app.get('/kids/lessons', auth, listLessons);
+  app.get('/kids/nerdc/report', auth, requireStaff, nerdcReport);
   // ── FB-17 weekly competition ───────────────────────────────────────────
   app.get('/kids/leaderboard/me', auth, getMyStatus);
   app.get('/kids/leaderboard', auth, getLeaderboard);

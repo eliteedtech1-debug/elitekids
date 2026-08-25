@@ -421,6 +421,78 @@ async function listLessons(req, res) {
   }
 }
 
+/**
+ * GET /kids/nerdc/report — NERDC curriculum mapping report (staff only).
+ * Returns lessons grouped by strand/sub-strand with counts, plus a flat
+ * list for CSV export.
+ */
+async function nerdcReport(req, res) {
+  try {
+    const school_id = req.headers['x-school-id'] || req.user.school_id;
+    const { Op } = db.Sequelize;
+    const { format } = req.query; // 'csv' for download, default = json
+
+    const lessons = await db.KidLesson.findAll({
+      where: {
+        [Op.or]: [
+          { school_id },
+          { school_id: PLATFORM_SCHOOL_ID, is_global: 1 },
+        ],
+      },
+      attributes: ['id', 'title', 'subject', 'age_level', 'lesson_type', 'content_state', 'nerdc_code', 'nerdc_strand', 'nerdc_sub_strand', 'created_at'],
+      order: [['nerdc_strand', 'ASC'], ['nerdc_sub_strand', 'ASC'], ['title', 'ASC']],
+      raw: true,
+    });
+
+    // Group by strand
+    const strandMap = new Map();
+    for (const l of lessons) {
+      const strand = l.nerdc_strand || 'Unassigned';
+      const sub = l.nerdc_sub_strand || 'Unassigned';
+      if (!strandMap.has(strand)) strandMap.set(strand, new Map());
+      const subMap = strandMap.get(strand);
+      if (!subMap.has(sub)) subMap.set(sub, []);
+      subMap.get(sub).push(l);
+    }
+
+    // Build summary
+    const summary = [];
+    for (const [strand, subMap] of strandMap) {
+      const subStrands = [];
+      let strandTotal = 0;
+      for (const [sub, items] of subMap) {
+        subStrands.push({ name: sub, count: items.length, lessons: items });
+        strandTotal += items.length;
+      }
+      summary.push({ strand, total: strandTotal, subStrands });
+    }
+
+    const stats = {
+      total_lessons: lessons.length,
+      assigned: lessons.filter((l) => l.nerdc_code).length,
+      unassigned: lessons.filter((l) => !l.nerdc_code).length,
+      strands: summary.length,
+    };
+
+    // CSV format
+    if (format === 'csv') {
+      const header = 'ID,Title,Subject,Age Level,Lesson Type,Status,NERDC Code,Strand,Sub-Strand,Created';
+      const rows = lessons.map((l) =>
+        [l.id, `"${(l.title || '').replace(/"/g, '""')}"`, `"${(l.subject || '').replace(/"/g, '""')}"`, l.age_level, l.lesson_type, l.content_state, l.nerdc_code || '', l.nerdc_strand || '', l.nerdc_sub_strand || '', l.created_at].join(',')
+      );
+      const csv = [header, ...rows].join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="nerdc-curriculum-mapping.csv"');
+      return res.send(csv);
+    }
+
+    return res.json({ success: true, data: { summary, stats, lessons } });
+  } catch (err) {
+    console.error('nerdcReport error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 // ── Lessons (teacher/admin) ────────────────────────────────────────────────
 
 /** POST /kids/lessons — create a lesson + enqueue AI generation. */
@@ -1243,4 +1315,5 @@ module.exports = {
   listApprovals,
   listParentActivities,
   listLessons,
+  nerdcReport,
 };
