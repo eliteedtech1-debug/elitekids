@@ -13,318 +13,18 @@ const db = require('../models');
 const SCHOOL = { school_id: 'SCH-KIDS', branch_id: 'BR-MAIN', created_by: 'SYSTEM' };
 
 // ── Animals Series ────────────────────────────────────────────────────────────
-const ANIMALS_SERIES_ID = 'series-animals';
+const ANIMALS_SERIES_ID = 'eb386a93-6843-4928-9b75-59a1d17d613a';
 const ANIMALS_UNITS = [
-  {
-    id: 'unit-animals-u5', unit_number: 5, title: 'Farm Friends: Cows, Goats, Chickens',
-    age: 'KG1', tier: 2, prereq: null,
-    objective: 'Identify common farm animals and their sounds; match animals to products they provide.',
-    xp: 25, threshold: 50, duration: 120,
-    games: [
-      {
-        key: 'tap', template: 'tap-recognition', domain: 'cognitive',
-        itemTitle: 'Tap the Farm Animal',
-        prompt: 'Tap the animal I describe!',
-        items: [
-          { emoji: '🐄', label: 'Cow' },
-          { emoji: '🐐', label: 'Goat' },
-          { emoji: '🐔', label: 'Chicken' },
-          { emoji: '🐑', label: 'Sheep' },
-          { emoji: '🐷', label: 'Pig' },
-          { emoji: '🐴', label: 'Horse' },
-        ],
-        responseMode: 'image',
-      },
-      {
-        key: 'match', template: 'matching', domain: 'cognitive',
-        itemTitle: 'Match Animal to Sound',
-        pairs: [
-          { a: '🐄 Cow', b: 'Moo' },
-          { a: '🐐 Goat', b: 'Baa' },
-          { a: '🐔 Chicken', b: 'Cluck' },
-          { a: '🐑 Sheep', b: 'Baa' },
-          { a: '🐷 Pig', b: 'Oink' },
-          { a: '🐴 Horse', b: 'Neigh' },
-        ],
-      },
-      {
-        key: 'sort', template: 'drag-sort', domain: 'psychomotor',
-        itemTitle: 'Order by Size',
-        context: 'Put farm animals from smallest to largest.',
-        items: [
-          { num: 1, label: '🐔 Chicken' },
-          { num: 2, label: '🐑 Sheep' },
-          { num: 3, label: '🐐 Goat' },
-          { num: 4, label: '🐷 Pig' },
-          { num: 5, label: '🐄 Cow' },
-          { num: 6, label: '🐴 Horse' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'unit-animals-u6', unit_number: 6, title: 'Jungle Explorers: Lions, Elephants, Monkeys',
-    age: 'KG1', tier: 2, prereq: 'unit-animals-u5',
-    objective: 'Identify wild jungle animals; understand habitats and basic food chains.',
-    xp: 25, threshold: 50, duration: 130,
-    games: [
-      {
-        key: 'tap', template: 'tap-recognition', domain: 'cognitive',
-        itemTitle: 'Find the Jungle Animal',
-        prompt: 'Tap the jungle animal!',
-        items: [
-          { emoji: '🦁', label: 'Lion' },
-          { emoji: '🐘', label: 'Elephant' },
-          { emoji: '🐒', label: 'Monkey' },
-          { emoji: '🦒', label: 'Giraffe' },
-          { emoji: '🐊', label: 'Crocodile' },
-          { emoji: '🦜', label: 'Parrot' },
-        ],
-        responseMode: 'image',
-      },
-      {
-        key: 'quiz', template: 'quiz', domain: 'cognitive',
-        itemTitle: 'Jungle Knowledge Quiz',
-        questions: [
-          {
-            id: 'q-lion', prompt: 'Which jungle animal is called the King of the Jungle?',
-            options: [
-              { id: 'elephant', label: '🐘 Elephant' },
-              { id: 'lion', label: '🦁 Lion' },
-              { id: 'monkey', label: '🐒 Monkey' },
-              { id: 'giraffe', label: '🦒 Giraffe' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-elephant', prompt: 'Which animal has a long trunk?',
-            options: [
-              { id: 'lion', label: '🦁 Lion' },
-              { id: 'giraffe', label: '🦒 Giraffe' },
-              { id: 'elephant', label: '🐘 Elephant' },
-              { id: 'crocodile', label: '🐊 Crocodile' },
-            ], correctIndex: 2,
-          },
-          {
-            id: 'q-monkey', prompt: 'Which animal swings from tree to tree?',
-            options: [
-              { id: 'parrot', label: '🦜 Parrot' },
-              { id: 'monkey', label: '🐒 Monkey' },
-              { id: 'lion', label: '🦁 Lion' },
-              { id: 'elephant', label: '🐘 Elephant' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-giraffe', prompt: 'Which animal has a very long neck?',
-            options: [
-              { id: 'giraffe', label: '🦒 Giraffe' },
-              { id: 'lion', label: '🦁 Lion' },
-              { id: 'monkey', label: '🐒 Monkey' },
-              { id: 'crocodile', label: '🐊 Crocodile' },
-            ], correctIndex: 0,
-          },
-          {
-            id: 'q-parrot', prompt: 'Which animal can repeat words you say?',
-            options: [
-              { id: 'elephant', label: '🐘 Elephant' },
-              { id: 'lion', label: '🦁 Lion' },
-              { id: 'monkey', label: '🐒 Monkey' },
-              { id: 'parrot', label: '🦜 Parrot' },
-            ], correctIndex: 3,
-          },
-        ],
-      },
-      {
-        key: 'match', template: 'matching', domain: 'cognitive',
-        itemTitle: 'Match Animal to Home',
-        pairs: [
-          { a: '🦁 Lion', b: 'Grassland' },
-          { a: '🐘 Elephant', b: 'Savanna' },
-          { a: '🐒 Monkey', b: 'Trees' },
-          { a: '🦒 Giraffe', b: 'Acacia Tree' },
-          { a: '🦜 Parrot', b: 'Rainforest' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'unit-animals-u7', unit_number: 7, title: 'Ocean Swimmers: Fish, Whales, Dolphins',
-    age: 'KG2', tier: 2, prereq: 'unit-animals-u6',
-    objective: 'Identify sea creatures; understand ocean habitats and adaptations.',
-    xp: 30, threshold: 55, duration: 140,
-    games: [
-      {
-        key: 'tap', template: 'tap-recognition', domain: 'cognitive',
-        itemTitle: 'Find the Sea Creature',
-        prompt: 'Tap the ocean animal!',
-        items: [
-          { emoji: '🐟', label: 'Fish' },
-          { emoji: '🐋', label: 'Whale' },
-          { emoji: '🐬', label: 'Dolphin' },
-          { emoji: '🦈', label: 'Shark' },
-          { emoji: '🐙', label: 'Octopus' },
-          { emoji: '🦀', label: 'Crab' },
-          { emoji: '🐢', label: 'Turtle' },
-        ],
-        responseMode: 'image',
-      },
-      {
-        key: 'match', template: 'matching', domain: 'cognitive',
-        itemTitle: 'Match Sea Creature to Fact',
-        pairs: [
-          { a: '🐋 Whale', b: 'Biggest animal' },
-          { a: '🐬 Dolphin', b: 'Very smart' },
-          { a: '🦈 Shark', b: 'Sharp teeth' },
-          { a: '🐙 Octopus', b: '8 arms' },
-          { a: '🐢 Turtle', b: 'Hard shell' },
-        ],
-      },
-      {
-        key: 'quiz', template: 'quiz', domain: 'cognitive',
-        itemTitle: 'Ocean Quiz',
-        questions: [
-          {
-            id: 'q-whale', prompt: 'Which is the biggest animal in the ocean?',
-            options: [
-              { id: 'fish', label: '🐟 Fish' },
-              { id: 'whale', label: '🐋 Whale' },
-              { id: 'shark', label: '🦈 Shark' },
-              { id: 'dolphin', label: '🐬 Dolphin' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-octopus', prompt: 'How many arms does an octopus have?',
-            options: [
-              { id: '4', label: '4 arms' },
-              { id: '6', label: '6 arms' },
-              { id: '8', label: '8 arms' },
-              { id: '10', label: '10 arms' },
-            ], correctIndex: 2,
-          },
-          {
-            id: 'q-dolphin', prompt: 'Dolphins are known for being...',
-            options: [
-              { id: 'slow', label: 'Very slow' },
-              { id: 'smart', label: 'Very smart' },
-              { id: 'scary', label: 'Very scary' },
-              { id: 'quiet', label: 'Very quiet' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-turtle', prompt: 'What protects a sea turtle?',
-            options: [
-              { id: 'fur', label: 'Fur' },
-              { id: 'shell', label: 'Hard shell' },
-              { id: 'spikes', label: 'Spikes' },
-              { id: 'wings', label: 'Wings' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-shark', prompt: 'Sharks are known for their...',
-            options: [
-              { id: 'fins', label: 'Bright colors' },
-              { id: 'teeth', label: 'Sharp teeth' },
-              { id: 'shell', label: 'Hard shell' },
-              { id: 'wings', label: 'Wings' },
-            ], correctIndex: 1,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'unit-animals-u8', unit_number: 8, title: 'Night Animals: Owls, Bats, Fireflies',
-    age: 'KG2', tier: 2, prereq: 'unit-animals-u7',
-    objective: 'Identify nocturnal animals; understand why some animals sleep during the day.',
-    xp: 30, threshold: 55, duration: 140,
-    games: [
-      {
-        key: 'tap', template: 'tap-recognition', domain: 'cognitive',
-        itemTitle: 'Find the Night Animal',
-        prompt: 'Tap the animal that comes out at night!',
-        items: [
-          { emoji: '🦉', label: 'Owl' },
-          { emoji: '🦇', label: 'Bat' },
-          { emoji: '✨', label: 'Firefly' },
-          { emoji: '🦊', label: 'Fox' },
-          { emoji: '🐸', label: 'Frog' },
-          { emoji: '🌙', label: 'Moth' },
-        ],
-        responseMode: 'image',
-      },
-      {
-        key: 'quiz', template: 'quiz', domain: 'cognitive',
-        itemTitle: 'Night Animal Quiz',
-        questions: [
-          {
-            id: 'q-owl', prompt: 'Which animal can see in the dark?',
-            options: [
-              { id: 'chicken', label: '🐔 Chicken' },
-              { id: 'owl', label: '🦉 Owl' },
-              { id: 'fish', label: '🐟 Fish' },
-              { id: 'cow', label: '🐄 Cow' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-bat', prompt: 'Bats sleep during the...',
-            options: [
-              { id: 'night', label: 'Night' },
-              { id: 'day', label: 'Day' },
-              { id: 'morning', label: 'Morning' },
-              { id: 'evening', label: 'Evening' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-firefly', prompt: 'What is special about fireflies?',
-            options: [
-              { id: 'fast', label: 'They run fast' },
-              { id: 'glow', label: 'They glow in the dark' },
-              { id: 'swim', label: 'They swim' },
-              { id: 'fly', label: 'They are very big' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-nocturnal', prompt: 'Animals that sleep during the day and wake at night are called...',
-            options: [
-              { id: 'diurnal', label: 'Diurnal' },
-              { id: 'nocturnal', label: 'Nocturnal' },
-              { id: 'noisy', label: 'Noisy' },
-              { id: 'normal', label: 'Normal' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-frog', prompt: 'Frogs are most active at...',
-            options: [
-              { id: 'noon', label: 'Noon' },
-              { id: 'night', label: 'Night' },
-              { id: 'morning', label: 'Morning' },
-              { id: 'afternoon', label: 'Afternoon' },
-            ], correctIndex: 1,
-          },
-        ],
-      },
-      {
-        key: 'match', template: 'matching', domain: 'cognitive',
-        itemTitle: 'Match Night Animal to Sound',
-        pairs: [
-          { a: '🦉 Owl', b: 'Hoot' },
-          { a: '🦇 Bat', b: 'Squeak' },
-          { a: '🐸 Frog', b: 'Ribbit' },
-          { a: '🦊 Fox', b: 'Yip' },
-          { a: '✨ Firefly', b: 'Glow' },
-        ],
-      },
-    ],
-  },
   {
     id: 'unit-animals-u9', unit_number: 9, title: 'Arctic Animals: Penguins, Polar Bears, Seals',
     age: 'Primary', tier: 3, prereq: 'unit-animals-u8',
-    objective: 'Identify arctic animals; understand cold weather adaptations and survival.',
-    xp: 35, threshold: 60, duration: 150,
+    objective: 'Identify arctic animals and their adaptations; understand extreme habitats.',
+    xp: 35, threshold: 55, duration: 150,
     games: [
       {
         key: 'tap', template: 'tap-recognition', domain: 'cognitive',
         itemTitle: 'Find the Arctic Animal',
-        prompt: 'Tap the animal that lives in the cold!',
+        prompt: 'Tap the arctic animal!',
         items: [
           { emoji: '🐧', label: 'Penguin' },
           { emoji: '🐻‍❄️', label: 'Polar Bear' },
@@ -340,48 +40,48 @@ const ANIMALS_UNITS = [
         itemTitle: 'Arctic Animal Quiz',
         questions: [
           {
-            id: 'q-penguin', prompt: 'Where do penguins live?',
+            id: 'q-penguin', prompt: 'Which arctic animal cannot fly but swims very well?',
             options: [
-              { id: 'desert', label: '🏜️ Desert' },
-              { id: 'arctic', label: '❄️ Cold places' },
-              { id: 'jungle', label: '🌴 Jungle' },
-              { id: 'city', label: '🏙️ City' },
-            ], correctIndex: 1,
-          },
-          {
-            id: 'q-polar', prompt: 'Polar bears are white to...',
-            options: [
-              { id: 'hide', label: 'Hide in the snow' },
-              { id: 'swim', label: 'Swim faster' },
-              { id: 'eat', label: 'Eat better' },
-              { id: 'fly', label: 'Fly' },
+              { id: 'penguin', label: '🐧 Penguin' },
+              { id: 'fox', label: '🦊 Arctic Fox' },
+              { id: 'bear', label: '🐻‍❄️ Polar Bear' },
+              { id: 'seal', label: '🦭 Seal' },
             ], correctIndex: 0,
           },
           {
-            id: 'q-seal', prompt: 'Seals are good at...',
+            id: 'q-bear', prompt: 'Which animal is white and very strong?',
             options: [
-              { id: 'climb', label: 'Climbing trees' },
-              { id: 'swim', label: 'Swimming' },
-              { id: 'running', label: 'Running fast' },
-              { id: 'flying', label: 'Flying' },
+              { id: 'whale', label: '🐋 Beluga Whale' },
+              { id: 'bear', label: '🐻‍❄️ Polar Bear' },
+              { id: 'otter', label: '🦦 Otter' },
+              { id: 'penguin', label: '🐧 Penguin' },
             ], correctIndex: 1,
           },
           {
-            id: 'q-fox', prompt: 'The arctic fox changes color in...',
+            id: 'q-fox', prompt: 'Which arctic animal changes its coat to white in winter?',
             options: [
-              { id: 'summer', label: 'Summer' },
-              { id: 'winter', label: 'Winter' },
-              { id: 'spring', label: 'Spring' },
-              { id: 'never', label: 'Never' },
-            ], correctIndex: 1,
+              { id: 'fox', label: '🦊 Arctic Fox' },
+              { id: 'seal', label: '🦭 Seal' },
+              { id: 'whale', label: '🐋 Beluga Whale' },
+              { id: 'bear', label: '🐻‍❄️ Polar Bear' },
+            ], correctIndex: 0,
           },
           {
-            id: 'q-beluga', prompt: 'Beluga whales are also called...',
+            id: 'q-seal', prompt: 'Which animal has whiskers and lives on ice and water?',
             options: [
-              { id: 'black', label: 'Black whales' },
-              { id: 'canaries', label: 'Canaries of the sea' },
-              { id: 'giants', label: 'Giants' },
-              { id: 'dancers', label: 'Dancers' },
+              { id: 'penguin', label: '🐧 Penguin' },
+              { id: 'otter', label: '🦦 Otter' },
+              { id: 'seal', label: '🦭 Seal' },
+              { id: 'fox', label: '🦊 Arctic Fox' },
+            ], correctIndex: 2,
+          },
+          {
+            id: 'q-whale', prompt: 'Which arctic animal sings underwater?',
+            options: [
+              { id: 'bear', label: '🐻‍❄️ Polar Bear' },
+              { id: 'whale', label: '🐋 Beluga Whale' },
+              { id: 'penguin', label: '🐧 Penguin' },
+              { id: 'fox', label: '🦊 Arctic Fox' },
             ], correctIndex: 1,
           },
         ],
@@ -390,8 +90,8 @@ const ANIMALS_UNITS = [
         key: 'match', template: 'matching', domain: 'cognitive',
         itemTitle: 'Match Arctic Animal to Adaptation',
         pairs: [
-          { a: '🐧 Penguin', b: 'Swims fast' },
-          { a: '🐻‍❄️ Polar Bear', b: 'Thick fur' },
+          { a: '🐧 Penguin', b: 'Swims underwater' },
+          { a: '🐻‍❄️ Polar Bear', b: 'Thick white fur' },
           { a: '🦭 Seal', b: 'Blubber layer' },
           { a: '🦊 Arctic Fox', b: 'White coat' },
           { a: '🐋 Beluga', b: 'Echolocation' },
@@ -408,7 +108,7 @@ const ANIMALS_UNITS = [
       {
         key: 'tap', template: 'tap-recognition', domain: 'cognitive',
         itemTitle: 'Find the Animal Champion',
-        prompt: 'Tap the animal I describe!',
+        prompt: 'Tap the champion animal!',
         items: [
           { emoji: '🐆', label: 'Cheetah (Fastest)' },
           { emoji: '🐘', label: 'Elephant (Strongest)' },
@@ -424,7 +124,7 @@ const ANIMALS_UNITS = [
         itemTitle: 'Animal Champions Quiz',
         questions: [
           {
-            id: 'q-fast', prompt: 'Which is the fastest animal on land?',
+            id: 'q-speed', prompt: 'Which animal is the fastest on land?',
             options: [
               { id: 'lion', label: '🦁 Lion' },
               { id: 'cheetah', label: '🐆 Cheetah' },
@@ -433,61 +133,62 @@ const ANIMALS_UNITS = [
             ], correctIndex: 1,
           },
           {
-            id: 'q-strong', prompt: 'Which animal can carry the most weight?',
+            id: 'q-strong', prompt: 'Which animal is the strongest?',
             options: [
-              { id: 'ant', label: '🐜 Ant' },
-              { id: 'horse', label: '🐴 Horse' },
               { id: 'elephant', label: '🐘 Elephant' },
-              { id: 'lion', label: '🦁 Lion' },
-            ], correctIndex: 2,
-          },
-          {
-            id: 'q-camo', prompt: 'Which animal can change its color to hide?',
-            options: [
-              { id: 'chameleon', label: '🦎 Chameleon' },
-              { id: 'lion', label: '🦁 Lion' },
-              { id: 'fish', label: '🐟 Fish' },
-              { id: 'bird', label: '🐦 Bird' },
+              { id: 'tiger', label: '🐯 Tiger' },
+              { id: 'bear', label: '🐻 Bear' },
+              { id: 'cow', label: '🐄 Cow' },
             ], correctIndex: 0,
           },
           {
-            id: 'q-eyes', prompt: 'Which animal has the best eyesight?',
+            id: 'q-camo', prompt: 'Which animal can change its color to match surroundings?',
             options: [
-              { id: 'mouse', label: '🐭 Mouse' },
-              { id: 'eagle', label: '🦅 Eagle' },
               { id: 'frog', label: '🐸 Frog' },
               { id: 'snake', label: '🐍 Snake' },
+              { id: 'chameleon', label: '🦎 Chameleon' },
+              { id: 'fish', label: '🐟 Fish' },
+            ], correctIndex: 2,
+          },
+          {
+            id: 'q-eyes', prompt: 'Which animal has the biggest eyes relative to its body?',
+            options: [
+              { id: 'owl', label: '🦉 Owl' },
+              { id: 'squid', label: '🦑 Squid' },
+              { id: 'cat', label: '🐱 Cat' },
+              { id: 'frog', label: '🐸 Frog' },
             ], correctIndex: 1,
           },
           {
-            id: 'q-smart', prompt: 'Which animal can use tools and solve puzzles?',
+            id: 'q-smart', prompt: 'Which animal is known as one of the smartest in the ocean?',
             options: [
-              { id: 'fish', label: '🐟 Fish' },
-              { id: 'chicken', label: '🐔 Chicken' },
+              { id: 'shark', label: '🦈 Shark' },
+              { id: 'whale', label: '🐋 Whale' },
               { id: 'dolphin', label: '🐬 Dolphin' },
-              { id: 'frog', label: '🐸 Frog' },
+              { id: 'turtle', label: '🐢 Turtle' },
             ], correctIndex: 2,
           },
         ],
       },
       {
-        key: 'sort', template: 'drag-sort', domain: 'psychomotor',
+        key: 'sort', template: 'drag-sort', domain: 'cognitive',
         itemTitle: 'Order by Speed',
-        context: 'Put animals from slowest to fastest.',
+        context: 'Put these animals from slowest to fastest.',
         items: [
-          { num: 1, label: '🐢 Turtle' },
+          { num: 1, label: '🐢 Tortoise' },
           { num: 2, label: '🐘 Elephant' },
-          { num: 3, label: '🐕 Dog' },
-          { num: 4, label: '🐴 Horse' },
-          { num: 5, label: '🐆 Cheetah' },
+          { num: 3, label: '🐴 Horse' },
+          { num: 4, label: '🐆 Cheetah' },
+          { num: 5, label: '🦅 Peregrine Falcon' },
         ],
       },
     ],
   },
 ];
 
+
 // ── Numbers Series ────────────────────────────────────────────────────────────
-const NUMBERS_SERIES_ID = 'series-numbers';
+const NUMBERS_SERIES_ID = '766a9eb2-2744-412c-87bc-d0ee54c4c256';
 const NUMBERS_UNITS = [
   {
     id: 'unit-numbers-u5', unit_number: 5, title: 'Counting 11–20',
@@ -860,17 +561,18 @@ async function upsert(model, pk, values) {
   return row;
 }
 
-async function seedSeries(seriesId, seriesName, category, description, units) {
+async function seedSeries(seriesId, seriesName, category, description, units, startAfterUnitId = null) {
   // 1) Series
   await upsert(db.KidGameSeries, seriesId, {
     name: seriesName,
     category,
     description,
+    subject_code: category === 'Animals' ? 'Sci-Animals' : 'Math-Numbers',
     created_by: 'SYSTEM',
   });
   console.log(`✅ series upserted: ${seriesId}`);
 
-  let prevUnitId = null;
+  let prevUnitId = startAfterUnitId;
   for (const unit of units) {
     // 2) Lessons + configs per game
     const contentItems = [];
@@ -946,17 +648,18 @@ async function seedSeries(seriesId, seriesName, category, description, units) {
 
     await seedSeries(
       ANIMALS_SERIES_ID,
-      'Animals Adventure',
+      'Animals — Nigerian Farm & Wild',
       'Animals',
-      'Explore farm, jungle, ocean, arctic, and nocturnal animals — learn habitats, adaptations, and survival skills across 6 developmental units.',
+      'Explore farm, jungle, ocean, arctic, and nocturnal animals — learn habitats, adaptations, and survival skills across 10 developmental units.',
       ANIMALS_UNITS,
+      'c04a0723-25f7-4c6d-b066-5f4c6ecedccd',  // existing U8 unit ID
     );
 
     await seedSeries(
       NUMBERS_SERIES_ID,
-      'Numbers Adventure',
+      'Number Sense Gym (Counting 1-10)',
       'Numbers',
-      'Master counting 11–20, addition, subtraction, place value, skip counting, and money/time across 6 developmental units.',
+      'Master counting 11–20, addition, subtraction, place value, skip counting, and money/time across 10 developmental units.',
       NUMBERS_UNITS,
     );
 

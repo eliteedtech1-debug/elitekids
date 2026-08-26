@@ -146,7 +146,7 @@ export const en: Record<string, string> = {
   'login.accessRestricted': 'Access Restricted',
   'login.noSubscription': "Your school doesn't subscribe to the Kids module. Please contact your administrator.",
   'login.modeTeacher': 'Teacher / Parent',
-  'login.modeStudent': 'Student (Tablet)',
+  'login.modeStudent': 'Student',
   'login.schoolShortName': 'School Short Name (e.g. DKG)',
   'login.admissionNo': 'Admission number',
   'login.emailOrPhone': 'Email or phone number',
