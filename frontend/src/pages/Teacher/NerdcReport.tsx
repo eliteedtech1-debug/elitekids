@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { t, tN } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
 
 /* ── Types ────────────────────────────────────────────── */
@@ -91,7 +92,7 @@ export default function NerdcReport() {
       const res = await apiClient.get(ENDPOINTS.NERDC.REPORT);
       setData(res.data?.data || null);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to load NERDC report');
+      toast.error(err?.message || t('teacher.nerdc.loadFailed'));
     }
   }, []);
 
@@ -122,9 +123,9 @@ export default function NerdcReport() {
         a.download = 'nerdc-curriculum-mapping.csv';
         a.click();
         URL.revokeObjectURL(blobUrl);
-        toast.success('CSV downloaded!');
+        toast.success(t('teacher.nerdc.csvDownloaded'));
       })
-      .catch(() => toast.error('Download failed'));
+      .catch(() => toast.error(t('teacher.nerdc.downloadFailed')));
   };
 
   const pct = data ? Math.round((data.stats.assigned / data.stats.total_lessons) * 100) : 0;
@@ -138,21 +139,21 @@ export default function NerdcReport() {
           onClick={() => navigate(-1)}
           className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t('common.back')}
         </button>
 
         {/* Header */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">📚 NERDC Curriculum Mapping</h1>
-            <p className="text-sm text-gray-500">Ministry compliance report — lesson curriculum alignment</p>
+            <h1 className="text-xl font-bold text-gray-800">{t('teacher.nerdc.title')}</h1>
+            <p className="text-sm text-gray-500">{t('teacher.nerdc.subtitle')}</p>
           </div>
           <button
             onClick={handleDownloadCSV}
             disabled={!data}
             className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0b3d76] disabled:opacity-40 active:scale-95 transition-all"
           >
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> {t('teacher.nerdc.exportCsv')}
           </button>
         </div>
 
@@ -163,32 +164,32 @@ export default function NerdcReport() {
         ) : !data ? (
           <div className="rounded-2xl bg-white p-12 text-center shadow-sm">
             <XCircle className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-            <p className="text-gray-500">Failed to load report data.</p>
+            <p className="text-gray-500">{t('teacher.nerdc.loadFailedBody')}</p>
           </div>
         ) : (
           <>
             {/* Stats cards */}
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatCard
-                label="Total Lessons"
+                label={t('teacher.lessons.total')}
                 value={data.stats.total_lessons}
                 color="border-blue-200 bg-blue-50 text-blue-700"
                 icon={<BookOpen className="h-4 w-4" />}
               />
               <StatCard
-                label="NERDC Aligned"
+                label={t('teacher.nerdc.aligned')}
                 value={data.stats.assigned}
                 color="border-green-200 bg-green-50 text-green-700"
                 icon={<CheckCircle2 className="h-4 w-4" />}
               />
               <StatCard
-                label="Unassigned"
+                label={t('teacher.nerdc.unassigned')}
                 value={data.stats.unassigned}
                 color="border-amber-200 bg-amber-50 text-amber-700"
                 icon={<XCircle className="h-4 w-4" />}
               />
               <StatCard
-                label="NERDC Strands"
+                label={t('teacher.nerdc.strands')}
                 value={data.stats.strands}
                 color="border-purple-200 bg-purple-50 text-purple-700"
                 icon={<BarChart3 className="h-4 w-4" />}
@@ -198,7 +199,7 @@ export default function NerdcReport() {
             {/* Completion bar */}
             <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Curriculum Alignment</span>
+                <span className="text-sm font-medium text-gray-700">{t('teacher.nerdc.alignment')}</span>
                 <span className="text-sm font-bold text-[#0F4D92]">{pct}%</span>
               </div>
               <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
@@ -208,7 +209,7 @@ export default function NerdcReport() {
                 />
               </div>
               <p className="mt-2 text-xs text-gray-400">
-                {data.stats.assigned} of {data.stats.total_lessons} lessons have NERDC curriculum codes
+                {t('teacher.nerdc.alignmentDetail', { assigned: data.stats.assigned, total: data.stats.total_lessons })}
               </p>
             </div>
 
@@ -217,7 +218,7 @@ export default function NerdcReport() {
               {data.summary.length === 0 && (
                 <div className="rounded-2xl bg-white p-12 text-center shadow-sm">
                   <BookOpen className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-                  <p className="text-gray-500">No NERDC curriculum data yet. Assign codes when creating lessons.</p>
+                  <p className="text-gray-500">{t('teacher.nerdc.empty')}</p>
                 </div>
               )}
 
@@ -238,7 +239,7 @@ export default function NerdcReport() {
                         )}
                         <span className="font-semibold text-gray-800">{strand.strand}</span>
                         <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                          {strand.total} lesson{strand.total !== 1 ? 's' : ''}
+                          {tN('teacher.nerdc.lessonCount', strand.total)}
                         </span>
                       </div>
                     </button>

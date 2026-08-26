@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { t, tN } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
 
 /* ── Types ────────────────────────────────────────────── */
@@ -142,63 +143,63 @@ export default function TeacherAnalytics() {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Analytics</h1>
-            <p className="text-sm text-gray-500">School-wide performance insights.</p>
+            <h1 className="text-xl font-bold text-gray-800">{t('teacher.analytics.title')}</h1>
+            <p className="text-sm text-gray-500">{t('teacher.analytics.subtitle')}</p>
           </div>
           <button
             onClick={loadAll}
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded-xl border border-[#0F4D92]/20 px-3 py-1.5 text-sm font-medium text-[#0F4D92] transition hover:bg-[#0F4D92]/5 disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {t('common.refresh')}
           </button>
         </div>
 
         {/* Stat cards */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard icon={<Users className="h-5 w-5 text-[#0F4D92]" />} label="Total Students" value={ov.total_students} color="bg-[#0F4D92]/10" />
-          <StatCard icon={<Gamepad2 className="h-5 w-5 text-green-600" />} label="Games This Week" value={ov.games_played_this_week} color="bg-green-100" />
-          <StatCard icon={<TrendingUp className="h-5 w-5 text-amber-600" />} label="Avg Score" value={`${ov.avg_score_this_week}%`} color="bg-amber-100" />
-          <StatCard icon={<Trophy className="h-5 w-5 text-purple-600" />} label="Total Points" value={ov.total_points.toLocaleString()} color="bg-purple-100" />
+          <StatCard icon={<Users className="h-5 w-5 text-[#0F4D92]" />} label={t('teacher.analytics.totalStudents')} value={ov.total_students} color="bg-[#0F4D92]/10" />
+          <StatCard icon={<Gamepad2 className="h-5 w-5 text-green-600" />} label={t('teacher.analytics.gamesThisWeek')} value={ov.games_played_this_week} color="bg-green-100" />
+          <StatCard icon={<TrendingUp className="h-5 w-5 text-amber-600" />} label={t('teacher.analytics.avgScore')} value={`${ov.avg_score_this_week}%`} color="bg-amber-100" />
+          <StatCard icon={<Trophy className="h-5 w-5 text-purple-600" />} label={t('teacher.analytics.totalPoints')} value={ov.total_points.toLocaleString()} color="bg-purple-100" />
         </div>
 
         {/* Tabs */}
         <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 shadow-sm">
-          <TabBtn active={tab === 'overview'} onClick={() => setTab('overview')}>Overview</TabBtn>
-          <TabBtn active={tab === 'classes'} onClick={() => setTab('classes')}>Classes</TabBtn>
-          <TabBtn active={tab === 'struggling'} onClick={() => setTab('struggling')}>Needs Help</TabBtn>
-          <TabBtn active={tab === 'games'} onClick={() => setTab('games')}>Games</TabBtn>
-          <TabBtn active={tab === 'leaderboard'} onClick={() => setTab('leaderboard')}>Leaderboard</TabBtn>
+          <TabBtn active={tab === 'overview'} onClick={() => setTab('overview')}>{t('teacher.analytics.tab.overview')}</TabBtn>
+          <TabBtn active={tab === 'classes'} onClick={() => setTab('classes')}>{t('teacher.analytics.tab.classes')}</TabBtn>
+          <TabBtn active={tab === 'struggling'} onClick={() => setTab('struggling')}>{t('teacher.analytics.tab.struggling')}</TabBtn>
+          <TabBtn active={tab === 'games'} onClick={() => setTab('games')}>{t('teacher.analytics.tab.games')}</TabBtn>
+          <TabBtn active={tab === 'leaderboard'} onClick={() => setTab('leaderboard')}>{t('teacher.analytics.tab.leaderboard')}</TabBtn>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-gray-400">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading analytics…
+            <Loader2 className="h-5 w-5 animate-spin" /> {t('teacher.analytics.loading')}
           </div>
         ) : (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             {/* ── Overview Tab ── */}
             {tab === 'overview' && (
               <div className="space-y-4">
-                <h2 className="font-semibold text-gray-800">This Week at a Glance</h2>
+                <h2 className="font-semibold text-gray-800">{t('teacher.analytics.weekGlance')}</h2>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <div className="rounded-xl bg-[#0F4D92]/5 p-4 text-center">
                     <p className="text-3xl font-bold text-[#0F4D92]">{ov.active_this_week}</p>
-                    <p className="text-xs text-gray-500">Active Students</p>
+                    <p className="text-xs text-gray-500">{t('teacher.analytics.activeStudents')}</p>
                   </div>
                   <div className="rounded-xl bg-green-50 p-4 text-center">
                     <p className="text-3xl font-bold text-green-600">{ov.excellent_games_this_week}</p>
-                    <p className="text-xs text-gray-500">Excellent Games (≥80%)</p>
+                    <p className="text-xs text-gray-500">{t('teacher.analytics.excellentGames')}</p>
                   </div>
                   <div className="rounded-xl bg-amber-50 p-4 text-center">
                     <p className="text-3xl font-bold text-amber-600">{ov.active_classes}</p>
-                    <p className="text-xs text-gray-500">Active Classes</p>
+                    <p className="text-xs text-gray-500">{t('teacher.analytics.activeClasses')}</p>
                   </div>
                 </div>
                 {/* Top games quick list */}
                 {games.length > 0 && (
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold text-gray-700">Most Played Games</h3>
+                    <h3 className="mb-2 text-sm font-semibold text-gray-700">{t('teacher.analytics.mostPlayed')}</h3>
                     <div className="space-y-2">
                       {games.slice(0, 5).map((g) => (
                         <div key={g.lesson_id} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3">
@@ -207,7 +208,7 @@ export default function TeacherAnalytics() {
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium text-gray-800">{g.title}</p>
-                            <p className="text-[11px] text-gray-500">{g.subject} · {g.times_played} plays</p>
+                            <p className="text-[11px] text-gray-500">{tN('teacher.analytics.plays', g.times_played, { subject: g.subject })}</p>
                           </div>
                           <span className="text-sm font-bold text-gray-700">{g.avg_score}%</span>
                         </div>
@@ -221,19 +222,19 @@ export default function TeacherAnalytics() {
             {/* ── Classes Tab ── */}
             {tab === 'classes' && (
               <div>
-                <h2 className="mb-3 font-semibold text-gray-800">Class Comparison</h2>
+                <h2 className="mb-3 font-semibold text-gray-800">{t('teacher.analytics.classComparison')}</h2>
                 {classes.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-gray-400">No class data yet.</p>
+                  <p className="py-8 text-center text-sm text-gray-400">{t('teacher.analytics.noClassData')}</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b text-xs font-medium uppercase text-gray-500">
-                          <th className="px-3 py-2">Class</th>
-                          <th className="px-3 py-2 text-right">Students</th>
-                          <th className="px-3 py-2 text-right">Games</th>
-                          <th className="px-3 py-2 text-right">Avg Score</th>
-                          <th className="px-3 py-2 text-right">Excellent</th>
+                          <th className="px-3 py-2">{t('teacher.analytics.th.class')}</th>
+                          <th className="px-3 py-2 text-right">{t('teacher.analytics.th.students')}</th>
+                          <th className="px-3 py-2 text-right">{t('teacher.analytics.th.games')}</th>
+                          <th className="px-3 py-2 text-right">{t('teacher.analytics.th.avgScore')}</th>
+                          <th className="px-3 py-2 text-right">{t('teacher.analytics.th.excellent')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -260,10 +261,10 @@ export default function TeacherAnalytics() {
             {/* ── Struggling Tab ── */}
             {tab === 'struggling' && (
               <div>
-                <h2 className="mb-1 font-semibold text-gray-800">Students Needing Help</h2>
-                <p className="mb-3 text-xs text-gray-500">Avg score below 50% or inactive for 7+ days.</p>
+                <h2 className="mb-1 font-semibold text-gray-800">{t('teacher.analytics.strugglingTitle')}</h2>
+                <p className="mb-3 text-xs text-gray-500">{t('teacher.analytics.strugglingHint')}</p>
                 {struggling.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-gray-400">No struggling students — great job!</p>
+                  <p className="py-8 text-center text-sm text-gray-400">{t('teacher.analytics.noStruggling')}</p>
                 ) : (
                   <div className="space-y-2">
                     {struggling.map((s) => (
@@ -274,7 +275,7 @@ export default function TeacherAnalytics() {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-800">{s.student_name} {s.surname}</p>
                           <p className="text-[11px] text-gray-500">
-                            {s.class_code} · {s.games_played} games · {s.days_inactive}d inactive
+                            {tN('teacher.analytics.strugglingMeta', s.games_played, { classCode: s.class_code, days: s.days_inactive })}
                           </p>
                         </div>
                         <span className={`text-sm font-bold ${s.avg_score < 30 ? 'text-red-600' : 'text-amber-600'}`}>
@@ -290,9 +291,9 @@ export default function TeacherAnalytics() {
             {/* ── Games Tab ── */}
             {tab === 'games' && (
               <div>
-                <h2 className="mb-3 font-semibold text-gray-800">Game Engagement</h2>
+                <h2 className="mb-3 font-semibold text-gray-800">{t('teacher.analytics.gameEngagement')}</h2>
                 {games.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-gray-400">No game data yet.</p>
+                  <p className="py-8 text-center text-sm text-gray-400">{t('teacher.analytics.noGameData')}</p>
                 ) : (
                   <div className="space-y-2">
                     {games.map((g) => (
@@ -303,12 +304,12 @@ export default function TeacherAnalytics() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-gray-800">{g.title}</p>
                           <p className="text-[11px] text-gray-500">
-                            {g.subject} · {g.times_played} plays · {g.unique_students} students
+                            {t('teacher.analytics.gameMeta', { subject: g.subject, plays: g.times_played, students: g.unique_students })}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-bold text-gray-700">{g.avg_score}%</p>
-                          <p className="text-[10px] text-gray-400">best {g.best_score}</p>
+                          <p className="text-[10px] text-gray-400">{t('teacher.analytics.best', { best: g.best_score })}</p>
                         </div>
                       </div>
                     ))}
@@ -321,7 +322,7 @@ export default function TeacherAnalytics() {
             {tab === 'leaderboard' && (
               <div>
                 <div className="mb-3 flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-800">Top Performers</h2>
+                  <h2 className="font-semibold text-gray-800">{t('teacher.analytics.topPerformers')}</h2>
                   <div className="flex gap-1">
                     {(['week', 'month', 'all'] as const).map((p) => (
                       <button
@@ -331,24 +332,24 @@ export default function TeacherAnalytics() {
                           lbPeriod === p ? 'bg-[#0F4D92] text-white' : 'text-gray-500 hover:bg-gray-100'
                         }`}
                       >
-                        {p === 'all' ? 'All Time' : p === 'week' ? 'This Week' : 'This Month'}
+                        {p === 'all' ? t('teacher.analytics.period.all') : p === 'week' ? t('teacher.analytics.period.week') : t('teacher.analytics.period.month')}
                       </button>
                     ))}
                   </div>
                 </div>
                 {leaderboard.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-gray-400">No leaderboard data for this period.</p>
+                  <p className="py-8 text-center text-sm text-gray-400">{t('teacher.analytics.noLeaderboard')}</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b text-xs font-medium uppercase text-gray-500">
                           <th className="px-3 py-2">#</th>
-                          <th className="px-3 py-2">Student</th>
-                          <th className="px-3 py-2">Class</th>
-                          <th className="px-3 py-2 text-right">Games</th>
-                          <th className="px-3 py-2 text-right">Avg Score</th>
-                          <th className="px-3 py-2 text-right">Excellent</th>
+                          <th className="px-3 py-2">{t('teacher.analytics.th.student')}</th>
+                          <th className="px-3 py-2">{t('teacher.analytics.th.class')}</th>
+                          <th className="px-3 py-2 text-right">{t('teacher.analytics.th.games')}</th>
+                          <th className="px-3 py-2 text-right">{t('teacher.analytics.th.avgScore')}</th>
+                          <th className="px-3 py-2 text-right">{t('teacher.analytics.th.excellent')}</th>
                         </tr>
                       </thead>
                       <tbody>

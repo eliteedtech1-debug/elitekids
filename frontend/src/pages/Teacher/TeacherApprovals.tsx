@@ -16,6 +16,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { t } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
 
 /* ── Types ────────────────────────────────────────────── */
@@ -35,9 +36,9 @@ interface Approval {
 
 function ContentTypeBadge({ type }: { type: string }) {
   const labels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-    game_config: { label: 'Game Config', color: 'bg-blue-100 text-blue-700', icon: <Gamepad2 className="h-3 w-3" /> },
-    scene_script: { label: 'Scene Script', color: 'bg-purple-100 text-purple-700', icon: <BookOpen className="h-3 w-3" /> },
-    lesson: { label: 'Lesson', color: 'bg-green-100 text-green-700', icon: <BookOpen className="h-3 w-3" /> },
+    game_config: { label: t('teacher.approvals.type.game_config'), color: 'bg-blue-100 text-blue-700', icon: <Gamepad2 className="h-3 w-3" /> },
+    scene_script: { label: t('teacher.approvals.type.scene_script'), color: 'bg-purple-100 text-purple-700', icon: <BookOpen className="h-3 w-3" /> },
+    lesson: { label: t('teacher.approvals.type.lesson'), color: 'bg-green-100 text-green-700', icon: <BookOpen className="h-3 w-3" /> },
   };
   const info = labels[type] || { label: type, color: 'bg-gray-100 text-gray-600', icon: null };
   return (
@@ -60,7 +61,7 @@ export default function TeacherApprovals() {
       const res = await apiClient.get(ENDPOINTS.APPROVALS.LIST);
       setApprovals(res.data?.data || []);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to load approvals');
+      toast.error(err?.message || t('teacher.approvals.loadFailed'));
     }
   }, []);
 
@@ -74,12 +75,12 @@ export default function TeacherApprovals() {
     try {
       await apiClient.post(ENDPOINTS.APPROVALS.DECIDE(id), {
         decision,
-        reason: decision === 'reject' ? 'Content did not meet review standards' : undefined,
+        reason: decision === 'reject' ? t('teacher.approvals.rejectReason') : undefined,
       });
-      toast.success(decision === 'approve' ? 'Approved and published!' : 'Rejected');
+      toast.success(decision === 'approve' ? t('teacher.approvals.approved') : t('teacher.approvals.rejected'));
       await loadApprovals();
     } catch (err: any) {
-      toast.error(err?.message || `Failed to ${decision}`);
+      toast.error(err?.message || t('teacher.lessons.actionFailed', { decision }));
     } finally {
       setProcessing(null);
     }
@@ -96,11 +97,8 @@ export default function TeacherApprovals() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-amber-800">Review Queue</p>
-              <p className="text-xs text-amber-600">
-                AI-generated game configs and scene scripts need your approval before students can play them.
-                Review the content and approve or reject each item.
-              </p>
+              <p className="text-sm font-medium text-amber-800">{t('teacher.approvals.reviewQueue')}</p>
+              <p className="text-xs text-amber-600">{t('teacher.approvals.info')}</p>
             </div>
           </div>
         </div>
@@ -113,12 +111,12 @@ export default function TeacherApprovals() {
         ) : approvals.length === 0 ? (
           <div className="rounded-2xl bg-white p-12 text-center shadow-sm">
             <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-300" />
-            <p className="text-gray-500">All caught up! No pending reviews.</p>
+            <p className="text-gray-500">{t('teacher.approvals.empty')}</p>
             <Link
               to="/teacher/lessons"
               className="mt-4 inline-flex items-center gap-1 text-sm text-[#0F4D92] hover:underline"
             >
-              <ArrowLeft className="h-4 w-4" /> Back to Lessons
+              <ArrowLeft className="h-4 w-4" /> {t('teacher.approvals.backToLessons')}
             </Link>
           </div>
         ) : (
@@ -138,13 +136,13 @@ export default function TeacherApprovals() {
                     </div>
                     <p className="text-sm text-gray-600">
                       {approval.content_type === 'game_config'
-                        ? `AI-generated game config ready for review`
+                        ? t('teacher.approvals.desc.game_config')
                         : approval.content_type === 'scene_script'
-                        ? `Scene script with animated narration ready for review`
-                        : `Content ready for review`}
+                        ? t('teacher.approvals.desc.scene_script')
+                        : t('teacher.approvals.desc.other')}
                     </p>
                     <p className="mt-1 text-xs text-gray-400">
-                      ID: {approval.content_id?.slice(0, 8)}...
+                      {t('teacher.approvals.id', { id: approval.content_id?.slice(0, 8) || '' })}
                     </p>
                   </div>
 
@@ -159,14 +157,14 @@ export default function TeacherApprovals() {
                           className="inline-flex items-center gap-1 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 transition-colors"
                         >
                           <CheckCircle2 className="h-4 w-4" />
-                          Approve
+                          {t('teacher.lessons.approve')}
                         </button>
                         <button
                           onClick={() => handleDecide(approval.id, 'reject')}
                           className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
                         >
                           <XCircle className="h-4 w-4" />
-                          Reject
+                          {t('teacher.lessons.reject')}
                         </button>
                       </>
                     )}
@@ -184,7 +182,7 @@ export default function TeacherApprovals() {
               onClick={loadApprovals}
               className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
             >
-              <RefreshCw className="h-4 w-4" /> Refresh
+              <RefreshCw className="h-4 w-4" /> {t('common.refresh')}
             </button>
           </div>
         )}
