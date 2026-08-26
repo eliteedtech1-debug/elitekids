@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { playTap, playCorrect, playWrong } from '@/lib/utils/sound';
 import { canonAnswer } from '@/lib/utils/answer';
+import { t } from '@/lib/i18n';
 
 interface SpeechInputProps {
   /** Expected correct answer(s) — the spoken word is matched against these */
@@ -186,14 +187,14 @@ export default function SpeechInput({
             ? 'bg-orange-100 text-orange-600 border border-orange-300'
             : 'bg-[#0F4D92]/10 text-[#0F4D92] border border-[#0F4D92]/20 hover:bg-[#0F4D92]/20'
         } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-        title={listening ? 'Stop listening' : 'Tap to speak your answer'}
+        title={listening ? t('speechInput.stopListening') : t('speechInput.tapToSpeak')}
       >
         {listening ? (
           <MicOff className="h-4 w-4 animate-game-pulse" />
         ) : (
           <Mic className="h-4 w-4" />
         )}
-        {listening ? 'Listening…' : result === 'correct' ? '✅ Got it!' : result === 'wrong' ? 'Try again' : '🎤 Speak'}
+        {listening ? t('speechInput.listening') : result === 'correct' ? t('speechInput.gotIt') : result === 'wrong' ? t('speechInput.tryAgain') : t('speechInput.speak')}
         {listening && <Loader2 className="h-3 w-3 animate-spin" />}
       </button>
     );
@@ -213,7 +214,7 @@ export default function SpeechInput({
             ? 'h-16 w-16 bg-orange-500 text-white shadow-lg'
             : 'h-16 w-16 bg-[#0F4D92] text-white shadow-lg hover:bg-[#0D3F7A] hover:scale-110 active:scale-95'
         } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-        title={listening ? 'Tap to stop' : 'Hold and speak your answer'}
+        title={listening ? t('speechInput.tapToStop') : t('speechInput.holdToSpeak')}
       >
         {listening ? (
           <MicOff className="h-7 w-7" />
@@ -237,7 +238,7 @@ export default function SpeechInput({
           {listening ? (
             <span className="flex items-center gap-2">
               <Loader2 className="h-3 w-3 animate-spin" />
-              {transcript || 'Listening...'}
+              {transcript || t('speechInput.listeningStatus')}
             </span>
           ) : (
             <span>"{transcript}"</span>
@@ -245,7 +246,7 @@ export default function SpeechInput({
         </div>
       )}
       {!listening && !result && (
-        <p className="text-xs text-gray-400 animate-game-float">Tap the mic and say the answer! 🎤</p>
+        <p className="text-xs text-gray-400 animate-game-float">{t('speechInput.tapMic')}</p>
       )}
     </div>
   );

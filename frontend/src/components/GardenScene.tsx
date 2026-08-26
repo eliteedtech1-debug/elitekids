@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { t } from '@/lib/i18n';
 
 /* ── Garden element types and visuals ─────────────────────────── */
 
@@ -105,9 +106,9 @@ export default function GardenScene({ compact = false }: { compact?: boolean }) 
     <div className="rounded-2xl bg-gradient-to-b from-sky-100 to-green-100 p-4 shadow-inner border border-green-200/30">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-lg">🏡</span>
-        <h3 className="text-sm font-bold text-green-800">My Garden</h3>
+        <h3 className="text-sm font-bold text-green-800">{t('garden.title')}</h3>
         <span className="text-[10px] bg-green-200 text-green-700 rounded-full px-2 py-0.5 font-bold">
-          {elements.length} plants
+          {t('garden.plants', { count: elements.length })}
         </span>
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
@@ -117,7 +118,7 @@ export default function GardenScene({ compact = false }: { compact?: boolean }) 
       </div>
       {elements.length === 0 && (
         <p className="text-center text-xs text-green-600/60 py-4">
-          Play games to grow your garden! 🌱
+          {t('garden.empty')}
         </p>
       )}
     </div>

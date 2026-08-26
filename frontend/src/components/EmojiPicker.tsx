@@ -12,6 +12,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Search, Clock, X } from 'lucide-react';
 import type { EmojiEntry, EmojiCategory } from '@/lib/utils/emojiData';
+import { t } from '@/lib/i18n';
 
 const TWEMOJI_CDN = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72';
 const RECENT_KEY = 'emoji_picker_recent';
@@ -82,7 +83,7 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
 
   // Available tabs — always show "recent" first
   const tabs: { id: string; label: string; icon: string }[] = useMemo(() => {
-    const recentTab = { id: 'recent', label: 'Recent', icon: '🕐' };
+    const recentTab = { id: 'recent', label: t('emojiPicker.recent'), icon: '🕐' };
     return [recentTab, ...categories.map((c) => ({ id: c.id, label: c.label, icon: c.icon }))];
   }, [categories]);
 
@@ -102,7 +103,7 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search emoji..."
+            placeholder={t('emojiPicker.searchPlaceholder')}
             className="w-full rounded-xl bg-gray-50 py-2 pl-8 pr-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0F4D92]/30 font-kid-body"
           />
           {search && (
@@ -143,9 +144,9 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
       <div className="px-3 py-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 font-kid-body">
           {search
-            ? `Search: "${search}"`
+            ? t('emojiPicker.searchResults', { query: search })
             : activeTab === 'recent'
-            ? 'Recently Used'
+            ? t('emojiPicker.recentlyUsed')
             : tabs.find((t) => t.id === activeTab)?.label || ''}
         </span>
       </div>
@@ -156,7 +157,7 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
           <div className="flex flex-col items-center justify-center py-10 text-gray-400">
             <span className="text-3xl mb-2">🔍</span>
             <p className="text-sm font-kid-body">
-              {search ? 'No emojis found' : 'No recent emojis yet'}
+              {search ? t('emojiPicker.noResults') : t('emojiPicker.noRecent')}
             </p>
           </div>
         ) : (

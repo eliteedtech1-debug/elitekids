@@ -4,6 +4,7 @@ import { Swords, Heart, Zap, Shield } from 'lucide-react';
 import { playVictory } from '@/lib/game/sound-effects';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { t, tN } from '@/lib/i18n';
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -123,19 +124,16 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="bg-gradient-to-br from-amber-50 to-yellow-100 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl border-2 border-amber-300">
           <div className="text-6xl mb-3">{avatar}</div>
-          <h2 className="text-xl font-bold text-amber-800">Guardian Defeated!</h2>
-          <p className="text-sm text-amber-600 mt-1">{title} has been outwitted</p>
+          <h2 className="text-xl font-bold text-amber-800">{t('bossBattle.guardianDefeated')}</h2>
+          <p className="text-sm text-amber-600 mt-1">{t('bossBattle.outwitted', { title })}</p>
           <div className="mt-4 bg-amber-100 rounded-xl p-3">
             <p className="text-xs text-amber-700 italic">
-              "{GUARDIAN_WISDOM[raid.guardian?.slug || ''] || 'Knowledge is the greatest weapon!'}"
+              "{GUARDIAN_WISDOM[raid.guardian?.slug || ''] || t('bossBattle.defaultWisdom')}"
             </p>
           </div>
           <button
             onClick={onDismiss}
-            className="mt-4 px-6 py-2 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition"
-          >
-            Collect Rewards
-          </button>
+            className="mt-4 px-6 py-2 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition">{t('bossBattle.collectRewards')}</button>
         </div>
       </div>
     );
@@ -150,7 +148,7 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <Swords className="h-4 w-4 text-red-500" />
-            <span className="text-xs font-bold text-red-600 uppercase tracking-wide">Boss Raid Active</span>
+            <span className="text-xs font-bold text-red-600 uppercase tracking-wide">{t('bossBattle.active')}</span>
           </div>
           <h3 className="text-lg font-bold text-red-800">{raid.title || title}</h3>
         </div>
@@ -160,7 +158,7 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
       <div className="mb-3">
         <div className="flex items-center justify-between text-xs mb-1">
           <span className="flex items-center gap-1 text-red-600">
-            <Heart className="h-3 w-3" /> Guardian HP
+            <Heart className="h-3 w-3" /> {t('bossBattle.guardianHp')}
           </span>
           <span className="font-mono font-bold text-red-700">
             {raid.hp.current.toLocaleString()} / {raid.hp.max.toLocaleString()}
@@ -177,11 +175,11 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
       {/* Stats Row */}
       <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
         <span className="flex items-center gap-1">
-          <Zap className="h-3 w-3" /> {raid.my_damage} your damage
+          <Zap className="h-3 w-3" /> {t('bossBattle.yourDamage', { damage: raid.my_damage })}
         </span>
         {raid.games?.length > 0 && (
           <span className="flex items-center gap-1">
-            <Shield className="h-3 w-3" /> {raid.games.length} game{raid.games.length !== 1 ? 's' : ''}
+            <Shield className="h-3 w-3" /> {tN('bossBattle.games', raid.games.length, { count: raid.games.length })}
           </span>
         )}
       </div>
@@ -213,7 +211,7 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
                    flex items-center justify-center gap-2 shadow-lg"
       >
         <Swords className="h-5 w-5" />
-        {joining ? 'Joining...' : isBossAlive ? 'Go Fight the Guardian!' : 'Raid Over'}
+        {joining ? t('bossBattle.joining') : isBossAlive ? t('bossBattle.goFight') : t('bossBattle.raidOver')}
       </button>
     </div>
   );

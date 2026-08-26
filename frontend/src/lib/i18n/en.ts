@@ -792,6 +792,51 @@ export const en: Record<string, string> = {
   'companion.chooseTitle': 'Choose Your Buddy!',
   'companion.chooseHint': 'Pick a friend to play with you!',
 
+  // ── Student: Garden ────────────────────────────────────────────────────
+  'garden.title': 'My Garden',
+  'garden.plants': '{count} plants',
+  'garden.empty': 'Play games to grow your garden! 🌱',
+
+  // ── Student: Boss Battle ────────────────────────────────────────────────
+  'bossBattle.guardianDefeated': 'Guardian Defeated!',
+  'bossBattle.outwitted': '{title} has been outwitted',
+  'bossBattle.defaultWisdom': 'Knowledge is the greatest weapon!',
+  'bossBattle.collectRewards': 'Collect Rewards',
+  'bossBattle.active': 'Boss Raid Active',
+  'bossBattle.guardianHp': 'Guardian HP',
+  'bossBattle.yourDamage': '{damage} your damage',
+  'bossBattle.games.one': '{count} game',
+  'bossBattle.games.other': '{count} games',
+  'bossBattle.joining': 'Joining...',
+  'bossBattle.goFight': 'Go Fight the Guardian!',
+  'bossBattle.raidOver': 'Raid Over',
+
+  // ── Student: Error Boundary ─────────────────────────────────────────────
+  'errorBoundary.title': 'Oops! Something went wrong',
+  'errorBoundary.body': "This activity hit a snag. Your progress is safe — let's get you back to playing.",
+  'errorBoundary.retry': 'Try Again',
+  'errorBoundary.home': 'Back to Games',
+
+  // ── Student: Speech Input ───────────────────────────────────────────────
+  'speechInput.stopListening': 'Stop listening',
+  'speechInput.tapToSpeak': 'Tap to speak your answer',
+  'speechInput.tapToStop': 'Tap to stop',
+  'speechInput.holdToSpeak': 'Hold and speak your answer',
+  'speechInput.listening': 'Listening…',
+  'speechInput.gotIt': '✅ Got it!',
+  'speechInput.tryAgain': 'Try again',
+  'speechInput.speak': '🎤 Speak',
+  'speechInput.listeningStatus': 'Listening...',
+  'speechInput.tapMic': 'Tap the mic and say the answer! 🎤',
+
+  // ── Student: Emoji Picker ───────────────────────────────────────────────
+  'emojiPicker.searchPlaceholder': 'Search emoji...',
+  'emojiPicker.recent': 'Recent',
+  'emojiPicker.searchResults': 'Search: "{query}"',
+  'emojiPicker.recentlyUsed': 'Recently Used',
+  'emojiPicker.noResults': 'No emojis found',
+  'emojiPicker.noRecent': 'No recent emojis yet',
+
   // ── Student: Arena Panel ────────────────────────────────────────────────
   'arena.teamA': 'Team A',
   'arena.teamB': 'Team B',

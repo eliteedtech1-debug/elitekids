@@ -1,5 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { Gamepad2, RefreshCw, Home } from 'lucide-react';
+import { t } from '@/lib/i18n';
 
 interface Props {
   children: ReactNode;
@@ -9,13 +10,6 @@ interface State {
   hasError: boolean;
   message: string;
 }
-
-const FALLBACK_COPY = {
-  title: 'Oops! Something went wrong',
-  body: "This activity hit a snag. Your progress is safe — let's get you back to playing.",
-  retry: 'Try Again',
-  home: 'Back to Games',
-};
 
 /**
  * Route-level error boundary for lesson/game pages.
@@ -45,22 +39,22 @@ export default class ErrorBoundary extends Component<Props, State> {
           className="max-w-sm rounded-3xl bg-white p-6 text-center shadow-xl animate-game-spring-in"
         >
           <Gamepad2 className="mx-auto mb-3 h-14 w-14 text-[#0F4D92]/30 animate-game-wobble-idle" aria-hidden="true" />
-          <h1 className="text-lg font-bold text-gray-800">{FALLBACK_COPY.title}</h1>
-          <p className="mt-2 text-sm text-gray-500">{FALLBACK_COPY.body}</p>
+          <h1 className="text-lg font-bold text-gray-800">{t('errorBoundary.title')}</h1>
+          <p className="mt-2 text-sm text-gray-500">{t('errorBoundary.body')}</p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <button
               onClick={this.handleRetry}
               className="flex items-center justify-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-[#0D3F7A] hover:scale-105 active:scale-95 min-h-[44px]"
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              {FALLBACK_COPY.retry}
+              {t('errorBoundary.retry')}
             </button>
             <button
               onClick={() => { window.location.href = '/student'; }}
               className="flex items-center justify-center gap-2 rounded-xl border-2 border-[#0F4D92]/20 px-5 py-3 text-sm font-semibold text-[#0F4D92] transition-all hover:bg-[#0F4D92]/5 active:scale-95 min-h-[44px]"
             >
               <Home className="h-4 w-4" aria-hidden="true" />
-              {FALLBACK_COPY.home}
+              {t('errorBoundary.home')}
             </button>
           </div>
         </div>
