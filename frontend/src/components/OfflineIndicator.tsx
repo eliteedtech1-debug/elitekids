@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Wifi, WifiOff, RefreshCw, CloudOff } from 'lucide-react';
 import { offlineSync } from '@/lib/offline/sync';
 import { offlineDB, STORES } from '@/lib/offline/db';
-import { t } from '@/lib/i18n';
+import { t, tN } from '@/lib/i18n';
 
 /**
  * Offline indicator banner — shows connection status and pending sync count.
@@ -106,7 +106,7 @@ export default function OfflineIndicator({ compact = false, className = '' }: Of
           {isOnline ? (
             pendingCount > 0 ? (
               <>
-                <span className="font-semibold">{t('offline.indicator.backOnline')}</span> — {t('offline.indicator.itemsToSync', { count: pendingCount })}
+                <span className="font-semibold">{t('offline.indicator.backOnline')}</span> — {tN('offline.indicator.itemsToSync', pendingCount)}
               </>
             ) : (
               <span className="text-green-600">{t('offline.indicator.online')}</span>

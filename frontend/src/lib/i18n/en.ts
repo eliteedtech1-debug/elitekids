@@ -116,8 +116,16 @@ export const en: Record<string, string> = {
   'offline.indicator.online': 'Online',
   'offline.indicator.offline': 'Offline',
   'offline.indicator.backOnline': 'Back online',
-  'offline.indicator.itemsToSync': '{count} items to sync',
+  'offline.indicator.itemsToSync.one': '{count} item to sync',
+  'offline.indicator.itemsToSync.other': '{count} items to sync',
   'offline.indicator.saved': '{count} items saved',
   'offline.indicator.syncing': 'Syncing...',
   'offline.indicator.syncNow': 'Sync now',
+
+  // ── Sync queue ─────────────────────────────────────────────────────────
+  'offline.queued': 'Progress saved offline. It will sync when connected.',
+
+  // ── GamePlay ───────────────────────────────────────────────────────────
+  'game.practice_mode': "Let's practice this a bit more!",
+  'game.teacher_help': "Your teacher will help you with this one. Let's try something else!",
 };
