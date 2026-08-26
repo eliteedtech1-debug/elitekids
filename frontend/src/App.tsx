@@ -7,6 +7,7 @@ import ParentActivities from '@/pages/Parent/ParentActivities';
 import StudentHome from '@/pages/Student/StudentHome';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import OfflineIndicator from '@/components/OfflineIndicator';
 
 /**
  * App shell — routes for the EliteKids SPA.
@@ -49,6 +50,8 @@ function LazyRoute({ element }: { element: React.ReactNode }) {
 
 export default function App() {
   return (
+    <>
+    <OfflineIndicator />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route
@@ -160,5 +163,6 @@ export default function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </>
   );
 }
