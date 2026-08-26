@@ -10,6 +10,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { setupCorsAuthFix } = require('./middleware/corsAuthFix');
+const { errorCodeForStatus } = require('./utils/errorResponse');
 
 const app = express();
 
@@ -29,13 +30,26 @@ if (!RATE_LIMIT_DISABLED) {
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, message: 'Too many requests, please try again later.' },
+    message: { success: false, error_code: 'RATE_LIMITED', message: 'Too many requests, please try again later.' },
   });
   app.use(globalLimiter);
 }
 
 app.use(express.json({ limit: '10mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Backfill a stable error_code for legacy controllers while preserving their
+// existing response messages and field-level errors.
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    if (res.statusCode >= 400 && body && body.success === false && !body.error_code) {
+      return originalJson({ ...body, error_code: errorCodeForStatus(res.statusCode) });
+    }
+    return originalJson(body);
+  };
+  next();
+});
 
 setupCorsAuthFix(app);
 
@@ -53,13 +67,13 @@ require('./routes/media.js')(app);
 
 // ─── 404 handler ──────────────────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
+  res.status(404).json({ success: false, error_code: 'ROUTE_NOT_FOUND', message: `Route ${req.method} ${req.path} not found` });
 });
 
 // ─── Error handler ────────────────────────────────────────────────────────────
 app.use((err, req, res, _next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
+  res.status(500).json({ success: false, error_code: 'INTERNAL_SERVER_ERROR', message: 'Internal server error. Please try again later.' });
 });
 
 module.exports = app;
