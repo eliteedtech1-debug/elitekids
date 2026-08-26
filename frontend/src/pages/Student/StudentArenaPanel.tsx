@@ -6,6 +6,7 @@ import { createMilestoneState, checkMilestone, getMilestoneEmoji, getMilestoneTe
 import { sendReaction, getActiveReactions, onReactions, COMPETITION_REACTIONS, type Reaction, type ReactionEmoji } from '@/lib/game/reactions';
 import { deterministicAssign, type DiceRollResult } from '@/lib/game/dice-roll';
 import { launchConfetti } from '@/lib/game/victory';
+import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
@@ -47,7 +48,7 @@ function MilestoneToast({ milestone, team }: { milestone: number; team: 'a' | 'b
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-bounce">
       <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-3 rounded-2xl shadow-2xl font-extrabold text-lg flex items-center gap-2">
         <span className="text-2xl">{getMilestoneEmoji(milestone as any)}</span>
-        <span>{getMilestoneText(milestone as any, team === 'a' ? 'Team A' : 'Team B')}</span>
+        <span>{getMilestoneText(milestone as any, team === 'a' ? t('arena.teamA') : t('arena.teamB'))}</span>
       </div>
     </div>
   );
@@ -76,7 +77,7 @@ function ReactionBar({ compId }: { compId: string }) {
           key={emoji}
           onClick={() => handleReact(emoji)}
           className="text-lg hover:scale-125 transition-transform active:scale-90"
-          title={`React with ${emoji}`}
+          title={t('arena.reactWith', { emoji })}
         >
           {emoji}
         </button>
@@ -123,7 +124,7 @@ function DiceRollOverlay({ result, onDone }: { result: DiceRollResult | null; on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-        <h3 className="text-xl font-extrabold text-center mb-4">🎲 Rolling Teams!</h3>
+        <h3 className="text-xl font-extrabold text-center mb-4">{t('arena.rollingTeams')}</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-purple-50 rounded-xl p-3 text-center">
             <div className="text-lg font-bold text-purple-700">{result.teamA}</div>
@@ -208,7 +209,7 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
   if (!loaded) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-game-pulse text-sm text-gray-400">Warming up the battle ground…</div>
+        <div className="animate-game-pulse text-sm text-gray-400">{t('arena.warmingUp')}</div>
       </div>
     );
   }
@@ -217,10 +218,8 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center px-8 text-center">
         <Swords className="mb-4 h-14 w-14 text-gray-300" />
-        <p className="text-base font-bold text-gray-600">No battle right now</p>
-        <p className="mt-2 text-sm text-gray-400">
-          Ask your teacher to start a Tug-of-War or a Trophy Race — then come pull the rope!
-        </p>
+        <p className="text-base font-bold text-gray-600">{t('arena.none')}</p>
+        <p className="mt-2 text-sm text-gray-400">{t('arena.noneHint')}</p>
       </div>
     );
   }
@@ -242,7 +241,7 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
           <h2 className="flex items-center gap-2 text-lg font-extrabold text-gray-800">
             <Swords className="h-5 w-5 text-orange-500" /> {d.title}
           </h2>
-          <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-600">⏳ {hoursLeft}h left</span>
+          <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-600">{t('arena.hoursLeft', { hours: hoursLeft })}</span>
         </div>
 
         {/* Scoreboard */}
@@ -250,7 +249,7 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
           <TeamBadge team={d.team_a} side="a" mine={d.my_team === 0} />
           <div className="pb-1 text-center text-[11px] font-semibold text-gray-400">
             <Users className="mr-0.5 inline h-3 w-3" />
-            {d.playing}/{d.enrolled} pulling
+            {t('arena.pulling', { playing: d.playing, enrolled: d.enrolled })}
           </div>
           <TeamBadge team={d.team_b} side="b" mine={d.my_team === 1} />
         </div>
@@ -285,13 +284,13 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
         {/* Motivation */}
         <div className={`mb-4 rounded-2xl p-4 text-center font-extrabold ${behind ? 'bg-red-50 text-red-600' : tied ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-700'}`}>
           {d.my_team === null ? (
-            <>⚔️ Your class is battling! Play to join a team's pull!</>
+            <>{t('arena.motivation.notInTeam')}</>
           ) : behind ? (
-            <>😮‍💨 Pull harder, your team is behind! Every game counts!</>
+            <>{t('arena.motivation.behind')}</>
           ) : tied ? (
-            <>🤝 It's all square! One more game tips the rope!</>
+            <>{t('arena.motivation.tied')}</>
           ) : (
-            <>💪 You're winning! Keep pulling — don't let go!</>
+            <>{t('arena.motivation.winning')}</>
           )}
         </div>
 
@@ -308,28 +307,28 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
           onClick={() => { playTap(); onGoPlay?.(); }}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-500 to-orange-500 py-4 text-lg font-extrabold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
         >
-          <Zap className="h-5 w-5" /> PLAY & PULL THE ROPE!
+          <Zap className="h-5 w-5" /> {t('arena.playPull')}
         </button>
         {d.my_pts > 0 && (
-          <p className="mt-2 text-center text-xs font-semibold text-gray-500">You've pulled {d.my_pts} pts for your team 🪢</p>
+          <p className="mt-2 text-center text-xs font-semibold text-gray-500">{t('arena.pulledPts', { pts: d.my_pts })}</p>
         )}
       </div>
     );
   }
 
   /* ── TROPHY RACE ────────────────────────────────────────── */
-  const t = data as TrophyData;
-  const top3 = t.ranking.slice(0, 3);
-  const rest = t.ranking.slice(3);
+  const trophy = data as TrophyData;
+  const top3 = trophy.ranking.slice(0, 3);
+  const rest = trophy.ranking.slice(3);
   return (
     <div className="mx-auto max-w-md px-4 py-4 relative">
       {diceResult && <DiceRollOverlay result={diceResult} onDone={() => setDiceResult(null)} />}
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-extrabold text-gray-800">
-          <Trophy className="h-5 w-5 text-amber-500" /> {t.title}
+          <Trophy className="h-5 w-5 text-amber-500" /> {trophy.title}
         </h2>
-        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-600">⏳ {hoursLeft}h left</span>
+        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-600">{t('arena.hoursLeft', { hours: hoursLeft })}</span>
       </div>
 
       {/* Podium */}
@@ -341,7 +340,7 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
             <div key={slot} className={`flex ${h} flex-col items-center justify-end rounded-t-2xl ${r?.me ? 'bg-gradient-to-b from-amber-200 to-amber-100 ring-4 ring-amber-400' : 'bg-gradient-to-b from-blue-50 to-blue-100'} pb-2`}>
               <span className="text-2xl">{PODIUM[slot]}</span>
               <span className="max-w-full truncate px-1 text-[11px] font-bold text-gray-700">{r ? r.name : '—'}</span>
-              <span className="text-[10px] font-semibold text-gray-500">{r ? `${r.pts} pts` : ''}</span>
+              <span className="text-[10px] font-semibold text-gray-500">{r ? t('arena.pts', { pts: r.pts }) : ''}</span>
             </div>
           );
         })}
@@ -354,7 +353,7 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
             <div key={r.adm} className={`flex items-center gap-3 px-4 py-2.5 text-sm ${r.me ? 'bg-amber-50/70 font-bold' : ''}`}>
               <span className="w-6 text-center text-xs font-extrabold text-gray-400">{i + 4}</span>
               <Medal className="h-3.5 w-3.5 text-gray-300" />
-              <span className="min-w-0 flex-1 truncate">{r.name}{r.me ? ' (You)' : ''}</span>
+              <span className="min-w-0 flex-1 truncate">{r.name}{r.me ? t('student.leaderboard.you') : ''}</span>
               <span className="font-bold text-[#0F4D92]">{r.pts}</span>
             </div>
           ))}
@@ -362,15 +361,15 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
       )}
 
       <div className="mb-4 rounded-2xl bg-white p-4 text-center shadow-sm">
-        {t.my_rank ? (
+        {trophy.my_rank ? (
           <p className="text-sm font-bold text-gray-700">
             <Crown className="mr-1 inline h-4 w-4 text-amber-500" />
-            You're #{t.my_rank} with {t.my_pts} pts — keep going!
+            {t('arena.myRank', { rank: trophy.my_rank, pts: trophy.my_pts })}
           </p>
         ) : (
-          <p className="text-sm font-bold text-gray-600">Race is on! Be the first to score!</p>
+          <p className="text-sm font-bold text-gray-600">{t('arena.raceOn')}</p>
         )}
-        <p className="mt-1 text-[11px] text-gray-400"><Users className="mr-0.5 inline h-3 w-3" />{t.playing}/{t.enrolled} classmates racing</p>
+        <p className="mt-1 text-[11px] text-gray-400"><Users className="mr-0.5 inline h-3 w-3" />{t('arena.racing', { playing: trophy.playing, enrolled: trophy.enrolled })}</p>
       </div>
 
       {/* Reactions */}
@@ -380,7 +379,7 @@ export default function StudentArenaPanel({ onGoPlay }: { onGoPlay?: () => void 
         onClick={() => { playTap(); onGoPlay?.(); }}
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 py-4 text-lg font-extrabold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
       >
-        <Zap className="h-5 w-5" /> PLAY & CLIMB HIGHER!
+        <Zap className="h-5 w-5" /> {t('arena.playClimb')}
       </button>
     </div>
   );
@@ -392,10 +391,10 @@ function TeamBadge({ team, side, mine }: { team: { name: string; pts: number; pl
     <div className={`rounded-xl px-2.5 py-1.5 text-left ${mine ? 'ring-4 ring-amber-300' : ''} ${side === 'a' ? 'bg-purple-50' : 'bg-green-50 text-right'}`}>
       <div className={`flex items-center gap-1 ${side === 'b' ? 'justify-end' : ''}`}>
         <span className="text-lg">{emoji}</span>
-        <span className="text-[11px] font-extrabold text-gray-700">{team.name.replace(/^\p{Emoji}+\s*/u, '')}{mine ? ' (You!)' : ''}</span>
+        <span className="text-[11px] font-extrabold text-gray-700">{team.name.replace(/^\p{Emoji}+\s*/u, '')}{mine ? t('arena.youBang') : ''}</span>
       </div>
       <div className={`text-xl font-black ${side === 'a' ? 'text-purple-600' : 'text-green-600'}`}>{team.pts}</div>
-      <div className="text-[10px] font-medium text-gray-400">{team.players} kids</div>
+      <div className="text-[10px] font-medium text-gray-400">{t('arena.kids', { count: team.players })}</div>
     </div>
   );
 }
@@ -404,9 +403,9 @@ function PullerList({ rows, color }: { rows: ArenaRow[]; color: 'purple' | 'gree
   return (
     <div className={`overflow-hidden rounded-2xl bg-white shadow-sm ${color === 'purple' ? 'border-purple-100' : 'border-green-100'} border`}>
       <div className={`px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide ${color === 'purple' ? 'bg-purple-50 text-purple-500' : 'bg-green-50 text-green-600'}`}>
-        Top pullers
+        {t('arena.topPullers')}
       </div>
-      {rows.length === 0 && <div className="px-3 py-2 text-xs text-gray-400">No pulls yet…</div>}
+      {rows.length === 0 && <div className="px-3 py-2 text-xs text-gray-400">{t('arena.noPulls')}</div>}
       {rows.map((r) => (
         <div key={r.adm} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs ${r.me ? 'bg-amber-50 font-bold' : ''}`}>
           <span className="min-w-0 flex-1 truncate text-gray-700">{r.name}{r.me ? ' ⭐' : ''}</span>

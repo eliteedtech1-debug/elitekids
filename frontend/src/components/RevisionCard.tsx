@@ -13,6 +13,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, AlertTriangle, BookOpen, CheckCircle2, Zap, Loader2, Target } from 'lucide-react';
 import { playTap } from '@/lib/game/sound-effects';
+import { t, tN } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
@@ -103,10 +104,10 @@ export default function RevisionCard() {
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <RefreshCw className="h-4 w-4 text-amber-500" />
-        <h3 className="text-sm font-bold text-gray-700">Review Time</h3>
+        <h3 className="text-sm font-bold text-gray-700">{t('revisionCard.title')}</h3>
         {failedCount > 0 && (
           <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
-            {failedCount} weak item{failedCount !== 1 ? 's' : ''}
+            {tN('revisionCard.weakItems', failedCount)}
           </span>
         )}
       </div>
@@ -116,11 +117,9 @@ export default function RevisionCard() {
         <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Target className="h-4 w-4 text-amber-600" />
-            <span className="text-xs font-bold text-amber-800">Items to strengthen</span>
+            <span className="text-xs font-bold text-amber-800">{t('revisionCard.strengthen')}</span>
           </div>
-          <p className="text-[11px] text-amber-700 mb-3">
-            You got {failedCount} question{failedCount !== 1 ? 's' : ''} wrong recently. Reviewing them will help you remember better!
-          </p>
+          <p className="text-[11px] text-amber-700 mb-3">{tN('revisionCard.wrongRecent', failedCount)}</p>
 
           {/* Show top nudges */}
           <div className="space-y-1.5">
@@ -134,7 +133,7 @@ export default function RevisionCard() {
                     {nudge.topic || nudge.subject}
                   </span>
                   <span className="text-[10px] text-gray-400">
-                    {nudge.failed_count} wrong · {nudge.days_since > 0 ? `${nudge.days_since}d ago` : 'recent'}
+                    {t('revisionCard.nudgeMeta', { count: nudge.failed_count, meta: nudge.days_since > 0 ? t('revisionCard.daysAgo', { days: nudge.days_since }) : t('revisionCard.recent') })}
                   </span>
                 </div>
                 {nudge.lesson_id && (
@@ -142,7 +141,7 @@ export default function RevisionCard() {
                     onClick={() => handleReviewLesson(nudge.lesson_id!)}
                     className="ml-2 shrink-0 rounded-lg bg-amber-500 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-amber-600 transition-colors"
                   >
-                    ▶ Review
+                    {t('revisionCard.review')}
                   </button>
                 )}
               </div>
@@ -151,7 +150,7 @@ export default function RevisionCard() {
 
           {nudges.length > 3 && (
             <p className="mt-2 text-[10px] text-amber-500">
-              +{nudges.length - 3} more topics to review
+              {t('revisionCard.moreTopics', { count: nudges.length - 3 })}
             </p>
           )}
         </div>
@@ -166,19 +165,19 @@ export default function RevisionCard() {
         {starting ? (
           <div className="flex items-center justify-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
-            <span className="text-xs font-medium text-purple-600">Loading weekly review…</span>
+            <span className="text-xs font-medium text-purple-600">{t('revisionCard.loadingWeekly')}</span>
           </div>
         ) : (
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <BookOpen className="h-4 w-4 text-purple-600" />
-                <span className="text-xs font-bold text-gray-700">Weekly Review</span>
+                <span className="text-xs font-bold text-gray-700">{t('revisionCard.weekly')}</span>
               </div>
-              <p className="text-[11px] text-gray-500">Comprehensive review of everything this week</p>
+              <p className="text-[11px] text-gray-500">{t('revisionCard.weeklyDesc')}</p>
             </div>
             <span className="shrink-0 rounded-lg bg-purple-500 px-3 py-1.5 text-[10px] font-bold text-white">
-              ▶ Start
+              {t('revisionCard.start')}
             </span>
           </div>
         )}

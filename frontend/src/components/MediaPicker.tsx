@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Library, Upload } from 'lucide-react';
+import { t } from '@/lib/i18n';
 import MediaLibrary from '@/components/MediaLibrary';
 
 /**
@@ -24,7 +25,7 @@ interface MediaPickerProps {
 export default function MediaPicker({
   value,
   onChange,
-  label = 'Image',
+  label = t('mediaPicker.image'),
   optional = true,
   compact = false,
   acceptAudio = false,
@@ -50,17 +51,17 @@ export default function MediaPicker({
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Paste image URL or browse library…"
+            placeholder={t('mediaPicker.placeholder')}
             className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
           />
         </div>
         <button
           onClick={() => setShowLibrary(true)}
           className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-[#0F4D92] hover:bg-blue-50 hover:border-[#0F4D92]/40 transition-colors shrink-0"
-          title="Browse media library"
+          title={t('mediaPicker.browseTitle')}
         >
           <Library className="h-3.5 w-3.5" />
-          Library
+          {t('mediaPicker.library')}
         </button>
       </div>
 
