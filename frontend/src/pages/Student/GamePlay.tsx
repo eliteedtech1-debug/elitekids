@@ -20,7 +20,7 @@ import { offlineApi } from '@/lib/offline/api';
 import { offlineSync } from '@/lib/offline/sync';
 import SpeakButton from '@/components/SpeakButton';
 import { ENDPOINTS } from '@/lib/api/endpoints';
-import { t } from '@/lib/i18n';
+import { t, tN } from '@/lib/i18n';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import TimerBar from '@/components/Timer';
 import { getItemVisual, getNumberEmoji, getNumberImageUrl } from '@/lib/utils/icons';
@@ -280,8 +280,8 @@ function MatchingGame({
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
-      ? (config.feedbackCorrect || 'Great match! You\'re amazing!')
-      : (config.feedbackWrong || 'Not quite! Try again!');
+      ? (config.feedbackCorrect || t('game.feedback.matchCorrect'))
+      : (config.feedbackWrong || t('game.feedback.matchWrong'));
     setFeedback(type);
     setFeedbackMsg(msg);
     if (type === 'wrong' && config.hint) {
@@ -405,12 +405,12 @@ function MatchingGame({
       {/* Mode badges */}
       {isLearning && (
         <p className="text-center text-sm font-medium text-purple-600 bg-purple-50 rounded-xl px-3 py-2">
-          📺 Learning Mode — Watch and learn!
+          📺 {t('game.learning.watchAndLearn')}
         </p>
       )}
       {isTest && (
         <p className="text-center text-sm font-medium text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-          ⚠️ Test Mode — Match the pairs correctly
+          ⚠️ {t('game.test.matchPairs')}
         </p>
       )}
 
@@ -418,7 +418,7 @@ function MatchingGame({
       {streak >= 2 && !isTest && (
         <div className="text-center animate-game-pop">
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700">
-            🔥 {streak} streak!
+            🔥 {t('game.streak', { count: streak })}
           </span>
         </div>
       )}
@@ -507,7 +507,7 @@ function MatchingGame({
       {/* Floating XP */}
       {floatingXP && (
         <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-game-pop">
-          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">+10 XP</span>
+          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
 
@@ -585,7 +585,7 @@ function TapGame({
       if (!isTest && soundOn) playCorrect();
       if (!isTest) {
         setFeedback('correct');
-        setFeedbackMsg(config.feedbackCorrect || '');
+        setFeedbackMsg(config.feedbackCorrect || t('game.feedback.greatJob'));
         setFloatingXP(true);
       }
       setPopId(idx);
@@ -611,7 +611,7 @@ function TapGame({
       if (!isTest) {
         if (soundOn) playHint();
         setFeedback('wrong');
-        setFeedbackMsg(config.feedbackWrong || '');
+        setFeedbackMsg(config.feedbackWrong || t('game.feedback.notQuite'));
         setWrongIdx(idx);
         setShowHint(true);
         setTimeout(() => { setFeedback(null); setWrongIdx(null); }, 1200);
@@ -647,18 +647,18 @@ function TapGame({
   if (!current) return null;
 
   const scenarioText = config.scenario || '';
-  const promptText = config.prompt || 'Find:';
+  const promptText = config.prompt || t('game.findTarget');
 
   return (
     <div className="space-y-5">
       {mode === 'learning' && (
         <p className="text-center text-sm font-medium text-purple-600 bg-purple-50 rounded-xl px-3 py-2">
-          📺 Learning Mode — Watch and learn!
+          📺 {t('game.learning.watchAndLearn')}
         </p>
       )}
       {isTest && (
         <p className="text-center text-sm font-medium text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-          📝 Test Mode — Find the right one!
+          📝 {t('game.test.findRight')}
         </p>
       )}
 
@@ -667,7 +667,7 @@ function TapGame({
         <div className="flex justify-center">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-400 to-amber-500 px-3 py-1 text-xs font-bold text-white shadow-md animate-game-pop">
             <span>🔥</span>
-            <span>{streak} streak!</span>
+            <span>{t('game.streak', { count: streak })}</span>
           </div>
         </div>
       )}
@@ -706,8 +706,8 @@ function TapGame({
         ) : promptMode === 'image' ? (
           <>
             <p className="text-lg font-semibold text-gray-700">
-              What is this?
-              <SpeakButton text={config.speechText || config.prompt || 'What is this?'} size="sm" className="ml-2 align-middle" />
+              {t('game.whatIsThis')}
+              <SpeakButton text={config.speechText || config.prompt || t('game.whatIsThis')} size="sm" className="ml-2 align-middle" />
             </p>
             <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-blue-50 animate-game-float animate-game-glow-pulse">
               {current.image ? (
@@ -724,8 +724,8 @@ function TapGame({
         ) : promptMode === 'audio' ? (
           <>
             <p className="text-lg font-semibold text-gray-700">
-              Listen and find:
-              <SpeakButton text={config.speechText || config.prompt || config.scenario || 'Listen and find'} size="sm" className="ml-2 align-middle" />
+              {t('game.listenAndFind')}
+              <SpeakButton text={config.speechText || config.prompt || config.scenario || t('game.listenAndFind')} size="sm" className="ml-2 align-middle" />
             </p>
             <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-purple-50 animate-game-float animate-game-glow-pulse">
               <Volume2 className="h-12 w-12 text-purple-500 animate-game-bounce" />
@@ -761,7 +761,7 @@ function TapGame({
         {isTest && soundOn && (
           <div className="mt-2 flex items-center justify-center gap-1.5 text-[10px] text-blue-400">
             <Volume2 className="h-3 w-3 animate-game-bounce" />
-            <span>Reading aloud...</span>
+            <span>{t('game.readingAloud')}</span>
           </div>
         )}
       </div>
@@ -811,7 +811,7 @@ function TapGame({
                 ) : responseMode === 'audio' ? (
                   <span className="flex flex-col items-center gap-1">
                     <Volume2 className="h-8 w-8 text-[#0F4D92]" />
-                    <span className="text-xs text-gray-400">tap to hear</span>
+                    <span className="text-xs text-gray-400">{t('game.tapToHear')}</span>
                   </span>
                 ) : (
                   <span className="text-lg font-bold text-gray-800 capitalize">{readableLabel(item.label, item.color, item.emoji)}</span>
@@ -855,7 +855,7 @@ function TapGame({
       {/* Floating XP */}
       {floatingXP && (
         <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-game-pop">
-          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">+10 XP</span>
+          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
 
@@ -947,8 +947,8 @@ function DragSortGame({
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
-      ? (config.feedbackCorrect || 'Great job!')
-      : (config.feedbackWrong || 'Not quite — try again!');
+      ? (config.feedbackCorrect || t('game.feedback.greatJob'))
+      : (config.feedbackWrong || t('game.feedback.notQuite'));
     setFeedback(type);
     setFeedbackMsg(msg);
     if (type === 'wrong' && config.hint) {
@@ -1107,12 +1107,12 @@ function DragSortGame({
       {/* Mode badges */}
       {isLearning && (
         <p className="text-center text-sm font-medium text-purple-600 bg-purple-50 rounded-xl px-3 py-2">
-          📺 Learning Mode — Watch and learn!
+          📺 {t('game.learning.watchAndLearn')}
         </p>
       )}
       {isTest && (
         <p className="text-center text-sm font-medium text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-          ⚠️ Test Mode — {hasNums ? 'Put them in the right order' : 'Put them in alphabetical order'}
+          ⚠️ {hasNums ? t('game.test.orderNumbers') : t('game.test.orderAlphabetical')}
         </p>
       )}
 
@@ -1120,18 +1120,18 @@ function DragSortGame({
       {streak >= 2 && !isTest && (
         <div className="text-center animate-game-pop">
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700">
-            🔥 {streak} streak!
+            🔥 {t('game.streak', { count: streak })}
           </span>
         </div>
       )}
 
       <p className="text-center text-lg font-semibold text-gray-700">
         {hasNums
-          ? <>Put them in order: <span className="text-[#0F4D92]">1 → {items.length}</span></>
-          : <>Put them in <span className="text-[#0F4D92]">alphabetical order</span></>}
-        <SpeakButton text={config.speechText || config.scenario || (hasNums ? `Put them in order: 1 → ${items.length}` : 'Put them in alphabetical order')} size="sm" className="ml-2 align-middle" />
+          ? <>{t('game.putInOrder')} <span className="text-[#0F4D92]">1 → {items.length}</span></>
+          : <>{t('game.putInOrder')} <span className="text-[#0F4D92]">{t('game.alphabeticalOrder')}</span></>}
+        <SpeakButton text={config.speechText || config.scenario || (hasNums ? `${t('game.putInOrder')} 1 → ${items.length}` : `${t('game.putInOrder')} ${t('game.alphabeticalOrder')}`)} size="sm" className="ml-2 align-middle" />
       </p>
-      <p className="text-center text-xs text-gray-400">Drag words here or tap to place 👇</p>
+      <p className="text-center text-xs text-gray-400">{t('game.dragWordsHere')} 👇</p>
 
       {/* Drop zone */}
       <div
@@ -1143,8 +1143,8 @@ function DragSortGame({
           dragOver ? 'border-[#0F4D92] bg-[#0F4D92]/5 scale-[1.02]' : 'border-[#0F4D92]/20 bg-[#E7EEF6]/50'
         }`}
       >
-        {placed.length === 0 && !dragOver && <span className="text-sm text-gray-400 animate-game-float-slow">Drag or tap items below</span>}
-        {dragOver && placed.length === 0 && <span className="text-sm font-medium text-[#0F4D92] animate-game-pop">Drop here! 🎯</span>}
+        {placed.length === 0 && !dragOver && <span className="text-sm text-gray-400 animate-game-float-slow">{t('game.dragWordsHere')}</span>}
+        {dragOver && placed.length === 0 && <span className="text-sm font-medium text-[#0F4D92] animate-game-pop">{t('game.dropHere')} 🎯</span>}
         {placed.map((item, idx) => (
           <span key={item.num} className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold shadow-sm border animate-game-slide-up ${cbCorrect.bg} ${cbCorrect.border} ${cbCorrect.text}`} style={{ animationDelay: `${idx * 0.05}s` }}>
             {item.num}. {item.label} ✓
@@ -1152,7 +1152,7 @@ function DragSortGame({
         ))}
         {placed.length > 0 && (
           <div className="w-full text-center mt-1">
-            <span className="text-xs font-semibold text-green-600 animate-game-bounce inline-block">{placed.length}/{items.length} placed</span>
+            <span className="text-xs font-semibold text-green-600 animate-game-bounce inline-block">{t('game.itemsPlaced', { placed: placed.length, total: items.length })}</span>
           </div>
         )}
       </div>
@@ -1182,7 +1182,7 @@ function DragSortGame({
             }`}
           >
             <span className="text-lg">{item.label}</span>
-            <div className="mt-1 text-[10px] text-gray-400">⠿ drag</div>
+            <div className="mt-1 text-[10px] text-gray-400">⠿ {t('game.drag')}</div>
           </button>
         ))}
       </div>
@@ -1221,7 +1221,7 @@ function DragSortGame({
       {/* Floating XP */}
       {floatingXP && (
         <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-game-pop">
-          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">+10 XP</span>
+          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
 
@@ -1329,8 +1329,8 @@ function FillBlankGame({
 
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
-      ? (config.feedbackCorrect || 'Perfect! Great job!')
-      : (config.feedbackWrong || 'Not quite — try again!');
+      ? (config.feedbackCorrect || t('game.feedback.perfect'))
+      : (config.feedbackWrong || t('game.feedback.notQuite'));
     setFeedback(type);
     setFeedbackMsg(msg);
     if (type === 'wrong' && config.hint) {
@@ -1533,12 +1533,12 @@ function FillBlankGame({
       {/* Mode badges */}
       {isLearning && (
         <p className="text-center text-sm font-medium text-purple-600 bg-purple-50 rounded-xl px-3 py-2">
-          📺 Learning Mode — Watch and learn!
+          📺 {t('game.learning.watchAndLearn')}
         </p>
       )}
       {isTest && (
         <p className="text-center text-sm font-medium text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-          ⚠️ Test Mode — Fill in the blanks correctly
+          ⚠️ {t('game.test.fillBlanks')}
         </p>
       )}
 
@@ -1546,7 +1546,7 @@ function FillBlankGame({
       {streak >= 2 && !isTest && (
         <div className="text-center animate-game-pop">
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700">
-            🔥 {streak} streak!
+            🔥 {t('game.streak', { count: streak })}
           </span>
         </div>
       )}
@@ -1569,18 +1569,18 @@ function FillBlankGame({
       {promptMode === 'audio' ? (
         <div className="flex flex-col items-center gap-2">
           <p className="text-lg font-semibold text-gray-700">
-            Listen and fill in the blanks 🎧
+            {t('game.listenFillBlanks')} 🎧
             <SpeakButton text={config.speechText || config.scenario || sentence.replace(/_+/g, 'blank')} size="sm" className="ml-2 align-middle" />
           </p>
           <div className="rounded-xl bg-purple-50 px-6 py-3 flex items-center gap-2">
             <Volume2 className="h-6 w-6 text-purple-600 animate-game-bounce" />
-            <span className="text-sm text-purple-600 font-medium">Playing sentence...</span>
+            <span className="text-sm text-purple-600 font-medium">{t('game.playingSentence')}</span>
           </div>
         </div>
       ) : promptMode === 'image' ? (
         <div className="flex flex-col items-center gap-2">
           <p className="text-lg font-semibold text-gray-700">
-            Look at the picture and complete the sentence 🖼️
+            {t('game.lookCompleteSentence')} 🖼️
             <SpeakButton text={config.speechText || config.scenario || sentence.replace(/_+/g, 'blank')} size="sm" className="ml-2 align-middle" />
           </p>
           {config.image && <CachedImg src={config.image} alt="" className="h-20 w-20 object-contain" />}
@@ -1589,15 +1589,15 @@ function FillBlankGame({
         <>
           {(currentS.context || sentences.length > 1) && (
             <p className="text-center text-sm text-gray-500">
-              {sentences.length > 1 ? `Sentence ${sIdx + 1} of ${sentences.length}` : ''}
+              {sentences.length > 1 ? t('game.sentenceProgress', { current: sIdx + 1, total: sentences.length }) : ''}
               {currentS.context ? `${sentences.length > 1 ? ' — ' : ''}${currentS.context}` : ''}
             </p>
           )}
           <p className="text-center text-lg font-semibold text-gray-700">
-            Complete the sentence 📝
+            {t('game.completeSentence')} 📝
             <SpeakButton text={sentence.replace(/_+/g, 'blank')} size="sm" className="ml-2 align-middle" />
           </p>
-          <p className="text-center text-xs text-gray-400">Tap a word, then tap a blank — or drag it!</p>
+          <p className="text-center text-xs text-gray-400">{t('game.tapWordBlank')}</p>
         </>
       )}
 
@@ -1643,7 +1643,7 @@ function FillBlankGame({
 
       {/* Word bank */}
       <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
-        <p className="mb-3 text-xs font-medium text-gray-400 text-center">Word Bank — tap or drag to a blank</p>
+        <p className="mb-3 text-xs font-medium text-gray-400 text-center">{t('game.wordBank')}</p>
         <div className="flex flex-wrap justify-center gap-2">
           {wordBank.map((word, i) => {
             const isPlaced = placedWords.has(word);
@@ -1720,7 +1720,7 @@ function FillBlankGame({
       {/* Floating XP */}
       {floatingXP && (
         <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-game-pop">
-          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">+10 XP</span>
+          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
 
@@ -1757,7 +1757,7 @@ function QuizGame({
     if (config.questions && config.questions.length > 0) return config.questions;
     return [{
       id: 'q-single',
-      prompt: config.question || 'Choose the correct answer',
+      prompt: config.question || t('game.chooseAnswer'),
       options: config.options || [],
       correctIndex: -1,
       correctId: config.correctId,
@@ -1905,7 +1905,7 @@ function QuizGame({
     let cancelled = false;
     const timer = setTimeout(async () => {
       // Step 1: Read the scenario/prompt
-      const textToSpeak = currentQ.speechText || currentQ.scenario || currentQ.prompt || currentQ.question || 'Choose the correct answer';
+      const textToSpeak = currentQ.speechText || currentQ.scenario || currentQ.prompt || currentQ.question || t('game.chooseAnswer');
       if (soundOn) await speak(stripEmoji(textToSpeak));
       if (cancelled) return;
       // Step 2: Highlight + speak the answer
@@ -1926,7 +1926,7 @@ function QuizGame({
 
   // ── Scenario text: prefer scenario field, fall back to prompt ──
   const scenarioText = currentQ.scenario || '';
-  const questionText = currentQ.prompt || currentQ.question || config.question || 'Choose the correct answer';
+  const questionText = currentQ.prompt || currentQ.question || config.question || t('game.chooseAnswer');
   const settingText = currentQ.setting || '';
 
   return (
@@ -1934,12 +1934,12 @@ function QuizGame({
       {/* Mode indicator */}
       {mode === 'learning' && (
         <p className="text-center text-sm font-medium text-purple-600 bg-purple-50 rounded-xl px-3 py-2">
-          📺 Learning Mode — Watch and learn!
+          📺 {t('game.learning.watchAndLearn')}
         </p>
       )}
       {isTest && (
         <p className="text-center text-sm font-medium text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-          📝 Test Mode — Choose carefully!
+          📝 {t('game.test.chooseCarefully')}
         </p>
       )}
 
@@ -1962,7 +1962,7 @@ function QuizGame({
         <div className="flex justify-center">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-400 to-amber-500 px-3 py-1 text-xs font-bold text-white shadow-md animate-game-pop">
             <span>🔥</span>
-            <span>{streak} streak!</span>
+            <span>{t('game.streak', { count: streak })}</span>
           </div>
         </div>
       )}
@@ -1975,9 +1975,9 @@ function QuizGame({
               {streakPopup >= 7 ? '🏆' : streakPopup >= 5 ? '⭐' : '🔥'}
             </div>
             <p className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">
-              {streakPopup >= 7 ? 'UNSTOPPABLE!' : streakPopup >= 5 ? 'AMAZING!' : 'ON FIRE!'}
+              {streakPopup >= 7 ? t('game.unstoppable') : streakPopup >= 5 ? t('game.amazing') : t('game.onFire')}
             </p>
-            <p className="text-sm font-bold text-orange-400">{streakPopup} in a row!</p>
+            <p className="text-sm font-bold text-orange-400">{t('game.inARow', { count: streakPopup })}</p>
           </div>
         </div>
       )}
@@ -2069,7 +2069,7 @@ function QuizGame({
           {isTest && soundOn && (
             <div className="mt-2 flex items-center gap-1.5 text-[10px] text-blue-400">
               <Volume2 className="h-3 w-3 animate-game-bounce" />
-              <span>Reading aloud...</span>
+              <span>{t('game.readingAloud')}</span>
             </div>
           )}
         </div>
@@ -2112,7 +2112,7 @@ function QuizGame({
             ) : responseMode === 'audio' ? (
               <span className="flex flex-col items-center gap-1">
                 <Volume2 className="h-8 w-8 text-[#0F4D92]" />
-                <span className="text-xs text-gray-400">tap to hear</span>
+                <span className="text-xs text-gray-400">{t('game.tapToHear')}</span>
               </span>
             ) : (
               <span className="text-lg font-semibold text-gray-800 capitalize">{opt.label}</span>
@@ -2159,7 +2159,7 @@ function QuizGame({
       {/* Floating XP on correct */}
       {floatingXP && (
         <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-game-pop">
-          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">+10 XP</span>
+          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
 
@@ -2260,8 +2260,8 @@ function MemoryPairsGame({
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     if (isTest) return;
     const msg = type === 'correct'
-      ? (config.feedbackCorrect || 'Great match!')
-      : (config.feedbackWrong || 'Not quite — try again!');
+      ? (config.feedbackCorrect || t('game.feedback.perfect'))
+      : (config.feedbackWrong || t('game.feedback.notQuite'));
     setFeedback(type);
     setFeedbackMsg(msg);
     if (type === 'wrong' && config.hint) {
@@ -2376,12 +2376,12 @@ function MemoryPairsGame({
       {/* Mode badges */}
       {isLearning && (
         <p className="text-center text-sm font-medium text-purple-600 bg-purple-50 rounded-xl px-3 py-2">
-          📺 Learning Mode — Watch and learn!
+          📺 {t('game.learning.watchAndLearn')}
         </p>
       )}
       {isTest && (
         <p className="text-center text-sm font-medium text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-          ⚠️ Test Mode — Find all the matching pairs
+          ⚠️ {t('game.test.findPairs')}
         </p>
       )}
 
@@ -2389,7 +2389,7 @@ function MemoryPairsGame({
       {streak >= 2 && !isTest && (
         <div className="text-center animate-game-pop">
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700">
-            🔥 {streak} pairs!
+            🔥 {t('game.streakPairs', { count: streak })}
           </span>
         </div>
       )}
@@ -2408,9 +2408,8 @@ function MemoryPairsGame({
         </div>
       )}
 
-      <p className="text-center text-lg font-semibold text-gray-700">
-        {config.scenario || 'Find the matching pairs 🃏'}
-        <SpeakButton text={config.speechText || config.scenario || 'Find the matching pairs 🃏'} size="sm" className="ml-2 align-middle" />
+      <p className="text-center text-lg font-semibold text-gray-700">            {config.scenario || `${t('game.findMatchingPairs')} 🃏`}
+        <SpeakButton text={config.speechText || config.scenario || `${t('game.findMatchingPairs')} 🃏`} size="sm" className="ml-2 align-middle" />
       </p>
 
       <div className={`grid gap-3 ${totalPairs <= 4 ? 'grid-cols-4' : 'grid-cols-4 sm:grid-cols-4'}`}>
@@ -2471,7 +2470,7 @@ function MemoryPairsGame({
       {/* Floating XP */}
       {floatingXP && (
         <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-game-pop">
-          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">+10 XP</span>
+          <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
     </div>
@@ -2501,23 +2500,23 @@ function WaitingSubmit({
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 mx-auto animate-game-trophy-drop">
           <span className="text-4xl">📝</span>
         </div>
-        <h1 className="mb-2 text-2xl font-bold text-gray-800 animate-game-slide-up stagger-1">Test Complete!</h1>
-        <p className="mb-6 text-sm text-gray-500 animate-game-slide-up stagger-2">Ready to submit your answers?</p>
+        <h1 className="mb-2 text-2xl font-bold text-gray-800 animate-game-slide-up stagger-1">{t('game.testComplete')}</h1>
+        <p className="mb-6 text-sm text-gray-500 animate-game-slide-up stagger-2">{t('game.readySubmit')}</p>
 
         <div className="mb-6 rounded-2xl bg-white p-5 shadow-md animate-game-slide-up stagger-3">
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-[#0F4D92]">{totalAnswered}</p>
-              <p className="text-xs text-gray-500">Answered</p>
+              <p className="text-xs text-gray-500">{t('game.answered')}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-700">{totalPossible}</p>
-              <p className="text-xs text-gray-500">Total Questions</p>
+              <p className="text-xs text-gray-500">{t('game.totalQuestions')}</p>
             </div>
           </div>
           {totalAnswered < totalPossible && (
             <p className="mt-3 text-xs text-amber-600 bg-amber-50 rounded-lg py-1.5">
-              ⚠️ {totalPossible - totalAnswered} question{totalPossible - totalAnswered > 1 ? 's' : ''} unanswered
+              ⚠️ {tN('game.unanswered', totalPossible - totalAnswered)}
             </p>
           )}
         </div>
@@ -2527,13 +2526,13 @@ function WaitingSubmit({
             onClick={() => { playTap(); onSubmit(); }}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-lg hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 animate-game-spring-in stagger-4"
           >
-            Submit Test ✓
+            {t('game.submitTest')} ✓
           </button>
           <button
             onClick={() => { playTap(); onBack(); }}
             className="inline-flex items-center gap-2 rounded-xl border-2 border-gray-200 px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all animate-game-spring-in stagger-5"
           >
-            Cancel
+            {t('game.cancel')}
           </button>
         </div>
       </div>
@@ -2572,15 +2571,15 @@ function ResultBreakdown({
         {pct >= 50 && <div className="confetti-container"><div className="confetti-particle" style={{ left: '10%', backgroundColor: '#FFD700', animationDelay: '0.1s' }} /><div className="confetti-particle" style={{ left: '25%', backgroundColor: '#FF6B6B', animationDelay: '0.3s' }} /><div className="confetti-particle" style={{ left: '50%', backgroundColor: '#4ECDC4', animationDelay: '0.2s' }} /><div className="confetti-particle" style={{ left: '75%', backgroundColor: '#A78BFA', animationDelay: '0.4s' }} /><div className="confetti-particle" style={{ left: '90%', backgroundColor: '#F59E0B', animationDelay: '0.15s' }} /></div>}
         <Trophy className="mx-auto mb-4 h-16 w-16 text-amber-400 animate-game-trophy-drop" />
         <h1 className="mb-1 text-3xl font-bold text-gray-800 animate-game-spring-in">
-          {pct >= 80 ? '⭐ SUPER STAR! ⭐' : pct >= 50 ? '🎉 Great Job!' : pct > 0 ? '💪 Keep Trying!' : '⏰ Time\'s Up!'}
+          {pct >= 80 ? t('game.result.superStar') : pct >= 50 ? t('game.result.greatJob') : pct > 0 ? t('game.result.keepTrying') : t('game.result.timesUp')}
         </h1>
         {pct >= 80 && (
           <p className="mb-2 animate-game-pop text-xl font-extrabold tracking-wide text-amber-500">
-            YOU ARE A SUPER STAR!
+            {t('game.result.youAreSuperStar')}
           </p>
         )}
         <p className="mb-4 text-gray-500 animate-game-slide-up stagger-1">
-          {mode === 'test' ? 'Test Results' : 'Practice Results'}
+          {mode === 'test' ? t('game.results.test') : t('game.results.practice')}
         </p>
 
         {/* Stars */}
@@ -2596,19 +2595,19 @@ function ResultBreakdown({
 
         {/* Score card */}
         <div className="mb-6 rounded-2xl bg-white p-5 shadow-md animate-game-slide-up stagger-3">
-          <p className="mb-3 text-4xl font-bold text-[#0F4D92] animate-game-score-bounce">+{score} XP</p>
+          <p className="mb-3 text-4xl font-bold text-[#0F4D92] animate-game-score-bounce">{t('game.xpScore', { count: score })}</p>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
               <p className={`text-2xl font-bold ${cbCorrect.text}`}>{correct}</p>
-              <p className="text-xs text-gray-500">Correct</p>
+              <p className="text-xs text-gray-500">{t('game.correct')}</p>
             </div>
             <div>
               <p className={`text-2xl font-bold ${cbWrong.text}`}>{wrong}</p>
-              <p className="text-xs text-gray-500">Wrong</p>
+              <p className="text-xs text-gray-500">{t('game.wrong')}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-700">{pct}%</p>
-              <p className="text-xs text-gray-500">Score</p>
+              <p className="text-xs text-gray-500">{t('game.score')}</p>
             </div>
           </div>
         </div>
@@ -2616,7 +2615,7 @@ function ResultBreakdown({
         {/* Answer review (test mode only) */}
         {mode === 'test' && answers.length > 0 && (
           <div className="mb-6 text-left animate-game-slide-up stagger-5">
-            <h3 className="mb-2 text-sm font-semibold text-gray-600">Answer Review</h3>
+            <h3 className="mb-2 text-sm font-semibold text-gray-600">{t('game.answerReview')}</h3>
             <div className="space-y-1.5 max-h-48 overflow-y-auto rounded-xl bg-white p-3 shadow-sm">
               {answers.map((a, i) => (
                 <div key={i} className={`flex items-center gap-2 text-sm animate-game-slide-up stagger-${Math.min(i + 6, 12)} ${a.correct ? cbCorrect.text : cbWrong.text}`}>
@@ -2625,7 +2624,7 @@ function ResultBreakdown({
                     : <XCircle className="h-4 w-4 shrink-0 animate-game-pop" />
                   }
                   <span className="truncate">
-                    {a.correct ? a.expected : `Yours: ${a.given} → Correct: ${a.expected}`}
+                    {a.correct ? a.expected : t('game.yoursCorrect', { given: a.given, expected: a.expected })}
                   </span>
                 </div>
               ))}
@@ -2639,13 +2638,13 @@ function ResultBreakdown({
             onClick={() => { playTap(); onRestart(); }}
             className="inline-flex items-center gap-2 rounded-xl border-2 border-[#0F4D92]/20 px-5 py-2.5 text-sm font-semibold text-[#0F4D92] hover:bg-[#0F4D92]/5 transition-all hover:scale-105 hover:animate-game-squish active:scale-95"
           >
-            <RotateCcw className="h-4 w-4" /> Play Again
+            <RotateCcw className="h-4 w-4" /> {t('game.playAgain')}
           </button>
           <button
             onClick={() => { playTap(); onBack(); }}
             className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0D3F7A] transition-all hover:scale-105 hover:animate-game-squish active:scale-95"
           >
-            Back to Games
+            {t('game.backToGames')}
           </button>
         </div>
       </div>
@@ -2677,17 +2676,17 @@ function LearningComplete({
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-purple-100 mx-auto animate-game-trophy-drop">
           <span className="text-4xl">📺</span>
         </div>
-        <h1 className="mb-2 text-3xl font-bold text-gray-800 animate-game-spring-in">⭐ SUPER STAR! ⭐</h1>
+        <h1 className="mb-2 text-3xl font-bold text-gray-800 animate-game-spring-in">{t('game.result.superStar')}</h1>
         <p className="mb-1 animate-game-pop text-xl font-extrabold tracking-wide text-amber-500">
-          YOU ARE A SUPER STAR!
+          {t('game.result.youAreSuperStar')}
         </p>
         <p className="mb-6 text-sm text-gray-500 animate-game-slide-up stagger-1">
-          You watched <span className="font-semibold text-purple-700">{lessonTitle}</span> and learned {totalItems} items.
+          {t('game.watchedAndLearned', { lesson: lessonTitle, count: totalItems })}
         </p>
         <div className="mb-6 rounded-2xl bg-white p-5 shadow-md animate-game-slide-up stagger-2">
           <p className="text-sm text-gray-600">
-            🌟 Great job watching! Now try <span className="font-bold text-green-700">Practice Mode</span> to test yourself,
-            or <span className="font-bold text-blue-700">Test Mode</span> to earn stars and XP!
+            {t('game.greatJobWatching')} <span className="font-bold text-green-700">{t('game.practiceMode')}</span> to test yourself,
+            or <span className="font-bold text-blue-700">{t('game.testMode')}</span> to earn stars and XP!
           </p>
         </div>
         <div className="flex gap-3 justify-center animate-game-slide-up stagger-3">
@@ -2695,13 +2694,13 @@ function LearningComplete({
             onClick={() => { playTap(); onRestart(); }}
             className="inline-flex items-center gap-2 rounded-xl border-2 border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-50 transition-all hover:scale-105 active:scale-95"
           >
-            <RotateCcw className="h-4 w-4" /> Watch Again
+            <RotateCcw className="h-4 w-4" /> {t('game.watchAgain')}
           </button>
           <button
             onClick={() => { playTap(); onBack(); }}
             className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0D3F7A] transition-all hover:scale-105 active:scale-95"
           >
-            Back to Games
+            {t('game.backToGames')}
           </button>
         </div>
       </div>
@@ -2823,7 +2822,7 @@ function PuzzleGame({
         if (!isTest && soundOn) playCorrect();
         if (!isTest) {
           setFeedback('correct');
-          setFeedbackMsg(config.feedbackCorrect || 'Perfect puzzle! Great job!');
+          setFeedbackMsg(config.feedbackCorrect || t('game.feedback.puzzlePerfect'));
           setFloatingXP(true);
           setTimeout(() => setFloatingXP(false), 800);
         }
@@ -2837,7 +2836,7 @@ function PuzzleGame({
         setStreak(0);
         if (!isTest) {
           setFeedback('wrong');
-          setFeedbackMsg(config.feedbackWrong || 'Not quite right — try again!');
+          setFeedbackMsg(config.feedbackWrong || t('game.feedback.puzzleWrong'));
           if (config.hint) setTimeout(() => setShowHint(true), 600);
         }
         // Count correct placements
@@ -3008,8 +3007,8 @@ function PuzzleGame({
   if (showDifficultyPicker && hasLevels && mode !== 'learning') {
     return (
       <div className="space-y-6">
-        <p className="text-center text-lg font-semibold text-gray-700">Choose Puzzle Difficulty 🧩</p>
-        <p className="text-center text-xs text-gray-400">Harder = more pieces!</p>
+        <p className="text-center text-lg font-semibold text-gray-700">{t('game.choosePuzzleDifficulty')} 🧩</p>
+        <p className="text-center text-xs text-gray-400">{t('game.harderMorePieces')}</p>
         <div className="grid grid-cols-2 gap-3">
           {Object.entries(difficulties).map(([key, level]) => {
             const meta = DIFFICULTY_META[key] || DIFFICULTY_META.medium;
@@ -3062,7 +3061,7 @@ function PuzzleGame({
           onClick={() => { playTap(); handleDifficultyChange(selectedDifficulty); setShowDifficultyPicker(false); }}
           className="w-full rounded-xl bg-[#0F4D92] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#0D3F7A] transition-all hover:scale-105 active:scale-95"
         >
-          Start Puzzle! 🧩
+          {t('game.startPuzzle')} 🧩
         </button>
       </div>
     );
@@ -3108,12 +3107,12 @@ function PuzzleGame({
       {/* Mode badges */}
       {mode === 'learning' && (
         <p className="text-center text-sm font-medium text-purple-600 bg-purple-50 rounded-xl px-3 py-2">
-          📺 Learning Mode — Watch and learn!
+          📺 {t('game.learning.watchAndLearn')}
         </p>
       )}
       {isTest && (
         <p className="text-center text-sm font-medium text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-          ⚠️ Test Mode — Solve the puzzle!
+          ⚠️ {t('game.test.solvePuzzle')}
         </p>
       )}
 
@@ -3121,7 +3120,7 @@ function PuzzleGame({
       {streak >= 2 && !isTest && (
         <div className="text-center animate-game-pop">
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700">
-            🔥 {streak} puzzles solved!
+            🔥 {t('game.streakPuzzles', { count: streak })}
           </span>
         </div>
       )}
@@ -3129,13 +3128,13 @@ function PuzzleGame({
       {/* Progress dots */}
       <div className="flex justify-center gap-1.5">
         <div className={`h-2.5 w-2.5 rounded-full transition-all ${placedCount >= totalPieces ? 'bg-green-400' : 'bg-gray-200'}`} />
-        <span className="text-xs text-gray-400 self-center">{placedCount}/{totalPieces} placed</span>
+        <span className="text-xs text-gray-400 self-center">{t('game.itemsPlaced', { placed: placedCount, total: totalPieces })}</span>
       </div>
 
       <div className="flex items-center justify-center gap-3">
         <p className="text-lg font-semibold text-gray-700">
-          {config.scenario ? 'Put the puzzle together!' : 'Solve the puzzle! 🧩'}
-          <SpeakButton text={config.speechText || config.scenario || (config.scenario ? 'Put the puzzle together!' : 'Solve the puzzle!')} size="sm" className="ml-2 align-middle" />
+          {config.scenario ? t('game.putPuzzleTogether') : `${t('game.solvePuzzle')} 🧩`}
+          <SpeakButton text={config.speechText || config.scenario || (config.scenario ? t('game.putPuzzleTogether') : t('game.solvePuzzle'))} size="sm" className="ml-2 align-middle" />
         </p>
         {hasLevels && (
           <button
@@ -3191,7 +3190,7 @@ function PuzzleGame({
       </div>
       {/* Piece bank */}
       <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
-        <p className="mb-3 text-xs font-medium text-gray-400 text-center">Piece Bank — drag to grid</p>
+        <p className="mb-3 text-xs font-medium text-gray-400 text-center">{t('game.pieceBank')}</p>
         <div className="flex flex-wrap justify-center gap-2">
           {shuffledPieces.map((piece) => {
             const isPlaced = placedSet.has(piece.id);
@@ -3238,7 +3237,7 @@ function PuzzleGame({
       {/* Floating XP */}
       {floatingXP && (
         <div className="absolute top-2 right-4 z-30 animate-game-pop">
-          <span className="text-lg font-extrabold text-green-500 drop-shadow-md">+10 XP</span>
+          <span className="text-lg font-extrabold text-green-500 drop-shadow-md">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
       {/* Feedback banner (inline, not full overlay) */}
@@ -3247,7 +3246,7 @@ function PuzzleGame({
           feedback === 'correct' ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'
         }`}>
           <p className={`text-sm font-bold ${feedback === 'correct' ? 'text-green-700' : 'text-amber-700'}`}>
-            {feedback === 'correct' ? '🧩✅ Perfect puzzle!' : '🧩 Not quite right'}
+            {feedback === 'correct' ? t('game.perfectPuzzle') : t('game.notQuitePuzzle')}
           </p>
           {feedbackMsg && (
             <p className={`text-xs mt-1 ${feedback === 'correct' ? 'text-green-600' : 'text-amber-600'}`}>{feedbackMsg}</p>
@@ -3774,7 +3773,7 @@ export default function GamePlay() {
             <div className="absolute inset-0 rounded-full bg-[#0F4D92]/10 animate-game-pulse" />
             <Loader2 className="relative mx-auto h-16 w-16 animate-spin text-[#0F4D92]" />
           </div>
-          <p className="text-sm font-medium text-gray-600 animate-game-bob">Loading your game...</p>
+          <p className="text-sm font-medium text-gray-600 animate-game-bob">{t('game.loadingGame')}</p>
           <div className="mt-3 flex justify-center gap-1.5">
             <div className="h-2 w-2 rounded-full bg-[#0F4D92]/30 animate-game-pulse stagger-1" />
             <div className="h-2 w-2 rounded-full bg-[#0F4D92]/50 animate-game-pulse stagger-2" />
@@ -3791,9 +3790,9 @@ export default function GamePlay() {
       <div className="flex min-h-screen items-center justify-center bg-[#E7EEF6]">
         <div className="text-center animate-game-spring-in">
           <Gamepad2 className="mx-auto mb-3 h-12 w-12 text-gray-300 animate-game-wobble-idle" />
-          <p className="font-semibold text-gray-700 animate-game-slide-up stagger-1">{error || 'Game not found'}</p>
+          <p className="font-semibold text-gray-700 animate-game-slide-up stagger-1">{error || t('game.notFound')}</p>
           <button onClick={() => navigate('/student')} className="mt-4 rounded-xl bg-[#0F4D92] px-4 py-2 text-sm font-medium text-white hover:bg-[#0D3F7A] transition-all hover:scale-105 hover:animate-game-squish active:scale-95 animate-game-slide-up stagger-2">
-            Back to Games
+            {t('game.backToGames')}
           </button>
         </div>
       </div>
@@ -3815,7 +3814,7 @@ export default function GamePlay() {
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </button>
           <div className="flex items-center gap-2">
-            <h1 className="text-sm font-semibold text-gray-600">Story Time 📖</h1>
+            <h1 className="text-sm font-semibold text-gray-600">{t('game.storyTime')} 📖</h1>
             <span className="rounded-full bg-[#0F4D92]/10 px-2 py-0.5 text-[10px] font-bold text-[#0F4D92]">
               {sceneIdx + 1}/{scenes.length}
             </span>
@@ -3827,12 +3826,12 @@ export default function GamePlay() {
 
         {/* ── Mode picker on intro — tap to start playing immediately ── */}
         <div className="px-4 py-2 bg-white/60 backdrop-blur border-b border-white/50">
-          <p className="text-center text-[10px] text-gray-400 mb-1.5">Tap a mode to start playing</p>
+          <p className="text-center text-[10px] text-gray-400 mb-1.5">{t('game.tapModeStart')}</p>
           <div className="mx-auto flex max-w-md gap-1 rounded-xl bg-white p-1 shadow-sm">
             {([
-              { key: 'learning' as GameMode, icon: '📺', label: 'Learn', color: 'purple' },
-              { key: 'practice' as GameMode, icon: '🎯', label: 'Practice', color: 'green' },
-              { key: 'test' as GameMode, icon: '📝', label: 'Test', color: 'blue' },
+              { key: 'learning' as GameMode, icon: '📺', label: t('game.modeLabel.learn'), color: 'purple' },
+              { key: 'practice' as GameMode, icon: '🎯', label: t('game.modeLabel.practice'), color: 'green' },
+              { key: 'test' as GameMode, icon: '📝', label: t('game.modeLabel.test'), color: 'blue' },
             ]).map((m) => (
               <button
                 key={m.key}
@@ -3880,7 +3879,7 @@ export default function GamePlay() {
                   <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0F4D92]/80 animate-game-pulse stagger-3" />
                 </div>
               </div>
-              <span className="font-medium">Speaking...</span>
+              <span className="font-medium">{t('game.speaking')}</span>
             </div>
           )}
 
@@ -3914,7 +3913,7 @@ export default function GamePlay() {
             >
               {isLastScene ? (
                 <span className="flex items-center gap-2">
-                  <Gamepad2 className="h-5 w-5" /> Let's Play! 🎮
+                  <Gamepad2 className="h-5 w-5" /> {t('game.letsPlay')} 🎮
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
@@ -3926,7 +3925,7 @@ export default function GamePlay() {
               onClick={handleSkipIntro}
               className="text-sm text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
             >
-              Skip story → Play now
+              {t('game.skipStory')}
             </button>
           </div>
         </div>
@@ -3953,12 +3952,11 @@ export default function GamePlay() {
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-white px-6">
         <div className="w-full max-w-md text-center animate-game-slide-up">
           <div className="mb-4 text-5xl animate-game-pop">🌟</div>
-          <h1 className="mb-2 text-2xl font-bold text-gray-800">Let's Practice Together!</h1>
+          <h1 className="mb-2 text-2xl font-bold text-gray-800">{t('game.letsPractice')}</h1>
           <p className="mb-6 text-sm text-gray-500">{retryMessage}</p>
           <div className="mb-6 rounded-2xl bg-white p-5 shadow-md">
             <p className="text-sm text-gray-600">
-              🎯 Try <span className="font-bold text-green-700">Practice Mode</span> to build your confidence,
-              then come back to Test when you're ready!
+              {t('game.practiceEncouragement')}
             </p>
           </div>
           <div className="flex gap-3 justify-center">
@@ -3966,13 +3964,13 @@ export default function GamePlay() {
               onClick={() => { playTap(); handleModeSelect('practice'); setPhase('play'); }}
               className="inline-flex items-center gap-2 rounded-xl bg-green-500 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-green-600 transition-all hover:scale-105 active:scale-95"
             >
-              🎯 Go to Practice
+              🎯 {t('game.goToPractice')}
             </button>
             <button
               onClick={() => { playTap(); navigate('/student'); }}
               className="inline-flex items-center gap-2 rounded-xl border-2 border-gray-200 px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all"
             >
-              Back to Games
+              {t('game.backToGames')}
             </button>
           </div>
         </div>
@@ -4026,24 +4024,24 @@ export default function GamePlay() {
             }`}
             title={isModeLocked
               ? isTeacher
-                ? `Locked for CLASS to ${modeLock?.locked_mode}. Click to unlock all.`
-                : `Locked to ${modeLock?.locked_mode}. Click to unlock.`
+                ? t('game.lockedClass', { mode: modeLock?.locked_mode || '' })
+                : t('game.lockedStudent', { mode: modeLock?.locked_mode || '' })
               : isTeacher
-                ? `Lock for CLASS to ${mode} mode (all students)`
-                : `Lock to ${mode} mode`}
+                ? t('game.lockClass', { mode })
+                : t('game.lockMode', { mode })}
           >
             {isModeLocked ? '🔒' : '🔓'}
-            {canLockMode && isTeacher && <span className="ml-0.5 text-[9px]">class</span>}
+            {canLockMode && isTeacher && <span className="ml-0.5 text-[9px]">{t('game.classLabel')}</span>}
           </button>
         )}
         {isModeLocked && !canLockMode && (
-          <span className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 font-medium" title={`Locked by ${modeLock?.locked_by_role} — ${modeLock?.class_code ? 'class-wide' : 'per-student'}`}>🔒</span>
+          <span className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 font-medium" title={t('game.lockedBy', { role: modeLock?.locked_by_role || '', scope: modeLock?.class_code ? t('game.lockScopeClass') : t('game.lockScopeStudent') })}>🔒</span>
         )}
         <button
           onClick={toggleColorblind}
           className={`rounded-lg p-2 sm:p-1.5 transition-all active:scale-95 ${colorblindMode ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100 text-gray-400'}`}
-          title={colorblindMode ? 'Colorblind mode ON' : 'Colorblind mode OFF'}
-          aria-label="Toggle colorblind-safe colors"
+          title={colorblindMode ? t('game.colorblindOn') : t('game.colorblindOff')}
+          aria-label={t('game.toggleColorblind')}
         >
           <Palette className="h-5 w-5" />
         </button>
@@ -4062,15 +4060,15 @@ export default function GamePlay() {
       <div className="bg-white px-3 py-2 border-b border-gray-100">
         <div className="mx-auto flex max-w-lg gap-1 rounded-xl bg-gray-100 p-1">
           {([
-            { key: 'learning' as GameMode, icon: '📺', label: 'Learn', color: 'purple', desc: 'Watch & learn' },
-            { key: 'practice' as GameMode, icon: '🎯', label: 'Practice', color: 'green', desc: 'Instant feedback' },
-            { key: 'test' as GameMode, icon: '📝', label: 'Test', color: 'blue', desc: 'No hints' },
+            { key: 'learning' as GameMode, icon: '📺', label: t('game.modeLabel.learn'), color: 'purple', desc: t('game.modeDesc.learn') },
+            { key: 'practice' as GameMode, icon: '🎯', label: t('game.modeLabel.practice'), color: 'green', desc: t('game.modeDesc.practice') },
+            { key: 'test' as GameMode, icon: '📝', label: t('game.modeLabel.test'), color: 'blue', desc: t('game.modeDesc.test') },
           ]).map((m) => (
             <button
               key={m.key}
               onClick={() => handleModeSelect(m.key)}
               disabled={isModeLocked}
-              title={isModeLocked ? `Locked by ${modeLock?.locked_by_role} (${modeLock?.locked_by_name || ''})` : m.desc}
+              title={isModeLocked ? t('game.lockedByDetails', { role: modeLock?.locked_by_role || '', name: modeLock?.locked_by_name || '' }) : m.desc}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-3 sm:py-2.5 text-sm font-semibold transition-all active:scale-95 ${
                 mode === m.key
                   ? m.key === 'learning'
@@ -4107,21 +4105,21 @@ export default function GamePlay() {
         <div className="mx-4 mb-3 rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-center gap-3 animate-game-slide-down">
           <span className="text-3xl animate-game-float">🌟</span>
           <div className="flex-1">
-            <p className="text-sm font-bold text-amber-800">Great job today!</p>
-            <p className="text-xs text-amber-600">You've been playing for a while. Let's take a little rest! 😴</p>
+            <p className="text-sm font-bold text-amber-800">{t('game.greatJobToday')}</p>
+            <p className="text-xs text-amber-600">{t('game.breakHint')}</p>
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => { playTap(); navigate('/student'); }}
               className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 transition-all"
             >
-              Rest 🌙
+              {t('game.rest')} 🌙
             </button>
             <button
               onClick={() => { playTap(); setBreakDismissed(true); setShowBreakSuggestion(false); }}
               className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-bold text-amber-600 hover:bg-amber-100 transition-all"
             >
-              Keep Playing
+              {t('game.keepPlaying')}
             </button>
           </div>
         </div>
