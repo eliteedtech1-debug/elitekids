@@ -20,7 +20,7 @@ module.exports = (app) => {
           max: 10,
           standardHeaders: true,
           legacyHeaders: false,
-          message: { success: false, message: 'Too many authentication attempts, please try again later.' },
+          message: { success: false, error_code: 'RATE_LIMITED', message: 'Too many authentication attempts, please try again later.' },
         });
 
   // ── Auth ────────────────────────────────────────────────────────────────
@@ -36,13 +36,13 @@ module.exports = (app) => {
   app.post('/auth/select-school', async (req, res) => {
     const { selection_token, school_id } = req.body;
     if (!selection_token || !school_id) {
-      return res.status(400).json({ success: false, message: 'selection_token and school_id are required' });
+      return res.status(400).json({ success: false, error_code: 'VALIDATION_ERROR', message: 'selection_token and school_id are required' });
     }
     try {
       const jwt = require('jsonwebtoken');
       const decoded = jwt.verify(selection_token, process.env.JWT_SECRET_KEY);
       if (decoded.phase !== 'school_selection') {
-        return res.status(400).json({ success: false, message: 'Invalid selection token' });
+        return res.status(400).json({ success: false, error_code: 'INVALID_SELECTION_TOKEN', message: 'Invalid selection token' });
       }
 
       const [rows] = await db.sequelize.query(
@@ -50,7 +50,7 @@ module.exports = (app) => {
         { replacements: { email: decoded.email, school_id }, type: db.sequelize.QueryTypes.SELECT }
       );
       const user = rows || null;
-      if (!user) return res.status(404).json({ success: false, message: 'Account not found for this school' });
+      if (!user) return res.status(404).json({ success: false, error_code: 'ACCOUNT_NOT_FOUND', message: 'Account not found for this school' });
 
       const userType = user.user_type || user.role || 'Admin';
       const token = require('../middleware/sessionAuth').generateLoginToken({
@@ -72,7 +72,7 @@ module.exports = (app) => {
         },
       });
     } catch (err) {
-      return res.status(401).json({ success: false, message: 'Invalid or expired selection token' });
+      return res.status(401).json({ success: false, error_code: 'INVALID_SELECTION_TOKEN', message: 'Invalid or expired selection token' });
     }
   });
 
