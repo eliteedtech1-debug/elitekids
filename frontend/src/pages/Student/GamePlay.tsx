@@ -395,7 +395,10 @@ function MatchingGame({
       {/* Scenario card */}
       {config.scenario && (
         <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 animate-game-slide-up">
-          <p className="text-sm font-medium text-blue-800">{config.scenario}</p>
+          <p className="text-sm font-medium text-blue-800">
+            {config.scenario}
+            <SpeakButton text={config.speechText || config.scenario} size="sm" className="ml-2 align-middle" />
+          </p>
         </div>
       )}
 
@@ -702,7 +705,10 @@ function TapGame({
           </div>
         ) : promptMode === 'image' ? (
           <>
-            <p className="text-lg font-semibold text-gray-700">What is this?</p>
+            <p className="text-lg font-semibold text-gray-700">
+              What is this?
+              <SpeakButton text={config.speechText || config.prompt || 'What is this?'} size="sm" className="ml-2 align-middle" />
+            </p>
             <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-blue-50 animate-game-float animate-game-glow-pulse">
               {current.image ? (
                 <CachedImg src={current.image} alt="" className="h-20 w-20 object-contain" />
@@ -717,14 +723,20 @@ function TapGame({
           </>
         ) : promptMode === 'audio' ? (
           <>
-            <p className="text-lg font-semibold text-gray-700">Listen and find:</p>
+            <p className="text-lg font-semibold text-gray-700">
+              Listen and find:
+              <SpeakButton text={config.speechText || config.prompt || config.scenario || 'Listen and find'} size="sm" className="ml-2 align-middle" />
+            </p>
             <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-purple-50 animate-game-float animate-game-glow-pulse">
               <Volume2 className="h-12 w-12 text-purple-500 animate-game-bounce" />
             </div>
           </>
         ) : promptMode === 'context' ? (
           <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-amber-50 animate-game-float animate-game-glow-pulse">
-            <p className="text-lg font-medium text-amber-800">{current.context || `Find the ${readableLabel(current.label, current.color, current.emoji)}`}</p>
+            <p className="text-lg font-medium text-amber-800">
+              {current.context || `Find the ${readableLabel(current.label, current.color, current.emoji)}`}
+              <SpeakButton text={current.context || config.speechText || `Find the ${readableLabel(current.label, current.color, current.emoji)}`} size="sm" className="ml-2 align-middle" />
+            </p>
           </div>
         ) : (
           <>
@@ -1085,7 +1097,10 @@ function DragSortGame({
       {/* Scenario card */}
       {config.scenario && (
         <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 animate-game-slide-up">
-          <p className="text-sm font-medium text-blue-800">{config.scenario}</p>
+          <p className="text-sm font-medium text-blue-800">
+            {config.scenario}
+            <SpeakButton text={config.speechText || config.scenario} size="sm" className="ml-2 align-middle" />
+          </p>
         </div>
       )}
 
@@ -1508,7 +1523,10 @@ function FillBlankGame({
       {/* Scenario card */}
       {config.scenario && (
         <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 animate-game-slide-up">
-          <p className="text-sm font-medium text-blue-800">{config.scenario}</p>
+          <p className="text-sm font-medium text-blue-800">
+            {config.scenario}
+            <SpeakButton text={config.speechText || config.scenario} size="sm" className="ml-2 align-middle" />
+          </p>
         </div>
       )}
 
@@ -1550,7 +1568,10 @@ function FillBlankGame({
       {/* Multimodal sentence presentation */}
       {promptMode === 'audio' ? (
         <div className="flex flex-col items-center gap-2">
-          <p className="text-lg font-semibold text-gray-700">Listen and fill in the blanks 🎧</p>
+          <p className="text-lg font-semibold text-gray-700">
+            Listen and fill in the blanks 🎧
+            <SpeakButton text={config.speechText || config.scenario || sentence.replace(/_+/g, 'blank')} size="sm" className="ml-2 align-middle" />
+          </p>
           <div className="rounded-xl bg-purple-50 px-6 py-3 flex items-center gap-2">
             <Volume2 className="h-6 w-6 text-purple-600 animate-game-bounce" />
             <span className="text-sm text-purple-600 font-medium">Playing sentence...</span>
@@ -1558,7 +1579,10 @@ function FillBlankGame({
         </div>
       ) : promptMode === 'image' ? (
         <div className="flex flex-col items-center gap-2">
-          <p className="text-lg font-semibold text-gray-700">Look at the picture and complete the sentence 🖼️</p>
+          <p className="text-lg font-semibold text-gray-700">
+            Look at the picture and complete the sentence 🖼️
+            <SpeakButton text={config.speechText || config.scenario || sentence.replace(/_+/g, 'blank')} size="sm" className="ml-2 align-middle" />
+          </p>
           {config.image && <CachedImg src={config.image} alt="" className="h-20 w-20 object-contain" />}
         </div>
       ) : (
@@ -2342,7 +2366,10 @@ function MemoryPairsGame({
       {/* Scenario card */}
       {config.scenario && (
         <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 animate-game-slide-up">
-          <p className="text-sm font-medium text-blue-800">{config.scenario}</p>
+          <p className="text-sm font-medium text-blue-800">
+            {config.scenario}
+            <SpeakButton text={config.speechText || config.scenario} size="sm" className="ml-2 align-middle" />
+          </p>
         </div>
       )}
 
@@ -2383,7 +2410,7 @@ function MemoryPairsGame({
 
       <p className="text-center text-lg font-semibold text-gray-700">
         {config.scenario || 'Find the matching pairs 🃏'}
-        <SpeakButton text={config.scenario || 'Find the matching pairs 🃏'} size="sm" className="ml-2 align-middle" />
+        <SpeakButton text={config.speechText || config.scenario || 'Find the matching pairs 🃏'} size="sm" className="ml-2 align-middle" />
       </p>
 
       <div className={`grid gap-3 ${totalPairs <= 4 ? 'grid-cols-4' : 'grid-cols-4 sm:grid-cols-4'}`}>
@@ -3071,7 +3098,10 @@ function PuzzleGame({
       {/* Scenario card */}
       {config.scenario && (
         <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 animate-game-slide-up">
-          <p className="text-sm font-medium text-blue-800">{config.scenario}</p>
+          <p className="text-sm font-medium text-blue-800">
+            {config.scenario}
+            <SpeakButton text={config.speechText || config.scenario} size="sm" className="ml-2 align-middle" />
+          </p>
         </div>
       )}
 
@@ -3103,7 +3133,10 @@ function PuzzleGame({
       </div>
 
       <div className="flex items-center justify-center gap-3">
-        <p className="text-lg font-semibold text-gray-700">{config.scenario ? 'Put the puzzle together!' : 'Solve the puzzle! 🧩'}</p>
+        <p className="text-lg font-semibold text-gray-700">
+          {config.scenario ? 'Put the puzzle together!' : 'Solve the puzzle! 🧩'}
+          <SpeakButton text={config.speechText || config.scenario || (config.scenario ? 'Put the puzzle together!' : 'Solve the puzzle!')} size="sm" className="ml-2 align-middle" />
+        </p>
         {hasLevels && (
           <button
             onClick={() => { playTap(); setShowDifficultyPicker(true); }}

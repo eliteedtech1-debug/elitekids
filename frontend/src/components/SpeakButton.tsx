@@ -12,6 +12,7 @@ interface SpeakButtonProps {
   size?: 'sm' | 'md';
 }
 
+
 /**
  * Click-to-listen speaker button.
  *
@@ -34,7 +35,7 @@ export default function SpeakButton({ text, className = '', label, size = 'md' }
         speak(content).finally(() => setSpeaking(false));
       }}
       aria-label={label || t('common.listen')}
-      title={t('common.listen')}
+      title={label || t('common.listen')}
       className={`inline-flex shrink-0 items-center justify-center rounded-full transition-all active:scale-90 ${
         size === 'sm' ? 'h-7 w-7' : 'h-9 w-9'
       } ${

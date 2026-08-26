@@ -20,6 +20,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { t, tN } from '@/lib/i18n';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -143,7 +144,7 @@ export default function ParentChildren() {
       );
       setChildren(withProgress);
     } catch (err: any) {
-      setError(err?.message || 'Unable to load your children.');
+      setError(err?.message || t('parent.loadChildrenError'));
     } finally {
       setLoading(false);
     }
@@ -168,13 +169,13 @@ export default function ParentChildren() {
     setLinking(true);
     try {
       const res = await apiClient.post(ENDPOINTS.CHILDREN.LINK, { admission_no });
-      toast.success(res.data?.message || 'Child linked!');
+      toast.success(res.data?.message || t('parent.childLinked'));
       setLinkAdmission('');
       setTab('children');
       await loadChildren();
       await loadActivities();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not link this child.');
+      toast.error(err?.message || t('parent.linkFailed'));
     } finally {
       setLinking(false);
     }
@@ -186,14 +187,14 @@ export default function ParentChildren() {
     setCreating(true);
     try {
       const res = await apiClient.post(ENDPOINTS.CHILDREN.CREATE_FOR_PARENT, createForm);
-      toast.success(res.data?.data?.full_name + ' added!');
+      toast.success(t('parent.childAdded', { name: res.data?.data?.full_name || '' }));
       setCreateForm({ full_name: '', age_level: 'Creche', admission_no: '' });
       setShowCreate(false);
       setTab('children');
       await loadChildren();
       await loadActivities();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not create child.');
+      toast.error(err?.message || t('parent.createChildFailed'));
     } finally {
       setCreating(false);
     }
@@ -205,7 +206,7 @@ export default function ParentChildren() {
     localStorage.removeItem(STORAGE_KEYS.BRANCH_ID);
     localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCH);
     localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-    toast.success('Signed out');
+    toast.success(t('parent.signedOut'));
     navigate('/login');
   }, [navigate]);
 
@@ -225,7 +226,7 @@ export default function ParentChildren() {
             <img src="/logo.svg" alt="Elite Kids" className="h-10 w-10 rounded-full object-contain" />
             <div>
               <h1 className="text-lg font-bold leading-tight text-[#0F4D92]">Elite Kids</h1>
-              <p className="text-xs text-gray-500">Parent Dashboard</p>
+              <p className="text-xs text-gray-500">{t('parent.dashboardTitle')}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -233,7 +234,7 @@ export default function ParentChildren() {
               onClick={handleLogout}
               className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
             >
-              <LogOut className="h-4 w-4" /> Sign out
+              <LogOut className="h-4 w-4" /> {t('parent.signOut')}
             </button>
           </div>
         </div>
@@ -247,19 +248,19 @@ export default function ParentChildren() {
               <div className="flex items-center justify-center gap-1 text-2xl font-bold text-amber-500">
                 <Star className="h-5 w-5 fill-amber-400 text-amber-400" /> {totalStars}
               </div>
-              <p className="text-[10px] text-gray-500">Total Stars</p>
+              <p className="text-[10px] text-gray-500">{t('parent.totalStars')}</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-2xl font-bold text-[#0F4D92]">
                 <Zap className="h-5 w-5" /> {totalXp}
               </div>
-              <p className="text-[10px] text-gray-500">Total XP</p>
+              <p className="text-[10px] text-gray-500">{t('parent.totalXp')}</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-2xl font-bold text-gray-700">
                 <Gamepad2 className="h-5 w-5" /> {totalGames}
               </div>
-              <p className="text-[10px] text-gray-500">Games Played</p>
+              <p className="text-[10px] text-gray-500">{t('parent.gamesPlayed')}</p>
             </div>
           </div>
         )}
@@ -267,13 +268,13 @@ export default function ParentChildren() {
         {/* Tabs */}
         <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 shadow-sm">
           <TabBtn active={tab === 'children'} onClick={() => setTab('children')}>
-            <Baby className="mr-1 inline h-4 w-4" /> Children
+            <Baby className="mr-1 inline h-4 w-4" /> {t('parent.tabChildren')}
           </TabBtn>
           <TabBtn active={tab === 'activities'} onClick={() => setTab('activities')}>
-            <BookOpen className="mr-1 inline h-4 w-4" /> Activities
+            <BookOpen className="mr-1 inline h-4 w-4" /> {t('parent.tabActivities')}
           </TabBtn>
           <TabBtn active={tab === 'manage'} onClick={() => setTab('manage')}>
-            <Plus className="mr-1 inline h-4 w-4" /> Link / Add
+            <Plus className="mr-1 inline h-4 w-4" /> {t('parent.tabLinkAdd')}
           </TabBtn>
         </div>
 
@@ -283,7 +284,7 @@ export default function ParentChildren() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-gray-400">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+            <Loader2 className="h-5 w-5 animate-spin" /> {t('common.loading')}
           </div>
         ) : (
           <>
@@ -293,9 +294,9 @@ export default function ParentChildren() {
                 {children.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[#0F4D92]/30 bg-white p-10 text-center">
                     <Baby className="mx-auto mb-3 h-10 w-10 text-[#0F4D92]/40" />
-                    <h3 className="font-semibold text-gray-700">No children linked yet</h3>
+                    <h3 className="font-semibold text-gray-700">{t('parent.noChildren')}</h3>
                     <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
-                      Go to <strong>Link / Add</strong> to link a child by admission number or create a new profile.
+                      {t('parent.noChildrenHint2')}
                     </p>
                   </div>
                 ) : (
@@ -319,7 +320,7 @@ export default function ParentChildren() {
                             <div className="min-w-0 flex-1">
                               <h3 className="flex items-center gap-2 truncate font-semibold text-gray-800">
                                 {child.full_name}
-                                {inactive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">Inactive</span>}
+                                {inactive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">{t('parent.inactive')}</span>}
                               </h3>
                               <p className="text-xs text-gray-500">
                                 {child.age_level}{child.class_code ? ` · ${child.class_code}` : ''} · {child.admission_no}
@@ -333,26 +334,26 @@ export default function ParentChildren() {
                               <div className="flex items-center justify-center gap-1 text-lg font-bold text-amber-500">
                                 <Star className="h-4 w-4 fill-amber-400 text-amber-400" />{progress.total_stars}
                               </div>
-                              <p className="text-[11px] text-gray-500">Stars</p>
+                              <p className="text-[11px] text-gray-500">{t('parent.stars')}</p>
                             </div>
                             <div className="text-center">
                               <div className="flex items-center justify-center gap-1 text-lg font-bold text-[#0F4D92]">
                                 <Zap className="h-4 w-4" />{progress.total_xp}
                               </div>
-                              <p className="text-[11px] text-gray-500">XP</p>
+                              <p className="text-[11px] text-gray-500">{t('parent.xp')}</p>
                             </div>
                             <div className="text-center">
                               <div className="flex items-center justify-center gap-1 text-lg font-bold text-gray-700">
                                 <Gamepad2 className="h-4 w-4" />{progress.games_completed}
                               </div>
-                              <p className="text-[11px] text-gray-500">Games</p>
+                              <p className="text-[11px] text-gray-500">{t('parent.games')}</p>
                             </div>
                           </div>
 
                           {/* Per-game breakdown */}
                           {progress.game_stats && Object.keys(progress.game_stats).length > 0 && (
                             <div className="mt-4">
-                              <h4 className="mb-2 text-sm font-semibold text-gray-700">Game Progress</h4>
+                              <h4 className="mb-2 text-sm font-semibold text-gray-700">{t('parent.gameProgress')}</h4>
                               <div className="space-y-2">
                                 {Object.entries(progress.game_stats).map(([lessonId, stat]) => {
                                   const prettyName = lessonId
@@ -370,13 +371,13 @@ export default function ParentChildren() {
                                         <div className="flex items-center gap-3 text-[11px] text-gray-500">
                                           <span className="flex items-center gap-1">
                                             <RotateCcw className="h-3 w-3" />
-                                            {stat.times_played} play{stat.times_played !== 1 ? 's' : ''}
+                                            {tN(stat.times_played === 1 ? 'parent.plays' : 'parent.playsPlural', stat.times_played, { count: stat.times_played })}
                                           </span>
                                           <span className="flex items-center gap-1">
                                             <Trophy className="h-3 w-3" />
-                                            Best: {stat.best_score}
+                                            {t('parent.best', { score: stat.best_score })}
                                           </span>
-                                          <span>Avg: {stat.avg_score}</span>
+                                          <span>{t('parent.avg', { score: stat.avg_score })}</span>
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1 shrink-0 rounded-full bg-amber-50 px-2 py-1">
@@ -391,13 +392,13 @@ export default function ParentChildren() {
                           )}
 
                           {progress.games_completed === 0 && (
-                            <p className="mt-3 text-center text-xs text-gray-400">No games played yet.</p>
+                            <p className="mt-3 text-center text-xs text-gray-400">{t('parent.noGamesPlayed')}</p>
                           )}
 
                           {/* Badges */}
                           {progress.badges && progress.badges.length > 0 && (
                             <div className="mt-4">
-                              <h4 className="mb-2 text-sm font-semibold text-gray-700">Badges Earned</h4>
+                              <h4 className="mb-2 text-sm font-semibold text-gray-700">{t('parent.badgesEarned')}</h4>
                               <div className="flex flex-wrap gap-2">
                                 {progress.badges.map((b, i) => (
                                   <span key={i} className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
@@ -421,9 +422,9 @@ export default function ParentChildren() {
                 {activities.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[#0F4D92]/30 bg-white p-10 text-center">
                     <BookOpen className="mx-auto mb-3 h-10 w-10 text-[#0F4D92]/40" />
-                    <h3 className="font-semibold text-gray-700">No activities yet</h3>
+                    <h3 className="font-semibold text-gray-700">{t('parent.noActivities')}</h3>
                     <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
-                      Published lessons and games will appear here once your children have content to play.
+                      {t('parent.noActivitiesHint')}
                     </p>
                   </div>
                 ) : (
@@ -444,7 +445,7 @@ export default function ParentChildren() {
                             <div className="min-w-0 flex-1">
                               <h3 className="flex items-center gap-2 truncate font-semibold text-gray-800">
                                 {child.full_name}
-                                {inactive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">Inactive</span>}
+                                {inactive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">{t('parent.inactive')}</span>}
                               </h3>
                               <p className="text-xs text-gray-500">
                                 {child.age_level}{child.class_code ? ` · ${child.class_code}` : ''} · {child.admission_no}
@@ -455,10 +456,10 @@ export default function ParentChildren() {
                           {/* Published lessons */}
                           <div className="mt-4">
                             <h4 className="mb-2 text-sm font-semibold text-gray-700">
-                              Published Lessons ({item.total_published})
+                              {t('parent.publishedLessons', { count: item.total_published })}
                             </h4>
                             {item.lessons.length === 0 ? (
-                              <p className="rounded-xl bg-gray-50 p-3 text-xs text-gray-400 text-center">No published lessons yet.</p>
+                              <p className="rounded-xl bg-gray-50 p-3 text-xs text-gray-400 text-center">{t('parent.noLessonsShort')}</p>
                             ) : (
                               <div className="space-y-2">
                                 {item.lessons.map((lesson) => (
@@ -470,12 +471,12 @@ export default function ParentChildren() {
                                       <p className="truncate text-sm font-medium text-gray-800">{lesson.title}</p>
                                       <p className="text-[11px] text-gray-500">
                                         {lesson.subject} · {lesson.age_level}
-                                        {lesson.has_games && lesson.has_scenes && ' · Interactive'}
+                                        {lesson.has_games && lesson.has_scenes && ` · ${t('parent.interactive')}`}
                                       </p>
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
-                                      {lesson.has_games && <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">Game</span>}
-                                      {lesson.has_scenes && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">Scenes</span>}
+                                      {lesson.has_games && <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">{t('parent.game')}</span>}
+                                      {lesson.has_scenes && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">{t('parent.scenes')}</span>}
                                     </div>
                                   </div>
                                 ))}
@@ -485,7 +486,7 @@ export default function ParentChildren() {
 
                           <div className="mt-3 flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-700">
                             <Eye className="h-3.5 w-3.5 shrink-0" />
-                            Your child can play these games from their own account.
+                            {t('parent.activitiesNotice2')}
                           </div>
                         </div>
                       );
@@ -505,8 +506,8 @@ export default function ParentChildren() {
                       <Link2 className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="font-semibold text-gray-800">Link a child</h3>
-                      <p className="text-xs text-gray-500">Enter the child's admission number from your school.</p>
+                      <h3 className="font-semibold text-gray-800">{t('parent.linkChild')}</h3>
+                      <p className="text-xs text-gray-500">{t('parent.linkChildHint')}</p>
                     </div>
                   </div>
                   <form onSubmit={handleLink} className="flex flex-col gap-2 sm:flex-row">
@@ -514,7 +515,7 @@ export default function ParentChildren() {
                       name="admission_no"
                       value={linkAdmission}
                       onChange={(e) => setLinkAdmission(e.target.value)}
-                      placeholder="e.g. NUR-001"
+                      placeholder={t('parent.admissionPlaceholder')}
                       required
                       className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none"
                     />
@@ -524,7 +525,7 @@ export default function ParentChildren() {
                       className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0F4D92] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0b3d76] disabled:opacity-50"
                     >
                       {linking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-                      {linking ? 'Linking…' : 'Link child'}
+                      {linking ? t('parent.linking') : t('parent.linkChildBtn')}
                     </button>
                   </form>
                 </div>
@@ -536,40 +537,40 @@ export default function ParentChildren() {
                       <Plus className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="font-semibold text-gray-800">Add a new child</h3>
-                      <p className="text-xs text-gray-500">Create a profile for your child to start playing games.</p>
+                      <h3 className="font-semibold text-gray-800">{t('parent.addChild')}</h3>
+                      <p className="text-xs text-gray-500">{t('parent.addChildHint')}</p>
                     </div>
                   </div>
                   {!showCreate ? (
                     <button onClick={() => setShowCreate(true)}
                       className="w-full rounded-xl border-2 border-dashed border-emerald-300 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50">
-                      <Plus className="mr-1 inline h-4 w-4" /> Create Child Profile
+                      <Plus className="mr-1 inline h-4 w-4" /> {t('parent.createChildProfile')}
                     </button>
                   ) : (
                     <form onSubmit={handleCreateChild} className="space-y-3">
                       <input name="full_name" value={createForm.full_name} onChange={(e) => setCreateForm(p => ({ ...p, full_name: e.target.value }))}
-                        placeholder="Child's full name" required
+                        placeholder={t('parent.childNamePlaceholder')} required
                         className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
                       <select name="age_level" value={createForm.age_level} onChange={(e) => setCreateForm(p => ({ ...p, age_level: e.target.value }))}
                         className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none">
-                        <option value="Creche">Creche (0-2 years)</option>
-                        <option value="Nursery">Nursery (3-4 years)</option>
-                        <option value="KG1">KG1 (4-5 years)</option>
-                        <option value="KG2">KG2 (5-6 years)</option>
-                        <option value="Primary">Primary (6+ years)</option>
+                        <option value="Creche">{t('parent.ageCreche')}</option>
+                        <option value="Nursery">{t('parent.ageNursery')}</option>
+                        <option value="KG1">{t('parent.ageKG1')}</option>
+                        <option value="KG2">{t('parent.ageKG2')}</option>
+                        <option value="Primary">{t('parent.agePrimary')}</option>
                       </select>
                       <input name="admission_no" value={createForm.admission_no} onChange={(e) => setCreateForm(p => ({ ...p, admission_no: e.target.value }))}
-                        placeholder="Admission number (optional — auto-generated if blank)"
+                        placeholder={t('parent.admissionOptional')}
                         className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
                       <div className="flex gap-2">
                         <button type="submit" disabled={creating || !createForm.full_name.trim()}
                           className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">
                           {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                          {creating ? 'Creating…' : 'Create'}
+                          {creating ? t('parent.creating') : t('parent.create')}
                         </button>
                         <button type="button" onClick={() => setShowCreate(false)}
                           className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                       </div>
                     </form>
