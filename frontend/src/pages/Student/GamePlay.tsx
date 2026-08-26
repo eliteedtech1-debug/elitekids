@@ -3312,6 +3312,10 @@ export default function GamePlay() {
   const sessionStartRef = useRef(Date.now());
   const { colorblindMode, toggleColorblind } = useA11yStore();
 
+  // Adaptive difficulty state
+  const [adaptiveProfile, setAdaptiveProfile] = useState<{ difficulty: number; accuracy_7d: number; streak_days: number } | null>(null);
+  const adaptiveFetched = useRef(false);
+
   // Mode lock state (Teacher > Parent > Child hierarchy)
   const [modeLock, setModeLock] = useState<{ locked_mode: string; locked_by_role: string; locked_by_name?: string; class_code?: string } | null>(null);
   const [modeLocked, setModeLocked] = useState(false);
@@ -3477,6 +3481,25 @@ export default function GamePlay() {
       .catch(() => {}); // No lock — child can choose freely
   }, [lessonId, admissionNo, className]);
 
+  // Adaptive difficulty: fetch profile on mount
+  useEffect(() => {
+    if (!lessonId || !admissionNo || adaptiveFetched.current) return;
+    adaptiveFetched.current = true;
+    // Use lessonId as topic (simple mapping — can be refined with subject metadata later)
+    apiClient.get(ENDPOINTS.ADAPTIVE.PROFILE, {
+      params: { subject: 'general', topic: lessonId },
+    }).then((res) => {
+      const profile = res.data?.data;
+      if (profile?.difficulty) {
+        setAdaptiveProfile({
+          difficulty: profile.difficulty,
+          accuracy_7d: profile.accuracy_7d || 0,
+          streak_days: profile.streak_days || 0,
+        });
+      }
+    }).catch(() => {}); // No profile yet — use defaults
+  }, [lessonId, admissionNo]);
+
   // ── Natural progression: suggest learning mode for newly unlocked units ──
   const suggestedModeApplied = useRef(false);
   useEffect(() => {
@@ -3617,6 +3640,19 @@ export default function GamePlay() {
           } else {
             console.warn('[offline] Progress lost — sync queue full');
           }
+        }
+
+        // Adaptive difficulty update: inform backend of results
+        if (admissionNo && mode !== 'learning') {
+          const correctCount = answers.filter((a) => a.correct).length;
+          const totalTime = answers.reduce((sum, a) => sum + (a.response_time_ms || 0), 0);
+          apiClient.post(ENDPOINTS.ADAPTIVE.UPDATE, {
+            subject: 'general',
+            topic: lessonId,
+            score: finalScore,
+            response_time_ms: totalTime > 0 ? totalTime : undefined,
+            correct: correctCount > answers.length / 2,
+          }).catch(() => {}); // Best-effort — don't block game flow
         }
       } finally {
         setSubmitting(false);
@@ -4049,6 +4085,11 @@ export default function GamePlay() {
           {soundOn ? <Volume2 className="h-5 w-5 text-[#0F4D92]" /> : <VolumeX className="h-5 w-5 text-gray-400" />}
         </button>
         <SpeechSettings />
+        {adaptiveProfile && (
+          <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] sm:text-xs font-bold text-blue-600" title={`Difficulty: ${adaptiveProfile.difficulty}/5 | Accuracy: ${Math.round(adaptiveProfile.accuracy_7d)}%`}>
+            L{adaptiveProfile.difficulty}
+          </span>
+        )}
         {mode !== 'learning' && (
           <span className={`rounded-full bg-amber-100 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-amber-600 transition-all ${scoreBounce ? 'animate-game-score-bounce' : ''}`}>
             ⭐ {score}
