@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Radio } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { t } from '@/lib/i18n';
 import { EliteLive } from '@/lib/live/audio';
 
 /**
@@ -59,7 +60,7 @@ export default function StudentLiveBar() {
             <span className="relative inline-flex h-3 w-3 rounded-full bg-white" />
           </span>
           <Radio className="h-4 w-4 text-white" />
-          <p className="flex-1 text-sm font-extrabold text-white">LIVE — Teacher is speaking to your class!</p>
+          <p className="flex-1 text-sm font-extrabold text-white">{t('student.liveBar.teacherSpeaking')}</p>
         </div>
       )}
       {floored && (
@@ -70,12 +71,12 @@ export default function StudentLiveBar() {
           }`}
         >
           {speaking ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-          {speaking ? '🔴 You are speaking — tap when done' : '🎤 Teacher unmuted you! Tap to reply'}
+          {speaking ? t('student.liveBar.youSpeaking') : t('student.liveBar.youHaveFloor')}
         </button>
       )}
       {denied && (
         <p className="text-center text-xs font-semibold text-red-500">
-          Microphone blocked — allow microphone access in your browser settings.
+          {t('student.liveBar.micDenied')}
         </p>
       )}
     </div>

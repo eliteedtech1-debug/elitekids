@@ -4,6 +4,7 @@ import { BookOpen, CheckCircle2, Lock, PlayCircle, CalendarDays } from 'lucide-r
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { t } from '@/lib/i18n';
 
 /**
  * E3 — My Subjects (curriculum ladder) panel.
@@ -11,13 +12,13 @@ import { STORAGE_KEYS } from '@/lib/utils/constants';
  *   ✅ done · ▶️ open (next up) · 🔒 locked until every earlier unit is done.
  */
 
-const SUBJECT_META: Record<string, { label: string; emoji: string; ring: string }> = {
-  'Eng-Phonics': { label: 'English — Phonics', emoji: '📖', ring: 'border-sky-200 bg-sky-50' },
-  'Eng-Phonics-Bank': { label: 'Phonics Practice Bank', emoji: "🎷", ring: 'border-cyan-200 bg-cyan-50' },
-  'Eng-Language': { label: 'English', emoji: '📖', ring: 'border-sky-200 bg-sky-50' },
-  'Math-Numbers': { label: 'Mathematics — Numbers', emoji: '🔢', ring: 'border-violet-200 bg-violet-50' },
-  'Sci-Animals': { label: 'Science — Animals', emoji: '🐘', ring: 'border-emerald-200 bg-emerald-50' },
-  GENERAL: { label: 'General', emoji: '🎒', ring: 'border-amber-200 bg-amber-50' },
+const SUBJECT_META: Record<string, { labelKey: string; emoji: string; ring: string }> = {
+  'Eng-Phonics': { labelKey: 'student.curriculum.subject.engPhonics', emoji: '📖', ring: 'border-sky-200 bg-sky-50' },
+  'Eng-Phonics-Bank': { labelKey: 'student.curriculum.subject.engPhonicsBank', emoji: "🎷", ring: 'border-cyan-200 bg-cyan-50' },
+  'Eng-Language': { labelKey: 'student.curriculum.subject.engLanguage', emoji: '📖', ring: 'border-sky-200 bg-sky-50' },
+  'Math-Numbers': { labelKey: 'student.curriculum.subject.mathNumbers', emoji: '🔢', ring: 'border-violet-200 bg-violet-50' },
+  'Sci-Animals': { labelKey: 'student.curriculum.subject.sciAnimals', emoji: '🐘', ring: 'border-emerald-200 bg-emerald-50' },
+  GENERAL: { labelKey: 'student.curriculum.subject.general', emoji: '🎒', ring: 'border-amber-200 bg-amber-50' },
 };
 
 function UnitRow({ unit, onPlay }: { unit: any; onPlay: (lessonId: string) => void }) {
@@ -45,11 +46,11 @@ function UnitRow({ unit, onPlay }: { unit: any; onPlay: (lessonId: string) => vo
         {unit.unit_number}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-bold text-gray-800">{unit.title || `Unit ${unit.unit_number}`}</span>
+        <span className="block truncate text-sm font-bold text-gray-800">{unit.title || t('student.curriculum.unit', { n: unit.unit_number })}</span>
         <span className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
-          <CalendarDays className="h-3 w-3" /> Week {unit.week_number ?? unit.unit_number}
+          <CalendarDays className="h-3 w-3" /> {t('student.curriculum.week', { n: unit.week_number ?? unit.unit_number })}
           <span>·</span>
-          {unit.completed_lessons}/{unit.total_lessons} games
+          {t('student.curriculum.games', { done: unit.completed_lessons, total: unit.total_lessons })}
         </span>
       </span>
       {state === 'done' && <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />}
@@ -75,14 +76,14 @@ export default function StudentCurriculumPanel() {
 
   const play = (lessonId: string) => navigate(`/student/game/${lessonId}`);
   const deny = () => {
-    setToast('Finish the last week first: play Practice AND pass its Test for every game! 🔒');
+    setToast(t('student.curriculum.lockedToast'));
     setTimeout(() => setToast(null), 2500);
   };
 
   if (loading) {
     return (
       <div className="grid place-items-center py-16 text-sm text-gray-500">
-        <BookOpen className="mb-2 h-6 w-6 animate-pulse" /> Loading your subjects…
+        <BookOpen className="mb-2 h-6 w-6 animate-pulse" /> {t('student.curriculum.loading')}
       </div>
     );
   }
@@ -98,8 +99,8 @@ export default function StudentCurriculumPanel() {
       {subjects.length === 0 && (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
           <BookOpen className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-          <p className="text-sm font-semibold text-gray-600">No curriculum series yet</p>
-          <p className="text-xs text-gray-400">Your teacher will publish subject ladders here.</p>
+          <p className="text-sm font-semibold text-gray-600">{t('student.curriculum.empty')}</p>
+          <p className="text-xs text-gray-400">{t('student.curriculum.emptyHint')}</p>
         </div>
       )}
 
@@ -108,7 +109,7 @@ export default function StudentCurriculumPanel() {
         return (
           <section key={subj.subject_code}>
             <h3 className={`mb-2 flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-extrabold ${meta.ring}`}>
-              <span className="text-lg">{meta.emoji}</span> {meta.label}
+              <span className="text-lg">{meta.emoji}</span> {t(meta.labelKey)}
             </h3>
             <div className="space-y-3">
               {subj.series.map((sr: any) => {
@@ -118,7 +119,7 @@ export default function StudentCurriculumPanel() {
                     <div className="mb-2 flex items-center justify-between gap-2 px-1">
                       <p className="truncate text-sm font-bold text-gray-800">{sr.name}</p>
                       <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
-                        {doneCount}/{sr.units.length} weeks ✅
+                        {t('student.curriculum.weeks', { done: doneCount, total: sr.units.length })}
                       </span>
                     </div>
                     <div className="space-y-2">
@@ -140,9 +141,7 @@ export default function StudentCurriculumPanel() {
         );
       })}
 
-      <p className="px-2 text-center text-xs text-gray-400">
-        One game a week keeps the ladder climbing 🪜 — finish this week to unlock the next.
-      </p>
+      <p className="px-2 text-center text-xs text-gray-400">{t('student.curriculum.footer')}</p>
     </div>
   );
 }
