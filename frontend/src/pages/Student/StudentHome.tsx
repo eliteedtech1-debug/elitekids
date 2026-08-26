@@ -21,6 +21,9 @@ import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import RevisionCard from '@/components/RevisionCard';
+import BossBattleOverlay from '@/components/BossBattleOverlay';
+import ReviewZone from '@/components/ReviewZone';
+import OfflineIndicator from '@/components/OfflineIndicator';
 import { playTap } from '@/lib/utils/sound';
 import A11ySettings from '@/components/A11ySettings';
 import SpeechSettings from '@/components/SpeechSettings';
@@ -194,6 +197,7 @@ export default function StudentHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [showBossRaid, setShowBossRaid] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [companion, setCompanion] = useState<any>(null);
   const [showCompanionSelect, setShowCompanionSelect] = useState(false);
@@ -407,9 +411,17 @@ export default function StudentHome() {
           </div>
         </div>
 
+        {/* Offline Indicator */}
+        <OfflineIndicator />
+
         {/* Daily & Weekly Revision */}
         <div className="mb-5">
           <RevisionCard />
+        </div>
+
+        {/* Review Zone (spaced repetition) */}
+        <div className="mb-5">
+          <ReviewZone />
         </div>
 
         {error && (
