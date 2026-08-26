@@ -63,7 +63,7 @@ async function offlineGet<T = any>(
 
   // No cache available — throw friendly error
   throw {
-    message: 'You appear to be offline. Check your connection and try again.',
+    message: 'error.offline_check',
     status: 0,
     network: true,
   } as ApiError;
@@ -76,7 +76,7 @@ async function getFromCache<T>(cacheKey: string): Promise<{ data: T; fromCache: 
     return { data: cached.value, fromCache: true };
   }
   throw {
-    message: 'You appear to be offline. This data is not cached yet.',
+    message: 'error.offline_not_cached',
     status: 0,
     network: true,
   } as ApiError;
@@ -112,7 +112,7 @@ async function offlineMutate<T = any>(
   }
 
   throw {
-    message: 'You appear to be offline. Check your connection and try again.',
+    message: 'error.offline_check',
     status: 0,
     network: true,
   } as ApiError;
@@ -144,7 +144,7 @@ async function offlineDelete<T = any>(
   }
 
   throw {
-    message: 'You appear to be offline. Check your connection and try again.',
+    message: 'error.offline_check',
     status: 0,
     network: true,
   } as ApiError;

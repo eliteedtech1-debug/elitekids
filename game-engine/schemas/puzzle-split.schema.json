@@ -13,6 +13,28 @@
     "item_id": { "type": "string" },
     "durationTargetSec": { "type": "integer", "minimum": 15, "maximum": 300 },
     "originalImageUrl": { "type": "string" },
+    "characters": {
+      "type": "array",
+      "description": "Recurring child-friendly characters. Image > Emoji > Text.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
+          "emoji": { "type": "string", "description": "Character emoji fallback" },
+          "personality": { "type": "string" }
+        }
+      }
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Short story/scenario wrapping the puzzle game (shown to child)"
+    },
+    "speechText": {
+      "type": "string",
+      "description": "Exact text to read aloud via TTS"
+    },
     "difficulties": {
       "type": "object",
       "required": ["easy", "medium", "hard", "expert"],

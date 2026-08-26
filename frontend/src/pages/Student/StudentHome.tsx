@@ -20,6 +20,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import RevisionCard from '@/components/RevisionCard';
 import { playTap } from '@/lib/utils/sound';
 import A11ySettings from '@/components/A11ySettings';
 import SpeechSettings from '@/components/SpeechSettings';
@@ -30,8 +31,9 @@ import StudentLeaderboardPanel from './StudentLeaderboardPanel';
 import StudentFestival from '@/components/StudentFestival';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
-import { recordPlayDay, getStreak, getStreakEmoji } from '@/lib/utils/streak';
+import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
+import { t, tN } from '@/lib/i18n';
 
 /* ── Types ────────────────────────────────────────────────────── */
 
@@ -43,6 +45,9 @@ interface LessonCard {
   lesson_type: string;
   created_at: string;
   has_games: boolean;
+  nerdc_code?: string;
+  nerdc_strand?: string;
+  nerdc_sub_strand?: string;
 }
 
 interface GameStat {
@@ -64,22 +69,22 @@ interface ProgressData {
 
 interface Tab {
   key: string;
-  label: string;
+  labelKey: string;
   icon: React.ReactNode;
   filter: (l: LessonCard) => boolean;
   special?: boolean;
 }
 
 const TABS: Tab[] = [
-  { key: 'all', label: 'All Games', icon: <Gamepad2 className="h-4 w-4" />, filter: () => true },
-  { key: 'numbers', label: 'Numbers', icon: <Hash className="h-4 w-4" />, filter: (l) => /count|number|math|drag-sort/i.test(l.subject + l.title) },
-  { key: 'letters', label: 'Letters', icon: <BookOpen className="h-4 w-4" />, filter: (l) => /abc|letter|english|phon/i.test(l.subject + l.title) },
-  { key: 'colors', label: 'Colors', icon: <Palette className="h-4 w-4" />, filter: (l) => /color|art|creati/i.test(l.subject + l.title) },
-  { key: 'shapes', label: 'Shapes', icon: <Shapes className="h-4 w-4" />, filter: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
-  { key: 'animals', label: 'Animals', icon: <PawPrint className="h-4 w-4" />, filter: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
-  { key: 'food', label: 'Food', icon: <Apple className="h-4 w-4" />, filter: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
-  { key: 'festival', label: 'Festival', icon: <Swords className="h-4 w-4" />, filter: () => true, special: true },
-  { key: 'leaderboard', label: 'Trophy Board', icon: <Trophy className="h-4 w-4" />, filter: () => true, special: true },
+  { key: 'all', labelKey: 'student.tab.all', icon: <Gamepad2 className="h-4 w-4" />, filter: () => true },
+  { key: 'numbers', labelKey: 'student.tab.numbers', icon: <Hash className="h-4 w-4" />, filter: (l) => /count|number|math|drag-sort/i.test(l.subject + l.title) },
+  { key: 'letters', labelKey: 'student.tab.letters', icon: <BookOpen className="h-4 w-4" />, filter: (l) => /abc|letter|english|phon/i.test(l.subject + l.title) },
+  { key: 'colors', labelKey: 'student.tab.colors', icon: <Palette className="h-4 w-4" />, filter: (l) => /color|art|creati/i.test(l.subject + l.title) },
+  { key: 'shapes', labelKey: 'student.tab.shapes', icon: <Shapes className="h-4 w-4" />, filter: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
+  { key: 'animals', labelKey: 'student.tab.animals', icon: <PawPrint className="h-4 w-4" />, filter: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
+  { key: 'food', labelKey: 'student.tab.food', icon: <Apple className="h-4 w-4" />, filter: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
+  { key: 'festival', labelKey: 'student.tab.festival', icon: <Swords className="h-4 w-4" />, filter: () => true, special: true },
+  { key: 'leaderboard', labelKey: 'student.tab.leaderboard', icon: <Trophy className="h-4 w-4" />, filter: () => true, special: true },
 ];
 
 /* ── Age-level badge colors (from accessibility palette) ── */
@@ -192,7 +197,7 @@ export default function StudentHome() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [companion, setCompanion] = useState<any>(null);
   const [showCompanionSelect, setShowCompanionSelect] = useState(false);
-  const [streak, setStreak] = useState(() => getStreak());
+  const [streak, setStreak] = useState(() => getStreakLocal());
   const { colorblindMode } = useA11yStore();
 
   const loadData = useCallback(async () => {
@@ -232,12 +237,12 @@ export default function StudentHome() {
         }
       }
     } catch (err: any) {
-      setError(err?.message || 'Unable to load your games.');
+      setError(err?.message || t('student.home.loadFailed'));
     } finally {
       setLoading(false);
       // Record daily play for streak tracking
-      const updatedStreak = recordPlayDay();
-      setStreak(updatedStreak);
+      const admissionNo = student?.admission_no || student?.id || '';
+      recordPlayDay(admissionNo).then(setStreak).catch(() => {});
       // Warm IndexedDB cache with game assets in background
       try {
         const allUrls: string[] = [];
@@ -308,7 +313,7 @@ export default function StudentHome() {
     return tab ? classFiltered.filter(tab.filter) : classFiltered;
   }, [lessons, activeTab, student?.class_name]);
 
-  const displayName = student?.student_name || student?.name || student?.admission_no || 'Student';
+  const displayName = student?.student_name || student?.name || student?.admission_no || t('student.home.defaultName');
   const summary = progress || { total_xp: 0, total_stars: 0, games_completed: 0, game_stats: {} } as ProgressData;
   const gameStats = progress?.game_stats || {};
 
@@ -340,10 +345,10 @@ export default function StudentHome() {
       <header className="border-b border-[#0F4D92]/10 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4">
           <div className="flex items-center gap-2 sm:gap-3">
-            <img src="/logo.svg" alt="Elite Kids" className="h-10 w-10 rounded-full object-contain" />
+            <img src="/logo.svg" alt={t('login.brand')} className="h-10 w-10 rounded-full object-contain" />
             <div>
-              <h1 className="text-base sm:text-lg font-bold leading-tight text-[#0F4D92] animate-game-slide-left">Elite Kids</h1>
-              <p className="text-[11px] sm:text-xs text-gray-500">Hello, {displayName}!</p>
+              <h1 className="text-base sm:text-lg font-bold leading-tight text-[#0F4D92] animate-game-slide-left">{t('login.brand')}</h1>
+              <p className="text-[11px] sm:text-xs text-gray-500">{t('student.home.hello', { name: displayName })}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3">
@@ -353,7 +358,7 @@ export default function StudentHome() {
               onClick={handleLogout}
               className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-2.5 py-2 sm:px-3 text-sm font-medium text-red-600 transition hover:bg-red-50 active:scale-95"
             >
-              <LogOut className="h-5 w-5" /> <span className="hidden sm:inline">Sign out</span>
+              <LogOut className="h-5 w-5" /> <span className="hidden sm:inline">{t('dashboard.signOut')}</span>
             </button>
           </div>
         </div>
@@ -377,29 +382,34 @@ export default function StudentHome() {
               <span>{getStreakEmoji(streak.currentStreak)}</span>
               {streak.currentStreak}
             </div>
-            <p className="text-[10px] text-gray-500">Day Streak</p>
+            <p className="text-[10px] text-gray-500">{t('student.home.dayStreak')}</p>
           </div>
           <div className="text-center animate-game-zoom-in stagger-1">
             <div className="flex items-center justify-center gap-1 text-2xl font-bold text-amber-500">
               <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
               {summary.total_stars}
             </div>
-            <p className="text-xs text-gray-500">Stars Earned</p>
+            <p className="text-xs text-gray-500">{t('student.home.starsEarned')}</p>
           </div>
           <div className="text-center animate-game-zoom-in stagger-2">
             <div className="flex items-center justify-center gap-1 text-2xl font-bold text-[#0F4D92]">
               <Zap className="h-5 w-5" />
               {summary.total_xp}
             </div>
-            <p className="text-xs text-gray-500">XP Points</p>
+            <p className="text-xs text-gray-500">{t('student.home.xpPoints')}</p>
           </div>
           <div className="text-center animate-game-zoom-in stagger-3">
             <div className="flex items-center justify-center gap-1 text-2xl font-bold text-gray-700">
               <Gamepad2 className="h-5 w-5" />
               {summary.games_completed}
             </div>
-            <p className="text-xs text-gray-500">Games Played</p>
+            <p className="text-xs text-gray-500">{t('student.home.gamesPlayed')}</p>
           </div>
+        </div>
+
+        {/* Daily & Weekly Revision */}
+        <div className="mb-5">
+          <RevisionCard />
         </div>
 
         {error && (
@@ -408,7 +418,7 @@ export default function StudentHome() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-gray-400">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading games...
+            <Loader2 className="h-5 w-5 animate-spin" /> {t('student.home.loading')}
           </div>
         ) : (
           <>
@@ -428,7 +438,7 @@ export default function StudentHome() {
                     }`}
                   >
                     {tab.icon}
-                    {tab.label}
+                    {t(tab.labelKey)}
                     <span className={`ml-0.5 rounded-full px-1.5 text-xs ${activeTab === tab.key ? 'bg-white/20' : 'bg-gray-100'}`}>
                       {count}
                     </span>
@@ -446,7 +456,7 @@ export default function StudentHome() {
             {/* Section header */}
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800">
-                {TABS.find((t) => t.key === activeTab)?.label || 'All Games'}
+                {TABS.find((t) => t.key === activeTab) ? t(TABS.find((t) => t.key === activeTab)!.labelKey) : t('student.tab.all')}
                 <span className="ml-2 text-sm font-normal text-gray-400">({filteredLessons.length})</span>
               </h2>
               <button
@@ -462,10 +472,8 @@ export default function StudentHome() {
             {filteredLessons.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[#0F4D92]/30 bg-white p-10 text-center">
                 <Gamepad2 className="mx-auto mb-3 h-10 w-10 text-[#0F4D92]/40" />
-                <h3 className="font-semibold text-gray-700">No games in this category yet</h3>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
-                  Check back soon — your teacher is preparing fun games!
-                </p>
+                <h3 className="font-semibold text-gray-700">{t('student.home.noGamesTitle')}</h3>
+                <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">{t('student.home.noGamesBody')}</p>
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -498,15 +506,15 @@ export default function StudentHome() {
                         </div>
                         {played > 0 ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold text-green-700">
-                            ✓ Played {played}×
+                            {t('student.home.playedCount', { count: played })}
                           </span>
                         ) : lesson.has_games ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-semibold text-green-700">
-                            ▶ Play Now
+                            {t('student.home.playNow')}
                           </span>
                         ) : (
                           <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-500">
-                            Coming Soon
+                            {t('student.home.comingSoon')}
                           </span>
                         )}
                       </div>
@@ -517,16 +525,30 @@ export default function StudentHome() {
                         </span>
                         <span className="text-xs text-gray-400">{lesson.subject}</span>
                       </div>
+                      {(lesson.nerdc_code || lesson.nerdc_strand) && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          {lesson.nerdc_code && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-600">
+                              📘 {lesson.nerdc_code}
+                            </span>
+                          )}
+                          {lesson.nerdc_strand && (
+                            <span className="inline-flex items-center rounded-md bg-purple-50 px-1.5 py-0.5 text-[9px] font-medium text-purple-600">
+                              {lesson.nerdc_strand}{lesson.nerdc_sub_strand ? ` · ${lesson.nerdc_sub_strand}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {/* Per-game stats */}
                       {played > 0 && (
                         <div className="mt-3 flex items-center gap-3 border-t border-gray-100 pt-2.5">
                           <div className="flex items-center gap-1 text-[11px] text-gray-500">
                             <RotateCcw className="h-3 w-3" />
-                            <span className="font-semibold text-gray-700">{played}</span> play{played !== 1 ? 's' : ''}
+                            <span className="font-semibold text-gray-700">{tN('student.home.plays', played)}</span>
                           </div>
                           <div className="flex items-center gap-1 text-[11px] text-gray-500">
                             <Trophy className="h-3 w-3" />
-                            <span className="font-semibold text-amber-600">{bestScore}</span> best
+                            <span className="font-semibold text-amber-600">{bestScore}</span> {t('student.home.best')}
                           </div>
                           <div className="flex items-center gap-1 text-[11px] text-gray-500">
                             <Star className="h-3 w-3" />
@@ -542,21 +564,21 @@ export default function StudentHome() {
                             onClick={(e) => { e.stopPropagation(); playTap(); }}
                             className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-purple-50 py-2 text-xs font-semibold text-purple-600 border border-purple-100 hover:bg-purple-100 hover:shadow-sm active:scale-95 transition-all"
                           >
-                            📺 Learn
+                            {t('student.home.learn')}
                           </Link>
                           <Link
                             to={`/student/game/${lesson.id}?mode=practice`}
                             onClick={(e) => { e.stopPropagation(); playTap(); }}
                             className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-green-50 py-2 text-xs font-semibold text-green-600 border border-green-100 hover:bg-green-100 hover:shadow-sm active:scale-95 transition-all"
                           >
-                            🎯 Practice
+                            {t('student.home.practice')}
                           </Link>
                           <Link
                             to={`/student/game/${lesson.id}?mode=test`}
                             onClick={(e) => { e.stopPropagation(); playTap(); }}
                             className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-50 py-2 text-xs font-semibold text-blue-600 border border-blue-100 hover:bg-blue-100 hover:shadow-sm active:scale-95 transition-all"
                           >
-                            📝 Test
+                            {t('student.home.test')}
                           </Link>
                         </div>
                       )}

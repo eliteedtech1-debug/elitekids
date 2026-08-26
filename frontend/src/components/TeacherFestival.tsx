@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Calendar, Swords, Loader2, Check, Crown, Shield, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 
 interface Guardian {
@@ -53,17 +54,17 @@ export default function TeacherFestival() {
   useEffect(() => { load(); }, [load]);
 
   const create = async () => {
-    if (!form.class_code.trim()) return toast.error('Enter a class code');
+    if (!form.class_code.trim()) return toast.error(t('festival.enterCode'));
     setCreating(true);
     try {
       const res = await apiClient.post('/kids/festival/create', {
         class_code: form.class_code.trim(),
         title: form.title.trim() || 'Festival of Guardians',
       });
-      toast.success(res.data?.data?.message || 'Festival started! ⚔️');
+      toast.success(res.data?.data?.message || t('festival.started'));
       load();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to create';
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || t('festival.createFailed');
       toast.error(msg);
     } finally {
       setCreating(false);
@@ -81,11 +82,9 @@ export default function TeacherFestival() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
       <h1 className="mb-1 flex items-center gap-2 text-xl font-extrabold text-gray-800">
-        <Swords className="h-6 w-6 text-orange-500" /> Festival of Guardians
+        <Swords className="h-6 w-6 text-orange-500" /> {t('festival.title')}
       </h1>
-      <p className="mb-5 text-sm text-gray-500">
-        Term-end sequential boss fights. Class defeats 6 guardians → earns the 🌩️ Guardian of the Storm mega badge!
-      </p>
+      <p className="mb-5 text-sm text-gray-500">{t('festival.subtitle')}</p>
 
       {/* Active Festival */}
       {festival ? (
@@ -95,11 +94,11 @@ export default function TeacherFestival() {
               <div>
                 <h2 className="font-extrabold text-gray-800">{festival.title}</h2>
                 <span className="text-xs text-gray-500">
-                  {festival.total_defeated}/{festival.total_guardians} guardians defeated
+                  {t('festival.progress', { defeated: festival.total_defeated, total: festival.total_guardians })}
                 </span>
               </div>
               <span className={`rounded-full px-3 py-1 text-xs font-bold ${festival.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                {festival.status === 'active' ? '⚔️ Active' : '✅ Complete'}
+                {festival.status === 'active' ? t('festival.active') : t('festival.complete')}
               </span>
             </div>
           </div>
@@ -122,7 +121,7 @@ export default function TeacherFestival() {
                 <div className="text-[10px] text-gray-400">{g.subject}</div>
                 {g.status === 'defeated' ? (
                   <div className="mt-1 inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-600">
-                    <Check className="h-2.5 w-2.5" /> Defeated
+                    <Check className="h-2.5 w-2.5" /> {t('festival.defeated')}
                   </div>
                 ) : g.status === 'active' ? (
                   <div className="mt-1">
@@ -132,10 +131,10 @@ export default function TeacherFestival() {
                         style={{ width: `${(g.hp / g.max_hp) * 100}%` }}
                       />
                     </div>
-                    <span className="text-[10px] font-bold text-amber-600">{g.hp}/{g.max_hp} HP</span>
+                    <span className="text-[10px] font-bold text-amber-600">{t('festival.hp', { hp: g.hp, max: g.max_hp })}</span>
                   </div>
                 ) : (
-                  <div className="mt-1 text-[10px] font-semibold text-gray-400">Upcoming</div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-400">{t('festival.upcoming')}</div>
                 )}
               </div>
             ))}
@@ -144,31 +143,31 @@ export default function TeacherFestival() {
           {festival.all_defeated && (
             <div className="mt-4 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 p-6 text-center text-white shadow-lg">
               <Crown className="mx-auto mb-2 h-8 w-8" />
-              <h3 className="text-lg font-extrabold">🌩️ Festival Complete!</h3>
-              <p className="mt-1 text-sm opacity-90">The class earned the Guardian of the Storm mega badge!</p>
+              <h3 className="text-lg font-extrabold">{t('festival.completeTitle')}</h3>
+              <p className="mt-1 text-sm opacity-90">{t('festival.completeBody')}</p>
             </div>
           )}
         </div>
       ) : (
         /* Create Form */
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h3 className="mb-3 text-sm font-extrabold text-gray-700">Start a Festival</h3>
+          <h3 className="mb-3 text-sm font-extrabold text-gray-700">{t('festival.start')}</h3>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs font-bold text-gray-600">
-              Title
+              {t('festival.titleField')}
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Festival of Guardians"
+                placeholder={t('festival.title')}
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
               />
             </label>
             <label className="text-xs font-bold text-gray-600">
-              Class Code
+              {t('festival.classCode')}
               <input
                 value={form.class_code}
                 onChange={(e) => setForm({ ...form, class_code: e.target.value })}
-                placeholder="CLS0610"
+                placeholder={t('teacher.live.codePlaceholder')}
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
               />
             </label>
@@ -179,16 +178,16 @@ export default function TeacherFestival() {
             className="mt-3 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 px-5 py-2.5 text-sm font-extrabold text-white shadow hover:opacity-90 disabled:opacity-50"
           >
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Launch Festival
+            {t('festival.launch')}
           </button>
-          <p className="mt-2 text-[11px] text-gray-400">Class fights 6 guardians sequentially. Each guardian requires collective damage from all students playing.</p>
+          <p className="mt-2 text-[11px] text-gray-400">{t('festival.note')}</p>
         </div>
       )}
 
       {/* History */}
       {history.length > 0 && (
         <div>
-          <h3 className="mb-2 text-xs font-extrabold uppercase tracking-wide text-gray-400">Past Festivals</h3>
+          <h3 className="mb-2 text-xs font-extrabold uppercase tracking-wide text-gray-400">{t('festival.past')}</h3>
           <div className="space-y-2">
             {history.map((h) => (
               <div key={h.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">

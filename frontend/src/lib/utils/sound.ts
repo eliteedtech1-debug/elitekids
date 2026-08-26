@@ -3,6 +3,10 @@
  * All functions are safe to call in SSR (no-op on server).
  */
 
+// #3 i18n: TTS follows the app locale (default en-NG for Nigeria) instead of
+// a hardcoded en-US tag. Safe to import directly — i18n has no dep on sound.
+import { getTtsLocale } from '@/lib/i18n';
+
 let audioCtx: AudioContext | null = null;
 
 function getCtx(): AudioContext | null {
@@ -119,6 +123,44 @@ export function playPlace() {
   playTone(500, 0.08, 'triangle', 0.15);
 }
 
+/** Streak milestone — ascending chime (3, 5, 7 correct in a row) */
+export function playStreak(level: number) {
+  const base = 600 + level * 100;
+  playTone(base, 0.1, 'sine', 0.2);
+  setTimeout(() => playTone(base + 200, 0.1, 'sine', 0.2), 80);
+  setTimeout(() => playTone(base + 400, 0.15, 'sine', 0.25), 160);
+}
+
+/** Hint reveal — soft encouraging tone */
+export function playHint() {
+  playTone(520, 0.12, 'triangle', 0.15);
+  setTimeout(() => playTone(660, 0.15, 'triangle', 0.12), 120);
+}
+
+/** Brief celebration burst — for mini-celebrations between questions */
+export function playCelebration() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  const t = ctx.currentTime;
+  const note = (freq: number, start: number, dur: number, vol = 0.18) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t + start);
+    gain.gain.exponentialRampToValueAtTime(vol, t + start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + start + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t + start);
+    osc.stop(t + start + dur);
+  };
+  note(784, 0.0, 0.12);    // G5
+  note(988, 0.1, 0.12);    // B5
+  note(1175, 0.2, 0.2);    // D6
+}
+
 // ── Speech Synthesis ──────────────────────────────────────────
 
 /**
@@ -137,14 +179,21 @@ export function stripEmojiForSpeech(text: string): string {
     .trim();
 }
 
-export function speak(text: string, lang = 'en-US', overrideRate?: number): Promise<void> {
+// Track the currently-speaking utterance so we only cancel when something is
+// actually queued — calling cancel() right before speak() on some engines
+// (Chrome/Android) cancels the NEW utterance too, which made questions go silent.
+let activeUtterance: SpeechSynthesisUtterance | null = null;
+
+export function speak(text: string, lang?: string, overrideRate?: number): Promise<void> {
   return new Promise((resolve) => {
     if (!text || typeof window === 'undefined' || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
       resolve();
       return;
     }
-    // Cancel any ongoing speech
-    try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+    // Cancel only ongoing speech (never a just-started one)
+    if (activeUtterance) {
+      try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+    }
 
     // Read settings from the speech store (lazy import to avoid circular deps)
     let rate = 0.85;
@@ -166,7 +215,7 @@ export function speak(text: string, lang = 'en-US', overrideRate?: number): Prom
     const spokenText = stripEmojiForSpeech(text);
     if (!spokenText) { resolve(); return; }
     const utterance = new SpeechSynthesisUtterance(spokenText);
-    utterance.lang = lang;
+    utterance.lang = lang || getTtsLocale();
     utterance.rate = rate;
     utterance.volume = 1;
     utterance.pitch = pitch;
@@ -191,11 +240,17 @@ export function speak(text: string, lang = 'en-US', overrideRate?: number): Prom
       utterance.lang = preferred.lang;
     }
 
-    utterance.onend = () => resolve();
-    utterance.onerror = () => resolve();
+    const finish = () => {
+      activeUtterance = null;
+      resolve();
+    };
+    utterance.onend = finish;
+    utterance.onerror = finish;
+    activeUtterance = utterance;
     try {
       window.speechSynthesis.speak(utterance);
     } catch {
+      activeUtterance = null;
       resolve();
       return;
     }
@@ -239,7 +294,7 @@ export async function speakAnimal(name: string): Promise<void> {
 /** Speak a number with emphasis */
 export async function speakNumber(num: number): Promise<void> {
   playDance();
-  await speak(`${num}!`, 'en-NG', 0.85);
+  await speak(`${num}!`, undefined, 0.85);
 }
 
 /** Speak a shape name */

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Swords, Shield, Zap, Crown, Loader2 } from 'lucide-react';
 import { playTap } from '@/lib/utils/sound';
+import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
@@ -61,10 +62,8 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center px-8 text-center">
         <Swords className="mb-4 h-14 w-14 text-gray-300" />
-        <p className="text-base font-bold text-gray-600">No festival in progress</p>
-        <p className="mt-2 text-sm text-gray-400">
-          Your teacher will start a Festival of Guardians when it's time. Get ready to fight! ⚔️
-        </p>
+        <p className="text-base font-bold text-gray-600">{t('studentFestival.none')}</p>
+        <p className="mt-2 text-sm text-gray-400">{t('studentFestival.noneHint')}</p>
       </div>
     );
   }
@@ -86,8 +85,8 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
         </div>
         <p className="mt-1 text-sm opacity-90">
           {data.all_defeated
-            ? '🎉 All guardians defeated! You earned the mega badge!'
-            : `Defeat all 6 guardians to earn the 🌩️ Guardian of the Storm badge!`}
+            ? t('studentFestival.allDefeated')
+            : t('studentFestival.defeatAll')}
         </p>
       </div>
 
@@ -104,7 +103,7 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
           <div className="mt-4">
             <div className="mb-1 flex items-center justify-between text-xs">
               <span className="flex items-center gap-1 font-bold text-red-600">
-                <Shield className="h-3 w-3" /> Boss HP
+                <Shield className="h-3 w-3" /> {t('studentFestival.bossHp')}
               </span>
               <span className="font-extrabold text-gray-700">{currentGuardian.hp}/{currentGuardian.max_hp}</span>
             </div>
@@ -115,7 +114,7 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
               />
             </div>
             <p className="mt-1 text-center text-[10px] font-semibold text-gray-400">
-              {hpPct > 60 ? '💪 Still strong!' : hpPct > 30 ? '😅 Getting weaker!' : '🔥 Almost there!'}
+              {hpPct > 60 ? t('studentFestival.hp.strong') : hpPct > 30 ? t('studentFestival.hp.weaker') : t('studentFestival.hp.almost')}
             </p>
           </div>
 
@@ -123,7 +122,7 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
             onClick={() => { playTap(); onGoPlay?.(); }}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 py-4 text-lg font-extrabold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
-            <Zap className="h-5 w-5" /> FIGHT THE BOSS!
+            <Zap className="h-5 w-5" /> {t('studentFestival.fight')}
           </button>
         </div>
       )}
@@ -132,10 +131,8 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
       {data.all_defeated && (
         <div className="mb-4 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 p-6 text-center text-white shadow-lg">
           <Crown className="mx-auto mb-2 h-10 w-10" />
-          <h3 className="text-xl font-extrabold">🌩️ Guardian of the Storm</h3>
-          <p className="mt-2 text-sm opacity-90">
-            All 6 guardians have been defeated! The class earned the ultimate mega badge!
-          </p>
+          <h3 className="text-xl font-extrabold">{t('studentFestival.megaBadge')}</h3>
+          <p className="mt-2 text-sm opacity-90">{t('studentFestival.megaBody')}</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {data.guardians.filter(g => g.status === 'defeated').map(g => (
               <span key={g.slug} className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">
@@ -148,7 +145,7 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
 
       {/* Guardian Progress Map */}
       <div className="rounded-2xl bg-white p-4 shadow-sm">
-        <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-gray-400">Guardian Progress</h3>
+        <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-gray-400">{t('studentFestival.progress')}</h3>
         <div className="space-y-2">
           {data.guardians.map((g, i) => (
             <div
@@ -165,7 +162,7 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-extrabold text-gray-700">{g.name}</span>
-                  {g.status === 'active' && <span className="text-[10px] font-bold text-amber-600">⚔️ ACTIVE</span>}
+                  {g.status === 'active' && <span className="text-[10px] font-bold text-amber-600">{t('studentFestival.active')}</span>}
                 </div>
                 <span className="text-[10px] text-gray-400">{g.title}</span>
                 {g.status === 'active' && (
@@ -178,7 +175,7 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
                 )}
               </div>
               <span className={`text-xs font-bold ${g.status === 'defeated' ? 'text-green-600' : g.status === 'active' ? 'text-amber-600' : 'text-gray-400'}`}>
-                {g.status === 'defeated' ? '✅' : g.status === 'active' ? `${g.hp}HP` : '🔒'}
+                {g.status === 'defeated' ? '✅' : g.status === 'active' ? t('studentFestival.hpShort', { hp: g.hp }) : '🔒'}
               </span>
             </div>
           ))}

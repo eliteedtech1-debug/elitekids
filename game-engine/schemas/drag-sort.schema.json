@@ -57,6 +57,40 @@
       "minimum": 15,
       "maximum": 300
     },
+    "characters": {
+      "type": "array",
+      "description": "Recurring child-friendly characters. Image > Emoji > Text.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
+          "emoji": { "type": "string", "description": "Character emoji fallback" },
+          "personality": { "type": "string" }
+        }
+      }
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Short story/scenario wrapping the drag-sort game (shown to child)"
+    },
+    "hint": {
+      "type": "string",
+      "description": "Encouraging hint shown after wrong sort"
+    },
+    "feedbackCorrect": {
+      "type": "string",
+      "description": "Custom encouraging message for correct placement"
+    },
+    "feedbackWrong": {
+      "type": "string",
+      "description": "Custom gentle message for wrong placement"
+    },
+    "speechText": {
+      "type": "string",
+      "description": "Exact text to read aloud via TTS"
+    },
     "assets": {
       "type": "object",
       "required": [

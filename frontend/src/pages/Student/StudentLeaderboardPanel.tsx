@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Trophy } from 'lucide-react';
+import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
@@ -61,7 +62,7 @@ export default function StudentLeaderboardPanel() {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-gray-400">
-        <Loader2 className="h-5 w-5 animate-spin" /> Loading Trophy Board...
+        <Loader2 className="h-5 w-5 animate-spin" /> {t('student.leaderboard.loading')}
       </div>
     );
   }
@@ -73,11 +74,8 @@ export default function StudentLeaderboardPanel() {
         <div className="flex items-center gap-3 rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 p-4 shadow-sm animate-game-pop">
           <span className="text-3xl">🎁</span>
           <div>
-            <p className="font-bold text-purple-700">You won a FREE week!</p>
-            <p className="text-xs text-purple-500">
-              Top-3 champion prize — all games unlocked
-              {me.free_access_until ? ` until ${new Date(me.free_access_until).toLocaleDateString()}` : ''}.
-            </p>
+            <p className="font-bold text-purple-700">{t('student.leaderboard.freeWeek')}</p>
+            <p className="text-xs text-purple-500">{t('student.leaderboard.freeWeekBody', { until: me.free_access_until ? t('student.leaderboard.freeWeekUntil', { date: new Date(me.free_access_until).toLocaleDateString() }) : '' })}</p>
           </div>
         </div>
       )}
@@ -86,15 +84,15 @@ export default function StudentLeaderboardPanel() {
       <div className="grid grid-cols-3 gap-2 rounded-2xl bg-white p-4 shadow-sm">
         <div className="text-center">
           <div className="text-2xl font-bold text-[#0F4D92]">#{me?.rank ?? '—'}</div>
-          <p className="text-xs text-gray-500">My Rank</p>
+          <p className="text-xs text-gray-500">{t('student.leaderboard.myRank')}</p>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-amber-500">{me?.points ?? 0}</div>
-          <p className="text-xs text-gray-500">Week Points</p>
+          <p className="text-xs text-gray-500">{t('student.leaderboard.weekPoints')}</p>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-green-600">{me?.attempts ?? 0}</div>
-          <p className="text-xs text-gray-500">Games Played</p>
+          <p className="text-xs text-gray-500">{t('student.home.gamesPlayed')}</p>
         </div>
       </div>
 
@@ -102,11 +100,11 @@ export default function StudentLeaderboardPanel() {
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
           <Trophy className="h-5 w-5 text-amber-500" />
-          <h3 className="font-bold text-gray-800">Class Champions This Week</h3>
+          <h3 className="font-bold text-gray-800">{t('student.leaderboard.classChampions')}</h3>
         </div>
         {entries.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-gray-400">
-            No points yet this week — play a game to appear here!
+            {t('student.leaderboard.empty')}
           </p>
         ) : (
           <ul>
@@ -122,7 +120,7 @@ export default function StudentLeaderboardPanel() {
                   </span>
                   <span className="text-xl">{e.avatar}</span>
                   <span className={`flex-1 truncate text-sm ${isMe ? 'font-extrabold text-[#0F4D92]' : 'font-semibold text-gray-700'}`}>
-                    {e.display_name}{isMe ? ' (You)' : ''}
+                    {e.display_name}{isMe ? t('student.leaderboard.you') : ''}
                   </span>
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-600">
                     ⭐ {e.points}
@@ -136,23 +134,23 @@ export default function StudentLeaderboardPanel() {
 
       {/* Badge shelf */}
       <div className="rounded-2xl bg-white p-4 shadow-sm">
-        <h3 className="mb-3 font-bold text-gray-800">🏅 My Badge Shelf</h3>
+        <h3 className="mb-3 font-bold text-gray-800">{t('student.leaderboard.badgeShelf')}</h3>
         {badges.length === 0 ? (
           <p className="text-center text-sm text-gray-400">
-            Finish in the top 3 with a great score to win gold, silver or bronze!
+            {t('student.leaderboard.badgeHint')}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {badges.map((b, i) => (
               <div
                 key={`${b.week_number}-${b.position}-${i}`}
-                title={`Week ${b.week_number} · ${b.badge}`}
+                title={t('student.leaderboard.badgeTitle', { week: b.week_number, badge: b.badge })}
                 className="flex items-center gap-1.5 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2"
               >
                 <span className="text-xl">{BADGE_EMOJI[b.badge] || '🎖️'}</span>
                 <div className="leading-tight">
                   <p className="text-xs font-bold capitalize text-amber-700">{b.badge}</p>
-                  <p className="text-[10px] text-gray-400">Wk {b.week_number}</p>
+                  <p className="text-[10px] text-gray-400">{t('student.leaderboard.weekShort', { week: b.week_number })}</p>
                 </div>
               </div>
             ))}
@@ -160,9 +158,7 @@ export default function StudentLeaderboardPanel() {
         )}
       </div>
 
-      <p className="pb-2 text-center text-[11px] text-gray-400">
-        Board resets every Sunday night. Play well + often to climb! 🚀
-      </p>
+      <p className="pb-2 text-center text-[11px] text-gray-400">{t('student.leaderboard.footer')}</p>
     </div>
   );
 }

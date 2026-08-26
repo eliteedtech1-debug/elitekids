@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { t } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
 import type { PromptMode, ResponseMode } from '@/lib/types/game';
 import { GAME_INTERACTIONS, validateInteraction, suggestResponseMode, describeInteraction } from '@/lib/types/game';
@@ -34,57 +35,57 @@ const AGE_LEVELS = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'] as const;
 const TEMPLATES = [
   {
     id: 'matching',
-    label: 'Matching',
+    labelKey: 'gameCreator.tpl.matching.label',
     icon: <Puzzle className="h-5 w-5" />,
-    desc: 'Match images to labels. Child taps pairs to connect them.',
+    descKey: 'gameCreator.tpl.matching.desc',
     color: 'bg-blue-50 border-blue-200 text-blue-700',
     activeColor: 'bg-blue-100 border-blue-500 ring-2 ring-blue-200 text-blue-800',
   },
   {
     id: 'memory-pairs',
-    label: 'Memory Pairs',
+    labelKey: 'gameCreator.tpl.memoryPairs.label',
     icon: <Layers className="h-5 w-5" />,
-    desc: 'Flip-card concentration. Child finds matching pairs.',
+    descKey: 'gameCreator.tpl.memoryPairs.desc',
     color: 'bg-indigo-50 border-indigo-200 text-indigo-700',
     activeColor: 'bg-indigo-100 border-indigo-500 ring-2 ring-indigo-200 text-indigo-800',
   },
   {
     id: 'tap-recognition',
-    label: 'Tap Recognition',
+    labelKey: 'gameCreator.tpl.tapRecognition.label',
     icon: <Blocks className="h-5 w-5" />,
-    desc: 'Show objects on screen. Child taps the correct one.',
+    descKey: 'gameCreator.tpl.tapRecognition.desc',
     color: 'bg-purple-50 border-purple-200 text-purple-700',
     activeColor: 'bg-purple-100 border-purple-500 ring-2 ring-purple-200 text-purple-800',
   },
   {
     id: 'drag-sort',
-    label: 'Drag & Sort',
+    labelKey: 'gameCreator.tpl.dragSort.label',
     icon: <GripVertical className="h-5 w-5" />,
-    desc: 'Drag items into correct buckets or categories.',
+    descKey: 'gameCreator.tpl.dragSort.desc',
     color: 'bg-amber-50 border-amber-200 text-amber-700',
     activeColor: 'bg-amber-100 border-amber-500 ring-2 ring-amber-200 text-amber-800',
   },
   {
     id: 'quiz',
-    label: 'Quiz',
+    labelKey: 'gameCreator.tpl.quiz.label',
     icon: <MessageCircleQuestion className="h-5 w-5" />,
-    desc: 'Multiple-choice questions with images or text.',
+    descKey: 'gameCreator.tpl.quiz.desc',
     color: 'bg-green-50 border-green-200 text-green-700',
     activeColor: 'bg-green-100 border-green-500 ring-2 ring-green-200 text-green-800',
   },
   {
     id: 'fill-in-blank',
-    label: 'Fill in the Blank',
+    labelKey: 'gameCreator.tpl.fillBlank.label',
     icon: <Type className="h-5 w-5" />,
-    desc: 'Sentence with missing words. Child picks from word bank.',
+    descKey: 'gameCreator.tpl.fillBlank.desc',
     color: 'bg-rose-50 border-rose-200 text-rose-700',
     activeColor: 'bg-rose-100 border-rose-500 ring-2 ring-rose-200 text-rose-800',
   },
   {
     id: 'puzzle-split',
-    label: 'Puzzle Split',
+    labelKey: 'gameCreator.tpl.puzzleSplit.label',
     icon: <Puzzle className="h-5 w-5" />,
-    desc: 'Image jigsaw with easy/medium/hard difficulty levels.',
+    descKey: 'gameCreator.tpl.puzzleSplit.desc',
     color: 'bg-teal-50 border-teal-200 text-teal-700',
     activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-200 text-teal-800',
   },
@@ -279,6 +280,11 @@ export default function GameCreator() {
   const [ageLevel, setAgeLevel] = useState<string>('KG1');
   const [lessonText, setLessonText] = useState('');
 
+  // NERDC curriculum compliance
+  const [nerdcCode, setNerdcCode] = useState('');
+  const [nerdcStrand, setNerdcStrand] = useState('');
+  const [nerdcSubStrand, setNerdcSubStrand] = useState('');
+
   // Step 2: Template
   const [template, setTemplate] = useState<string>('');
 
@@ -357,6 +363,9 @@ export default function GameCreator() {
         is_global: false,
       };
       if (lessonText.trim()) body.lesson_text = lessonText.trim();
+      if (nerdcCode.trim()) body.nerdc_code = nerdcCode.trim();
+      if (nerdcStrand.trim()) body.nerdc_strand = nerdcStrand.trim();
+      if (nerdcSubStrand.trim()) body.nerdc_sub_strand = nerdcSubStrand.trim();
       if (scenesJson.trim()) {
         try {
           body.scenes = JSON.parse(scenesJson);
@@ -366,10 +375,10 @@ export default function GameCreator() {
       const res = await apiClient.post(ENDPOINTS.LESSONS.CREATE_MANUAL, body);
       const data = res.data?.data;
       setResult(data);
-      toast.success('Lesson created! Pending review.');
+      toast.success(t('gameCreator.createdToast'));
       setStep(5); // show success
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to create lesson');
+      toast.error(err?.message || t('teacher.lessons.createFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -387,13 +396,11 @@ export default function GameCreator() {
           onClick={() => navigate(-1)}
           className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t('common.back')}
         </button>
 
-        <h1 className="mb-1 text-xl font-bold text-gray-800">Create Game Manually</h1>
-        <p className="mb-4 text-sm text-gray-500">
-          Build a game config without AI. Full control over every detail.
-        </p>
+        <h1 className="mb-1 text-xl font-bold text-gray-800">{t('gameCreator.title')}</h1>
+        <p className="mb-4 text-sm text-gray-500">{t('gameCreator.subtitle')}</p>
 
         <StepIndicator current={step} total={5} />
 
@@ -402,34 +409,34 @@ export default function GameCreator() {
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-[#0F4D92]" />
-              <h2 className="text-base font-bold text-gray-800">Lesson Details</h2>
+              <h2 className="text-base font-bold text-gray-800">{t('gameCreator.lessonDetails')}</h2>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Title *</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600">{t('teacher.lessons.titleField')}</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Counting 1–10"
+                  placeholder={t('teacher.lessons.titlePlaceholder')}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Subject *</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600">{t('teacher.lessons.subjectField')}</label>
                 <input
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g. Mathematics"
+                  placeholder={t('teacher.lessons.subjectPlaceholder')}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Age Level *</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600">{t('gameCreator.ageLevel')}</label>
                 <div className="flex flex-wrap gap-2">
                   {AGE_LEVELS.map((lvl) => (
                     <button
@@ -448,16 +455,65 @@ export default function GameCreator() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">
-                  Lesson Text <span className="text-gray-400">(optional)</span>
-                </label>
+                <label className="mb-1 block text-xs font-medium text-gray-600">{t('gameCreator.lessonText')}</label>
                 <textarea
                   value={lessonText}
                   onChange={(e) => setLessonText(e.target.value)}
-                  placeholder="Additional context for the lesson content..."
+                  placeholder={t('gameCreator.lessonTextPlaceholder')}
                   rows={3}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
                 />
+              </div>
+
+              {/* NERDC Curriculum Compliance */}
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/50 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-gray-500" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('gameCreator.nerdcAlignment')}</span>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-600">{t('gameCreator.optional')}</span>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">{t('gameCreator.curriculumCode')}</label>
+                    <input
+                      type="text"
+                      value={nerdcCode}
+                      onChange={(e) => setNerdcCode(e.target.value)}
+                      placeholder={t('gameCreator.codePlaceholder')}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">{t('gameCreator.strand')}</label>
+                      <select
+                        value={nerdcStrand}
+                        onChange={(e) => setNerdcStrand(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+                      >
+                        <option value="">{t('gameCreator.selectStrand')}</option>
+                        <option value="Literacy">{t('nerdc.strand.Literacy')}</option>
+                        <option value="Numeracy">{t('nerdc.strand.Numeracy')}</option>
+                        <option value="Science">{t('nerdc.strand.Science')}</option>
+                        <option value="Social Studies">{t('nerdc.strand.Social Studies')}</option>
+                        <option value="Creative Arts">{t('nerdc.strand.Creative Arts')}</option>
+                        <option value="Physical Development">{t('nerdc.strand.Physical Development')}</option>
+                        <option value="Language Development">{t('nerdc.strand.Language Development')}</option>
+                        <option value="Civic Education">{t('nerdc.strand.Civic Education')}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">{t('gameCreator.subStrand')}</label>
+                      <input
+                        type="text"
+                        value={nerdcSubStrand}
+                        onChange={(e) => setNerdcSubStrand(e.target.value)}
+                        placeholder={t('gameCreator.subStrandPlaceholder')}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none focus:ring-1 focus:ring-[#0F4D92]/30"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -467,7 +523,7 @@ export default function GameCreator() {
                 disabled={!canStep1}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0b3d76] disabled:opacity-40 active:scale-95 transition-all"
               >
-                Next <ArrowRight className="h-4 w-4" />
+                {t('common.next')} <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -478,7 +534,7 @@ export default function GameCreator() {
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Gamepad2 className="h-5 w-5 text-[#0F4D92]" />
-              <h2 className="text-base font-bold text-gray-800">Choose Game Template</h2>
+              <h2 className="text-base font-bold text-gray-800">{t('gameCreator.chooseTemplate')}</h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -492,9 +548,9 @@ export default function GameCreator() {
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {tpl.icon}
-                    <span className="text-sm font-bold">{tpl.label}</span>
+                    <span className="text-sm font-bold">{t(tpl.labelKey)}</span>
                   </div>
-                  <p className="text-xs opacity-80">{tpl.desc}</p>
+                  <p className="text-xs opacity-80">{t(tpl.descKey)}</p>
                 </button>
               ))}
             </div>
@@ -504,7 +560,7 @@ export default function GameCreator() {
                 onClick={() => setStep(0)}
                 className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 active:scale-95 transition-all"
               >
-                <ArrowLeft className="h-4 w-4" /> Back
+                <ArrowLeft className="h-4 w-4" /> {t('common.back')}
               </button>
               <button
                 onClick={() => {
@@ -514,7 +570,7 @@ export default function GameCreator() {
                 disabled={!canStep2}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0b3d76] disabled:opacity-40 active:scale-95 transition-all"
               >
-                Next <ArrowRight className="h-4 w-4" />
+                {t('common.next')} <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -526,14 +582,14 @@ export default function GameCreator() {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileJson className="h-5 w-5 text-[#0F4D92]" />
-                <h2 className="text-base font-bold text-gray-800">Game Config JSON</h2>
+                <h2 className="text-base font-bold text-gray-800">{t('gameCreator.configJson')}</h2>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => initTemplate(template)}
                   className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                 >
-                  <Wand2 className="h-3 w-3" /> Reset to template
+                  <Wand2 className="h-3 w-3" /> {t('gameCreator.resetTemplate')}
                 </button>
               </div>
             </div>
@@ -541,11 +597,7 @@ export default function GameCreator() {
             <div className="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-700">
-                  Replace image URLs with real asset URLs from your bucket or CDN.
-                  Use the <strong>Assets</strong> tab to browse open-source images.
-                  The <code>lessonId</code> will be set automatically.
-                </p>
+                <p className="text-xs text-amber-700">{t('gameCreator.jsonTip')}</p>
               </div>
             </div>
 
@@ -564,7 +616,7 @@ export default function GameCreator() {
             </div>
 
             {jsonError && (
-              <p className="mt-2 text-xs text-red-500">⚠ Invalid JSON: {jsonError}</p>
+              <p className="mt-2 text-xs text-red-500">{t('gameCreator.invalidJson', { error: jsonError })}</p>
             )}
 
             <div className="mt-6 flex justify-between">
@@ -572,7 +624,7 @@ export default function GameCreator() {
                 onClick={() => setStep(1)}
                 className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 active:scale-95 transition-all"
               >
-                <ArrowLeft className="h-4 w-4" /> Back
+                <ArrowLeft className="h-4 w-4" /> {t('common.back')}
               </button>
               <button
                 onClick={() => setStep(3)}
@@ -590,13 +642,10 @@ export default function GameCreator() {
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Pencil className="h-5 w-5 text-[#0F4D92]" />
-              <h2 className="text-base font-bold text-gray-800">Scene Scripts <span className="text-gray-400 font-normal text-sm">(optional)</span></h2>
+              <h2 className="text-base font-bold text-gray-800">{t('gameCreator.sceneScripts')}</h2>
             </div>
 
-            <p className="mb-3 text-xs text-gray-500">
-              Add scene scripts for animated narration (teach, story, recap scenes).
-              Leave empty to skip. Must be a JSON array of scene objects.
-            </p>
+            <p className="mb-3 text-xs text-gray-500">{t('gameCreator.scenesHint')}</p>
 
             <textarea
               value={scenesJson}
@@ -612,7 +661,7 @@ export default function GameCreator() {
             />
 
             {scenesError && (
-              <p className="mt-2 text-xs text-red-500">⚠ Invalid JSON: {scenesError}</p>
+              <p className="mt-2 text-xs text-red-500">{t('gameCreator.invalidJson', { error: scenesError })}</p>
             )}
 
             <div className="mt-6 flex justify-between">
@@ -620,14 +669,14 @@ export default function GameCreator() {
                 onClick={() => setStep(2)}
                 className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 active:scale-95 transition-all"
               >
-                <ArrowLeft className="h-4 w-4" /> Back
+                <ArrowLeft className="h-4 w-4" /> {t('common.back')}
               </button>
               <button
                 onClick={() => setStep(4)}
                 disabled={!canStep4}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0b3d76] disabled:opacity-40 active:scale-95 transition-all"
               >
-                <Eye className="h-4 w-4" /> Review & Submit
+                <Eye className="h-4 w-4" /> {t('gameCreator.reviewSubmit')}
               </button>
             </div>
           </div>
@@ -638,32 +687,32 @@ export default function GameCreator() {
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Eye className="h-5 w-5 text-[#0F4D92]" />
-              <h2 className="text-base font-bold text-gray-800">Review & Submit</h2>
+              <h2 className="text-base font-bold text-gray-800">{t('gameCreator.reviewSubmit')}</h2>
             </div>
 
             <div className="space-y-3 mb-6">
               <div className="rounded-xl bg-gray-50 p-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="text-xs text-gray-500">Title</span>
+                    <span className="text-xs text-gray-500">{t('gameCreator.review.title')}</span>
                     <p className="font-medium text-gray-800">{title}</p>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Subject</span>
+                    <span className="text-xs text-gray-500">{t('gameCreator.review.subject')}</span>
                     <p className="font-medium text-gray-800">{subject}</p>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Age Level</span>
+                    <span className="text-xs text-gray-500">{t('gameCreator.review.ageLevel')}</span>
                     <p className="font-medium text-gray-800">{ageLevel}</p>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500">Template</span>
-                    <p className="font-medium text-gray-800">{TEMPLATES.find(t => t.id === template)?.label || template}</p>
+                    <span className="text-xs text-gray-500">{t('gameCreator.review.template')}</span>
+                    <p className="font-medium text-gray-800">{TEMPLATES.find(t => t.id === template) ? t(TEMPLATES.find(t => t.id === template)!.labelKey) : template}</p>
                   </div>
                 </div>
                 {lessonText && (
                   <div className="mt-3 border-t border-gray-200 pt-3">
-                    <span className="text-xs text-gray-500">Lesson Text</span>
+                    <span className="text-xs text-gray-500">{t('gameCreator.review.lessonText')}</span>
                     <p className="text-sm text-gray-700">{lessonText}</p>
                   </div>
                 )}
@@ -671,9 +720,9 @@ export default function GameCreator() {
 
               <div className="rounded-xl bg-gray-50 p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-gray-600">Game Config</span>
+                  <span className="text-xs font-medium text-gray-600">{t('gameCreator.review.gameConfig')}</span>
                   <span className="text-xs text-gray-400">
-                    {(() => { try { return JSON.parse(configJson) ? '✓ Valid' : '✗ Invalid'; } catch { return '✗ Invalid'; } })()}
+                    {(() => { try { return JSON.parse(configJson) ? t('gameCreator.valid') : t('gameCreator.invalid'); } catch { return t('gameCreator.invalid'); } })()}
                   </span>
                 </div>
                 <pre className="max-h-40 overflow-auto rounded-lg bg-white border border-gray-200 p-3 text-xs font-mono text-gray-700">
@@ -683,7 +732,7 @@ export default function GameCreator() {
 
               {scenesJson.trim() && (
                 <div className="rounded-xl bg-gray-50 p-4">
-                  <span className="text-xs font-medium text-gray-600">Scene Scripts</span>
+                  <span className="text-xs font-medium text-gray-600">{t('gameCreator.sceneScripts')}</span>
                   <pre className="mt-2 max-h-32 overflow-auto rounded-lg bg-white border border-gray-200 p-3 text-xs font-mono text-gray-700">
                     {scenesJson.length > 500 ? scenesJson.slice(0, 500) + '\n... (truncated)' : scenesJson}
                   </pre>
@@ -692,10 +741,7 @@ export default function GameCreator() {
             </div>
 
             <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 mb-6">
-              <p className="text-xs text-blue-700">
-                The lesson will be created with status <strong>pending_human_review</strong>.
-                An admin must approve it before students can play.
-              </p>
+              <p className="text-xs text-blue-700">{t('gameCreator.pendingNote')}</p>
             </div>
 
             <div className="flex justify-between">
@@ -704,7 +750,7 @@ export default function GameCreator() {
                 disabled={submitting}
                 className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 active:scale-95 transition-all"
               >
-                <ArrowLeft className="h-4 w-4" /> Back
+                <ArrowLeft className="h-4 w-4" /> {t('common.back')}
               </button>
               <button
                 onClick={handleSubmit}
@@ -712,9 +758,9 @@ export default function GameCreator() {
                 className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 active:scale-95 transition-all"
               >
                 {submitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {t('teacher.lessons.creating')}</>
                 ) : (
-                  <><Send className="h-4 w-4" /> Submit for Review</>
+                  <><Send className="h-4 w-4" /> {t('gameCreator.submitForReview')}</>
                 )}
               </button>
             </div>
@@ -727,19 +773,17 @@ export default function GameCreator() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
-            <h2 className="text-lg font-bold text-gray-800 mb-2">Lesson Created!</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Your manual lesson is pending review. An admin needs to approve it before it's live.
-            </p>
+            <h2 className="text-lg font-bold text-gray-800 mb-2">{t('gameCreator.successTitle')}</h2>
+            <p className="text-sm text-gray-500 mb-6">{t('gameCreator.successBody')}</p>
 
             <div className="rounded-xl bg-gray-50 p-4 mb-6 text-left">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-xs text-gray-500">Lesson ID</span>
+                  <span className="text-xs text-gray-500">{t('gameCreator.lessonId')}</span>
                   <p className="font-mono text-xs text-gray-700 truncate">{result.lesson_id}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-gray-500">Config ID</span>
+                  <span className="text-xs text-gray-500">{t('gameCreator.configId')}</span>
                   <p className="font-mono text-xs text-gray-700 truncate">{result.config_id}</p>
                 </div>
               </div>
@@ -750,7 +794,7 @@ export default function GameCreator() {
                 onClick={() => navigate('/teacher/lessons')}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0b3d76] active:scale-95 transition-all"
               >
-                <BookOpen className="h-4 w-4" /> View All Lessons
+                <BookOpen className="h-4 w-4" /> {t('gameCreator.viewLessons')}
               </button>
               <button
                 onClick={() => {
@@ -760,7 +804,7 @@ export default function GameCreator() {
                 }}
                 className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 active:scale-95 transition-all"
               >
-                <Wand2 className="h-4 w-4" /> Create Another
+                <Wand2 className="h-4 w-4" /> {t('gameCreator.createAnother')}
               </button>
             </div>
           </div>

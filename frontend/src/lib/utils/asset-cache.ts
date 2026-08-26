@@ -10,6 +10,8 @@
  * different game configs shares one cache entry.
  */
 
+import { canPrefetch } from '@/lib/utils/storage-budget';
+
 const DB_NAME = 'elitekids-asset-cache';
 const DB_VERSION = 1;
 const STORE_NAME = 'assets';
@@ -215,8 +217,19 @@ export async function warmCache(urls: string[]): Promise<{ cached: number; faile
 
   if (uncached.length === 0) return { cached: 0, failed: 0 };
 
+  // #6 storage budget: stop warming once the device quota is tight — the
+  // cache is a nice-to-have, never something that should fill the device.
+  if (!(await canPrefetch())) {
+    console.warn('⚠️ Storage budget reached — skipping asset cache warm');
+    return { cached: 0, failed: 0 };
+  }
+
   // Batch fetch
   for (let i = 0; i < uncached.length; i += 5) {
+    if (i > 0 && !(await canPrefetch())) {
+      console.warn('⚠️ Storage budget reached — stopping asset cache warm');
+      break;
+    }
     const batch = uncached.slice(i, i + 5);
     const results = await Promise.allSettled(
       batch.map(async (url) => {

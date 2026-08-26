@@ -106,68 +106,225 @@ For fill-in-blank: create a sentence with ___ blanks, provide blanks array [{id,
 }
 
 function matchingPrompt(lesson, ageLevel) {
-  return `Generate a MATCHING game config JSON for this lesson.
+  return `Generate a MATCHING game config JSON for this lesson. This must feel like a FUN GAME for children, NOT a boring worksheet.
 
 Lesson: "${lesson.title}"
 Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
-Match pairs of related items (e.g. animal-to-habitat, word-to-picture, number-to-count, shape-to-name). Each item has an "image" key (the image will be generated later) and a "matches" key pointing to its partner's id.
+═══ CRITICAL DESIGN RULES ═══
 
-Output a JSON object with exactly these keys: gameId, template ("matching"), lessonId, ageLevel, durationTargetSec, assets (with background key and items array), rewards (starsOnComplete:3, xp:N), successThresholdPct.`;
+1. CHARACTERS: Create 2-3 recurring child-friendly characters at the top level "characters" array.
+   Each character needs: name (e.g. Zara, Tobi, Maya), and a personality (e.g. curious, playful, brave).
+   ALWAYS provide BOTH an "image" key AND an "emoji" key per character. Image format: "media/{lessonId}/character-{name-lowercase}.webp". Emoji format: a single emoji like 👦, 🧒, 👧.
+
+2. IMAGES OVER EMOJIS: The visual hierarchy is Image > Emoji > Text. Always provide an image path first, emoji as fallback.
+   - Characters: provide image in the characters array
+   - Items: provide image in each object (e.g. "media/{lessonId}/item-name.webp")
+
+3. SCENARIO: The matching game must be wrapped in a short, age-appropriate scenario. A character presents the challenge.
+   BAD: "Match the animals to their homes"
+   GOOD: "Zara is at the zoo! She found these amazing animals and their homes. Can you help her match each animal to where it lives?"
+
+4. CONVERSATIONAL: The scenario should feel like a character is asking the child for help, not a test instruction.
+
+5. HINT: Include a "hint" — an encouraging clue shown after a wrong match.
+   Example: "Hint: A fish lives in water. Which one is the pond?"
+
+6. FEEDBACK: Include feedbackCorrect (celebratory) and feedbackWrong (gentle, encouraging).
+   Example feedbackCorrect: "You matched them! Zara is so proud!"
+   Example feedbackWrong: "Not quite! Think about where this animal would live."
+
+7. SPEECH TEXT: Include "speechText" — the exact text to read aloud via TTS. Make it sound natural when spoken.
+
+8. MATCHING RULES: Match pairs of related items (e.g. animal-to-habitat, word-to-picture, number-to-count, shape-to-name). Each item has an "image" key and a "matches" key pointing to its partner's id.
+
+═══ OUTPUT FORMAT ═══
+
+Top-level keys:
+- characters: array of { name, image, emoji, personality }
+- scenario: string (the story wrapping the game)
+- hint: string (encouraging hint for wrong matches)
+- feedbackCorrect: string (celebratory message)
+- feedbackWrong: string (gentle message)
+- speechText: string (what to read aloud)
+
+Each item in assets.items must have: id, image, matches (partner's id)
+
+Output a JSON object with exactly these keys: gameId, template ("matching"), lessonId, ageLevel, durationTargetSec, characters, scenario, hint, feedbackCorrect, feedbackWrong, speechText, assets (with background key and items array), rewards (starsOnComplete:3, xp:N), successThresholdPct.`;
 }
 
 function tapPrompt(lesson, ageLevel) {
-  return `Generate a TAP-RECOGNITION game config JSON for this lesson.
+  return `Generate a TAP-RECOGNITION game config JSON for this lesson. This must feel like a FUN GAME for children, NOT a boring worksheet.
 
 Lesson: "${lesson.title}"
 Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
-PEDAGOGY RULE (cross-modal learning):
-- Set promptMode: "image" — show a big image/emoji of the item, NO text label
-- Set responseMode: "text" — options show text labels ONLY, NO images/emojis
-- This tests if the child can READ the word, not just match pictures
-- Example: Show a big 🐱 image. Options: "Cat", "Dog", "Fish", "Bird". Child taps "Cat".
-- The child must recognize the image AND know the correct spelling/word
+═══ CRITICAL DESIGN RULES ═══
 
-The child sees an image/emoji on screen and must tap the CORRECT text label from options. "correctId" tells the engine which option is right.
+1. CHARACTERS: Create 2-3 recurring child-friendly characters at the top level "characters" array.
+   Each character needs: name (e.g. Zara, Tobi, Maya), and a personality (e.g. curious, playful, brave).
+   ALWAYS provide BOTH an "image" key AND an "emoji" key per character. The image is the preferred visual; emoji is fallback.
+   Image format: "media/{lessonId}/character-{name-lowercase}.webp" (the asset pipeline generates actual images later).
+   Emoji format: a single emoji like 👦, 🧒, 👧.
 
-Output a JSON object with exactly these keys: gameId, template ("tap-recognition"), lessonId, ageLevel, durationTargetSec, promptMode ("image"), responseMode ("text"), prompt, assets (with background, objects array, correctId), rewards, successThresholdPct.`;
+2. IMAGES OVER EMOJIS: The visual hierarchy is Image > Emoji > Text. Always provide an image path first, emoji as fallback.
+   - Characters: provide image in the characters array
+   - Items: provide image in each object (e.g. "media/{lessonId}/item-name.webp")
+
+3. SCENARIO: The tap game must be wrapped in a short, age-appropriate scenario. A character presents the challenge.
+   BAD: "Tap the red apple"
+   GOOD: "Zara went to the market. She saw many fruits. Can you help her find the red apple?"
+
+4. SETTINGS: Set the scene — at the market, in the garden, at the zoo, at school, in the kitchen, at the farm, etc.
+
+5. CONVERSATIONAL: The prompt should feel like a character is asking the child for help, not a test instruction.
+
+6. HINT: Include a "hint" — an encouraging clue shown after a wrong answer.
+   Example: "Hint: An apple is round and red. Which one looks like that?"
+
+7. FEEDBACK: Include feedbackCorrect (celebratory) and feedbackWrong (gentle, encouraging).
+   Example feedbackCorrect: "You found it! Zara is so happy!"
+   Example feedbackWrong: "Not quite! Look again — which one is red and round?"
+
+8. SPEECH TEXT: Include "speechText" — the exact text to read aloud via TTS. Make it sound natural when spoken.
+
+9. PEDAGOGY (cross-modal learning):
+   - Set promptMode: "image" — show a big image/emoji of the concept, NO text label
+   - Set responseMode: "text" — options show text labels ONLY, no images/emojis
+   - This tests if the child can RECOGNIZE the image AND know the correct word
+
+═══ OUTPUT FORMAT ═══
+
+The child sees an image/emoji on screen and must tap the CORRECT text label from options.
+
+Top-level keys:
+- characters: array of { name, image, emoji, personality }
+- scenario: string (the story wrapping the game)
+- hint: string (encouraging hint for wrong answers)
+- feedbackCorrect: string (celebratory message)
+- feedbackWrong: string (gentle message)
+- speechText: string (what to read aloud)
+
+Each object in assets.objects must have: id, image, emoji (fallback), label (the text the child taps)
+
+Output a JSON object with exactly these keys: gameId, template ("tap-recognition"), lessonId, ageLevel, durationTargetSec, promptMode ("image"), responseMode ("text"), characters, scenario, hint, feedbackCorrect, feedbackWrong, speechText, prompt, assets (with background, objects array, correctId), rewards, successThresholdPct.`;
 }
 
 function dragSortPrompt(lesson, ageLevel) {
-  return `Generate a DRAG-SORT game config JSON for this lesson.
+  return `Generate a DRAG-SORT game config JSON for this lesson. This must feel like a FUN GAME for children, NOT a boring worksheet.
 
 Lesson: "${lesson.title}"
 Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
-The child drags items into the correct category bucket. Each item has a "bucketId" matching one of the buckets. 2-4 buckets, 4-8 items.
+═══ CRITICAL DESIGN RULES ═══
 
-Output a JSON object with exactly these keys: gameId, template ("drag-sort"), lessonId, ageLevel, durationTargetSec, assets (with background, items array with bucketId, buckets array with id/label/image), rewards, successThresholdPct.`;
+1. CHARACTERS: Create 2-3 recurring child-friendly characters at the top level "characters" array.
+   Each character needs: name (e.g. Zara, Tobi, Maya), and a personality (e.g. curious, playful, brave).
+   ALWAYS provide BOTH an "image" key AND an "emoji" key per character. Image format: "media/{lessonId}/character-{name-lowercase}.webp". Emoji format: a single emoji like 👦, 🧒, 👧.
+
+2. IMAGES OVER EMOJIS: The visual hierarchy is Image > Emoji > Text. Always provide an image path first, emoji as fallback.
+   - Characters: provide image in the characters array
+   - Items: provide image in each object
+   - Buckets: provide image in each bucket
+
+3. SCENARIO: The drag-sort game must be wrapped in a short, age-appropriate scenario. A character presents the challenge.
+   BAD: "Sort the animals into categories"
+   GOOD: "Tobi is cleaning his room! He has lots of things scattered around. Can you help him sort each item into the right box?"
+
+4. CONVERSATIONAL: The scenario should feel like a character is asking the child for help, not a test instruction.
+
+5. HINT: Include a "hint" — an encouraging clue shown after a wrong placement.
+   Example: "Hint: Think about where a ball would go — is it a toy or food?"
+
+6. FEEDBACK: Include feedbackCorrect (celebratory) and feedbackWrong (gentle, encouraging).
+   Example feedbackCorrect: "Great sorting! Tobi's room looks amazing!"
+   Example feedbackWrong: "Hmm, try again! Which box does this belong in?"
+
+7. SPEECH TEXT: Include "speechText" — the exact text to read aloud via TTS. Make it sound natural when spoken.
+
+8. SORTING RULES: The child drags items into the correct category bucket. Each item has a "bucketId" matching one of the buckets. 2-4 buckets, 4-8 items.
+
+═══ OUTPUT FORMAT ═══
+
+Top-level keys:
+- characters: array of { name, image, emoji, personality }
+- scenario: string (the story wrapping the game)
+- hint: string (encouraging hint for wrong placements)
+- feedbackCorrect: string (celebratory message)
+- feedbackWrong: string (gentle message)
+- speechText: string (what to read aloud)
+
+Each item in assets.items must have: id, image, bucketId
+Each bucket in assets.buckets must have: id, label, image
+
+Output a JSON object with exactly these keys: gameId, template ("drag-sort"), lessonId, ageLevel, durationTargetSec, characters, scenario, hint, feedbackCorrect, feedbackWrong, speechText, assets (with background, items array with bucketId, buckets array with id/label/image), rewards, successThresholdPct.`;
 }
 
 function quizPrompt(lesson, ageLevel) {
-  return `Generate a QUIZ game config JSON for this lesson.
+  return `Generate a QUIZ game config JSON for this lesson. This must feel like a FUN GAME for children, NOT a boring worksheet or exam.
 
 Lesson: "${lesson.title}"
 Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
-PEDAGOGY RULE (cross-modal learning):
-- Set promptMode: "image" — questions show an image/emoji, no text hint
-- Set responseMode: "text" — options show text labels ONLY, no images/emojis
-- This tests if the child can READ the word, not just match pictures
-- Example: Show 🐱 image. Question: "What is this?" Options: "Cat", "Dog", "Bird". Answer: Cat
+═══ CRITICAL DESIGN RULES ═══
 
-Multiple-choice quiz: 3-5 questions, each with 2-4 options. Questions should test understanding of the lesson. "correctIndex" is the 0-based index of the correct option. Use simple language appropriate for the age level.
+1. CHARACTERS: Create 3-5 recurring child-friendly characters at the top level "characters" array.
+   Each character needs: name (e.g. Alex, Maya, Tobi, Zara, Leo), and a personality (e.g. curious, playful, brave).
+   ALWAYS provide BOTH an "image" key AND an "emoji" key per character. The image is the preferred visual; emoji is fallback.
+   Image format: "media/{lessonId}/character-{name-lowercase}.webp" (the asset pipeline generates actual images later).
+   Emoji format: a single emoji like 👦, 🧒, 👧.
+   Use diverse, globally appropriate names.
 
-Output a JSON object with exactly these keys: gameId, template ("quiz"), lessonId, ageLevel, durationTargetSec, promptMode ("image"), responseMode ("text"), questions (array with id/prompt/options/correctIndex), rewards, successThresholdPct.`;
+2. IMAGES OVER EMOJIS: The visual hierarchy is Image > Emoji > Text. Always provide an image path first, emoji as fallback.
+   - Characters: provide characterImage in each question AND image in the characters array
+   - Settings: provide settingImage in each question (e.g. "media/{lessonId}/zoo.webp")
+   - The admin/creator can later replace AI-generated image paths with real photographs for better learning.
+
+3. SCENARIOS: Every question MUST be wrapped in a short, age-appropriate scenario. NEVER present isolated grammar statements.
+   BAD: "___ is my best friend. (the boy)"
+   GOOD: "Alex has a new friend named Sam. Sam is a boy. Alex says: 'Sam is my best friend. ___ is very funny!'"
+
+4. SETTINGS: Vary the location across questions. Examples:
+   At school, at home, at the playground, at the zoo, on an adventure, in a shop, at a football game, visiting grandparents, exploring space, solving a mystery.
+
+5. CONVERSATIONAL: Write questions as something a character would ACTUALLY say. The question should feel like helping a character, not answering a test.
+
+6. HINTS: Every question must have a "hint" — an encouraging clue for wrong answers.
+   Example: hint: "Sam is a boy, so let's try the word we use for a boy!"
+
+7. FEEDBACK: Include custom feedbackCorrect (celebratory) and feedbackWrong (gentle, encouraging).
+   Example feedbackCorrect: "Awesome! You're so smart!"
+   Example feedbackWrong: "Almost! Let's think about it together."
+
+8. SPEECH TEXT: Include "speechText" for each question — the exact text to read aloud. Make it sound natural when spoken.
+
+9. PEDAGOGY (cross-modal learning):
+   - Set promptMode: "image" — questions show an image/emoji, no text hint
+   - Set responseMode: "text" — options show text labels ONLY, no images/emojis
+   - This tests if the child can READ the word, not just match pictures
+
+═══ OUTPUT FORMAT ═══
+
+Generate 3-5 questions. Each question object must have:
+- id, prompt, options (array with id/label/image), correctIndex
+- scenario (the story context — this is what shows on screen)
+- characterName, characterImage (image path), characterEmoji (emoji fallback)
+- setting (where this happens), settingImage (image path for the setting)
+- hint (encouraging clue)
+- speechText (what to read aloud)
+- feedbackCorrect, feedbackWrong (custom messages)
+
+The top-level "characters" array must have: name, image (asset path), emoji (fallback), personality.
+
+Output a JSON object with exactly these keys: gameId, template ("quiz"), lessonId, ageLevel, durationTargetSec, promptMode ("image"), responseMode ("text"), characters (array with name/image/emoji/personality), questions (array with all fields above), rewards, successThresholdPct.`;
 }
 
 function sceneScriptPrompt(lesson, ageLevel) {
@@ -190,39 +347,103 @@ Output a JSON ARRAY of scene objects. Each must have: sceneId, lessonId, backgro
 }
 
 function fillBlankPrompt(lesson, ageLevel) {
-  return `Generate a FILL-IN-THE-BLANK game config JSON for this lesson.
+  return `Generate a FILL-IN-THE-BLANK game config JSON for this lesson. This must feel like a FUN GAME for children, NOT a boring worksheet.
 
 Lesson: "${lesson.title}"
 Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
-Create a sentence with 2-4 blank spaces (using ___) and a word bank. The child reads the sentence and drags/taps the correct word into each blank. Use simple age-appropriate language.
+═══ CRITICAL DESIGN RULES ═══
 
-Output a JSON object with exactly these keys:
-- gameId: unique id
-- template: "fill-in-blank"
-- lessonId: the lesson id
-- ageLevel: the age level
-- durationTargetSec: seconds
-- sentence: the sentence with ___ for blanks (e.g. "The ___ is sleeping on the ___")
-- blanks: array of { id: number, answer: string } — each blank's correct word, id is 0-based position
+1. CHARACTERS: Create 2-3 recurring child-friendly characters at the top level "characters" array.
+   Each character needs: name (e.g. Zara, Tobi, Maya), and a personality (e.g. curious, playful, brave).
+   ALWAYS provide BOTH an "image" key AND an "emoji" key per character. Image format: "media/{lessonId}/character-{name-lowercase}.webp". Emoji format: a single emoji like 👦, 🧒, 👧.
+
+2. IMAGES OVER EMOJIS: The visual hierarchy is Image > Emoji > Text. Always provide an image path first, emoji as fallback.
+   - Characters: provide image in the characters array
+
+3. SCENARIO: The fill-in-blank game must be wrapped in a short, age-appropriate scenario. A character presents the challenge.
+   BAD: "Fill in the blanks"
+   GOOD: "Maya is writing a letter to her friend Zara. But she forgot some words! Can you help her fill in the missing words?"
+
+4. CONVERSATIONAL: The scenario should feel like a character is asking the child for help, not a test instruction.
+
+5. HINT: Include a "hint" — an encouraging clue shown after a wrong answer.
+   Example: "Hint: A cat says '___'. What sound does it make?"
+
+6. FEEDBACK: Include feedbackCorrect (celebratory) and feedbackWrong (gentle, encouraging).
+   Example feedbackCorrect: "You filled it in! Maya's letter is perfect!"
+   Example feedbackWrong: "Almost! Think about what word fits here."
+
+7. SPEECH TEXT: Include "speechText" — the exact text to read aloud via TTS. Read the full sentence with blanks spoken as "blank". Make it sound natural.
+
+8. SENTENCE RULES: Create a sentence with 2-4 blank spaces (using ___) and a word bank. The child reads the sentence and drags/taps the correct word into each blank. Use simple age-appropriate language.
+
+═══ OUTPUT FORMAT ═══
+
+Top-level keys:
+- characters: array of { name, image, emoji, personality }
+- scenario: string (the story wrapping the game)
+- hint: string (encouraging hint for wrong answers)
+- feedbackCorrect: string (celebratory message)
+- feedbackWrong: string (gentle message)
+- speechText: string (what to read aloud)
+- sentence: the sentence with ___ for blanks
+- blanks: array of { id: number, answer: string } — each blank's correct word, id is 0-based
 - wordBank: array of ALL words (correct answers + 2-4 distractors), shuffled
-- rewards: { starsOnComplete: 3, xp: N }
-- successThresholdPct: age-appropriate threshold`;
+
+Output a JSON object with exactly these keys: gameId, template ("fill-in-blank"), lessonId, ageLevel, durationTargetSec, characters, scenario, hint, feedbackCorrect, feedbackWrong, speechText, sentence, blanks, wordBank, rewards (starsOnComplete:3, xp:N), successThresholdPct.`;
 }
 
 function memoryPairsPrompt(lesson, ageLevel) {
-  return `Generate a MEMORY PAIRS (flip-card concentration) game config JSON for this lesson.
+  return `Generate a MEMORY PAIRS (flip-card concentration) game config JSON for this lesson. This must feel like a FUN GAME for children, NOT a boring worksheet.
 
 Lesson: "${lesson.title}"
 Subject: ${lesson.subject}
 Age Level: ${ageLevel}
 ${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
 
-The child flips face-down cards two at a time to find matching partners. Use an EVEN number of items (4-12 cards): each item has a "matches" key pointing to its partner's id, and the partner points back. Good pair themes: letter-to-picture, word-to-picture, number-to-count, animal-to-sound-name, shape-to-name.
+═══ CRITICAL DESIGN RULES ═══
 
-Output a JSON object with exactly these keys: gameId, template ("memory-pairs"), lessonId, ageLevel, durationTargetSec, assets (with background key and items array where every item has id/image/matches), rewards (starsOnComplete:3, xp:N), successThresholdPct.`;
+1. CHARACTERS: Create 2-3 recurring child-friendly characters at the top level "characters" array.
+   Each character needs: name (e.g. Zara, Tobi, Maya), and a personality (e.g. curious, playful, brave).
+   ALWAYS provide BOTH an "image" key AND an "emoji" key per character. Image format: "media/{lessonId}/character-{name-lowercase}.webp". Emoji format: a single emoji like 👦, 🧒, 👧.
+
+2. IMAGES OVER EMOJIS: The visual hierarchy is Image > Emoji > Text. Always provide an image path first, emoji as fallback.
+   - Characters: provide image in the characters array
+   - Items: provide image in each card
+
+3. SCENARIO: The memory game must be wrapped in a short, age-appropriate scenario. A character presents the challenge.
+   BAD: "Find the matching pairs"
+   GOOD: "Leo is playing a memory game! The cards are all mixed up. Can you help him find all the matching pairs?"
+
+4. CONVERSATIONAL: The scenario should feel like a character is asking the child for help, not a test instruction.
+
+5. HINT: Include a "hint" — an encouraging clue shown after a wrong flip.
+   Example: "Hint: Try to remember where you saw that card before!"
+
+6. FEEDBACK: Include feedbackCorrect (celebratory) and feedbackWrong (gentle, encouraging).
+   Example feedbackCorrect: "You found a pair! Leo is impressed!"
+   Example feedbackWrong: "Those don't match. Try again — you can do it!"
+
+7. SPEECH TEXT: Include "speechText" — the exact text to read aloud via TTS. Make it sound natural when spoken.
+
+8. MEMORY RULES: The child flips face-down cards two at a time to find matching partners. Use an EVEN number of items (4-12 cards): each item has a "matches" key pointing to its partner's id, and the partner points back. Good pair themes: letter-to-picture, word-to-picture, number-to-count, animal-to-sound-name, shape-to-name.
+
+═══ OUTPUT FORMAT ═══
+
+Top-level keys:
+- characters: array of { name, image, emoji, personality }
+- scenario: string (the story wrapping the game)
+- hint: string (encouraging hint for wrong flips)
+- feedbackCorrect: string (celebratory message)
+- feedbackWrong: string (gentle message)
+- speechText: string (what to read aloud)
+
+Each item in assets.items must have: id, image, matches (partner's id)
+
+Output a JSON object with exactly these keys: gameId, template ("memory-pairs"), lessonId, ageLevel, durationTargetSec, characters, scenario, hint, feedbackCorrect, feedbackWrong, speechText, assets (with background key and items array where every item has id/image/matches), rewards (starsOnComplete:3, xp:N), successThresholdPct.`;
 }
 
 const TEMPLATE_PROMPT_BUILDERS = {

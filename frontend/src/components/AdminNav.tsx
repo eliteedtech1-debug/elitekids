@@ -1,15 +1,17 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, ShieldCheck, LayoutDashboard, LogOut, GraduationCap, Image, Wand2 } from 'lucide-react';
+import { BookOpen, ShieldCheck, LayoutDashboard, LogOut, GraduationCap, Image, Wand2, BarChart3 } from 'lucide-react';
 import { useCallback } from 'react';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { t } from '@/lib/i18n';
 import toast from 'react-hot-toast';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/teacher/lessons', label: 'Lessons', icon: BookOpen },
-  { to: '/teacher/create-game', label: 'Create', icon: Wand2 },
-  { to: '/teacher/approvals', label: 'Reviews', icon: ShieldCheck },
-  { to: '/admin/assets', label: 'Assets', icon: Image },
+  { to: '/dashboard', labelKey: 'adminNav.dashboard', icon: LayoutDashboard },
+  { to: '/teacher/lessons', labelKey: 'adminNav.lessons', icon: BookOpen },
+  { to: '/teacher/create-game', labelKey: 'adminNav.create', icon: Wand2 },
+  { to: '/teacher/approvals', labelKey: 'adminNav.reviews', icon: ShieldCheck },
+  { to: '/teacher/analytics', labelKey: 'adminNav.analytics', icon: BarChart3 },
+  { to: '/admin/assets', labelKey: 'adminNav.assets', icon: Image },
 ];
 
 /**
@@ -27,7 +29,7 @@ export default function AdminNav({ pendingCount = 0 }: { pendingCount?: number }
     localStorage.removeItem(STORAGE_KEYS.BRANCH_ID);
     localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCH);
     localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-    toast.success('Signed out');
+    toast.success(t('dashboard.signedOut'));
     navigate('/login');
   }, [navigate]);
 
@@ -49,7 +51,7 @@ export default function AdminNav({ pendingCount = 0 }: { pendingCount?: number }
               <Link
                 key={item.to}
                 to={item.to}
-                title={item.label}
+                title={t(item.labelKey)}
                 className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 sm:px-3 sm:py-1.5 text-sm font-medium transition-all active:scale-95 ${
                   isActive
                     ? 'bg-[#0F4D92] text-white shadow-sm'
@@ -57,7 +59,7 @@ export default function AdminNav({ pendingCount = 0 }: { pendingCount?: number }
                 }`}
               >
                 <item.icon className="h-5 w-5" />
-                <span className="hidden sm:inline">{item.label}</span>
+                <span className="hidden sm:inline">{t(item.labelKey)}</span>
                 {showBadge && (
                   <span className="ml-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
                     {pendingCount}

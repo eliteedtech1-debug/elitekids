@@ -22,6 +22,7 @@ const {
   listParentActivities,
   listLessons,
   getPuzzleDifficultyStatus,
+  nerdcReport,
 } = require('../controllers/kids');
 const {
   createSeries,
@@ -106,6 +107,7 @@ module.exports = (app) => {
 
   // ── Lessons (listing for students/parents + CRUD for staff) ──────────────
   app.get('/kids/lessons', auth, listLessons);
+  app.get('/kids/nerdc/report', auth, requireStaff, nerdcReport);
   // ── FB-17 weekly competition ───────────────────────────────────────────
   app.get('/kids/leaderboard/me', auth, getMyStatus);
   app.get('/kids/leaderboard', auth, getLeaderboard);
@@ -271,6 +273,15 @@ module.exports = (app) => {
   app.get('/kids/reviews/due', auth, getSpacedDueReviews);
   app.post('/kids/reviews/complete', auth, markReviewComplete);
   app.get('/kids/reviews/stats', auth, getReviewStats);
+
+  // ── Revision (reinforcement-based) ────────────────────────────────────
+  const revision = require('../controllers/kidsRevision');
+  app.get('/kids/revision/status', auth, revision.getRevisionStatus);
+  app.get('/kids/revision/nudges', auth, revision.getNudges);
+  app.get('/kids/revision/failed-items', auth, revision.getFailedItems);
+  app.post('/kids/revision/failed', auth, revision.recordFailed);
+  app.post('/kids/revision/retry-correct', auth, revision.markRetryCorrect);
+  app.get('/kids/revision/weekly', auth, revision.getWeeklySummary);
 
   // ── Phase 3: Parent Dashboard ──────────────────────────────────────────
   app.post('/kids/parent/login', parentCtrl.login);

@@ -10,6 +10,7 @@ import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { speak, playCorrect, playMatch, playTap } from '@/lib/utils/sound';
+import { t } from '@/lib/i18n';
 
 /* ── Onboarding steps ─────────────────────────────────────────── */
 
@@ -22,56 +23,52 @@ interface Step {
   action: 'tap' | 'drag' | 'match' | 'watch';
 }
 
-const STEPS: Step[] = [
+const STEP_META: Array<Pick<Step, 'id' | 'shape' | 'shapeColor' | 'action'>> = [
   {
     id: 'welcome',
-    title: 'Welcome! 🌟',
-    description: "Let's learn how to play! I'll show you how everything works.",
     shape: '🌈',
     shapeColor: 'bg-gradient-to-br from-purple-400 to-pink-400',
     action: 'watch',
   },
   {
     id: 'tap',
-    title: 'Tap to Choose! 👆',
-    description: 'Tap a shape to pick it. Watch!',
     shape: '🔴',
     shapeColor: 'bg-red-400',
     action: 'tap',
   },
   {
     id: 'correct',
-    title: 'You Got It! ✅',
-    description: "When you tap the right one, you'll see a green check!",
     shape: '✅',
     shapeColor: 'bg-green-400',
     action: 'watch',
   },
   {
     id: 'drag',
-    title: 'Drag to Sort! 🤏',
-    description: "Let's put shapes in order. Drag them from left to right!",
     shape: '🔵',
     shapeColor: 'bg-blue-400',
     action: 'drag',
   },
   {
     id: 'match',
-    title: 'Match the Pairs! 🔗',
-    description: 'Tap one on the left, then its match on the right!',
     shape: '⭐',
     shapeColor: 'bg-amber-400',
     action: 'match',
   },
   {
     id: 'ready',
-    title: "You're Ready! 🎉",
-    description: 'Now you know how to play! Choose a game and start learning!',
     shape: '🚀',
     shapeColor: 'bg-gradient-to-br from-green-400 to-emerald-500',
     action: 'watch',
   },
 ];
+
+function getSteps(): Step[] {
+  return STEP_META.map((step) => ({
+    ...step,
+    title: t(`onboarding.step.${step.id}.title`),
+    description: t(`onboarding.step.${step.id}.description`),
+  }));
+}
 
 /* ── Interactive tap demo ──────────────────────────────────────── */
 
@@ -90,7 +87,7 @@ function TapDemo({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <p className="text-sm text-gray-500 font-medium">Tap the red circle!</p>
+      <p className="text-sm text-gray-500 font-medium">{t('onboarding.tapPrompt')}</p>
       <div className="relative">
         <button
           onClick={handleTap}
@@ -106,7 +103,7 @@ function TapDemo({ onComplete }: { onComplete: () => void }) {
       </div>
       {!tapped && (
         <div className="flex items-center gap-1 text-xs text-gray-400 animate-game-bounce">
-          <span className="text-lg">👆</span> Tap me!
+          <span className="text-lg">👆</span> {t('onboarding.tapMe')}
         </div>
       )}
     </div>
@@ -139,11 +136,11 @@ function DragDemo({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <p className="text-sm text-gray-500 font-medium">Tap in order: 1 → 3</p>
+      <p className="text-sm text-gray-500 font-medium">{t('onboarding.dragPrompt')}</p>
       {/* Placed area */}
       <div className="flex items-center gap-2 rounded-xl border-2 border-dashed border-green-300 bg-green-50 p-4 min-h-[64px] w-full max-w-xs justify-center">
         {placed.length === 0 && (
-          <span className="text-xs text-gray-400">Tap below in order</span>
+          <span className="text-xs text-gray-400">{t('onboarding.tapBelow')}</span>
         )}
         {placed.map((id) => {
           const item = items.find((i) => i.id === id)!;
@@ -224,7 +221,7 @@ function MatchDemo({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <p className="text-sm text-gray-500 font-medium">Tap a shape, then its match!</p>
+      <p className="text-sm text-gray-500 font-medium">{t('onboarding.matchPrompt')}</p>
       <div className="grid grid-cols-2 gap-6 w-full max-w-xs">
         <div className="space-y-3">
           {pairs.map((p, i) => (
@@ -271,8 +268,9 @@ export default function OnboardingTour({ onComplete }: { onComplete: () => void 
   const [stepIdx, setStepIdx] = useState(0);
   const [demoDone, setDemoDone] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const step = STEPS[stepIdx];
-  const isLast = stepIdx === STEPS.length - 1;
+  const steps = getSteps();
+  const step = steps[stepIdx];
+  const isLast = stepIdx === steps.length - 1;
 
   // Speak step description on change
   useEffect(() => {
@@ -321,14 +319,11 @@ export default function OnboardingTour({ onComplete }: { onComplete: () => void 
           } catch {}
           onComplete();
         }}
-        className="absolute top-4 right-4 text-sm text-gray-400 hover:text-gray-600 transition-all"
-      >
-        Skip →
-      </button>
+        className="absolute top-4 right-4 text-sm text-gray-400 hover:text-gray-600 transition-all">{t('onboarding.skip')}</button>
 
       {/* Progress dots */}
       <div className="flex items-center gap-2 mb-8">
-        {STEPS.map((_, i) => (
+        {steps.map((_, i) => (
           <div
             key={i}
             className={`rounded-full transition-all duration-300 ${
@@ -362,7 +357,7 @@ export default function OnboardingTour({ onComplete }: { onComplete: () => void 
               {speaking && (
                 <div className="flex items-center gap-2 animate-game-pop">
                   <Volume2 className="h-5 w-5 text-[#0F4D92] animate-game-bounce" />
-                  <span className="text-xs">Speaking...</span>
+                  <span className="text-xs">{t('onboarding.speaking')}</span>
                 </div>
               )}
             </div>
@@ -376,12 +371,12 @@ export default function OnboardingTour({ onComplete }: { onComplete: () => void 
               onClick={handleBack}
               className="flex items-center gap-1 rounded-xl border-2 border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-all active:scale-95"
             >
-              <ArrowLeft className="h-4 w-4" /> Back
+              <ArrowLeft className="h-4 w-4" /> {t('onboarding.back')}
             </button>
           )}
           {step.action !== 'watch' && !demoDone ? (
             <div className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm text-gray-400 animate-game-pulse">
-              Complete the demo above ↑
+              {t('onboarding.completeDemo')}
             </div>
           ) : (
             <button
@@ -394,11 +389,11 @@ export default function OnboardingTour({ onComplete }: { onComplete: () => void 
             >
               {isLast ? (
                 <>
-                  <Gamepad2 className="h-4 w-4" /> Let's Play! 🎮
+                  <Gamepad2 className="h-4 w-4" /> {t('onboarding.play')}
                 </>
               ) : (
                 <>
-                  Next <ArrowRight className="h-4 w-4" />
+                  {t('onboarding.next')} <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>

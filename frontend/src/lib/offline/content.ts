@@ -14,6 +14,7 @@
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { offlineDB, STORES } from './db';
+import { canPrefetch } from '@/lib/utils/storage-budget';
 
 /** Cache TTL: 24 hours in milliseconds. */
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -54,10 +55,30 @@ interface CachedLesson {
 
 class OfflineContentManager {
   /**
+   * Check if we're within the storage budget.
+   * Uses navigator.storage.estimate() when available; falls back to true.
+   * Default budget: 100 MB for offline content.
+   */
+  private async hasStorageBudget(maxKB = 100 * 1024): Promise<boolean> {
+    try {
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        const { usage = 0 } = await navigator.storage.estimate();
+        return (usage / 1024) < maxKB;
+      }
+    } catch {}
+    return true; // assume OK when API unavailable
+  }
+
+  /**
    * Pre-download a lesson's game config and scene scripts for offline play.
    * Returns true if cached successfully.
    */
   async prefetchLesson(lessonId: string, schoolId: string): Promise<boolean> {
+    // #6 storage budget: never prefetch past the device quota.
+    if (!(await canPrefetch())) {
+      console.warn('⚠️ Storage budget reached — skipping prefetch of lesson', lessonId);
+      return false;
+    }
     try {
       // Fetch game config
       const gameRes = await apiClient.get(ENDPOINTS.LESSONS.GAME(lessonId));
@@ -101,8 +122,9 @@ class OfflineContentManager {
       });
       const lessons = res.data?.data || [];
 
-      // Cache lesson metadata
+      // Cache lesson metadata (small — but still respect the budget)
       for (const lesson of lessons) {
+        if (!(await canPrefetch())) break;
         await offlineDB.put<CachedLesson>(STORES.lessons, lesson.id, {
           id: lesson.id,
           title: lesson.title,
@@ -115,10 +137,15 @@ class OfflineContentManager {
         });
       }
 
-      // Prefetch game configs in parallel (max 5 at a time)
+      // Prefetch game configs in parallel (max 5 at a time), checking the
+      // quota guard between batches so we never exceed the device budget.
       const gameLessons = lessons.filter((l: any) => l.has_games);
       const batchSize = 5;
       for (let i = 0; i < gameLessons.length; i += batchSize) {
+        if (!(await canPrefetch())) {
+          console.warn('⚠️ Storage budget reached — stopping game config prefetch');
+          break;
+        }
         const batch = gameLessons.slice(i, i + batchSize);
         await Promise.allSettled(
           batch.map((l: any) => this.prefetchLesson(l.id, schoolId))

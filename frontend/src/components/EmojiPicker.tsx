@@ -11,7 +11,8 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Search, Clock, X } from 'lucide-react';
-import { EMOJI_CATEGORIES, searchEmojis, type EmojiEntry, type EmojiCategory } from '@/lib/utils/emojiData';
+import type { EmojiEntry, EmojiCategory } from '@/lib/utils/emojiData';
+import { t } from '@/lib/i18n';
 
 const TWEMOJI_CDN = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72';
 const RECENT_KEY = 'emoji_picker_recent';
@@ -57,19 +58,34 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
     setRecentEmojis(getRecent());
   }, [onSelect]);
 
+  // #11 perf: lazy-load emoji data (684 lines) only when picker opens
+  const [categories, setCategories] = useState<EmojiCategory[]>([]);
+  const [searchFn, setSearchFn] = useState<((q: string) => EmojiEntry[]) | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('@/lib/utils/emojiData').then((mod) => {
+      if (!cancelled) {
+        setCategories(mod.EMOJI_CATEGORIES);
+        setSearchFn(() => mod.searchEmojis);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Determine which emojis to show
   const displayEmojis = useMemo(() => {
-    if (search) return searchEmojis(search);
+    if (search && searchFn) return searchFn(search);
     if (activeTab === 'recent') return recentEmojis;
-    const cat = EMOJI_CATEGORIES.find((c) => c.id === activeTab);
+    const cat = categories.find((c) => c.id === activeTab);
     return cat?.emojis || [];
-  }, [activeTab, search, recentEmojis]);
+  }, [activeTab, search, recentEmojis, categories, searchFn]);
 
   // Available tabs — always show "recent" first
   const tabs: { id: string; label: string; icon: string }[] = useMemo(() => {
-    const recentTab = { id: 'recent', label: 'Recent', icon: '🕐' };
-    return [recentTab, ...EMOJI_CATEGORIES.map((c) => ({ id: c.id, label: c.label, icon: c.icon }))];
-  }, []);
+    const recentTab = { id: 'recent', label: t('emojiPicker.recent'), icon: '🕐' };
+    return [recentTab, ...categories.map((c) => ({ id: c.id, label: c.label, icon: c.icon }))];
+  }, [categories]);
 
   const isModal = mode === 'modal';
 
@@ -87,7 +103,7 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search emoji..."
+            placeholder={t('emojiPicker.searchPlaceholder')}
             className="w-full rounded-xl bg-gray-50 py-2 pl-8 pr-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0F4D92]/30 font-kid-body"
           />
           {search && (
@@ -128,9 +144,9 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
       <div className="px-3 py-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 font-kid-body">
           {search
-            ? `Search: "${search}"`
+            ? t('emojiPicker.searchResults', { query: search })
             : activeTab === 'recent'
-            ? 'Recently Used'
+            ? t('emojiPicker.recentlyUsed')
             : tabs.find((t) => t.id === activeTab)?.label || ''}
         </span>
       </div>
@@ -141,7 +157,7 @@ export default function EmojiPicker({ onSelect, onClose, mode = 'panel' }: Emoji
           <div className="flex flex-col items-center justify-center py-10 text-gray-400">
             <span className="text-3xl mb-2">🔍</span>
             <p className="text-sm font-kid-body">
-              {search ? 'No emojis found' : 'No recent emojis yet'}
+              {search ? t('emojiPicker.noResults') : t('emojiPicker.noRecent')}
             </p>
           </div>
         ) : (

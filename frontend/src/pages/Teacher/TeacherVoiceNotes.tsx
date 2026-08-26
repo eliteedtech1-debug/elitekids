@@ -3,6 +3,7 @@ import { Mic, Square, Send, Loader2, ArrowLeft, Trash2, Radio } from 'lucide-rea
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import AdminNav from '@/components/AdminNav';
+import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
@@ -99,7 +100,7 @@ export default function TeacherVoiceNotes() {
       }, 1000);
     } catch {
       setMicDenied(true);
-      toast.error('Microphone unavailable — check browser permissions');
+      toast.error(t('teacher.voice.micUnavailable'));
     }
   };
 
@@ -124,15 +125,15 @@ export default function TeacherVoiceNotes() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       if (res?.data?.success) {
-        toast.success('Sent! Kids have been notified 🎙️');
+        toast.success(t('teacher.voice.sent'));
         discard();
         setTitle('');
         loadSent();
       } else {
-        toast.error(res?.data?.message || 'Could not send');
+        toast.error(res?.data?.message || t('teacher.voice.sendFailed'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Could not send');
+      toast.error(e?.message || t('teacher.voice.sendFailed'));
     } finally {
       setSending(false);
     }
@@ -144,33 +145,31 @@ export default function TeacherVoiceNotes() {
       <div className="mx-auto max-w-3xl px-4 py-6">
         <div className="mb-1 flex items-center justify-between">
           <h1 className="flex items-center gap-2 text-xl font-extrabold text-gray-800">
-            <Mic className="h-6 w-6 text-purple-600" /> Voice Notes
+            <Mic className="h-6 w-6 text-purple-600" /> {t('teacher.voice.title')}
           </h1>
           <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold text-[#0F4D92]">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
+            <ArrowLeft className="h-4 w-4" /> {t('teacher.live.dashboard')}
           </Link>
         </div>
-        <p className="mb-5 text-sm text-gray-500">
-          Record a short message for your class — kids hear your voice wherever they are, even offline-later.
-        </p>
+        <p className="mb-5 text-sm text-gray-500">{t('teacher.voice.subtitle')}</p>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <label className="text-xs font-bold text-gray-600">
-            Title <span className="font-normal text-gray-400">(what's the message about?)</span>
+            {t('teacher.voice.titleField')}
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={120}
-              placeholder="e.g. Well done on yesterday's test!"
+              placeholder={t('teacher.voice.titlePlaceholder')}
               className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal"
             />
           </label>
           <label className="mt-3 block text-xs font-bold text-gray-600">
-            Class code <span className="font-normal text-gray-400">(leave empty to reach the whole school)</span>
+            {t('teacher.voice.classCode')}
             <input
               value={classCode}
               onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-              placeholder="e.g. CLS0610"
+              placeholder={t('teacher.live.codePlaceholder')}
               className="mt-1 w-full max-w-xs rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal uppercase"
             />
           </label>
@@ -182,25 +181,25 @@ export default function TeacherVoiceNotes() {
                 disabled={sending}
                 className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-base font-extrabold text-white shadow hover:bg-red-700 disabled:opacity-50"
               >
-                <Mic className="h-5 w-5" /> Record
+                <Mic className="h-5 w-5" /> {t('teacher.voice.record')}
               </button>
             ) : (
               <button
                 onClick={stopRecording}
                 className="inline-flex items-center gap-2 rounded-xl bg-gray-800 px-6 py-3 text-base font-extrabold text-white shadow hover:bg-black"
               >
-                <Square className="h-4 w-4" /> Stop ({seconds}s / {MAX_SECONDS}s)
+                <Square className="h-4 w-4" /> {t('teacher.voice.stop', { seconds, max: MAX_SECONDS })}
               </button>
             )}
             {recording && (
               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600">
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" /> REC
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" /> {t('teacher.voice.rec')}
               </span>
             )}
             {blob && !recording && (
               <>
                 <button onClick={discard} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50">
-                  <Trash2 className="h-4 w-4" /> Discard
+                  <Trash2 className="h-4 w-4" /> {t('teacher.voice.discard')}
                 </button>
                 <button
                   onClick={send}
@@ -208,13 +207,13 @@ export default function TeacherVoiceNotes() {
                   className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 text-base font-extrabold text-white shadow hover:bg-green-700 disabled:opacity-50"
                 >
                   {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Send to class
+                  {t('teacher.voice.send')}
                 </button>
               </>
             )}
           </div>
           {micDenied && (
-            <p className="mt-3 text-xs font-semibold text-red-500">Microphone blocked — allow mic access in your browser settings.</p>
+            <p className="mt-3 text-xs font-semibold text-red-500">{t('teacher.live.micDenied')}</p>
           )}
           {previewUrl && !recording && (
             <audio controls src={previewUrl} className="mt-4 w-full" />
@@ -222,11 +221,11 @@ export default function TeacherVoiceNotes() {
         </div>
 
         <h2 className="mb-2 mt-6 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-gray-400">
-          <Radio className="h-4 w-4" /> Notes you sent
+          <Radio className="h-4 w-4" /> {t('teacher.voice.sentList')}
         </h2>
         {sent.length === 0 ? (
           <p className="rounded-2xl bg-white p-6 text-center text-sm text-gray-400 shadow-sm">
-            Nothing yet — record your first note above.
+            {t('teacher.voice.empty')}
           </p>
         ) : (
           <div className="space-y-2">
@@ -234,10 +233,10 @@ export default function TeacherVoiceNotes() {
               <div key={n.id} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
                 <span className="text-xl">🎙️</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-gray-800">{n.title || 'Voice note'}</span>
+                  <span className="block truncate text-sm font-semibold text-gray-800">{n.title || t('teacher.voice.defaultTitle')}</span>
                   <span className="block text-xs text-gray-400">
-                    {n.class_code ? `Class ${n.class_code} · ` : 'Whole school · '}
-                    {new Date(n.created_at).toLocaleString()} · reached {Number(n.reached) || 0}, listened {Number(n.played_count) || 0}
+                    {n.class_code ? t('teacher.voice.classPrefix', { code: n.class_code }) : t('teacher.voice.wholeSchool')}
+                    {new Date(n.created_at).toLocaleString()} · {t('teacher.voice.reached', { reached: Number(n.reached) || 0, listened: Number(n.played_count) || 0 })}
                   </span>
                 </span>
               </div>

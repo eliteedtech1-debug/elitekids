@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Clock, Star, RefreshCw, ChevronRight } from 'lucide-react';
 import { playTap, playScore } from '@/lib/game/sound-effects';
+import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
@@ -75,7 +76,7 @@ export default function ReviewZone() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <RefreshCw className="h-5 w-5 text-amber-500" />
-          <h3 className="text-lg font-bold text-gray-800">Review Zone</h3>
+          <h3 className="text-lg font-bold text-gray-800">{t('reviewZone.title')}</h3>
         </div>
         <button
           onClick={handleRefresh}
@@ -91,19 +92,19 @@ export default function ReviewZone() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div className="bg-amber-50 rounded-xl p-3 text-center">
             <div className="text-2xl font-bold text-amber-600">{stats.due_today}</div>
-            <div className="text-xs text-amber-700">Due Today</div>
+            <div className="text-xs text-amber-700">{t('reviewZone.dueToday')}</div>
           </div>
           <div className="bg-green-50 rounded-xl p-3 text-center">
             <div className="text-2xl font-bold text-green-600">{stats.total_reviewed}</div>
-            <div className="text-xs text-green-700">Reviewed</div>
+            <div className="text-xs text-green-700">{t('reviewZone.reviewed')}</div>
           </div>
           <div className="bg-blue-50 rounded-xl p-3 text-center">
             <div className="text-2xl font-bold text-blue-600">{stats.streak_days}</div>
-            <div className="text-xs text-blue-700">Day Streak</div>
+            <div className="text-xs text-blue-700">{t('student.home.dayStreak')}</div>
           </div>
           <div className="bg-purple-50 rounded-xl p-3 text-center">
             <div className="text-2xl font-bold text-purple-600">{Math.round(stats.avg_accuracy)}%</div>
-            <div className="text-xs text-purple-700">Accuracy</div>
+            <div className="text-xs text-purple-700">{t('reviewZone.accuracy')}</div>
           </div>
         </div>
       )}
@@ -112,8 +113,8 @@ export default function ReviewZone() {
       {reviews.length === 0 ? (
         <div className="text-center py-8">
           <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-500">All caught up!</p>
-          <p className="text-xs text-gray-400 mt-1">No reviews due right now. Keep playing to earn more!</p>
+          <p className="text-sm font-medium text-gray-500">{t('reviewZone.empty')}</p>
+          <p className="text-xs text-gray-400 mt-1">{t('reviewZone.emptyHint')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -132,14 +133,14 @@ export default function ReviewZone() {
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span className="capitalize">{review.subject}</span>
                   <span>·</span>
-                  <span>Difficulty {review.difficulty}/5</span>
+                  <span>{t('reviewZone.difficulty', { difficulty: review.difficulty })}</span>
                   <span>·</span>
-                  <span>{Math.round(review.accuracy_7d)}% accuracy</span>
+                  <span>{t('reviewZone.accuracyPct', { accuracy: Math.round(review.accuracy_7d) })}</span>
                 </div>
               </div>
               <div className="flex items-center gap-1 text-xs text-gray-400">
                 <Clock className="h-3 w-3" />
-                <span>Due now</span>
+                <span>{t('reviewZone.dueNow')}</span>
               </div>
               <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-amber-500 transition" />
             </button>

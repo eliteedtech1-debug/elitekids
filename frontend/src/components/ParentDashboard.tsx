@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Phone, Lock, UserPlus, LogIn, Baby, Trophy, Star, TrendingUp, Bell, BookOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/api/client';
+import { t, tN } from '@/lib/i18n';
 
 type View = 'login' | 'register' | 'dashboard' | 'child';
 
@@ -20,7 +21,7 @@ export default function ParentDashboard() {
   const [token, setToken] = useState('');
 
   const login = async () => {
-    if (!phone.trim()) return toast.error('Enter your phone number');
+    if (!phone.trim()) return toast.error(t('parent.phoneRequired'));
     setLoading(true);
     try {
       const res = await apiClient.post('/kids/parent/login', { phone: phone.trim(), pin: pin || '1234' });
@@ -29,10 +30,10 @@ export default function ParentDashboard() {
         setToken(d.token);
         setChildren(d.children || []);
         setView('dashboard');
-        toast.success(`Welcome! You have ${d.children?.length || 0} linked children`);
+        toast.success(tN('parent.linkedChildren', d.children?.length || 0));
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Login failed';
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || t('parent.loginFailed');
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -40,7 +41,7 @@ export default function ParentDashboard() {
   };
 
   const register = async () => {
-    if (!regPhone.trim() || !regAdm.trim() || !regSchool.trim()) return toast.error('All fields required');
+    if (!regPhone.trim() || !regAdm.trim() || !regSchool.trim()) return toast.error(t('parent.allFieldsRequired'));
     setLoading(true);
     try {
       const res = await apiClient.post('/kids/parent/register', {
@@ -49,12 +50,12 @@ export default function ParentDashboard() {
         admission_no: regAdm.trim(),
         school_id: regSchool.trim(),
       });
-      toast.success(res.data?.data?.message || 'Linked!');
+      toast.success(res.data?.data?.message || t('parent.linked'));
       setPhone(regPhone);
       setPin(regPin);
       setView('login');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Registration failed';
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || t('parent.registrationFailed');
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -71,7 +72,7 @@ export default function ParentDashboard() {
       setProgress(res.data?.data || null);
       setView('child');
     } catch {
-      toast.error('Could not load progress');
+      toast.error(t('parent.progressLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -84,26 +85,26 @@ export default function ParentDashboard() {
         <div className="w-full max-w-sm">
           <div className="mb-6 text-center">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-3xl shadow-lg">👨‍👩‍👧</div>
-            <h1 className="text-xl font-extrabold text-gray-800">Parent Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-500">Track your child's learning journey</p>
+            <h1 className="text-xl font-extrabold text-gray-800">{t('parent.dashboardTitle')}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t('parent.trackJourney')}</p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-lg">
             <label className="mb-3 block text-xs font-bold text-gray-600">
-              <Phone className="mr-1 inline h-3.5 w-3.5" /> Phone Number
+              <Phone className="mr-1 inline h-3.5 w-3.5" /> {t('parent.phoneNumber')}
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="08012345678"
+                placeholder={t('parent.phonePlaceholder')}
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
                 type="tel"
               />
             </label>
             <label className="mb-4 block text-xs font-bold text-gray-600">
-              <Lock className="mr-1 inline h-3.5 w-3.5" /> PIN
+              <Lock className="mr-1 inline h-3.5 w-3.5" /> {t('parent.pin')}
               <input
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder="1234"
+                placeholder={t('parent.pinPlaceholder')}
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
                 type="password"
                 maxLength={6}
@@ -115,12 +116,13 @@ export default function ParentDashboard() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 py-3 text-sm font-extrabold text-white shadow hover:opacity-90 disabled:opacity-50"
             >
               {loading ? <span className="animate-spin">⏳</span> : <LogIn className="h-4 w-4" />}
-              Sign In
+              {t('login.signIn')}
             </button>
             <p className="mt-3 text-center text-xs text-gray-400">
-              Don't have an account?{' '}
+              {t('parent.haveAccount')}{' '}
+
               <button onClick={() => setView('register')} className="font-bold text-blue-500 hover:underline">
-                Link your child
+                {t('parent.linkYourChild')}
               </button>
             </p>
           </div>
@@ -136,25 +138,25 @@ export default function ParentDashboard() {
         <div className="w-full max-w-sm">
           <div className="mb-6 text-center">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-green-500 to-blue-600 text-3xl shadow-lg">🔗</div>
-            <h1 className="text-xl font-extrabold text-gray-800">Link Your Child</h1>
-            <p className="mt-1 text-sm text-gray-500">Connect to track their progress</p>
+            <h1 className="text-xl font-extrabold text-gray-800">{t('parent.linkYourChildTitle')}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t('parent.connectProgress')}</p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-lg">
             <label className="mb-3 block text-xs font-bold text-gray-600">
-              <Phone className="mr-1 inline h-3.5 w-3.5" /> Your Phone
-              <input value={regPhone} onChange={(e) => setRegPhone(e.target.value)} placeholder="08012345678" className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="tel" />
+              <Phone className="mr-1 inline h-3.5 w-3.5" /> {t('parent.yourPhone')}
+              <input value={regPhone} onChange={(e) => setRegPhone(e.target.value)} placeholder={t('parent.phonePlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="tel" />
             </label>
             <label className="mb-3 block text-xs font-bold text-gray-600">
-              <Lock className="mr-1 inline h-3.5 w-3.5" /> PIN (for login)
-              <input value={regPin} onChange={(e) => setRegPin(e.target.value)} placeholder="1234" className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="password" maxLength={6} />
+              <Lock className="mr-1 inline h-3.5 w-3.5" /> {t('parent.pinForLogin')}
+              <input value={regPin} onChange={(e) => setRegPin(e.target.value)} placeholder={t('parent.pinPlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="password" maxLength={6} />
             </label>
             <label className="mb-3 block text-xs font-bold text-gray-600">
-              <Baby className="mr-1 inline h-3.5 w-3.5" /> Child's Admission No.
-              <input value={regAdm} onChange={(e) => setRegAdm(e.target.value)} placeholder="DKG/1/0001" className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" />
+              <Baby className="mr-1 inline h-3.5 w-3.5" /> {t('parent.childAdmission')}
+              <input value={regAdm} onChange={(e) => setRegAdm(e.target.value)} placeholder={t('parent.admissionPlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" />
             </label>
             <label className="mb-4 block text-xs font-bold text-gray-600">
-              🏫 School ID
-              <input value={regSchool} onChange={(e) => setRegSchool(e.target.value)} placeholder="e.g. DKG" className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" />
+              🏫 {t('parent.schoolId')}
+              <input value={regSchool} onChange={(e) => setRegSchool(e.target.value)} placeholder={t('parent.schoolPlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" />
             </label>
             <button
               onClick={register}
@@ -162,12 +164,13 @@ export default function ParentDashboard() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-blue-600 py-3 text-sm font-extrabold text-white shadow hover:opacity-90 disabled:opacity-50"
             >
               {loading ? <span className="animate-spin">⏳</span> : <UserPlus className="h-4 w-4" />}
-              Link Account
+              {t('parent.accountLinked')}
             </button>
             <p className="mt-3 text-center text-xs text-gray-400">
-              Already linked?{' '}
+              {t('parent.alreadyLinked')}{' '}
+
               <button onClick={() => setView('login')} className="font-bold text-blue-500 hover:underline">
-                Sign in
+                {t('parent.signIn')}
               </button>
             </p>
           </div>
@@ -182,14 +185,14 @@ export default function ParentDashboard() {
       <div className="min-h-screen bg-gray-50 px-4 py-6">
         <div className="mx-auto max-w-md">
           <div className="mb-5 flex items-center justify-between">
-            <h1 className="text-lg font-extrabold text-gray-800">👨‍👩‍👧 My Children</h1>
-            <button onClick={() => { setView('login'); setChildren([]); }} className="text-xs font-semibold text-gray-400 hover:text-gray-600">Sign out</button>
+            <h1 className="text-lg font-extrabold text-gray-800">👨‍👩‍👧 {t('parent.myChildren')}</h1>
+            <button onClick={() => { setView('login'); setChildren([]); }} className="text-xs font-semibold text-gray-400 hover:text-gray-600">{t('parent.signOut')}</button>
           </div>
           {children.length === 0 ? (
             <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
               <Baby className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-              <p className="text-sm font-bold text-gray-600">No children linked yet</p>
-              <button onClick={() => setView('register')} className="mt-3 rounded-xl bg-blue-500 px-4 py-2 text-xs font-bold text-white hover:bg-blue-600">Link a Child</button>
+              <p className="text-sm font-bold text-gray-600">{t('parent.noChildren')}</p>
+              <button onClick={() => setView('register')} className="mt-3 rounded-xl bg-blue-500 px-4 py-2 text-xs font-bold text-white hover:bg-blue-600">{t('parent.linkAChild')}</button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -228,7 +231,7 @@ export default function ParentDashboard() {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-6">
         <div className="mx-auto max-w-md">
-          <button onClick={() => setView('dashboard')} className="mb-3 text-xs font-bold text-gray-400 hover:text-gray-600">← Back to children</button>
+          <button onClick={() => setView('dashboard')} className="mb-3 text-xs font-bold text-gray-400 hover:text-gray-600">← {t('parent.backToChildren')}</button>
 
           {/* Header */}
           <div className="mb-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white shadow-lg">
@@ -244,24 +247,24 @@ export default function ParentDashboard() {
           {/* This Week */}
           <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gray-400">
-              <TrendingUp className="h-3.5 w-3.5" /> This Week
+              <TrendingUp className="h-3.5 w-3.5" /> {t('parent.thisWeek')}
             </h3>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard icon="🎮" label="Games" value={String(week.games_played || 0)} color="blue" />
-              <StatCard icon="📊" label="Avg Score" value={`${week.avg_score || 0}%`} color="green" />
-              <StatCard icon="🌟" label="Excellent" value={String(week.excellent_games || 0)} color="amber" />
-              <StatCard icon="📚" label="Lessons" value={String(week.unique_lessons || 0)} color="purple" />
+              <StatCard icon="🎮" label={t('parent.games')} value={String(week.games_played || 0)} color="blue" />
+              <StatCard icon="📊" label={t('parent.avgScore')} value={`${week.avg_score || 0}%`} color="green" />
+              <StatCard icon="🌟" label={t('parent.excellent')} value={String(week.excellent_games || 0)} color="amber" />
+              <StatCard icon="📚" label={t('parent.lessons')} value={String(week.unique_lessons || 0)} color="purple" />
             </div>
           </div>
 
           {/* All Time */}
           <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gray-400">
-              <Trophy className="h-3.5 w-3.5" /> All Time
+              <Trophy className="h-3.5 w-3.5" /> {t('parent.allTime')}
             </h3>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard icon="⭐" label="Total Points" value={String(allTime.total_points || 0)} color="amber" />
-              <StatCard icon="🎯" label="Total Attempts" value={String(allTime.total_attempts || 0)} color="blue" />
+              <StatCard icon="⭐" label={t('parent.totalPoints')} value={String(allTime.total_points || 0)} color="amber" />
+              <StatCard icon="🎯" label={t('parent.totalAttempts')} value={String(allTime.total_attempts || 0)} color="blue" />
             </div>
           </div>
 
@@ -269,7 +272,7 @@ export default function ParentDashboard() {
           {curriculum.length > 0 && (
             <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
               <h3 className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gray-400">
-                <BookOpen className="h-3.5 w-3.5" /> Subjects
+                <BookOpen className="h-3.5 w-3.5" /> {t('parent.subjects')}
               </h3>
               {curriculum.map((c) => {
                 const pct = c.total_lessons > 0 ? Math.round((c.completed_lessons / c.total_lessons) * 100) : 0;
@@ -292,7 +295,7 @@ export default function ParentDashboard() {
           {badges.length > 0 && (
             <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
               <h3 className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gray-400">
-                <Star className="h-3.5 w-3.5" /> Badges Earned
+                <Star className="h-3.5 w-3.5" /> {t('parent.badgesEarned')}
               </h3>
               <div className="flex flex-wrap gap-2">
                 {badges.map((b, i) => (
@@ -308,13 +311,13 @@ export default function ParentDashboard() {
           {recent.length > 0 && (
             <div className="rounded-2xl bg-white p-4 shadow-sm">
               <h3 className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gray-400">
-                🎮 Recent Games
+                {`🎮 ${t('parent.recentGames')}`}
               </h3>
               {recent.map((r, i) => (
                 <div key={i} className="flex items-center justify-between border-b border-gray-50 py-2 last:border-0">
                   <div>
-                    <span className="text-xs font-bold text-gray-700">{r.lesson_id || 'Game'}</span>
-                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{r.mode || 'practice'}</span>
+                    <span className="text-xs font-bold text-gray-700">{r.lesson_id || t('parent.defaultGame')}</span>
+                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{r.mode || t('parent.defaultPractice')}</span>
                   </div>
                   <span className={`text-sm font-extrabold ${r.score >= 80 ? 'text-green-600' : r.score >= 50 ? 'text-amber-600' : 'text-gray-500'}`}>
                     {r.score}%
