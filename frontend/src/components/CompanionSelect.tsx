@@ -3,6 +3,7 @@ import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { speak, playTap } from '@/lib/utils/sound';
+import { t } from '@/lib/i18n';
 
 /* ── Companion types & data ────────────────────────────────────── */
 
@@ -11,13 +12,21 @@ interface CompanionData {
   customization: { expression: string; accessory: string | null };
 }
 
-const COMPANIONS = [
-  { type: 'fox', emoji: '🦊', name: 'Foxy', greeting: "Hi there! I'm Foxy! Let's play together!" },
-  { type: 'owl', emoji: '🦉', name: 'Hootie', greeting: "Hello! I'm Hootie! Ready to learn?" },
-  { type: 'bunny', emoji: '🐰', name: 'Bunny', greeting: "Hey! I'm Bunny! Let's have fun!" },
-  { type: 'bear', emoji: '🐻', name: 'Bear', greeting: "Hi! I'm Bear! Let's explore!" },
-  { type: 'cat', emoji: '🐱', name: 'Whiskers', greeting: "Meow! I'm Whiskers! Let's play!" },
+const COMPANION_META = [
+  { type: 'fox', emoji: '🦊' },
+  { type: 'owl', emoji: '🦉' },
+  { type: 'bunny', emoji: '🐰' },
+  { type: 'bear', emoji: '🐻' },
+  { type: 'cat', emoji: '🐱' },
 ];
+
+function getCompanions() {
+  return COMPANION_META.map((companion) => ({
+    ...companion,
+    name: t(`companion.name.${companion.type}`),
+    greeting: t(`companion.greeting.${companion.type}`),
+  }));
+}
 
 const EXPRESSIONS: Record<string, Record<string, string>> = {
   fox:    { happy: '🦊', excited: '🦊', sleepy: '😴',鼓励: '🦊' },
@@ -27,37 +36,11 @@ const EXPRESSIONS: Record<string, Record<string, string>> = {
   cat:    { happy: '🐱', excited: '🐱', sleepy: '😴', encourage: '🐱' },
 };
 
-const GREETINGS: Record<string, string[]> = {
-  returning: [
-    "Welcome back! I missed you! 🌟",
-    "Yay, you're here! Let's play! 🎮",
-    "So happy to see you again! ✨",
-  ],
-  before_game: [
-    "Ready to learn something cool? 🌈",
-    "You're going to do great! 💪",
-    "Let's have an awesome time! 🎉",
-  ],
-  after_correct: [
-    "Amazing work! ⭐",
-    "You're so smart! 🧠",
-    "Woohoo! Keep going! 🚀",
-  ],
-  after_wrong: [
-    "That's okay! Let's try again! 💪",
-    "You'll get it next time! 🌟",
-    "No worries, practice makes perfect! 🌈",
-  ],
-  break_time: [
-    "Great job today! Let's take a little rest! 😴",
-    "You've been working hard! Time for a break! ⭐",
-    "Awesome play! Let's rest a bit! 🌈",
-  ],
-};
+type GreetingContext = 'returning' | 'before_game' | 'after_correct' | 'after_wrong' | 'break_time';
 
-function getGreeting(context: 'returning' | 'before_game' | 'after_correct' | 'after_wrong' | 'break_time'): string {
-  const options = GREETINGS[context] || GREETINGS.returning;
-  return options[Math.floor(Math.random() * options.length)];
+function getGreeting(context: GreetingContext): string {
+  const index = Math.floor(Math.random() * 3) + 1;
+  return t(`companion.context.${context}.${index}`);
 }
 
 /* ── Companion Bubble (inline greeting) ────────────────────────── */
@@ -84,14 +67,15 @@ export function CompanionBubble({
 
   if (!companion || dismissed) return null;
 
-  const info = COMPANIONS.find((c) => c.type === companion.companion_type) || COMPANIONS[0];
+  const companions = getCompanions();
+  const info = companions.find((c) => c.type === companion.companion_type) || companions[0];
   const greeting = getGreeting(context);
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label="Dismiss companion greeting"
+      aria-label={t('companion.dismissGreeting')}
       className="flex items-center gap-3 rounded-2xl bg-white border border-amber-200 shadow-md p-3 animate-game-slide-up cursor-pointer"
       onClick={() => {
         playTap();
@@ -112,7 +96,7 @@ export function CompanionBubble({
         <p className="text-xs font-bold text-amber-700">{info.name}</p>
         <p className="text-sm text-gray-600">{greeting}</p>
       </div>
-      <span className="text-xs text-gray-600">tap to close</span>
+      <span className="text-xs text-gray-600">{t('companion.tapToClose')}</span>
     </div>
   );
 }
@@ -134,7 +118,7 @@ export default function CompanionSelect({ onComplete }: { onComplete: () => void
       const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
       const studentId = decoded.admission_no || decoded.id;
 
-      const info = COMPANIONS.find((c) => c.type === type)!;
+      const info = getCompanions().find((c) => c.type === type)!;
       await apiClient.post(ENDPOINTS.COMPANION.CHOOSE, {
         student_id: studentId,
         companion_type: type,
@@ -153,11 +137,11 @@ export default function CompanionSelect({ onComplete }: { onComplete: () => void
         <div className="mb-4 animate-game-pop">
           <span className="text-5xl">🌟</span>
         </div>
-        <h1 className="mb-2 text-2xl font-bold text-gray-800">Choose Your Buddy!</h1>
-        <p className="mb-6 text-sm text-gray-500">Pick a friend to play with you!</p>
+        <h1 className="mb-2 text-2xl font-bold text-gray-800">{t('companion.chooseTitle')}</h1>
+        <p className="mb-6 text-sm text-gray-500">{t('companion.chooseHint')}</p>
 
         <div className="grid grid-cols-3 gap-3 mb-4">
-          {COMPANIONS.map((c, i) => (
+          {getCompanions().map((c, i) => (
             <button
               key={c.type}
               onClick={() => handleChoose(c.type)}
@@ -179,7 +163,7 @@ export default function CompanionSelect({ onComplete }: { onComplete: () => void
 
         {selected && (
           <p className="text-sm text-amber-600 animate-game-pop">
-            {COMPANIONS.find((c) => c.type === selected)?.greeting}
+            {getCompanions().find((c) => c.type === selected)?.greeting}
           </p>
         )}
       </div>
@@ -187,4 +171,4 @@ export default function CompanionSelect({ onComplete }: { onComplete: () => void
   );
 }
 
-export { COMPANIONS, getGreeting };
+export { getCompanions, getGreeting };

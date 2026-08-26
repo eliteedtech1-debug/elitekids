@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Settings, Eye, Type, Zap, Palette, RotateCcw } from 'lucide-react';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { haptic } from '@/lib/utils/haptic';
+import { t } from '@/lib/i18n';
 
 /**
  * Accessibility settings panel — toggles for colorblind mode, reduced motion,
@@ -29,11 +30,11 @@ export default function A11ySettings() {
       <button
         onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white p-2 sm:px-3 sm:py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 active:scale-95"
-        aria-label="Accessibility settings"
+        aria-label={t('a11y.settings')}
         aria-expanded={open}
       >
         <Settings className="h-5 w-5" />
-        <span className="hidden sm:inline">A11y</span>
+        <span className="hidden sm:inline">{t('a11y.shortLabel')}</span>
       </button>
 
       {/* Panel */}
@@ -43,11 +44,11 @@ export default function A11ySettings() {
         <div className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent sm:static sm:hidden" onClick={() => setOpen(false)} />
         <div className="fixed inset-x-3 top-14 z-50 mx-auto max-w-[calc(100vw-24px)] sm:absolute sm:right-0 sm:top-full sm:mx-0 sm:mt-2 sm:w-72 sm:max-w-none rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-800">Accessibility</h3>
+            <h3 className="text-sm font-bold text-gray-800">{t('a11y.title')}</h3>
             <button
               onClick={() => setOpen(false)}
               className="text-gray-400 hover:text-gray-600"
-              aria-label="Close"
+              aria-label={t('speech.close')}
             >
               ✕
             </button>
@@ -57,8 +58,8 @@ export default function A11ySettings() {
             {/* Colorblind mode */}
             <ToggleRow
               icon={<Palette className="h-4 w-4" />}
-              label="Colorblind-safe colors"
-              description="Blue/orange instead of green/red"
+              label={t('a11y.colorblind')}
+              description={t('a11y.colorblindDesc')}
               checked={colorblindMode}
               onChange={() => { haptic('medium'); toggleColorblind(); }}
             />
@@ -66,8 +67,8 @@ export default function A11ySettings() {
             {/* Reduced motion */}
             <ToggleRow
               icon={<Zap className="h-4 w-4" />}
-              label="Reduce motion"
-              description="Disable animations"
+              label={t('a11y.reduceMotion')}
+              description={t('a11y.reduceMotionDesc')}
               checked={reducedMotion}
               onChange={() => { haptic('medium'); toggleReducedMotion(); }}
             />
@@ -75,8 +76,8 @@ export default function A11ySettings() {
             {/* High contrast */}
             <ToggleRow
               icon={<Eye className="h-4 w-4" />}
-              label="High contrast"
-              description="Increase text/border contrast"
+              label={t('a11y.highContrast')}
+              description={t('a11y.highContrastDesc')}
               checked={highContrast}
               onChange={() => { haptic('medium'); toggleHighContrast(); }}
             />
@@ -84,8 +85,8 @@ export default function A11ySettings() {
             {/* Large text */}
             <ToggleRow
               icon={<Type className="h-4 w-4" />}
-              label="Larger text"
-              description="Increase font sizes by 20%"
+              label={t('a11y.largeText')}
+              description={t('a11y.largeTextDesc')}
               checked={largeText}
               onChange={() => { haptic('medium'); toggleLargeText(); }}
             />
@@ -97,7 +98,7 @@ export default function A11ySettings() {
             className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-2 text-xs font-medium text-gray-500 transition hover:bg-gray-50"
           >
             <RotateCcw className="h-3 w-3" />
-            Reset to defaults
+            {t('a11y.reset')}
           </button>
         </div>
         </>

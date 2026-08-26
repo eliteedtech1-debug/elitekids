@@ -3,6 +3,7 @@ import { Volume2, VolumeX, Play, RotateCcw } from 'lucide-react';
 import { useSpeechStore, getAvailableVoices } from '@/lib/utils/speech-store';
 import { speak } from '@/lib/utils/sound';
 import { haptic } from '@/lib/utils/haptic';
+import { t } from '@/lib/i18n';
 
 /**
  * Speech settings panel — speed slider + voice picker.
@@ -49,7 +50,7 @@ export default function SpeechSettings() {
     speak('Hello! This is how I sound!', undefined, rate);
   };
 
-  const speedLabel = rate <= 0.5 ? '🐢 Very slow' : rate <= 0.7 ? '🐇 Slow' : rate <= 1.0 ? ' normal' : rate <= 1.3 ? '⚡ Fast' : '🚀 Very fast';
+  const speedLabel = rate <= 0.5 ? t('speech.speedVerySlow') : rate <= 0.7 ? t('speech.speedSlow') : rate <= 1.0 ? t('speech.speedNormal') : rate <= 1.3 ? t('speech.speedFast') : t('speech.speedVeryFast');
 
   return (
     <div className="relative" ref={panelRef}>
@@ -57,7 +58,7 @@ export default function SpeechSettings() {
       <button
         onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-2 sm:px-2.5 sm:py-1.5 text-sm font-medium text-[#0F4D92]/60 transition hover:bg-gray-50 hover:text-[#0F4D92] active:scale-95"
-        aria-label="Voice settings"
+        aria-label={t('speech.settings')}
         aria-expanded={open}
       >
         <Volume2 className="h-5 w-5" />
@@ -70,14 +71,14 @@ export default function SpeechSettings() {
         <div className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent sm:static sm:hidden" onClick={() => setOpen(false)} />
         <div className="fixed inset-x-3 top-14 z-50 mx-auto max-w-[calc(100vw-24px)] sm:absolute sm:right-0 sm:top-full sm:mx-0 sm:mt-2 sm:w-80 sm:max-w-none rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-800">🔊 Voice Settings</h3>
-            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600" aria-label="Close">✕</button>
+            <h3 className="text-sm font-bold text-gray-800">{t('speech.title')}</h3>
+            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600" aria-label={t('speech.close')}>✕</button>
           </div>
 
           {/* Speed slider */}
           <div className="mb-4 sm:mb-5">
             <div className="mb-2 flex items-center justify-between">
-              <label className="text-xs font-semibold text-gray-600">Speed</label>
+              <label className="text-xs font-semibold text-gray-600">{t('speech.speed')}</label>
               <span className="text-xs text-gray-400">{speedLabel} ({rate.toFixed(1)}x)</span>
             </div>
             <input
@@ -99,8 +100,8 @@ export default function SpeechSettings() {
           {/* Pitch slider */}
           <div className="mb-4 sm:mb-5">
             <div className="mb-2 flex items-center justify-between">
-              <label className="text-xs font-semibold text-gray-600">Pitch</label>
-              <span className="text-xs text-gray-400">{pitch < 1.0 ? ' lower' : pitch > 1.3 ? ' high' : ' normal'} ({pitch.toFixed(1)})</span>
+              <label className="text-xs font-semibold text-gray-600">{t('speech.pitch')}</label>
+              <span className="text-xs text-gray-400">{pitch < 1.0 ? ` ${t('speech.pitchLower').toLowerCase()}` : pitch > 1.3 ? ` ${t('speech.pitchHigh').toLowerCase()}` : ` ${t('speech.normal').toLowerCase()}`} ({pitch.toFixed(1)})</span>
             </div>
             <input
               type="range"
@@ -112,17 +113,17 @@ export default function SpeechSettings() {
               className="w-full h-3 rounded-full appearance-none cursor-pointer accent-purple-500"
             />
             <div className="mt-1 flex justify-between text-[10px] text-gray-400">
-              <span>Low</span>
-              <span>Normal</span>
-              <span>High</span>
+              <span>{t('speech.low')}</span>
+              <span>{t('speech.normal')}</span>
+              <span>{t('speech.pitchHigh')}</span>
             </div>
           </div>
 
           {/* Voice picker */}
           <div className="mb-4">
-            <label className="mb-2 block text-xs font-semibold text-gray-600">Voice</label>
+            <label className="mb-2 block text-xs font-semibold text-gray-600">{t('speech.voice')}</label>
             {voices.length === 0 ? (
-              <p className="text-xs text-gray-400">No voices available on this device.</p>
+              <p className="text-xs text-gray-400">{t('speech.noVoices')}</p>
             ) : (
               <div className="max-h-32 sm:max-h-40 space-y-1 overflow-y-auto rounded-xl border border-gray-100 p-2">
                 {/* Auto option */}
@@ -132,7 +133,7 @@ export default function SpeechSettings() {
                     !voiceName ? 'bg-[#0F4D92] text-white' : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >
-                  🤖 Auto (best match)
+                  {t('speech.auto')}
                 </button>
                 {voices.map((v) => (
                   <button
@@ -156,13 +157,13 @@ export default function SpeechSettings() {
               onClick={handlePreview}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0F4D92] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0b3d76]"
             >
-              <Play className="h-3 w-3" /> Preview
+              <Play className="h-3 w-3" /> {t('speech.preview')}
             </button>
             <button
               onClick={() => { haptic('light'); reset(); }}
               className="flex items-center justify-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium text-gray-500 transition hover:bg-gray-50"
             >
-              <RotateCcw className="h-3 w-3" /> Reset
+              <RotateCcw className="h-3 w-3" /> {t('speech.reset')}
             </button>
           </div>
         </div>
