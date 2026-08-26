@@ -3,6 +3,7 @@ import { Mic, MicOff, Loader2, Radio, ArrowLeft, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { t } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
 import { EliteLive, type LivePeer } from '@/lib/live/audio';
 
@@ -23,7 +24,7 @@ export default function TeacherLive() {
   useEffect(() => () => liveRef.current?.disconnect(), []);
 
   const join = async () => {
-    if (!classCode.trim()) return toast.error('Enter the class code');
+    if (!classCode.trim()) return toast.error(t('teacher.live.enterCode'));
     setConnecting(true);
     try {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
@@ -36,14 +37,14 @@ export default function TeacherLive() {
       setTimeout(() => {
         if (live.status === 'live') {
           setJoined(true);
-          toast.success('Connected to class channel 🎧');
+          toast.success(t('teacher.live.connected'));
         } else if (live.status === 'error') {
-          toast.error('Could not reach the class channel');
+          toast.error(t('teacher.live.unreachable'));
         }
         setConnecting(false);
       }, 1500);
     } catch {
-      toast.error('Connection failed');
+      toast.error(t('teacher.live.connectFailed'));
       setConnecting(false);
     }
   };
@@ -69,7 +70,7 @@ export default function TeacherLive() {
       else {
         setMicDenied(false);
         setSpeaking(true);
-        toast.success('You are LIVE to the class 🔴');
+        toast.success(t('teacher.live.liveToast'));
       }
     }
   };
@@ -86,24 +87,22 @@ export default function TeacherLive() {
       <div className="mx-auto max-w-3xl px-4 py-6">
         <div className="mb-1 flex items-center justify-between">
           <h1 className="flex items-center gap-2 text-xl font-extrabold text-gray-800">
-            <Radio className="h-6 w-6 text-red-500" /> Live Class Audio
+            <Radio className="h-6 w-6 text-red-500" /> {t('teacher.live.title')}
           </h1>
           <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold text-[#0F4D92]">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
+            <ArrowLeft className="h-4 w-4" /> {t('teacher.live.dashboard')}
           </Link>
         </div>
-        <p className="mb-5 text-sm text-gray-500">
-          Speak to your class in real time — even when kids are studying from home. Give any child the mic to reply.
-        </p>
+        <p className="mb-5 text-sm text-gray-500">{t('teacher.live.subtitle')}</p>
 
         {!joined ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <label className="text-xs font-bold text-gray-600">
-              Class code
+              {t('teacher.live.classCode')}
               <input
                 value={classCode}
                 onChange={(e) => setClassCode(e.target.value)}
-                placeholder="e.g. CLS0610"
+                placeholder={t('teacher.live.codePlaceholder')}
                 className="mt-1 w-full max-w-xs rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal uppercase"
               />
             </label>
@@ -113,7 +112,7 @@ export default function TeacherLive() {
               className="mt-3 inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-2.5 text-sm font-extrabold text-white shadow hover:bg-red-700 disabled:opacity-50"
             >
               {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
-              Open Class Channel
+              {t('teacher.live.openChannel')}
             </button>
           </div>
         ) : (
@@ -128,26 +127,26 @@ export default function TeacherLive() {
                   }`}
                 >
                   {speaking ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-                  {speaking ? '🔴 ON AIR — tap to stop' : 'Start Broadcasting'}
+                  {speaking ? t('teacher.live.onAir') : t('teacher.live.startBroadcast')}
                 </button>
                 <button onClick={leave} className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50">
-                  Close channel
+                  {t('teacher.live.closeChannel')}
                 </button>
                 <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold text-gray-500">
-                  <Users className="h-4 w-4" /> {students.length} online
+                  <Users className="h-4 w-4" /> {t('teacher.live.onlineCount', { count: students.length })}
                   {status === 'live' && <span className="ml-1 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />}
                 </span>
               </div>
               {micDenied && (
-                <p className="mt-3 text-xs font-semibold text-red-500">Microphone blocked — allow mic access in your browser settings.</p>
+                <p className="mt-3 text-xs font-semibold text-red-500">{t('teacher.live.micDenied')}</p>
               )}
             </div>
 
             {/* Roster / floors */}
-            <h2 className="mb-2 text-sm font-extrabold uppercase tracking-wide text-gray-400">Students online</h2>
+            <h2 className="mb-2 text-sm font-extrabold uppercase tracking-wide text-gray-400">{t('teacher.live.studentsOnline')}</h2>
             {students.length === 0 ? (
               <p className="rounded-2xl bg-white p-6 text-center text-sm text-gray-400 shadow-sm">
-                No kids connected yet — they'll appear here automatically when they open the app.
+                {t('teacher.live.noStudents')}
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -157,11 +156,11 @@ export default function TeacherLive() {
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{s.name}</span>
                     {s.floor ? (
                       <button onClick={() => floor(s.adm, false)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50">
-                        Take mic
+                        {t('teacher.live.takeMic')}
                       </button>
                     ) : (
                       <button onClick={() => floor(s.adm, true)} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-green-700">
-                        🎤 Give mic
+                        {t('teacher.live.giveMic')}
                       </button>
                     )}
                   </div>

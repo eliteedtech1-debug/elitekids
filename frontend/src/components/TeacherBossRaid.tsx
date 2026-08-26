@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Swords, Plus, Trophy, Users, Clock, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { playTap } from '@/lib/game/sound-effects';
+import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
@@ -24,10 +25,10 @@ interface RaidInfo {
 }
 
 const TIERS = [
-  { value: 'easy', label: 'Easy', hp: 500, desc: 'Good for younger kids' },
-  { value: 'medium', label: 'Medium', hp: 1000, desc: 'Standard challenge' },
-  { value: 'hard', label: 'Hard', hp: 2000, desc: 'For advanced students' },
-  { value: 'legendary', label: 'Legendary', hp: 5000, desc: 'Epic class challenge' },
+  { value: 'easy', labelKey: 'bossRaid.tier.easy.label', hp: 500, descKey: 'bossRaid.tier.easy.desc' },
+  { value: 'medium', labelKey: 'bossRaid.tier.medium.label', hp: 1000, descKey: 'bossRaid.tier.medium.desc' },
+  { value: 'hard', labelKey: 'bossRaid.tier.hard.label', hp: 2000, descKey: 'bossRaid.tier.hard.desc' },
+  { value: 'legendary', labelKey: 'bossRaid.tier.legendary.label', hp: 5000, descKey: 'bossRaid.tier.legendary.desc' },
 ];
 
 export default function TeacherBossRaid() {
@@ -119,7 +120,7 @@ export default function TeacherBossRaid() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Swords className="h-5 w-5 text-red-500" />
-          <h3 className="text-lg font-bold text-gray-800">Boss Raids</h3>
+          <h3 className="text-lg font-bold text-gray-800">{t('bossRaid.title')}</h3>
         </div>
         <button
           onClick={() => { playTap(); setShowCreate(!showCreate); }}
@@ -127,31 +128,31 @@ export default function TeacherBossRaid() {
                      hover:bg-red-600 transition"
         >
           <Plus className="h-4 w-4" />
-          New Raid
+          {t('bossRaid.new')}
         </button>
       </div>
 
       {/* Create Form */}
       {showCreate && (
         <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 space-y-3">
-          <h4 className="font-bold text-red-800">Create Boss Raid</h4>
+          <h4 className="font-bold text-red-800">{t('bossRaid.createTitle')}</h4>
           
           {/* Tier Selection */}
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Difficulty Tier</label>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">{t('bossRaid.tier')}</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {TIERS.map((t) => (
+              {TIERS.map((tp) => (
                 <button
-                  key={t.value}
-                  onClick={() => { playTap(); setTier(t.value); }}
+                  key={tp.value}
+                  onClick={() => { playTap(); setTier(tp.value); }}
                   className={`p-2 rounded-lg text-center transition border-2 ${
-                    tier === t.value
+                    tier === tp.value
                       ? 'border-red-500 bg-red-100 text-red-800'
                       : 'border-gray-200 bg-white text-gray-600 hover:border-red-300'
                   }`}
                 >
-                  <div className="text-sm font-bold">{t.label}</div>
-                  <div className="text-xs opacity-70">{t.hp} HP</div>
+                  <div className="text-sm font-bold">{t(tp.labelKey)}</div>
+                  <div className="text-xs opacity-70">{t('bossRaid.hp', { hp: tp.hp })}</div>
                 </button>
               ))}
             </div>
@@ -160,7 +161,7 @@ export default function TeacherBossRaid() {
           {/* Game Selection */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">
-              Select Games ({selectedGames.length} selected)
+              {t('bossRaid.selectGames', { count: selectedGames.length })}
             </label>
             <div className="max-h-40 overflow-y-auto space-y-1">
               {games.map((game) => (
@@ -195,7 +196,7 @@ export default function TeacherBossRaid() {
             className="w-full py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition
                        disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {creating ? 'Summoning Guardian...' : 'Summon Guardian'}
+            {creating ? t('bossRaid.summoning') : t('bossRaid.summon')}
           </button>
         </div>
       )}
@@ -204,8 +205,8 @@ export default function TeacherBossRaid() {
       {activeRaids.length === 0 ? (
         <div className="text-center py-6">
           <Swords className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">No active raids</p>
-          <p className="text-xs text-gray-400">Create one to challenge your class!</p>
+          <p className="text-sm text-gray-500">{t('bossRaid.empty')}</p>
+          <p className="text-xs text-gray-400">{t('bossRaid.emptyHint')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -253,7 +254,7 @@ export default function TeacherBossRaid() {
               {/* Dashboard */}
               {expandedRaid === raid.raid_id && raidDashboard && (
                 <div className="border-t border-gray-100 p-3 bg-gray-50">
-                  <div className="text-xs font-bold text-gray-600 mb-2">Damage Leaderboard</div>
+                  <div className="text-xs font-bold text-gray-600 mb-2">{t('bossRaid.leaderboard')}</div>
                   {raidDashboard.members?.length > 0 ? (
                     <div className="space-y-1">
                       {raidDashboard.members.slice(0, 10).map((m: any, i: number) => (
@@ -265,7 +266,7 @@ export default function TeacherBossRaid() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-400">No damage dealt yet</p>
+                    <p className="text-xs text-gray-400">{t('bossRaid.noDamage')}</p>
                   )}
                 </div>
               )}
