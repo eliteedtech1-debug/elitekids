@@ -535,7 +535,7 @@ function buildConfig(seriesId, unit, game) {
   return {
     gameId: `gc-${seriesId}-u${unit.unit_number}-${game.key}`,
     template: game.template,
-    lessonId: `lesson-${seriesId}-u${unit.unit_number}-${game.key}`,
+    lessonId: `l-${seriesId}-u${unit.unit_number}-${game.key}`,
     ageLevel: unit.age,
     category: seriesId === ANIMALS_SERIES_ID ? 'Animals' : 'Numbers',
     tier: unit.tier,
@@ -577,7 +577,7 @@ async function seedSeries(seriesId, seriesName, category, description, units, st
     // 2) Lessons + configs per game
     const contentItems = [];
     for (const game of unit.games) {
-      const lessonId = `lesson-${seriesId}-u${unit.unit_number}-${game.key}`;
+      const lessonId = `l-${seriesId}-u${unit.unit_number}-${game.key}`;
       const subject = seriesId === ANIMALS_SERIES_ID ? 'Science — Animals' : 'Mathematics — Numbers';
       await upsert(db.KidLesson, lessonId, {
         ...SCHOOL,
