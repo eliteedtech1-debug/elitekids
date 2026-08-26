@@ -18,6 +18,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { offlineApi } from '@/lib/offline/api';
 import { offlineSync } from '@/lib/offline/sync';
+import SpeakButton from '@/components/SpeakButton';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t } from '@/lib/i18n';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
@@ -419,7 +420,10 @@ function MatchingGame({
         </div>
       )}
 
-      <p className="text-center text-sm font-medium text-gray-500">Tap a letter on the left, match it on the right</p>
+      <p className="text-center text-sm font-medium text-gray-500">
+        Tap a letter on the left, match it on the right
+        <SpeakButton text={config.speechText || config.scenario || 'Tap a letter on the left, match it on the right'} size="sm" className="ml-2 align-middle" />
+      </p>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-3">
@@ -691,7 +695,10 @@ function TapGame({
             currentCharacter ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100' : 'bg-white border border-gray-100'
           }`}>
             {currentCharacter && <div className="absolute -top-2 left-8 w-4 h-4 rotate-45 bg-blue-50 border-l border-t border-blue-100" />}
-            <p className="text-lg font-medium text-gray-700 leading-relaxed font-kid-body relative z-10">{scenarioText}</p>
+            <p className="text-lg font-medium text-gray-700 leading-relaxed font-kid-body relative z-10">
+              {scenarioText}
+              <SpeakButton text={scenarioText} size="sm" className="ml-2 align-middle" />
+            </p>
           </div>
         ) : promptMode === 'image' ? (
           <>
@@ -721,7 +728,10 @@ function TapGame({
           </div>
         ) : (
           <>
-            <p className="text-lg font-semibold text-gray-700">{promptText}</p>
+            <p className="text-lg font-semibold text-gray-700">
+              {promptText}
+              <SpeakButton text={promptText} size="sm" className="ml-2 align-middle" />
+            </p>
             <div className="mt-1 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-50 animate-game-float animate-game-glow-pulse">
               {current.image && <CachedImg src={current.image} alt="" className="h-10 w-10 object-contain" />}
               {current.emoji && <span className="text-3xl" role="img" aria-label={current.label || current.color}>{current.emoji}</span>}
@@ -1104,6 +1114,7 @@ function DragSortGame({
         {hasNums
           ? <>Put them in order: <span className="text-[#0F4D92]">1 → {items.length}</span></>
           : <>Put them in <span className="text-[#0F4D92]">alphabetical order</span></>}
+        <SpeakButton text={config.speechText || config.scenario || (hasNums ? `Put them in order: 1 → ${items.length}` : 'Put them in alphabetical order')} size="sm" className="ml-2 align-middle" />
       </p>
       <p className="text-center text-xs text-gray-400">Drag words here or tap to place 👇</p>
 
@@ -1558,7 +1569,10 @@ function FillBlankGame({
               {currentS.context ? `${sentences.length > 1 ? ' — ' : ''}${currentS.context}` : ''}
             </p>
           )}
-          <p className="text-center text-lg font-semibold text-gray-700">Complete the sentence 📝</p>
+          <p className="text-center text-lg font-semibold text-gray-700">
+            Complete the sentence 📝
+            <SpeakButton text={sentence.replace(/_+/g, 'blank')} size="sm" className="ml-2 align-middle" />
+          </p>
           <p className="text-center text-xs text-gray-400">Tap a word, then tap a blank — or drag it!</p>
         </>
       )}
@@ -1999,10 +2013,12 @@ function QuizGame({
           {scenarioText ? (
             <p className="text-lg font-medium text-gray-700 leading-relaxed font-kid-body relative z-10">
               {scenarioText}
+              <SpeakButton text={scenarioText} size="sm" className="ml-2 align-middle" />
             </p>
           ) : (
             <p className="text-lg font-semibold text-gray-700 font-kid-body relative z-10">
               {questionText}
+              <SpeakButton text={questionText} size="sm" className="ml-2 align-middle" />
             </p>
           )}
 
@@ -2366,7 +2382,8 @@ function MemoryPairsGame({
       )}
 
       <p className="text-center text-lg font-semibold text-gray-700">
-        {config.scenario ? 'Find the matching pairs 🃏' : 'Find the matching pairs 🃏'}
+        {config.scenario || 'Find the matching pairs 🃏'}
+        <SpeakButton text={config.scenario || 'Find the matching pairs 🃏'} size="sm" className="ml-2 align-middle" />
       </p>
 
       <div className={`grid gap-3 ${totalPairs <= 4 ? 'grid-cols-4' : 'grid-cols-4 sm:grid-cols-4'}`}>

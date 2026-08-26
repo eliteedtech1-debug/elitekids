@@ -179,14 +179,21 @@ export function stripEmojiForSpeech(text: string): string {
     .trim();
 }
 
+// Track the currently-speaking utterance so we only cancel when something is
+// actually queued — calling cancel() right before speak() on some engines
+// (Chrome/Android) cancels the NEW utterance too, which made questions go silent.
+let activeUtterance: SpeechSynthesisUtterance | null = null;
+
 export function speak(text: string, lang?: string, overrideRate?: number): Promise<void> {
   return new Promise((resolve) => {
     if (!text || typeof window === 'undefined' || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
       resolve();
       return;
     }
-    // Cancel any ongoing speech
-    try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+    // Cancel only ongoing speech (never a just-started one)
+    if (activeUtterance) {
+      try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+    }
 
     // Read settings from the speech store (lazy import to avoid circular deps)
     let rate = 0.85;
@@ -233,11 +240,17 @@ export function speak(text: string, lang?: string, overrideRate?: number): Promi
       utterance.lang = preferred.lang;
     }
 
-    utterance.onend = () => resolve();
-    utterance.onerror = () => resolve();
+    const finish = () => {
+      activeUtterance = null;
+      resolve();
+    };
+    utterance.onend = finish;
+    utterance.onerror = finish;
+    activeUtterance = utterance;
     try {
       window.speechSynthesis.speak(utterance);
     } catch {
+      activeUtterance = null;
       resolve();
       return;
     }

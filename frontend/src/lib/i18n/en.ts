@@ -29,6 +29,7 @@ export const en: Record<string, string> = {
   'common.confirm': 'Confirm',
   'common.noResults': 'No results found',
   'common.error': 'Something went wrong',
+  'common.listen': 'Listen',
 
   // ── Login ───────────────────────────────────────────────────────────────
   'login.brand': 'Elite Kids',
