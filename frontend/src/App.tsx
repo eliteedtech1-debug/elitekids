@@ -4,6 +4,7 @@ import Login from '@/pages/Login/Login';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ParentChildren from '@/pages/Parent/ParentChildren';
 import ParentActivities from '@/pages/Parent/ParentActivities';
+import ParentDashboard from '@/components/ParentDashboard';
 import StudentHome from '@/pages/Student/StudentHome';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -82,6 +83,14 @@ export default function App() {
         element={
           <AuthGuard>
             <ParentActivities />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/parent/dashboard"
+        element={
+          <AuthGuard>
+            <ParentDashboard />
           </AuthGuard>
         }
       />

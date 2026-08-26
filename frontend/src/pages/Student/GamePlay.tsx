@@ -28,6 +28,7 @@ import { useA11yStore } from '@/lib/utils/a11y-store';
 import SpeechSettings from '@/components/SpeechSettings';
 import SpeechInput from '@/components/SpeechInput';
 import CachedImg from '@/components/CachedImg';
+import StickerButton from '@/components/StickerButton';
 import { getFeedbackClasses, getTimerColor, FOCUS_RING_GAME, motionClass } from '@/lib/utils/accessibility';
 import {
   speak,
@@ -4164,6 +4165,18 @@ export default function GamePlay() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Sticker button — floating emoji celebration overlay */}
+      {mode !== 'learning' && (
+        <StickerButton
+          onSelect={(emoji) => {
+            // Send sticker as celebration — could integrate with chat/feedback in future
+            if (soundOn) playCelebration();
+          }}
+          position="bottom-right"
+          size="md"
+        />
       )}
 
       {/* Game area */}
