@@ -24,24 +24,38 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { en } from './en';
 
-export type Locale = 'en' | 'en-NG';
+export type Locale = 'en' | 'en-NG' | 'ha';
+
+/** RTL locales require dir="rtl" on the root element. */
+const RTL_LOCALES = new Set<string>(['ha', 'ar', 'fa', 'ur']);
 
 interface I18nState {
   locale: Locale;
   /** BCP-47 tag used by SpeechSynthesis (default en-NG for Nigeria). */
   ttsLocale: string;
+  /** Text direction for the current locale. */
+  dir: 'ltr' | 'rtl';
   setLocale: (locale: Locale) => void;
 }
 
 const STORAGE_KEY = 'elitekids-locale';
+
+function resolveDir(locale: Locale): 'ltr' | 'rtl' {
+  return RTL_LOCALES.has(locale) ? 'rtl' : 'ltr';
+}
 
 export const useI18n = create<I18nState>()(
   persist(
     (set) => ({
       locale: 'en-NG',
       ttsLocale: 'en-NG',
+      dir: 'ltr',
       setLocale: (locale) =>
-        set({ locale, ttsLocale: locale === 'en' ? 'en-US' : 'en-NG' }),
+        set({
+          locale,
+          ttsLocale: locale === 'en' ? 'en-US' : locale === 'ha' ? 'ha-NG' : 'en-NG',
+          dir: resolveDir(locale),
+        }),
     }),
     { name: STORAGE_KEY }
   )
@@ -51,6 +65,7 @@ export const useI18n = create<I18nState>()(
 export const LOCALES: Array<{ code: Locale; label: string; tts: string }> = [
   { code: 'en', label: 'English (US)', tts: 'en-US' },
   { code: 'en-NG', label: 'English (Nigeria)', tts: 'en-NG' },
+  { code: 'ha', label: 'Hausa', tts: 'ha-NG' },
 ];
 
 /** Registered dictionaries, keyed by locale code. en-NG aliases en initially. */
@@ -66,6 +81,11 @@ export function getLocale(): string {
   return useI18n.getState().locale;
 }
 
+/** Get the current text direction. */
+export function getDir(): 'ltr' | 'rtl' {
+  return useI18n.getState().dir;
+}
+
 /**
  * Switch the active locale. Persisted through the store; unknown codes are
  * ignored so a bad lazy-load never crashes the UI.
@@ -79,6 +99,23 @@ export function setLocale(locale: string): void {
 /** Add or extend a locale dictionary (for lazy-loaded translations). */
 export function addLocale(locale: string, dict: Record<string, string>): void {
   dictionaries[locale] = { ...(dictionaries[locale] || {}), ...dict };
+}
+
+/**
+ * Lazy-load a locale from the locales/ directory.
+ * Usage: await loadLocale('ha');
+ */
+export async function loadLocale(locale: string): Promise<void> {
+  if (locale in dictionaries) return; // already loaded
+  try {
+    const mod = await import(`./locales/${locale}.json`);
+    const dict = mod.default || mod;
+    // Strip _meta if present
+    const { _meta, ...strings } = dict;
+    addLocale(locale, strings);
+  } catch {
+    // locale file not found — silently ignore, fallback to en
+  }
 }
 
 /**
@@ -116,4 +153,13 @@ export function tN(
   const plural = t(`${key}.${form}`, { count, ...(params || {}) });
   if (plural !== `${key}.${form}`) return plural;
   return t(key, { count, ...(params || {}) });
+}
+
+/**
+ * Apply the current locale's text direction to the document.
+ * Call this on app init and whenever locale changes.
+ */
+export function applyDir(): void {
+  const dir = useI18n.getState().dir;
+  document.documentElement.setAttribute('dir', dir);
 }

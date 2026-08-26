@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Login from '@/pages/Login/Login';
 import Dashboard from '@/pages/Dashboard/Dashboard';
@@ -8,6 +8,7 @@ import StudentHome from '@/pages/Student/StudentHome';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import { applyDir, useI18n } from '@/lib/i18n';
 
 /**
  * App shell — routes for the EliteKids SPA.
@@ -49,6 +50,12 @@ function LazyRoute({ element }: { element: React.ReactNode }) {
 }
 
 export default function App() {
+  const dir = useI18n((s) => s.dir);
+
+  useEffect(() => {
+    applyDir();
+  }, [dir]);
+
   return (
     <>
     <OfflineIndicator />
