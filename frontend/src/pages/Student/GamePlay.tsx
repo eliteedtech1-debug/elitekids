@@ -4179,6 +4179,18 @@ export default function GamePlay() {
         </div>
       )}
 
+      {/* Sticker button — floating emoji celebration overlay */}
+      {mode !== 'learning' && (
+        <StickerButton
+          onSelect={(emoji) => {
+            // Send sticker as celebration — could integrate with chat/feedback in future
+            if (soundOn) playCelebration();
+          }}
+          position="bottom-right"
+          size="md"
+        />
+      )}
+
       {/* Game area */}
       <div className="flex flex-1 items-center justify-center px-4 py-6">
         <div className="w-full max-w-lg">
