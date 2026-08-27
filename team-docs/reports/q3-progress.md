@@ -1,0 +1,9 @@
+# Q3 PROGRESS (fb-review advisory — asset baseline sweep, READ-ONLY)
+
+- 2026-08-23T06:30Z START. Scope: enumerate every image/media ref across kids-web frontend + content DB; HTTP-check each against local server (:8484); write reports/b2-asset-baseline.md; modify nothing.
+- 2026-08-23T06:35Z ENUMERATION DONE. Static frontend refs catalogued (logo.svg, Twemoji maps in icons.ts/MediaLibrary/EmojiPicker, avatar_url/badge_url dynamic, example.com GameCreator seeds). DB (elite_content): scanned config_json (142), units.content_items (13), companion customization (3), garden (4), curriculum (15) + wildcard over all 28 kids_% tables.
+- 2026-08-23T06:40Z HTTP-CHECK DONE. 16 total refs / 4 unique URLs. BROKEN=4: 3x example.com placeholders (published tap-recognition config 5a31483e), 1x wikimedia Cat image 400 (shared by 5 published puzzle-split configs: 17f1a4f6, 66771248, da76430a, f43da108, fbf6391e). Content is emoji-first -> DB URL surface tiny.
+- 2026-08-23T06:50Z FINDINGS: local QA upload backend/uploads/opensource/qa/b2test-cat-*.png 404s via /media/:key (serve regex only accepts bare UUID keys, not nested opensource/<cat>/<file> -> AssetLibrary listing URLs unreachable in local mode; not blocking, no content references it). Twemoji CDN spot-check 200 (icons healthy). VITE_API_URL empty in frontend/.env (same-origin resolution; kids-web :5173 vs backend :8484 different origins, no dev proxy noted).
+- 2026-08-23T06:50Z REPORT WRITTEN -> team-docs/reports/b2-asset-baseline.md (+ cache q3-asset-cache.json, rerunnable q3-asset-sweep.js, all read-only SELECTs).
+
+STATUS: Q3 COMPLETE. Nothing modified (all SELECT + GET checks only). Next-queued advisory candidate for master: Q6 ECCE offline-progress design doc (fb-review read-only role) — awaiting master dispatch per C7; not self-assigned.

@@ -411,6 +411,11 @@ export default function StudentHome() {
           </div>
         </div>
 
+        {/* Boss Battle Overlay (self-contained — fetches raid data, renders if active) */}
+        <div className="mb-5">
+          <BossBattleOverlay onDismiss={() => setShowBossRaid(false)} />
+        </div>
+
         {/* Offline Indicator */}
         <OfflineIndicator />
 

@@ -11,7 +11,7 @@ set -euo pipefail
 VPS_HOST="${VPS_HOST:-62.72.0.209}"
 VPS_USER="${VPS_USER:-dev}"
 VPS_KEY="${VPS_KEY:-$HOME/.ssh/hostinger_bits}"
-REMOTE_DIR="/var/www/html/elite-kids"
+REMOTE_DIR="/var/www/html/elite/elite-kids"
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 DRY_RUN=0
@@ -69,11 +69,11 @@ if [ "$DEPLOY_BACKEND" = "1" ]; then
   fi
 fi
 
-# 4. Restart PM2
+# 4. Restart services (systemctl --user)
 if [ "$DRY_RUN" = "0" ]; then
-  step "Restarting PM2..."
-  [ "$DEPLOY_BACKEND" = "1" ] && $SSH_CMD "$VPS_USER@$VPS_HOST" "pm2 restart elite-kids 2>&1 | tail -3"
-  $SSH_CMD "$VPS_USER@$VPS_HOST" "pm2 restart elite-kids-web 2>&1 | tail -3"
+  step "Restarting services..."
+  [ "$DEPLOY_BACKEND" = "1" ] && $SSH_CMD "$VPS_USER@$VPS_HOST" "systemctl --user restart elite-kids-api 2>&1 | tail -3"
+  $SSH_CMD "$VPS_USER@$VPS_HOST" "systemctl --user restart kids-web 2>&1 | tail -3"
 fi
 
 # 5. Verify

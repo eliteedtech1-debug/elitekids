@@ -16,4 +16,17 @@ logs/
 01-PLANNING/04-AI-AGENT-ORCHESTRATION-GUIDE.md
 PROJECT_STATE.md
 09-DECISIONS-LOG.local.md
-team-docs/
+# team-docs internal ops - track reports & briefs, exclude tmp/logs/screenshots
+team-docs/tmp/
+team-docs/screenshots/
+team-docs/tools/
+team-docs/templates/
+*.log
+*.png
+*.json
+agent-status.log
+sysdtem-web.log
+watchdog.log
+burst1.log
+ci-last-run.txt
+q5-ci-gate-history.txt

@@ -1,0 +1,6 @@
+# Q7 PRECHECK — fb-review progress
+[2026-08-23] Q7 precheck sweep started (advisory, read-only).
+[2026-08-23] A) b1-regression.test.js read in full (25 tests, 4 sections); brief invariants all mapped; helper + test-db fixtures + CI script + ci-last-run verified. Gaps: G1 subset-only invariant scan, G2 memory-pairs unmapped + fill-in-blank shape-strict, G3 vacuous class-wide-lock assertion, G4 no enforcement-side test, G5 shared-DB mutation, G6 red full gate.
+[2026-08-23] B) git diff HEAD~3 -- frontend read in full (609 lines). 12/12 fixed twemoji codepoints HTTP-200 verified via CDN curls; (c)/(r) unpadded ae/a9 confirmed real PNGs (padded 00ae/00a9 = 404 → drop was a fix, not regression). Caveats: repaired surface tree-shaken/dead in bundle, empty VITE_API_URL dev-boot risk (no vite proxy), StrictMode updater side-effect nit.
+[2026-08-23] C) c-full-suite-run{1..4}.log verified: 41F/248P → 40F/250P → 10F/280P → 4F/286P/290T, matches c-progress.md; b1 25/25 PASS in-suite (run4); ledger C-DEBT-01..04 consistent. Caveats: baseline is B1-recorded (not re-run), residual 4 newly-reachable (not subset of original 40), 3 suites still red.
+[2026-08-23] DONE: team-docs/reports/q7-precheck-verdict.md written — A: PASS w/ gaps, B: PASS w/ caveats, C: PASS (substantiated). Zero code modified. PRECHECK COMPLETE.

@@ -320,6 +320,47 @@ export async function speakFeedback(isCorrect: boolean): Promise<void> {
   }
 }
 
+// ── Phonics sound map ────────────────────────────────────────
+// TTS engines read single letters by their alphabet name ("ess", "aitch").
+// Jolly Phonics teaches the SOUND, not the name. This map converts
+// phonics graphemes to a TTS-friendly spoken representation.
+// Usage: toPhonicsSound("sh") → "shh"  |  toPhonicsSound("s") → "sss"
+export const PHONICS_SOUND_MAP: Record<string, string> = {
+  // Group 1
+  s: 'sss', a: 'aah', t: 'tuh', i: 'ih', p: 'puh', n: 'nnn',
+  // Group 2
+  c: 'cuh', k: 'kuh', e: 'eh', h: 'huh', r: 'rrr', m: 'mmm', d: 'duh',
+  // Group 3
+  g: 'guh', o: 'oh', u: 'uh', l: 'lll', f: 'fff', b: 'buh',
+  // Group 4
+  ai: 'ay', j: 'juh', oa: 'oh', ie: 'eye', ee: 'ee', or: 'or',
+  // Group 5
+  z: 'zzz', w: 'wuh', ng: 'nng', v: 'vvv', oo: 'ooh',
+  // Group 6
+  y: 'yuh', x: 'ks', ch: 'chuh', sh: 'shh', th: 'thh',
+  // Group 7
+  qu: 'kwuh', ou: 'ow', oi: 'oy', ue: 'yoo', er: 'ur', ar: 'ar',
+};
+
+/**
+ * Convert a Jolly Phonics grapheme to its TTS-spoken sound.
+ * Falls back to the original grapheme if no mapping exists.
+ */
+export function toPhonicsSound(grapheme: string): string {
+  const key = (grapheme || '').trim().toLowerCase();
+  return PHONICS_SOUND_MAP[key] ?? grapheme;
+}
+
+/**
+ * Speak a phonics sound correctly — not the alphabet letter name.
+ * "s" → speaks "sss", "ch" → speaks "chuh", "sh" → speaks "shh"
+ */
+export async function speakPhonicsSound(grapheme: string): Promise<void> {
+  const sound = toPhonicsSound(grapheme);
+  playDance();
+  await speak(sound, undefined, 0.72); // slightly slower for phonics clarity
+}
+
 // ── Init: preload voices (Chrome loads them async) ────────────
 
 if (typeof window !== 'undefined' && window.speechSynthesis) {

@@ -123,7 +123,7 @@
   "login.welcomeTo": "Welcome to {school}",
   "login.accessRestricted": "Access Restricted",
   "login.modeTeacher": "Teacher / Parent",
-  "login.modeStudent": "Student (Tablet)",
+  "login.modeStudent": "Student",
   "login.schoolShortName": "School Short Name (e.g. DKG)",
   "login.admissionNo": "Admission number",
   "login.emailOrPhone": "Email or phone number",

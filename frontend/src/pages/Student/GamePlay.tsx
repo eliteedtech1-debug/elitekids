@@ -28,6 +28,7 @@ import { useA11yStore } from '@/lib/utils/a11y-store';
 import SpeechSettings from '@/components/SpeechSettings';
 import SpeechInput from '@/components/SpeechInput';
 import CachedImg from '@/components/CachedImg';
+import StickerButton from '@/components/StickerButton';
 import { getFeedbackClasses, getTimerColor, FOCUS_RING_GAME, motionClass } from '@/lib/utils/accessibility';
 import {
   speak,
@@ -44,6 +45,8 @@ import {
   speakAnimal,
   speakShape,
   speakColor,
+  speakPhonicsSound,
+  toPhonicsSound,
   playStreak,
   playHint,
   playCelebration,
@@ -141,6 +144,7 @@ interface GameConfig {
   context?: string;  // Contextual description/riddle
   audio?: string;    // URL to prompt audio
   // Scenario-based quiz fields
+  category?: string;  // e.g. "Letters", "Numbers", "Animals" — used for phonics TTS routing
   characters?: { name: string; image?: string; emoji?: string; personality?: string }[];
   // Puzzle
   originalImageUrl?: string;
@@ -170,7 +174,7 @@ interface SceneWrapper {
 
 type GameMode = 'practice' | 'test' | 'learning';
 type Phase = 'intro' | 'play' | 'waiting-submit' | 'result' | 'learning-done' | 'retry-practice';
-type AnswerResult = { correct: boolean; expected: string; given: string; question_id?: string; lesson_id?: string; is_review?: boolean };
+type AnswerResult = { correct: boolean; expected: string; given: string; question_id?: string; lesson_id?: string; is_review?: boolean; response_time_ms?: number };
 
 /* ── Helpers ────────────────────────────────────────────────── */
 
@@ -188,9 +192,18 @@ function isHex(s?: string): boolean {
 }
 
 /** Get the best text to speak for an item.
- * Priority: label > color > emoji name. */
-function speakLabel(label?: string, color?: string, emoji?: string): string {
-  if (label) return label.trim();
+ * Priority: label > color > emoji name.
+ * For phonics graphemes (1-2 letters, Letters category), returns the sound not the name. */
+function speakLabel(label?: string, color?: string, emoji?: string, category?: string): string {
+  if (label) {
+    // If this looks like a phonics grapheme (1-2 alpha chars) and we're in a Letters game,
+    // convert to the phonics sound so TTS says "sss" not "ess"
+    const trimmed = label.trim();
+    if (category === 'Letters' && /^[a-z]{1,2}$/i.test(trimmed)) {
+      return toPhonicsSound(trimmed.toLowerCase());
+    }
+    return trimmed;
+  }
   if (color && !color.startsWith('#')) return color.trim();
   if (emoji) return emoji.trim();
   return '';
@@ -625,7 +638,7 @@ function TapGame({
     if (mode !== 'learning' || feedback) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      if (soundOn && current) await speakOrPlay(current.audio, speakLabel(current.label, current.color, current.emoji));
+      if (soundOn && current) await speakOrPlay(current.audio, speakLabel(current.label, current.color, current.emoji, config.category));
       if (cancelled) return;
       if (soundOn) playCorrect();
       setFeedback('correct');
@@ -1057,7 +1070,7 @@ function DragSortGame({
     if (mode !== 'learning' || feedback || !expectedNext) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      if (soundOn) await speakOrPlay(expectedNext.audio, speakLabel(expectedNext.label, undefined, expectedNext.emoji));
+      if (soundOn) await speakOrPlay(expectedNext.audio, speakLabel(expectedNext.label, undefined, expectedNext.emoji, config.category));
       if (cancelled) return;
       if (soundOn) playPlace();
       setFeedback('correct');
@@ -1914,7 +1927,7 @@ function QuizGame({
       setCharacterReaction('celebrate');
       setSelectedIdx(correctIdx);
       onAnswer?.({ correct: true, expected: options[correctIdx]?.label || '', given: options[correctIdx]?.label || '' });
-      const answerName = speakLabel(options[correctIdx]?.label, undefined, options[correctIdx]?.emoji);
+      const answerName = speakLabel(options[correctIdx]?.label, undefined, options[correctIdx]?.emoji, config.category);
       if (soundOn) await speakOrPlay(options[correctIdx]?.audio, `The answer is ${answerName}`);
       if (cancelled) return;
       setTimeout(() => advance(scoreRef.current), 600);

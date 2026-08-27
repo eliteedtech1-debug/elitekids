@@ -1,0 +1,4 @@
+[2026-08-23T08:53Z] Q5: c-progress FINAL entries read; baseline-4 anchored to C-DEBT-01..04 (garden x2, kids-routes LESSON-1, series-units lock-status); .env has DB_USERNAME/DB_PASSWORD only -> wrapper greps those into TEST_DB_USER/PASSWORD with TEST_DB_* override support.
+[2026-08-23T08:55Z] Q5: scripts/run-tests.sh + scripts/ci-gate.sh written (+x); gate compares fail-set vs BASELINE-4 (file basename + case-insensitive title substring), exit 0/1/2, artifacts to reports/q5-ci-run-*.{log,json} + q5-ci-gate-history.txt.
+[2026-08-23T08:55Z] Q5: self-tests GREEN (baseline-only=0, new-fail=1, crash-suite=1, unparseable=2, zero-tests=2); run-tests.sh --listTests exit=0 (21 files). Launching live full-suite gate run in background.
+[2026-08-23T08:58Z] Q5: live full-suite gate RUNNING (started 08:55Z, pid-tree alive, log=reports/q5-ci-run-20260823T085554Z.log). Polling until verdict.

@@ -1,0 +1,7 @@
+# Q6 PROGRESS (fb-review advisory — ECCE offline-progress design, READ-ONLY)
+
+- 2026-08-23T07:00Z START. Master dispatch: write team-docs/reports/ecce-offline-design.md (design only, no code).
+- 2026-08-23T07:10Z GATHERED. Verified: submitProgress bug (GamePlay.tsx ~2601 `.catch(()=>{})`, no idempotency_key/game_config_id sent); backend recordGameComplete (kids.js:754) dedupes only when key present; uq_kids_progress_dedupe unique index (MySQL NULL distinct -> NULL-key retries double-count); existing offline infra (offlineDB stores syncQueue/sessionState/gameConfigs/lessons, offlineSync enqueue/drainNow MAX=100/3 retries/drops 4xx, offlineApi.post queueIfOffline, OfflineBanner); NO /kids/sync/batch endpoint exists.
+- 2026-08-23T07:25Z WROTE deliverable -> team-docs/reports/ecce-offline-design.md: local queue/sync model, conflict rules vs kids_progress idempotent POSTs (insert-only + unique key, no LWW, never NULL key), storage budget for low-end devices (<=200 items ~<=128KB, storage.estimate() guard, TTL/LRU, quota ring fallback), rollout flags (VITE_OFFLINE_PROGRESS default on, ENABLE_OFFLINE_SYNC server, drain cadence, banner), migration/safety checklist, files-to-change reference, open questions.
+
+STATUS: Q6 COMPLETE. Nothing modified (design doc only). Next-queued for fb-review read-only advisor: none remaining in QUEUE (Q7 is phaseD worker role). Per ZERO-IDLE protocol appending: IDLE:no-next-advisory-queue-row; awaiting master dispatch.
