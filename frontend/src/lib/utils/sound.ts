@@ -3,9 +3,9 @@
  * All functions are safe to call in SSR (no-op on server).
  */
 
-// #3 i18n: TTS follows the app locale (default en-NG for Nigeria) instead of
-// a hardcoded en-US tag. Safe to import directly — i18n has no dep on sound.
-import { getTtsLocale } from '@/lib/i18n';
+// TTS always speaks English — only UI text labels follow i18n locale.
+// Voice resolution uses profile-based selection from speech-store.
+import { resolveVoice, type VoiceProfile } from './speech-store';
 
 let audioCtx: AudioContext | null = null;
 
@@ -184,12 +184,17 @@ export function stripEmojiForSpeech(text: string): string {
 // (Chrome/Android) cancels the NEW utterance too, which made questions go silent.
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 
-export function speak(text: string, lang?: string, overrideRate?: number): Promise<void> {
+export function speak(text: string, _lang?: string, overrideRate?: number): Promise<void> {
   return new Promise((resolve) => {
     if (!text || typeof window === 'undefined' || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
       resolve();
       return;
     }
+
+    // Chrome auto-suspends speechSynthesis after ~15s inactivity or automatically.
+    // Always resume before speaking to prevent silent failures.
+    try { window.speechSynthesis.resume(); } catch { /* ignore */ }
+
     // Cancel only ongoing speech (never a just-started one)
     if (activeUtterance) {
       try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
@@ -199,6 +204,7 @@ export function speak(text: string, lang?: string, overrideRate?: number): Promi
     let rate = 0.85;
     let pitch = 1.1;
     let voiceName = '';
+    let voiceProfile: import('./speech-store').VoiceProfile = 'woman';
     try {
       const raw = localStorage.getItem('elitekids-speech');
       if (raw) {
@@ -207,6 +213,7 @@ export function speak(text: string, lang?: string, overrideRate?: number): Promi
         rate = s.rate ?? 0.85;
         pitch = s.pitch ?? 1.1;
         voiceName = s.voiceName ?? '';
+        voiceProfile = s.voiceProfile ?? 'woman';
       }
     } catch { /* use defaults */ }
     if (overrideRate !== undefined) rate = overrideRate;
@@ -215,32 +222,24 @@ export function speak(text: string, lang?: string, overrideRate?: number): Promi
     const spokenText = stripEmojiForSpeech(text);
     if (!spokenText) { resolve(); return; }
     const utterance = new SpeechSynthesisUtterance(spokenText);
-    utterance.lang = lang || getTtsLocale();
+    // TTS always speaks English — only UI text labels follow i18n locale.
+    utterance.lang = 'en';
     utterance.rate = rate;
     utterance.volume = 1;
     utterance.pitch = pitch;
 
-    // Resolve voice: stored preference → auto-pick
-    const voices = window.speechSynthesis.getVoices();
-    let preferred: SpeechSynthesisVoice | null = null;
-    if (voiceName) {
-      preferred = voices.find((v) => v.name === voiceName) || null;
-    }
-    if (!preferred) {
-      const femaleNames = ['Samantha', 'Karen', 'Victoria', 'Fiona', 'Moira', 'Tessa', 'Alice', 'Anna', 'Helena', 'Zira', 'Hazel', 'Google UK English Female', 'Google US English', 'Microsoft Zira', 'Microsoft Hazel'];
-      preferred =
-        voices.find((v) => v.lang.startsWith('en') && femaleNames.some((n) => v.name.includes(n)))
-        || voices.find((v) => v.lang.startsWith('en') && /female|woman|girl/i.test(v.name))
-        || voices.find((v) => v.lang.startsWith('en'))
-        || voices[0]
-        || null;
-    }
+    // Resolve voice: stored preference → profile-based auto-pick
+    const preferred = resolveVoice(voiceName, voiceProfile);
     if (preferred) {
       utterance.voice = preferred;
-      utterance.lang = preferred.lang;
+      utterance.lang = 'en';
     }
 
+    // Chrome: ensure speech engine stays active during playback.
+    // Some engines suspend mid-utterance; periodic resume prevents cut-offs.
+    let keepAlive: ReturnType<typeof setInterval> | null = null;
     const finish = () => {
+      if (keepAlive) { clearInterval(keepAlive); keepAlive = null; }
       activeUtterance = null;
       resolve();
     };
@@ -249,7 +248,11 @@ export function speak(text: string, lang?: string, overrideRate?: number): Promi
     activeUtterance = utterance;
     try {
       window.speechSynthesis.speak(utterance);
+      keepAlive = setInterval(() => {
+        try { window.speechSynthesis.resume(); } catch { /* ignore */ }
+      }, 3000);
     } catch {
+      if (keepAlive) clearInterval(keepAlive);
       activeUtterance = null;
       resolve();
       return;
@@ -361,11 +364,21 @@ export async function speakPhonicsSound(grapheme: string): Promise<void> {
   await speak(sound, undefined, 0.72); // slightly slower for phonics clarity
 }
 
-// ── Init: preload voices (Chrome loads them async) ────────────
+// ── Init: preload voices + keep-alive (Chrome loads them async) ─────
 
 if (typeof window !== 'undefined' && window.speechSynthesis) {
   window.speechSynthesis.getVoices();
   window.speechSynthesis.onvoiceschanged = () => {
     window.speechSynthesis.getVoices();
   };
+  // Chrome auto-suspends speechSynthesis after ~15s of inactivity.
+  // Periodic resume between calls keeps the engine warm so the next
+  // speak() succeeds even without a fresh user gesture.
+  setInterval(() => {
+    try {
+      if (window.speechSynthesis && !window.speechSynthesis.speaking) {
+        window.speechSynthesis.resume();
+      }
+    } catch { /* ignore */ }
+  }, 10000);
 }

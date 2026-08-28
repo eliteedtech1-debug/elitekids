@@ -380,6 +380,7 @@ export const en: Record<string, string> = {
   'game.modeDesc.learn': 'Watch & learn',
   'game.modeDesc.practice': 'Instant feedback',
   'game.modeDesc.test': 'No hints',
+  'game.playAnswer': 'Play Answer',
   'game.classLabel': 'class',
   'game.lockedClass': 'Locked for CLASS to {mode}. Click to unlock all.',
   'game.lockedStudent': 'Locked to {mode}. Click to unlock.',
@@ -849,6 +850,7 @@ export const en: Record<string, string> = {
   // ── Student: Speech Settings ────────────────────────────────────────────
   'speech.settings': 'Voice settings',
   'speech.title': '🔊 Voice Settings',
+  'speech.voiceProfile': 'Voice',
   'speech.close': 'Close',
   'speech.speed': 'Speed',
   'speech.speedVerySlow': '🐢 Very slow',

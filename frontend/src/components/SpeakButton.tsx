@@ -10,6 +10,8 @@ interface SpeakButtonProps {
   /** Override the accessible label (defaults to "Listen"). */
   label?: string;
   size?: 'sm' | 'md';
+  /** @deprecated lang is ignored — TTS always speaks English. Only UI labels follow i18n. */
+  lang?: string;
 }
 
 
@@ -20,6 +22,8 @@ interface SpeakButtonProps {
  * a user gesture (especially Android Chrome / iOS Safari), so questions can go
  * silent. A tap IS a user gesture — this button is the dependable fallback:
  * the child taps the speaker to hear the question read aloud.
+ *
+ * TTS always speaks English. Only the on-screen text labels follow i18n.
  */
 export default function SpeakButton({ text, className = '', label, size = 'md' }: SpeakButtonProps) {
   const [speaking, setSpeaking] = useState(false);

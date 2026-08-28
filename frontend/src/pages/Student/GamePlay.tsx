@@ -226,7 +226,7 @@ function speakOrPlay(audioUrl?: string, fallbackText?: string): Promise<void> {
       const audio = new Audio(audioUrl);
       audio.onended = () => resolve();
       audio.onerror = () => {
-        // Audio failed — fall back to TTS
+        // Audio failed — fall back to TTS in English (game content is English)
         if (fallbackText) speak(fallbackText).then(resolve);
         else resolve();
       };
@@ -285,14 +285,15 @@ function MatchingGame({
   const characters = config.characters || [];
   const currentCharacter = characters.length > 0 ? characters[0] : null;
 
-  // Read scenario/prompt aloud in test + practice mode
+  // Read scenario/prompt aloud in test + practice mode.
+  // Short delay (100ms) to let UI settle while staying within browser gesture window.
   useEffect(() => {
     if (!soundOn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
-    }, 400);
+    }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -506,7 +507,8 @@ function MatchingGame({
         <div className="animate-game-slide-up">
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 max-w-md mx-auto">
             <span className="text-xl mt-0.5">💡</span>
-            <p className="text-sm font-medium text-amber-800">{config.hint}</p>
+            <p className="text-sm font-medium text-amber-800 flex-1">{config.hint}</p>
+            <SpeakButton text={config.hint} size="sm" className="ml-1" />
           </div>
         </div>
       )}
@@ -586,7 +588,7 @@ function TapGame({
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || config.prompt || config.context || '';
       if (text && !cancelled) await speak(stripEmoji(text));
-    }, 400);
+    }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -638,29 +640,29 @@ function TapGame({
     }
   };
 
-  // Learning mode auto-play
-  useEffect(() => {
-    if (mode !== 'learning' || feedback) return;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      if (soundOn && current) await speakOrPlay(current.audio, speakLabel(current.label, current.color, current.emoji, config.category));
-      if (cancelled) return;
-      if (soundOn) playCorrect();
-      setFeedback('correct');
-      setPopId(currentIdx);
-      onAnswer?.({ correct: true, expected: current?.color || current?.label || '', given: current?.color || current?.label || '' });
-      setTimeout(() => {
-        setFeedback(null);
-        setPopId(null);
-        if (currentIdx + 1 >= items.length) {
-          onComplete(0);
-        } else {
-          setCurrentIdx((i) => i + 1);
-        }
-      }, 1200);
-    }, 600);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, feedback, currentIdx, items, soundOn, onComplete, current, onAnswer]);
+  // Learning mode: scenario auto-speaks via effect above.
+  // Answer does NOT auto-play — child taps "Play Answer" to hear it.
+  const [learningAnswerPlayed, setLearningAnswerPlayed] = useState(false);
+  useEffect(() => { setLearningAnswerPlayed(false); }, [currentIdx]);
+
+  const playLearningAnswer = useCallback(async () => {
+    if (!current || learningAnswerPlayed) return;
+    setLearningAnswerPlayed(true);
+    if (soundOn) await speakOrPlay(current.audio, speakLabel(current.label, current.color, current.emoji, config.category));
+    if (soundOn) playCorrect();
+    setFeedback('correct');
+    setPopId(currentIdx);
+    onAnswer?.({ correct: true, expected: current?.color || current?.label || '', given: current?.color || current?.label || '' });
+    setTimeout(() => {
+      setFeedback(null);
+      setPopId(null);
+      if (currentIdx + 1 >= items.length) {
+        onComplete(0);
+      } else {
+        setCurrentIdx((i) => i + 1);
+      }
+    }, 1200);
+  }, [current, currentIdx, items.length, soundOn, onComplete, onAnswer, learningAnswerPlayed]);
 
   if (!current) return null;
 
@@ -854,7 +856,8 @@ function TapGame({
         <div className="animate-game-slide-up">
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 max-w-md mx-auto">
             <span className="text-xl mt-0.5">💡</span>
-            <p className="text-sm font-medium text-amber-800">{config.hint}</p>
+            <p className="text-sm font-medium text-amber-800 flex-1">{config.hint}</p>
+            <SpeakButton text={config.hint} size="sm" className="ml-1" />
           </div>
         </div>
       )}
@@ -888,6 +891,18 @@ function TapGame({
           />
         ))}
       </div>
+
+      {/* Play Answer button — learning mode only */}
+      {isLearning && !learningAnswerPlayed && !feedback && (
+        <div className="flex justify-center">
+          <button
+            onClick={playLearningAnswer}
+            className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
+          >
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+          </button>
+        </div>
+      )}
 
       {/* Voice input */}
       {config.inputMode !== 'tap' && current && (
@@ -959,7 +974,7 @@ function DragSortGame({
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
-    }, 400);
+    }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1070,26 +1085,26 @@ function DragSortGame({
     touchItemRef.current = null;
   };
 
-  // Learning mode auto-play
-  useEffect(() => {
-    if (mode !== 'learning' || feedback || !expectedNext) return;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      if (soundOn) await speakOrPlay(expectedNext.audio, speakLabel(expectedNext.label, undefined, expectedNext.emoji, config.category));
-      if (cancelled) return;
-      if (soundOn) playPlace();
-      setFeedback('correct');
-      onAnswer?.({ correct: true, expected: `${expectedNext.num}. ${expectedNext.label}`, given: `${expectedNext.num}. ${expectedNext.label}` });
-      setTimeout(() => {
-        const newPlaced = [...placed, expectedNext];
-        setPlaced(newPlaced);
-        setRemaining((r) => r.filter((x) => x.num !== expectedNext.num));
-        setFeedback(null);
-        if (newPlaced.length >= items.length) onComplete(0);
-      }, 500);
-    }, 600);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, feedback, expectedNext, placed, items, soundOn, onComplete, onAnswer]);
+  // Learning mode: scenario auto-speaks via effect above.
+  // Answer does NOT auto-play — child taps "Play Answer" to hear it.
+  const [learningAnswerPlayed, setLearningAnswerPlayed] = useState(false);
+  useEffect(() => { setLearningAnswerPlayed(false); }, [expectedNext?.num]);
+
+  const playLearningAnswer = useCallback(async () => {
+    if (!expectedNext || learningAnswerPlayed) return;
+    setLearningAnswerPlayed(true);
+    if (soundOn) await speakOrPlay(expectedNext.audio, speakLabel(expectedNext.label, undefined, expectedNext.emoji, config.category));
+    if (soundOn) playPlace();
+    setFeedback('correct');
+    onAnswer?.({ correct: true, expected: `${expectedNext.num}. ${expectedNext.label}`, given: `${expectedNext.num}. ${expectedNext.label}` });
+    setTimeout(() => {
+      const newPlaced = [...placed, expectedNext];
+      setPlaced(newPlaced);
+      setRemaining((r) => r.filter((x) => x.num !== expectedNext.num));
+      setFeedback(null);
+      if (newPlaced.length >= items.length) onComplete(0);
+    }, 500);
+  }, [expectedNext, soundOn, onAnswer, placed, items.length, onComplete, learningAnswerPlayed]);
 
   return (
     <div className="space-y-4 relative select-none">
@@ -1215,14 +1230,28 @@ function DragSortGame({
         </div>
       )}
 
+      {/* Play Answer button — learning mode only */}
+      {isLearning && !learningAnswerPlayed && !feedback && expectedNext && (
+        <div className="flex justify-center">
+          <button
+            onClick={playLearningAnswer}
+            className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
+          >
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+          </button>
+        </div>
+      )}
+
       {/* Hint */}
       {showHint && config.hint && (
         <div className="animate-game-slide-up">
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 max-w-md mx-auto">
-            <span className="text-xl mt-0.5">💡</span>
-            <p className="text-sm font-medium text-amber-800">{config.hint}</p>
+            <span className="text-xl mt-0.5">💡</span>            <p className="text-sm font-medium text-amber-800 flex-1">{config.hint}</p>
+            <SpeakButton text={config.hint} size="sm" className="ml-1" />
           </div>
         </div>
+
+
       )}
 
       {/* Feedback message */}
@@ -1341,7 +1370,7 @@ function FillBlankGame({
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || sentence;
       if (text && !cancelled) await speak(stripEmoji(text));
-    }, 400);
+    }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode, sIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1497,21 +1526,20 @@ function FillBlankGame({
     touchWordRef.current = null;
   };
 
-  // Learning mode auto-play
-  useEffect(() => {
-    if (mode !== 'learning' || feedback || completed) return;
-    let cancelled = false;
-    const unfilledBlanks = blanks.filter((b) => !filledSlots[b.id]);
-    if (unfilledBlanks.length === 0) return;
-    const nextBlank = unfilledBlanks[0];
-    const timer = setTimeout(async () => {
-      if (soundOn) await speak(nextBlank.answer);
-      if (cancelled) return;
-      if (soundOn) playPlace();
-      setFilledSlots((prev) => ({ ...prev, [nextBlank.id]: nextBlank.answer }));
-    }, 800);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, feedback, completed, blanks, filledSlots, soundOn]);
+  // Learning mode: scenario auto-speaks via effect above.
+  // Answer does NOT auto-play — child taps "Play Answer" to hear it.
+  const unfilledBlanks = useMemo(() => blanks.filter((b) => !filledSlots[b.id]), [blanks, filledSlots]);
+  const nextBlank = unfilledBlanks[0] || null;
+  const [learningAnswerPlayed, setLearningAnswerPlayed] = useState(false);
+  useEffect(() => { setLearningAnswerPlayed(false); }, [nextBlank?.id]);
+
+  const playLearningAnswer = useCallback(async () => {
+    if (!nextBlank || learningAnswerPlayed) return;
+    setLearningAnswerPlayed(true);
+    if (soundOn) await speak(nextBlank.answer);
+    if (soundOn) playPlace();
+    setFilledSlots((prev) => ({ ...prev, [nextBlank.id]: nextBlank.answer }));
+  }, [nextBlank, soundOn, learningAnswerPlayed]);
 
   if (sentences.length === 0 || !currentS) {
     return <p className="text-center text-gray-500">{t('game.noDataFillBlank')}</p>;
@@ -1694,6 +1722,18 @@ function FillBlankGame({
         </div>
       </div>
 
+      {/* Play Answer button — learning mode only */}
+      {isLearning && !learningAnswerPlayed && !feedback && !completed && nextBlank && (
+        <div className="flex justify-center">
+          <button
+            onClick={playLearningAnswer}
+            className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
+          >
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+          </button>
+        </div>
+      )}
+
       {/* Voice input */}
       {config.inputMode !== 'tap' && !allFilled && (
         <div className="flex justify-center">
@@ -1719,7 +1759,8 @@ function FillBlankGame({
         <div className="animate-game-slide-up">
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 max-w-md mx-auto">
             <span className="text-xl mt-0.5">💡</span>
-            <p className="text-sm font-medium text-amber-800">{config.hint}</p>
+            <p className="text-sm font-medium text-amber-800 flex-1">{config.hint}</p>
+            <SpeakButton text={config.hint} size="sm" className="ml-1" />
           </div>
         </div>
       )}
@@ -1911,34 +1952,35 @@ function QuizGame({
       if (textToSpeak && !cancelled) {
         await speak(stripEmoji(textToSpeak));
       }
-    }, 400);
+    }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode, qIdx, questions.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Learning mode auto-play — speak question + answer per round ──
+  // ── Learning mode: question auto-speaks via scenario effect above ──
+  // Answer does NOT auto-play — child needs time to think.
+  // A "Play Answer" button triggers the answer reveal.
+  const [learningAnswerPlayed, setLearningAnswerPlayed] = useState(false);
+
+  // Reset answer-played flag when question changes
   useEffect(() => {
-    if (mode !== 'learning' || !currentQ) return;
+    setLearningAnswerPlayed(false);
+  }, [qIdx]);
+
+  const playLearningAnswer = useCallback(async () => {
+    if (!currentQ || learningAnswerPlayed) return;
     const correctIdx = options.findIndex((_, i) => isCorrectOption(i));
     if (correctIdx === -1) return;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      // Step 1: Read the scenario/prompt
-      const textToSpeak = currentQ.speechText || currentQ.scenario || currentQ.prompt || currentQ.question || t('game.chooseAnswer');
-      if (soundOn) await speak(stripEmoji(textToSpeak));
-      if (cancelled) return;
-      // Step 2: Highlight + speak the answer
-      if (soundOn) playCorrect();
-      setFeedback('correct');
-      setCharacterReaction('celebrate');
-      setSelectedIdx(correctIdx);
-      onAnswer?.({ correct: true, expected: options[correctIdx]?.label || '', given: options[correctIdx]?.label || '' });
-      const answerName = speakLabel(options[correctIdx]?.label, undefined, options[correctIdx]?.emoji, config.category);
-      if (soundOn) await speakOrPlay(options[correctIdx]?.audio, `The answer is ${answerName}`);
-      if (cancelled) return;
-      setTimeout(() => advance(scoreRef.current), 600);
-    }, 600);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, qIdx, questions.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    setLearningAnswerPlayed(true);
+    // Highlight + speak the answer
+    if (soundOn) playCorrect();
+    setFeedback('correct');
+    setCharacterReaction('celebrate');
+    setSelectedIdx(correctIdx);
+    onAnswer?.({ correct: true, expected: options[correctIdx]?.label || '', given: options[correctIdx]?.label || '' });
+    const answerName = speakLabel(options[correctIdx]?.label, undefined, options[correctIdx]?.emoji, config.category);
+    if (soundOn) await speakOrPlay(options[correctIdx]?.audio, `The answer is ${answerName}`);
+    setTimeout(() => advance(scoreRef.current), 600);
+  }, [currentQ, options, soundOn, isCorrectOption, onAnswer, advance, learningAnswerPlayed]);
 
   if (!currentQ) return null;
 
@@ -2146,12 +2188,25 @@ function QuizGame({
         ))}
       </div>
 
+      {/* Play Answer button — learning mode only, lets child think before hearing answer */}
+      {isLearning && !learningAnswerPlayed && !feedback && (
+        <div className="flex justify-center">
+          <button
+            onClick={playLearningAnswer}
+            className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
+          >
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+          </button>
+        </div>
+      )}
+
       {/* Hint (shown after wrong answer) */}
       {showHint && currentQ.hint && (
         <div className="animate-game-slide-up">
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2">
             <span className="text-xl mt-0.5">💡</span>
-            <p className="text-sm font-medium text-amber-800">{currentQ.hint}</p>
+            <p className="text-sm font-medium text-amber-800 flex-1">{currentQ.hint}</p>
+            <SpeakButton text={currentQ.hint} size="sm" className="ml-1" />
           </div>
         </div>
       )}
@@ -2271,7 +2326,7 @@ function MemoryPairsGame({
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
-    }, 400);
+    }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2981,23 +3036,26 @@ function PuzzleGame({
     touchPieceRef.current = null;
   };
 
-  // Learning mode auto-play
-  useEffect(() => {
-    if (mode !== 'learning' || feedback || completed) return;
-    let cancelled = false;
-    const unfilledSlots = Array.from({ length: totalPieces }, (_, i) => i).filter((i) => !placed[i]);
-    if (unfilledSlots.length === 0) return;
-    const nextSlot = unfilledSlots[0];
-    const correctPiece = pieces.find((p) => p.row === Math.floor(nextSlot / grid.cols) && p.col === nextSlot % grid.cols);
-    if (!correctPiece) return;
-    const timer = setTimeout(async () => {
-      if (soundOn) await speak(`Row ${correctPiece.row + 1}, Column ${correctPiece.col + 1}`);
-      if (cancelled) return;
-      if (soundOn) playPlace();
-      setPlaced((prev) => ({ ...prev, [nextSlot]: correctPiece.id }));
-    }, 800);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, feedback, completed, placed, pieces, grid, totalPieces, soundOn]);
+  // Learning mode: scenario auto-speaks via effect above.
+  // Answer does NOT auto-play — child taps "Play Answer" to hear it.
+  const nextPuzzleSlot = useMemo(() => {
+    const unfilled = Array.from({ length: totalPieces }, (_, i) => i).filter((i) => !placed[i]);
+    return unfilled.length > 0 ? unfilled[0] : null;
+  }, [totalPieces, placed]);
+  const nextPuzzlePiece = useMemo(() => {
+    if (nextPuzzleSlot === null) return null;
+    return pieces.find((p) => p.row === Math.floor(nextPuzzleSlot / grid.cols) && p.col === nextPuzzleSlot % grid.cols) || null;
+  }, [nextPuzzleSlot, pieces, grid]);
+  const [learningAnswerPlayed, setLearningAnswerPlayed] = useState(false);
+  useEffect(() => { setLearningAnswerPlayed(false); }, [nextPuzzleSlot]);
+
+  const playLearningAnswer = useCallback(async () => {
+    if (!nextPuzzlePiece || !nextPuzzleSlot || learningAnswerPlayed) return;
+    setLearningAnswerPlayed(true);
+    if (soundOn) await speak(`Row ${nextPuzzlePiece.row + 1}, Column ${nextPuzzlePiece.col + 1}`);
+    if (soundOn) playPlace();
+    setPlaced((prev) => ({ ...prev, [nextPuzzleSlot]: nextPuzzlePiece.id }));
+  }, [nextPuzzlePiece, nextPuzzleSlot, soundOn, learningAnswerPlayed]);
 
   // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
@@ -3006,7 +3064,7 @@ function PuzzleGame({
     const timer = setTimeout(async () => {
       const text = config.speechText || config.scenario || '';
       if (text && !cancelled) await speak(stripEmoji(text));
-    }, 400);
+    }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3258,6 +3316,17 @@ function PuzzleGame({
           <span className="text-lg font-extrabold text-green-500 drop-shadow-md">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
+      {/* Play Answer button — learning mode only */}
+      {mode === 'learning' && !learningAnswerPlayed && !feedback && !completed && nextPuzzlePiece && (
+        <div className="flex justify-center">
+          <button
+            onClick={playLearningAnswer}
+            className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
+          >
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+          </button>
+        </div>
+      )}
       {/* Feedback banner (inline, not full overlay) */}
       {feedback && (
         <div className={`animate-game-slide-up rounded-xl border px-4 py-3 text-center ${
@@ -3276,7 +3345,8 @@ function PuzzleGame({
         <div className="animate-game-slide-up">
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 max-w-md mx-auto">
             <span className="text-xl mt-0.5">💡</span>
-            <p className="text-sm text-amber-800">{config.hint}</p>
+            <p className="text-sm text-amber-800 flex-1">{config.hint}</p>
+            <SpeakButton text={config.hint} size="sm" className="ml-1" />
           </div>
         </div>
       )}
@@ -3786,9 +3856,23 @@ export default function GamePlay() {
     setTimerRunning(mode === 'test');
   };
 
-  // Advance intro
+  // Track scene advance from click handler (so useEffect knows not to double-speak)
+  const introAdvancedByClick = useRef(false);
+
+  // Advance intro — speak current scene DURING the click gesture, then advance
   const advanceIntro = async () => {
     if (soundOn) playTap();
+    // Speak the CURRENT scene text within the click gesture (gesture context is active here)
+    if (soundOn) {
+      const wrapper = scenes[sceneIdx];
+      if (wrapper?.scenes) {
+        const texts = wrapper.scenes.map((s) => s.text).join('. ');
+        introAdvancedByClick.current = true;
+        setSceneSpeaking(true);
+        await speakScene(texts);
+        setSceneSpeaking(false);
+      }
+    }
     if (sceneIdx + 1 < scenes.length) {
       setSceneIdx((i) => i + 1);
     } else {
@@ -3807,9 +3891,14 @@ export default function GamePlay() {
     setTimerRunning(mode === 'test');
   };
 
-  // Auto-speak intro scenes
+  // Auto-speak intro scenes — only on initial mount (sceneIdx=0) or scene change from useEffect.
+  // If scene was advanced by click handler, it already spoke — skip to avoid double-speak.
   useEffect(() => {
     if (phase !== 'intro' || !soundOn) return;
+    if (introAdvancedByClick.current) {
+      introAdvancedByClick.current = false; // consumed
+      return;
+    }
     const wrapper = scenes[sceneIdx];
     if (wrapper?.scenes) {
       const texts = wrapper.scenes.map((s) => s.text).join('. ');

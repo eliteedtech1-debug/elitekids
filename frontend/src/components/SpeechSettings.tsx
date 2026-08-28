@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, Play, RotateCcw } from 'lucide-react';
-import { useSpeechStore, getAvailableVoices } from '@/lib/utils/speech-store';
+import { useSpeechStore, getAvailableVoices, VOICE_PROFILES, type VoiceProfile } from '@/lib/utils/speech-store';
 import { speak } from '@/lib/utils/sound';
 import { haptic } from '@/lib/utils/haptic';
 import { t } from '@/lib/i18n';
 
 /**
- * Speech settings panel — speed slider + voice picker.
+ * Speech settings panel — voice profile + speed/pitch sliders + voice picker.
  * Renders as a Volume icon that opens a popover.
  * Used in StudentHome and GamePlay headers.
  */
@@ -14,7 +14,7 @@ export default function SpeechSettings() {
   const [open, setOpen] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { rate, voiceName, pitch, setRate, setVoice, setPitch, reset } = useSpeechStore();
+  const { rate, voiceName, pitch, voiceProfile, setRate, setVoice, setPitch, setVoiceProfile, reset } = useSpeechStore();
 
   // Load voices (Chrome loads async)
   useEffect(() => {
@@ -75,6 +75,28 @@ export default function SpeechSettings() {
             <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600" aria-label={t('speech.close')}>✕</button>
           </div>
 
+          {/* Voice profile picker */}
+          <div className="mb-4 sm:mb-5">
+            <label className="mb-2 block text-xs font-semibold text-gray-600">{t('speech.voiceProfile', 'Voice')}</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {(Object.entries(VOICE_PROFILES) as [VoiceProfile, typeof VOICE_PROFILES[VoiceProfile]][]).map(([key, meta]) => (
+                <button
+                  key={key}
+                  onClick={() => { haptic('selection'); setVoiceProfile(key); setVoice(''); }}
+                  className={`flex flex-col items-center gap-1 rounded-xl border-2 p-2.5 text-center transition-all active:scale-95 ${
+                    voiceProfile === key
+                      ? 'border-[#0F4D92] bg-[#0F4D92]/5 shadow-sm'
+                      : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-xl">{meta.emoji}</span>
+                  <span className={`text-[10px] font-bold ${voiceProfile === key ? 'text-[#0F4D92]' : 'text-gray-500'}`}>{meta.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] text-gray-400 text-center">{VOICE_PROFILES[voiceProfile].description}</p>
+          </div>
+
           {/* Speed slider */}
           <div className="mb-4 sm:mb-5">
             <div className="mb-2 flex items-center justify-between">
@@ -133,7 +155,7 @@ export default function SpeechSettings() {
                     !voiceName ? 'bg-[#0F4D92] text-white' : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >
-                  {t('speech.auto')}
+                  {t('speech.auto')} — {VOICE_PROFILES[voiceProfile].emoji} {VOICE_PROFILES[voiceProfile].label}
                 </button>
                 {voices.map((v) => (
                   <button
