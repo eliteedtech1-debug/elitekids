@@ -1,5 +1,8 @@
 # EliteKids — Nursery Learning App (elitekids.com.ng)
 
+> **🚀 Auto-Deploy**: Push to `production` remote → tests run → frontend builds → live.
+> `git push production main` is all you need. Backend: systemd (`elite-kids-api.service`).
+
 Interactive learning app for **nursery-age children** (Creche → Primary), built as a
 **stand-alone addon to EliteCore** — the same way `elite-cbt` (Computer Based Testing)
 is an addon to the main school management system (SMS).

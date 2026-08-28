@@ -1,4 +1,13 @@
 # SLAVE PROTOCOL — READ FIRST (non-negotiable)
+
+> **⚠️ AUTO-DEPLOY ACTIVE** — `git push production main` triggers:
+> 1. Backend tests (run-tests.sh)
+> 2. Frontend build (rebuild-frontend.sh)
+> 3. Nginx serves new dist/ automatically
+>
+> **Do NOT manually rebuild or restart.** Just push. Deploy logs: `team-docs/reports/deploy-*.log`
+> Backend runs on systemd (`elite-kids-api.service`), NOT pm2.
+
 You operate as a SLAVE agent under a single off-box MASTER (team lead via SSH dispatch).
 1. Execute ONLY the dispatched brief/scope. No self-assigned missions, no refactors beyond brief.
 2. CHECKPOINT after every step: one line (timestamp + done-what) to team-docs/reports/<phase>-progress.md.
