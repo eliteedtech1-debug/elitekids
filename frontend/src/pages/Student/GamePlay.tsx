@@ -901,7 +901,7 @@ function TapGame({
             onClick={playLearningAnswer}
             className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
           >
-            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer')} 🔊
           </button>
         </div>
       )}
@@ -1239,7 +1239,7 @@ function DragSortGame({
             onClick={playLearningAnswer}
             className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
           >
-            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer')} 🔊
           </button>
         </div>
       )}
@@ -1731,7 +1731,7 @@ function FillBlankGame({
             onClick={playLearningAnswer}
             className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
           >
-            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer')} 🔊
           </button>
         </div>
       )}
@@ -2197,7 +2197,7 @@ function QuizGame({
             onClick={playLearningAnswer}
             className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
           >
-            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer')} 🔊
           </button>
         </div>
       )}
@@ -3325,7 +3325,7 @@ function PuzzleGame({
             onClick={playLearningAnswer}
             className="inline-flex items-center gap-2 rounded-xl bg-purple-100 border border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition-all hover:scale-105 active:scale-95 animate-game-pop"
           >
-            <Volume2 className="h-4 w-4" /> {t('game.playAnswer', 'Play Answer')} 🔊
+            <Volume2 className="h-4 w-4" /> {t('game.playAnswer')} 🔊
           </button>
         </div>
       )}

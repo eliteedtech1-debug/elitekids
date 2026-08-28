@@ -77,7 +77,7 @@ export default function SpeechSettings() {
 
           {/* Voice profile picker */}
           <div className="mb-4 sm:mb-5">
-            <label className="mb-2 block text-xs font-semibold text-gray-600">{t('speech.voiceProfile', 'Voice')}</label>
+            <label className="mb-2 block text-xs font-semibold text-gray-600">{t('speech.voiceProfile')}</label>
             <div className="grid grid-cols-4 gap-1.5">
               {(Object.entries(VOICE_PROFILES) as [VoiceProfile, typeof VOICE_PROFILES[VoiceProfile]][]).map(([key, meta]) => (
                 <button
