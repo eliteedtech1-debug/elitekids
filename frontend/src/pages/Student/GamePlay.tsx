@@ -211,7 +211,12 @@ function speakLabel(label?: string, color?: string, emoji?: string, category?: s
 
 /** Strip emojis from text so speech only reads the label word. */
 function stripEmoji(text: string): string {
-  return text.replace(/\p{Emoji_Presentation}|\p{Emoji}\uFE0F?/gu, '').replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ');
+  return text
+    .replace(/\p{Emoji_Presentation}/gu, '')
+    .replace(/\p{Emoji}\uFE0F\u20E3/gu, '')
+    .replace(/[\uFE0F\u200B\u200C\u200D\u20E3]/gu, '')
+    .replace(/^\s+|\s+$/g, '')
+    .replace(/\s+/g, ' ');
 }
 
 /** Play a teacher-recorded audio file, or fall back to TTS speak. */
