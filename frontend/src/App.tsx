@@ -9,7 +9,7 @@ import StudentHome from '@/pages/Student/StudentHome';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineIndicator from '@/components/OfflineIndicator';
-import { applyDir, useI18n } from '@/lib/i18n';
+import { applyDir, t, useI18n } from '@/lib/i18n';
 
 /**
  * App shell — routes for the EliteKids SPA.
@@ -34,7 +34,7 @@ const AssetLibrary = lazy(() => import('@/pages/Admin/AssetLibrary'));
 function RouteFallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-white">
-      <div className="animate-pulse text-3xl" role="status" aria-label="Loading">
+      <div className="animate-pulse text-3xl" role="status" aria-label={t('app.loading')}>
         ⭐
       </div>
     </div>

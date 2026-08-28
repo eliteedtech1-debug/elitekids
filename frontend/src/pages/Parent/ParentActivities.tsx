@@ -107,9 +107,9 @@ export default function ParentActivities() {
       <header className="border-b border-[#0F4D92]/10 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Elite Kids" className="h-10 w-10 rounded-full object-contain" />
+            <img src="/logo.svg" alt={t('login.brand')} className="h-10 w-10 rounded-full object-contain" />
             <div>
-              <h1 className="text-lg font-bold leading-tight text-[#0F4D92]">Elite Kids</h1>
+              <h1 className="text-lg font-bold leading-tight text-[#0F4D92]">{t('login.brand')}</h1>
               <p className="text-xs text-gray-500">{t('parent.activitiesSubtitle')}</p>
             </div>
           </div>

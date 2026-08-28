@@ -15,6 +15,7 @@ import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import AdminNav from '@/components/AdminNav';
 import CachedImg from '@/components/CachedImg';
+import { t, tN } from '@/lib/i18n';
 
 interface Asset {
   key: string;
@@ -64,7 +65,7 @@ export default function AssetLibrary() {
       setAssets(res.data?.data?.assets || []);
       setStats(res.data?.data?.stats || null);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to load assets');
+      toast.error(err?.response?.data?.message || t('assetLibrary.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -95,28 +96,28 @@ export default function AssetLibrary() {
             <div className="rounded-xl bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-gray-500">
                 <Package className="h-4 w-4" />
-                <p className="text-xs">Total Assets</p>
+                <p className="text-xs">{t('assetLibrary.totalAssets')}</p>
               </div>
               <p className="mt-1 text-2xl font-bold text-[#0F4D92]">{stats.total}</p>
             </div>
             <div className="rounded-xl bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-gray-500">
                 <HardDrive className="h-4 w-4" />
-                <p className="text-xs">Storage Used</p>
+                <p className="text-xs">{t('assetLibrary.storageUsed')}</p>
               </div>
               <p className="mt-1 text-2xl font-bold text-purple-600">{formatBytes(stats.totalSize)}</p>
             </div>
             <div className="rounded-xl bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-gray-500">
                 <BarChart3 className="h-4 w-4" />
-                <p className="text-xs">Total Usage</p>
+                <p className="text-xs">{t('assetLibrary.totalUsage')}</p>
               </div>
               <p className="mt-1 text-2xl font-bold text-green-600">{stats.totalUsage}</p>
             </div>
             <div className="rounded-xl bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-gray-500">
                 <Image className="h-4 w-4" />
-                <p className="text-xs">Categories</p>
+                <p className="text-xs">{t('assetLibrary.categories')}</p>
               </div>
               <p className="mt-1 text-2xl font-bold text-amber-600">{categories.length}</p>
             </div>
@@ -131,7 +132,7 @@ export default function AssetLibrary() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search assets..."
+              placeholder={t('assetLibrary.searchPlaceholder')}
               className="w-full rounded-xl border border-gray-200 py-2 pl-10 pr-4 text-sm focus:border-[#0F4D92] focus:outline-none"
             />
           </div>
@@ -141,7 +142,7 @@ export default function AssetLibrary() {
             className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('assetLibrary.refresh')}
           </button>
         </div>
 
@@ -177,7 +178,7 @@ export default function AssetLibrary() {
           <div className="rounded-2xl bg-white p-12 text-center shadow-sm">
             <Image className="mx-auto mb-4 h-12 w-12 text-gray-300" />
             <p className="text-gray-500">
-              {search ? `No assets matching "${search}"` : 'No saved assets yet. Assets are saved when teachers publish games.'}
+              {search ? t('assetLibrary.noMatching', { query: search }) : t('assetLibrary.noSaved')}
             </p>
           </div>
         ) : (
@@ -206,11 +207,11 @@ export default function AssetLibrary() {
                 {asset.usageCount > 0 ? (
                   <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
                     <BarChart3 className="h-2.5 w-2.5" />
-                    Used in {asset.lessonCount} lesson{asset.lessonCount !== 1 ? 's' : ''}
+                    {tN('assetLibrary.usedIn', asset.lessonCount, { count: asset.lessonCount })}
                   </span>
                 ) : (
                   <span className="mt-1.5 inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-400">
-                    Unused
+                    {t('assetLibrary.unused')}
                   </span>
                 )}
 
@@ -221,7 +222,7 @@ export default function AssetLibrary() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-lg bg-white p-1.5 shadow-md text-gray-500 hover:text-[#0F4D92]"
-                    title="Open in new tab"
+                    title={t('assetLibrary.openInNewTab')}
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>

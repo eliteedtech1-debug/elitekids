@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import EmojiPicker from './EmojiPicker';
+import { t } from '@/lib/i18n';
 
 interface StickerButtonProps {
   onSelect: (emoji: string, label: string) => void;
@@ -41,7 +42,7 @@ export default function StickerButton({ onSelect, position = 'bottom-right', siz
       <button
         onClick={() => setOpen(true)}
         className={`fixed ${POSITIONS[position]} z-40 flex ${SIZES[size]} items-center justify-center rounded-full bg-[#0F4D92] text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl active:scale-95 animate-game-pulse`}
-        title="Open emoji picker"
+        title={t('stickerButton.openPicker')}
       >
         😊
       </button>

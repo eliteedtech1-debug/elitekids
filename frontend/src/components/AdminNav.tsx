@@ -38,8 +38,8 @@ export default function AdminNav({ pendingCount = 0 }: { pendingCount?: number }
       {/* Top row: logo + nav links + logout */}
       <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-2 sm:gap-4 sm:px-4 sm:py-2.5">
         <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-          <img src="/logo.svg" alt="Elite Kids" className="h-9 w-9 sm:h-8 sm:w-8 rounded-full object-contain" />
-          <span className="hidden sm:inline text-sm font-bold text-[#0F4D92]">Elite Kids</span>
+          <img src="/logo.svg" alt={t('login.brand')} className="h-9 w-9 sm:h-8 sm:w-8 rounded-full object-contain" />
+          <span className="hidden sm:inline text-sm font-bold text-[#0F4D92]">{t('login.brand')}</span>
         </Link>
 
         {/* Nav tabs */}
@@ -76,7 +76,7 @@ export default function AdminNav({ pendingCount = 0 }: { pendingCount?: number }
           className="inline-flex items-center gap-1 rounded-lg border border-red-200 p-2 sm:px-2.5 sm:py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 shrink-0 active:scale-95"
         >
           <LogOut className="h-5 w-5" />
-          <span className="hidden sm:inline">Sign out</span>
+          <span className="hidden sm:inline">{t('admin.signOut')}</span>
         </button>
       </div>
     </header>

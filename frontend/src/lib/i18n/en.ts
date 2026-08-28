@@ -1007,4 +1007,43 @@ export const en: Record<string, string> = {
   'arena.kids': '{count} kids',
   'arena.topPullers': 'Top pullers',
   'arena.noPulls': 'No pulls yet…',
+
+  // ── App shell ─────────────────────────────────────────────────────────
+  'app.loading': 'Loading',
+
+  // ── Admin: Nav ────────────────────────────────────────────────────────
+  'admin.signOut': 'Sign out',
+
+  // ── Media Library ─────────────────────────────────────────────────────
+  'mediaLibrary.title': 'Media Library 🎨',
+  'mediaLibrary.searchPlaceholder': 'Search animals, colors, sounds...',
+  'mediaLibrary.noResults': 'No results for "{query}"',
+  'mediaLibrary.previewSound': 'Preview sound',
+  'mediaLibrary.saving.one': 'Saving {count} asset...',
+  'mediaLibrary.saving.other': 'Saving {count} assets...',
+  'mediaLibrary.saved': '✓ {count} saved to your bucket',
+
+  // ── Asset Library ─────────────────────────────────────────────────────
+  'assetLibrary.totalAssets': 'Total Assets',
+  'assetLibrary.storageUsed': 'Storage Used',
+  'assetLibrary.totalUsage': 'Total Usage',
+  'assetLibrary.categories': 'Categories',
+  'assetLibrary.searchPlaceholder': 'Search assets...',
+  'assetLibrary.refresh': 'Refresh',
+  'assetLibrary.unused': 'Unused',
+  'assetLibrary.usedIn.one': 'Used in {count} lesson',
+  'assetLibrary.usedIn.other': 'Used in {count} lessons',
+  'assetLibrary.noMatching': 'No assets matching "{query}"',
+  'assetLibrary.noSaved': 'No saved assets yet. Assets are saved when teachers publish games.',
+  'assetLibrary.openInNewTab': 'Open in new tab',
+  'assetLibrary.loadFailed': 'Failed to load assets',
+
+  // ── Game: missing data fallbacks ───────────────────────────────────────
+  'game.noDataFillBlank': 'No fill-in-the-blank data available.',
+  'game.noDataMemoryPairs': 'No memory-pairs data available.',
+  'game.noDataPuzzle': 'No puzzle data available.',
+  'game.dragOrTapBelow': 'Drag or tap items below',
+
+  // ── Sticker Button ────────────────────────────────────────────────────
+  'stickerButton.openPicker': 'Open emoji picker',
 };

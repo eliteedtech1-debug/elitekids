@@ -1509,7 +1509,7 @@ function FillBlankGame({
   }, [mode, feedback, completed, blanks, filledSlots, soundOn]);
 
   if (sentences.length === 0 || !currentS) {
-    return <p className="text-center text-gray-500">No fill-in-the-blank data available.</p>;
+    return <p className="text-center text-gray-500">{t('game.noDataFillBlank')}</p>;
   }
 
   return (
@@ -2352,7 +2352,7 @@ function MemoryPairsGame({
   };
 
   if (totalPairs === 0) {
-    return <p className="text-center text-gray-500">No memory-pairs data available.</p>;
+    return <p className="text-center text-gray-500">{t('game.noDataMemoryPairs')}</p>;
   }
 
   return (
@@ -3064,7 +3064,7 @@ function PuzzleGame({
                 ) : isCompleted ? (
                   <p className="text-[10px] text-green-500 mt-1 font-medium">✅ Completed! Best: {difficultyLocks[key]?.best_score || 0} pts</p>
                 ) : (
-                  <p className="text-[10px] text-gray-400 mt-1">Best for: {level.minAge}+</p>
+                  <p className="text-[10px] text-gray-400 mt-1">{t('game.bestFor', { age: level.minAge })}</p>
                 )}
               </button>
             );
@@ -3081,7 +3081,7 @@ function PuzzleGame({
   }
 
   if (pieces.length === 0) {
-    return <p className="text-center text-gray-500">No puzzle data available.</p>;
+    return <p className="text-center text-gray-500">{t('game.noDataPuzzle')}</p>;
   }
 
   const diffMeta = DIFFICULTY_META[selectedDifficulty] || DIFFICULTY_META.medium;
@@ -3158,7 +3158,7 @@ function PuzzleGame({
           </button>
         )}
       </div>
-      <p className="text-center text-xs text-gray-400">Drag pieces to the grid or tap to place — {grid.rows}×{grid.cols} ({totalPieces} pieces)</p>
+      <p className="text-center text-xs text-gray-400">{t('game.puzzleInstructions', { rows: grid.rows, cols: grid.cols, count: totalPieces })}</p>
       {/* Puzzle grid (drop zone) */}
       <div
         className="inline-grid mx-auto gap-1 p-2 rounded-2xl bg-white shadow-md border border-gray-100"
