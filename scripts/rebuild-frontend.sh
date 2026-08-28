@@ -3,7 +3,7 @@
 # Called by post-receive and post-merge hooks.
 set -uo pipefail
 
-ROOT="/var/www/html/elite/elite-kids"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND="$ROOT/frontend"
 
 echo "[rebuild] cd $FRONTEND"
