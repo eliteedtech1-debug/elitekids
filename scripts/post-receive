@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# post-receive — auto-deploy on git push production.
+# Flow: test → build frontend → nginx serves.
+set -uo pipefail
+
+PROJ="/var/www/html/elite/elite-kids"
+TS="$(date -u +%Y%m%dT%H%M%SZ)"
+DEPLOY_LOG="$PROJ/team-docs/reports/deploy-$TS.log"
+mkdir -p "$PROJ/team-docs/reports"
+
+echo "=== DEPLOY $TS ===" | tee "$DEPLOY_LOG"
+cd "$PROJ" || exit 1
+
+# 1. Run backend tests
+echo "[deploy] Running tests..." | tee -a "$DEPLOY_LOG"
+if bash "$PROJ/scripts/run-tests.sh" --forceExit >> "$DEPLOY_LOG" 2>&1; then
+  echo "[deploy] Tests PASSED" | tee -a "$DEPLOY_LOG"
+else
+  EXIT=$?
+  echo "[deploy] Tests FAILED (exit=$EXIT) — SKIPPING build" | tee -a "$DEPLOY_LOG"
+  exit $EXIT
+fi
+
+# 2. Build frontend
+echo "[deploy] Building frontend..." | tee -a "$DEPLOY_LOG"
+if bash "$PROJ/scripts/rebuild-frontend.sh" >> "$DEPLOY_LOG" 2>&1; then
+  echo "[deploy] Build PASSED — nginx serves new dist/" | tee -a "$DEPLOY_LOG"
+else
+  echo "[deploy] Build FAILED" | tee -a "$DEPLOY_LOG"
+  exit 1
+fi
+
+echo "[deploy] DEPLOY COMPLETE $(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a "$DEPLOY_LOG"
