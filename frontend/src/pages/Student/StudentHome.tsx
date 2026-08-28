@@ -212,9 +212,10 @@ export default function StudentHome() {
     setOfflineMode(false);
     let lessonsData: any[] = [];
     let offlineHydrated = false;
+    let decoded: Record<string, any> | null = null;
     try {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
-      const decoded = decodeToken(token);
+      decoded = decodeToken(token);
       setStudent(decoded);
 
       const admissionNo = decoded?.admission_no || decoded?.id;
@@ -309,6 +310,13 @@ export default function StudentHome() {
         }
       } catch {
         // Non-blocking — cache warming is optional
+      }
+      // E3-offline: pre-cache all published lessons for offline play
+      const schoolId = String(decoded?.school_id || '');
+      if (schoolId && navigator.onLine) {
+        offlineContent.prefetchAll(schoolId).then((n) => {
+          if (n > 0) console.log(`[Offline] Prefetched ${n} lessons`);
+        }).catch(() => {});
       }
     }
   }, []);
