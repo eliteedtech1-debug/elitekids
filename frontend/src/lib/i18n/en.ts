@@ -237,6 +237,12 @@ export const en: Record<string, string> = {
   'offline.indicator.syncing': 'Syncing...',
   'offline.indicator.syncNow': 'Sync now',
 
+  // ── Offline mode (StudentHome) ──────────────────────────────────────
+  'offline.mode.banner': 'Offline mode',
+  'offline.mode.bannerDesc': "playing downloaded games. Progress syncs automatically when you're back online.",
+  'offline.mode.noGamesTitle': 'No downloaded games yet',
+  'offline.mode.noGamesDesc': 'Connect to the internet once to download your games for offline play.',
+
   // ── Sync queue ─────────────────────────────────────────────────────────
   'offline.queued': 'Progress saved offline. It will sync when connected.',
 

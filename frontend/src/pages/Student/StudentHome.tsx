@@ -480,7 +480,7 @@ export default function StudentHome() {
 
         {!error && offlineMode && (
           <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            📴 <span className="font-semibold">Offline mode</span> — playing downloaded games. Progress syncs automatically when you're back online.
+            📴 <span className="font-semibold">{t('offline.mode.banner')}</span> — {t('offline.mode.bannerDesc')}
           </div>
         )}
 
@@ -541,11 +541,11 @@ export default function StudentHome() {
               <div className="rounded-2xl border border-dashed border-[#0F4D92]/30 bg-white p-10 text-center">
                 <Gamepad2 className="mx-auto mb-3 h-10 w-10 text-[#0F4D92]/40" />
                 <h3 className="font-semibold text-gray-700">
-                  {offlineMode ? 'No downloaded games yet' : t('student.home.noGamesTitle')}
+                  {offlineMode ? t('offline.mode.noGamesTitle') : t('student.home.noGamesTitle')}
                 </h3>
                 <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
                   {offlineMode
-                    ? 'Connect to the internet once to download your games for offline play.'
+                    ? t('offline.mode.noGamesDesc')
                     : t('student.home.noGamesBody')}
                 </p>
               </div>
