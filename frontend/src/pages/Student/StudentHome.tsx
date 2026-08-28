@@ -36,6 +36,7 @@ import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
+import { offlineContent } from '@/lib/offline/content';
 import { t, tN } from '@/lib/i18n';
 
 /* ── Types ────────────────────────────────────────────────────── */
@@ -201,13 +202,16 @@ export default function StudentHome() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [companion, setCompanion] = useState<any>(null);
   const [showCompanionSelect, setShowCompanionSelect] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
   const [streak, setStreak] = useState(() => getStreakLocal());
   const { colorblindMode } = useA11yStore();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
+    setOfflineMode(false);
     let lessonsData: any[] = [];
+    let offlineHydrated = false;
     try {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
       const decoded = decodeToken(token);
@@ -215,29 +219,65 @@ export default function StudentHome() {
 
       const admissionNo = decoded?.admission_no || decoded?.id;
 
-      const lessonsRes = await apiClient.get(ENDPOINTS.LESSONS.LIST, {
-        params: { content_state: 'published' },
-      }).catch(() => ({ data: { data: [] } }));
-      lessonsData = lessonsRes.data?.data || [];
-      setLessons(lessonsData);
+      const lessonsRes = await apiClient
+        .get(ENDPOINTS.LESSONS.LIST, { params: { content_state: 'published' } })
+        .catch(() => null);
+      if (lessonsRes) {
+        lessonsData = lessonsRes.data?.data || [];
+        setLessons(lessonsData);
+        // E3-offline: keep the catalog fresh for offline sessions
+        offlineContent.saveCatalog(lessonsData).catch(() => {});
+      } else {
+        // E3-offline: hydrate from the downloaded catalog instead of an empty shell
+        const cachedLessons = await offlineContent.loadCatalog().catch(() => null);
+        if (cachedLessons && cachedLessons.length > 0) {
+          lessonsData = cachedLessons as any[];
+          setLessons(lessonsData);
+          setOfflineMode(true);
+          offlineHydrated = true;
+        }
+      }
 
       if (admissionNo) {
-        const progressRes = await apiClient.get(ENDPOINTS.PROGRESS.CHILD(admissionNo));
-        setProgress(progressRes.data?.data || { total_xp: 0, total_stars: 0, games_completed: 0, game_stats: {}, games: [] });
-
-        // Check onboarding status
-        const onbRes = await apiClient.get(ENDPOINTS.ONBOARDING.STATUS(admissionNo)).catch(() => ({ data: { data: { completed: false } } }));
-        if (!onbRes.data?.data?.completed) {
-          setShowOnboarding(true);
+        try {
+          const progressRes = await apiClient.get(ENDPOINTS.PROGRESS.CHILD(admissionNo));
+          const progressData = progressRes.data?.data || {
+            total_xp: 0,
+            total_stars: 0,
+            games_completed: 0,
+            game_stats: {},
+            games: [],
+          };
+          setProgress(progressData);
+          // E3-offline: cache summary so XP/stars still render offline
+          offlineContent.saveProgress(String(admissionNo), progressData).catch(() => {});
+        } catch (progressErr: any) {
+          const cachedProgress = await offlineContent
+            .loadProgress(String(admissionNo))
+            .catch(() => null);
+          if (cachedProgress) {
+            setProgress(cachedProgress as ProgressData);
+          } else if (!offlineHydrated) {
+            throw progressErr;
+          }
         }
 
-        // Fetch companion
-        const compRes = await apiClient.get(ENDPOINTS.COMPANION.GET(admissionNo)).catch(() => ({ data: { data: null } }));
-        if (compRes.data?.data) {
-          setCompanion(compRes.data.data);
-        } else if (onbRes.data?.data?.completed) {
-          // Onboarding done but no companion → prompt selection
-          setShowCompanionSelect(true);
+        // Check onboarding status + companion — skipped while offline so the
+        // first-run tour can't block gameplay over a failed status probe
+        if (!offlineHydrated) {
+          const onbRes = await apiClient.get(ENDPOINTS.ONBOARDING.STATUS(admissionNo)).catch(() => ({ data: { data: { completed: false } } }));
+          if (!onbRes.data?.data?.completed) {
+            setShowOnboarding(true);
+          }
+
+          // Fetch companion
+          const compRes = await apiClient.get(ENDPOINTS.COMPANION.GET(admissionNo)).catch(() => ({ data: { data: null } }));
+          if (compRes.data?.data) {
+            setCompanion(compRes.data.data);
+          } else if (onbRes.data?.data?.completed) {
+            // Onboarding done but no companion → prompt selection
+            setShowCompanionSelect(true);
+          }
         }
       }
     } catch (err: any) {
@@ -249,12 +289,17 @@ export default function StudentHome() {
       recordPlayDay(admissionNo).then(setStreak).catch(() => {});
       // Warm IndexedDB cache with game assets in background
       try {
+        if (!navigator.onLine) throw new Error('offline — skipping cache warm');
         const allUrls: string[] = [];
         for (const lesson of lessonsData) {
-          // Fetch game config to extract image URLs
+          // Fetch game config to extract image URLs + persist payload for offline play
           const gameRes = await apiClient.get(ENDPOINTS.LESSONS.GAME(lesson.id)).catch(() => ({ data: null }));
-          if (gameRes.data?.data?.config_json) {
-            allUrls.push(...extractCacheableUrls(gameRes.data.data.config_json));
+          const gameData: any = (gameRes.data as any)?.data || gameRes.data;
+          if (gameData?.template) {
+            offlineContent.saveGamePayload(lesson.id, gameData).catch(() => {});
+          }
+          if (gameData?.config_json) {
+            allUrls.push(...extractCacheableUrls(gameData.config_json));
           }
         }
         if (allUrls.length > 0) {
@@ -429,8 +474,14 @@ export default function StudentHome() {
           <ReviewZone />
         </div>
 
-        {error && (
+        {error && !offlineMode && (
           <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+        )}
+
+        {!error && offlineMode && (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            📴 <span className="font-semibold">Offline mode</span> — playing downloaded games. Progress syncs automatically when you're back online.
+          </div>
         )}
 
         {loading ? (
@@ -489,8 +540,14 @@ export default function StudentHome() {
             {filteredLessons.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[#0F4D92]/30 bg-white p-10 text-center">
                 <Gamepad2 className="mx-auto mb-3 h-10 w-10 text-[#0F4D92]/40" />
-                <h3 className="font-semibold text-gray-700">{t('student.home.noGamesTitle')}</h3>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">{t('student.home.noGamesBody')}</p>
+                <h3 className="font-semibold text-gray-700">
+                  {offlineMode ? 'No downloaded games yet' : t('student.home.noGamesTitle')}
+                </h3>
+                <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
+                  {offlineMode
+                    ? 'Connect to the internet once to download your games for offline play.'
+                    : t('student.home.noGamesBody')}
+                </p>
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -18,6 +18,8 @@ import {
 import apiClient from '@/lib/api/client';
 import { offlineApi } from '@/lib/offline/api';
 import { offlineSync } from '@/lib/offline/sync';
+import { offlineContent } from '@/lib/offline/content';
+import OfflineBanner from '@/components/OfflineBanner';
 import SpeakButton from '@/components/SpeakButton';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t, tN } from '@/lib/i18n';
@@ -3408,6 +3410,9 @@ export default function GamePlay() {
   const [modeLock, setModeLock] = useState<{ locked_mode: string; locked_by_role: string; locked_by_name?: string; class_code?: string } | null>(null);
   const [modeLocked, setModeLocked] = useState(false);
 
+  // E2: offline sync — queued progress count for the banner
+  const [queuedCount, setQueuedCount] = useState(0);
+
   // Persist mode to localStorage per lesson (so next visit remembers)
   useEffect(() => {
     if (lessonId && mode) {
@@ -3440,6 +3445,12 @@ export default function GamePlay() {
 
   const durationSec = config?.durationSec || 60;
 
+  // E2: offline sync service — init once; keep queued count for banner
+  useEffect(() => {
+    offlineSync.init({ onStatusChange: (_s, size) => setQueuedCount(size) });
+    offlineSync.getStatus().queueSize.then((n) => setQueuedCount(n)).catch(() => {});
+  }, []);
+
   // Load game data
   useEffect(() => {
     if (!lessonId) return;
@@ -3448,11 +3459,24 @@ export default function GamePlay() {
       apiClient.get(ENDPOINTS.LESSONS.GAME(lessonId)).catch(() => ({ data: null })),
       apiClient.get(ENDPOINTS.LESSONS.SCENES(lessonId)).catch(() => ({ data: { data: [] } })),
     ])
-      .then(([gameRes, scenesRes]) => {
-        const gameData = gameRes.data?.data || gameRes.data;
+      .then(async ([gameRes, scenesRes]) => {
+        // E3-offline: fresh payload → cache it; fetch failed → play last downloaded copy
+        let gameData: any = gameRes.data?.data || gameRes.data;
+        if (gameData?.template) {
+          offlineContent.saveGamePayload(lessonId, gameData).catch(() => {});
+        } else {
+          const cachedGame = await offlineContent.loadGamePayload(lessonId).catch(() => null);
+          if (cachedGame && (cachedGame as any)?.template) gameData = cachedGame;
+        }
         if (gameData?.template) setConfig(gameData);
 
-        const sceneData = scenesRes.data?.data || scenesRes.data;
+        let sceneData: any = scenesRes.data?.data || scenesRes.data;
+        if (Array.isArray(sceneData) && sceneData.length > 0) {
+          offlineContent.saveScenes(lessonId, sceneData).catch(() => {});
+        } else {
+          const cachedScenes: any = await offlineContent.loadScenes(lessonId).catch(() => null);
+          if (Array.isArray(cachedScenes) && cachedScenes.length > 0) sceneData = cachedScenes;
+        }
         if (Array.isArray(sceneData) && sceneData.length > 0) {
           const allScenes: SceneText[] = [];
           sceneData.forEach((item: any) => {
@@ -4150,6 +4174,8 @@ export default function GamePlay() {
   /* ── Play Phase ── */
   return (
     <div className="flex min-h-screen flex-col bg-[#E7EEF6]">
+      {/* E2: offline progress banner (shows queue state while offline) */}
+      <OfflineBanner hasQueuedProgress={queuedCount > 0} pending={queuedCount} />
       <header className="flex items-center gap-1.5 border-b border-white/50 bg-white/80 px-2 py-2 sm:gap-2 sm:px-3 sm:py-2.5 backdrop-blur">
         <button onClick={() => navigate('/student')} className="rounded-lg p-2 sm:p-1.5 hover:bg-gray-100 active:scale-95">
           <ArrowLeft className="h-5 w-5 text-gray-600" />
