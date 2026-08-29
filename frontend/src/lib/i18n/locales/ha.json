@@ -3,12 +3,12 @@
     "locale": "ha",
     "label": "Hausa",
     "tts": "ha-NG",
-    "note": "Expanded Hausa locale — student, parent, and gameplay strings."
+    "note": "Hausa locale translated to BBC Hausa standard."
   },
   "a11y.colorblind": "Launukan gurbin launi",
   "a11y.colorblindDesc": "Shudi/flare maimakon kore/ja",
   "a11y.highContrast": "Bambanci mai girma",
-  "a11y.highContrastDesc": "Ƙara bambancin rubutu",
+  "a11y.highContrastDesc": "Ƙara bambancin rubutu da iyaka",
   "a11y.largeText": "Rubutu mai girma",
   "a11y.largeTextDesc": "Ƙara girman haruffa da 20%",
   "a11y.reduceMotion": " rage motsi",

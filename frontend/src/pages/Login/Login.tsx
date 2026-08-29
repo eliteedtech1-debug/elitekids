@@ -1,11 +1,11 @@
 // Login page — mirror of elite-cbt/src/pages/Login/Login.jsx, adapted for
 // EliteKids: Teacher / Parent toggle (children never log in), school crest +
 // name from school_setup via subdomain, Kids Stand-Alone module gate.
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { User, Lock, GraduationCap, Users, Eye, EyeOff } from 'lucide-react';
-import { short_name, hasKidsAccess, getSchoolShortName } from '@/lib/utils/school';
+import { short_name, hasKidsAccess, getSchoolShortName, createAuthHeaders } from '@/lib/utils/school';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
@@ -35,6 +35,51 @@ export default function Login() {
   const [authView, setAuthView] = useState<AuthView>('login');
   const [signupForm, setSignupForm] = useState({ name: '', phone: '', email: '', password: '' });
   const [signupLoading, setSignupLoading] = useState(false);
+  const tokenHandled = useRef(false);
+
+  // ── Cross-app token handoff (?token=<jwt> from EliteCore / EliteFin / EliteCBT) ──
+  useEffect(() => {
+    if (tokenHandled.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (!token) return;
+    tokenHandled.current = true;
+
+    // Strip token from URL immediately so it doesn't leak in address bar / referrer
+    const cleanUrl = window.location.pathname + (params.toString().replace(/(^|&)token=[^&]*/, '').replace(/^&/, '') ? '?' + params.toString().replace(/(^|&)token=[^&]*/, '').replace(/^&/, '') : '');
+    window.history.replaceState({}, '', cleanUrl);
+
+    // Store token so AuthGuard and API client pick it up
+    const bareToken = token.replace(/^Bearer\s+/i, '');
+    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, bareToken);
+
+    // Verify token with the backend and route accordingly
+    (async () => {
+      try {
+        const headers = createAuthHeaders();
+        const res = await apiClient.get(ENDPOINTS.AUTH.VERIFY_TOKEN, { headers });
+        const data = res.data as any;
+        if (data?.success && data?.user) {
+          const user = data.user;
+          localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
+          if (user.school_id) localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, user.school_id);
+          if (user.branch_id) localStorage.setItem(STORAGE_KEYS.BRANCH_ID, user.branch_id);
+          toast.success(t('login.loginSuccess'));
+          const userType = (user.user_type || '').toLowerCase();
+          if (userType === 'student') navigate('/student', { replace: true });
+          else if (userType === 'parent') navigate('/parent', { replace: true });
+          else navigate('/dashboard', { replace: true });
+        } else {
+          // Token invalid — clear and show login
+          localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+          setError('Session expired. Please log in again.');
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+        setError('Could not verify session. Please log in again.');
+      }
+    })();
+  }, [navigate]);
 
   // Resolve a school short name → crest + name + real school_id (public
   // endpoint, no token needed). Shared by the subdomain auto-detect and the
