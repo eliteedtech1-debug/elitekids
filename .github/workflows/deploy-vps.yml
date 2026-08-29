@@ -7,13 +7,9 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-
-      - uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,40 +30,33 @@ jobs:
 
       - name: Deploy Frontend to VPS
         run: |
-          rsync -az --delete \
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S rsync -az --delete \
             --exclude node_modules \
-            -e "ssh -o StrictHostKeyChecking=no" \
-            frontend/dist/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/html/elite/elite-kids/frontend/dist/
+            frontend/dist/ /var/www/html/elite/elite-kids/frontend/dist/
 
       - name: Deploy Backend to VPS
         run: |
-          rsync -az --delete \
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S rsync -az --delete \
             --exclude node_modules \
             --exclude .env \
             --exclude logs \
             --exclude coverage \
-            -e "ssh -o StrictHostKeyChecking=no" \
-            backend/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/html/elite/elite-kids/backend/
+            backend/ /var/www/html/elite/elite-kids/backend/
 
       - name: Deploy Game Engine to VPS
         run: |
-          rsync -az --delete \
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S rsync -az --delete \
             --exclude node_modules \
-            -e "ssh -o StrictHostKeyChecking=no" \
-            game-engine/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/html/elite/elite-kids/game-engine/
+            game-engine/ /var/www/html/elite/elite-kids/game-engine/
 
-      - name: Install deps & Restart
+      - name: Restart service
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            cd /var/www/html/elite/elite-kids/backend
-            npm ci --omit=dev 2>&1 | tail -3
-            echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart elite-kids
-            sleep 2
-            if systemctl is-active --quiet elite-kids; then
-              echo "✓ elite-kids running"
-            else
-              echo "✗ elite-kids FAILED"
-              systemctl status elite-kids --no-pager
-              exit 1
-            fi
-          EOF
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart elite-kids
+          sleep 2
+          if systemctl is-active --quiet elite-kids; then
+            echo "✓ elite-kids running"
+          else
+            echo "✗ elite-kids FAILED"
+            echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status elite-kids --no-pager
+            exit 1
+          fi
