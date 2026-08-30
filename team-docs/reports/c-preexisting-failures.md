@@ -3,6 +3,12 @@
 **Date:** 2026-08-23 · **Agent:** phaseC (ox-alpha) · **Baseline:** 40F/225P/265T (B1 STEP5) → **Now: 4F/286P/290T**
 Full-suite evidence: `team-docs/reports/c-full-suite-run{1,2,3,4}.log` (run4 = final).
 
+**Resume re-verification 2026-08-28 (256T→325T corpus):** run1 3F/322P, run2 2F/323P. Deterministic residual =
+garden-companion C-DEBT-01/02 only. C-DEBT-03 (kids-routes multi-config) + C-DEBT-04 (series-units lock-status)
+NO LONGER reproduce (later E3f/S8 work resolved them). New intermittent C-DEBT-05 (children progress-summary
+pollution) logged below. Regression matrix (b1-regression.test.js) 25/25 in-suite + standalone. Evidence:
+`reports/c-ci-run-20260828T16*.log` + `reports/ci-last-run.txt`.
+
 ---
 
 ## VERDICT
@@ -48,6 +54,17 @@ LESSON-1 has GAME-1 + GAME-1-T1/T2 published; endpoint returned "Cat Recognition
 lock-status for NUR-001 flipped to unlocked because retry tests now successfully record PASS attempts on
 fixture items (they crashed before C's fixes). Tests need per-student/item namespaces or per-file reseeding.
 **Blocker:** no.
+
+### C-DEBT-05 · children.test.js progress summary polluted by shared NUR-001 fixture (children.test.js)
+Added 2026-08-28 resume. "returns the child + progress summary for the owning parent" asserts absolute
+`total_stars===3` from the seed row PROG-1, but growing sibling suites (tracking, retry, e2-sync-batch,
+curriculum, e6-boss-battles, e4, session, kids-routes, e3f-gate) legitimately record progress rows for the
+shared NUR-001 fixture BEFORE children.test.js runs → `total_stars: 18` (total_xp/total_stars/games_completed
+all drift). Same root family as C-DEBT-04 (shared hermetic DB, no per-file reseed). Observed INTERMITTENT in
+`--runInBand` full-suite (run1 16:12Z failed with 18; run2 16:18Z passed) — timing/order dependent; but ALSO
+reachable standalone via sibling suite writes. Fix options (product call): per-file reseed/namespace
+progress writes on dedicated students (suggested), or delta-based assertion, or scoped fixture rows.
+**Blocker:** no (CI gate must treat as known-set alongside C-DEBT-01/02).
 
 ---
 

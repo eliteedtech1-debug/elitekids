@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { t } from '@/lib/i18n';
 import toast from 'react-hot-toast';
+import AppSwitcher from './AppSwitcher';
 
 const NAV_ITEMS = [
   { to: '/dashboard', labelKey: 'adminNav.dashboard', icon: LayoutDashboard },
@@ -69,6 +70,9 @@ export default function AdminNav({ pendingCount = 0 }: { pendingCount?: number }
             );
           })}
         </nav>
+
+        {/* Cross-app launcher (AppSwitcher) */}
+        <AppSwitcher />
 
         {/* Logout */}
         <button

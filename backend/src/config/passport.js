@@ -55,11 +55,28 @@ module.exports = (passport) => {
           return student ? done(null, student) : done(null, false);
         }
 
-        // ── Parent auth (kidsParent.js tokens: phone + children, no id) ───
+        // ── Parent auth ──────────────────────────────────────────────────
         if (user_type.toLowerCase() === 'parent') {
           const { phone, children } = jwt_payload;
-          if (!phone) return done(null, false);
-          return done(null, { user_type: 'parent', phone, children: children || [] });
+          // kidsParent.js tokens carry phone + children (no id) — lightweight session.
+          if (phone) return done(null, { user_type: 'parent', phone, children: children || [] });
+          // Email/username parent tokens (/users/login) carry id — resolve the full
+          // row so school/branch context survives (mode-lock b1 contract).
+          if (!jwt_payload.id) return done(null, false);
+          const [userRow] = await db.sequelize.query(
+            `SELECT * FROM users WHERE id = :id LIMIT 1`,
+            { replacements: { id: jwt_payload.id }, type: db.Sequelize.QueryTypes.SELECT }
+          );
+          if (userRow) {
+            const normalized = { ...userRow, user_type: userRow.user_type || userRow.role || 'parent' };
+            return done(null, normalized);
+          }
+          const [parentRow] = await db.sequelize.query(
+            `SELECT p.*, 'parent' AS user_type FROM parents p WHERE p.user_id = :id LIMIT 1`,
+            { replacements: { id: jwt_payload.id }, type: db.Sequelize.QueryTypes.SELECT }
+          ).catch(() => []);
+          if (parentRow) return done(null, parentRow);
+          return done(null, false);
         }
 
         // ── Non-student auth (Admin / Teacher) ─────────────────────────

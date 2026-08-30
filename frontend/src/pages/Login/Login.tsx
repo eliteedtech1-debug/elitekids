@@ -9,6 +9,8 @@ import { short_name, hasKidsAccess, getSchoolShortName, createAuthHeaders } from
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import AppSwitcher from '@/components/AppSwitcher';
+import PublicLoginSwitcher from '@/components/PublicLoginSwitcher';
 import { t } from '@/lib/i18n';
 
 interface SchoolDetails {
@@ -37,30 +39,30 @@ export default function Login() {
   const [signupLoading, setSignupLoading] = useState(false);
   const tokenHandled = useRef(false);
 
-  // ── Cross-app token handoff (?token=<jwt> from EliteCore / EliteFin / EliteCBT) ──
+  // ── Cross-app handoff uses a short-lived ticket, never a raw JWT URL ──
   useEffect(() => {
     if (tokenHandled.current) return;
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (!token) return;
+    const ticket = params.get('handoff_ticket');
+    if (!ticket) return;
     tokenHandled.current = true;
 
-    // Strip token from URL immediately so it doesn't leak in address bar / referrer
-    const cleanUrl = window.location.pathname + (params.toString().replace(/(^|&)token=[^&]*/, '').replace(/^&/, '') ? '?' + params.toString().replace(/(^|&)token=[^&]*/, '').replace(/^&/, '') : '');
+    // Strip the one-time ticket from URL immediately.
+    params.delete('handoff_ticket');
+    const cleanUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
     window.history.replaceState({}, '', cleanUrl);
 
-    // Store token so AuthGuard and API client pick it up
-    const bareToken = token.replace(/^Bearer\s+/i, '');
-    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, bareToken);
-
-    // Verify token with the backend and route accordingly
+    // Redeem the ticket centrally. Session establishment is intentionally
+    // separate from the ticket so no raw JWT is exposed to this page.
     (async () => {
       try {
-        const headers = createAuthHeaders();
-        const res = await apiClient.get(ENDPOINTS.AUTH.VERIFY_TOKEN, { headers });
+        const res = await apiClient.post('/api/apps/kids/redeem-ticket', { ticket });
         const data = res.data as any;
-        if (data?.success && data?.user) {
-          const user = data.user;
+        if (data?.ok && (data?.user_id || data?.user)) {
+          const user: any = data.user || { id: data.user_id, school_id: data.school_id, user_type: data.user_type || '' };
+          // Fresh short-lived session minted by the exchange — store it so the
+          // app boots as a logged-in user (no raw JWT ever appeared in the URL).
+          if (data.token) localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token);
           localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
           if (user.school_id) localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, user.school_id);
           if (user.branch_id) localStorage.setItem(STORAGE_KEYS.BRANCH_ID, user.branch_id);
@@ -199,9 +201,25 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#E7EEF6] p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-        {/* Crest + brand */}
+    <div className="min-h-screen bg-[#E7EEF6] p-4 sm:p-6 lg:flex lg:items-center lg:justify-center">
+      <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-lg lg:flex">
+        <section className="hidden min-h-[620px] w-[40%] flex-col justify-between bg-gradient-to-br from-[#0a1628] via-[#0F4D92] to-[#2c5282] p-10 text-white lg:flex">
+          <div>
+            <img src="/logo.svg" alt="Elite brand" className="mb-6 h-24 w-24 rounded-2xl object-contain" />
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-100">Elite Suite</p>
+            <h1 className="mt-3 text-4xl font-bold">Elite Kids</h1>
+            <p className="mt-3 text-blue-100">Gamified learning for early education.</p>
+          </div>
+          <div className="space-y-3 text-sm text-blue-50">
+            <p>Secure school access for teachers, parents, and students.</p>
+            <p className="text-xs text-blue-200">Powered by Elite Edu Tech Systems</p>
+          </div>
+        </section>
+        <section className="w-full p-6 sm:p-8 lg:w-[60%] lg:p-10">
+          <div className="mb-4 flex items-center justify-end lg:hidden">
+            <PublicLoginSwitcher />
+          </div>
+          {/* Crest + brand */}
         <div className="mb-4 text-center">
           <img src={school?.badge_url || '/logo.svg'} alt={t('login.schoolLogoAlt')} className="mx-auto mb-3 h-20 w-20 rounded-full object-contain" />
           <h2 className="text-2xl font-bold text-[#0F4D92]">
@@ -358,7 +376,11 @@ export default function Login() {
           </form>
         )}
 
-        <p className="mt-4 text-center text-xs text-gray-400">{t('common.poweredBy')}</p>
+        <div className="mt-4 flex items-center justify-center gap-3 text-xs text-gray-400">
+          <span>{t('common.poweredBy')}</span>
+          <span className="hidden lg:inline-flex"><PublicLoginSwitcher /></span>
+        </div>
+        </section>
       </div>
     </div>
   );

@@ -3,6 +3,8 @@ import { Phone, Lock, UserPlus, LogIn, Baby, Trophy, Star, TrendingUp, Bell, Boo
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/api/client';
 import { t, tN } from '@/lib/i18n';
+import { STORAGE_KEYS } from '@/lib/utils/constants';
+import AppSwitcher from './AppSwitcher';
 
 type View = 'login' | 'register' | 'dashboard' | 'child';
 
@@ -30,6 +32,14 @@ export default function ParentDashboard() {
         setToken(d.token);
         setChildren(d.children || []);
         setView('dashboard');
+        // Persist to the shared ecosystem storage so the AppSwitcher (and other
+        // Elite-suite apps via the secure handoff flow) recognize this parent session.
+        try {
+          localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, d.token.replace(/^Bearer\s+/i, ''));
+          localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: 'parent', phone: phone.trim() }));
+          const sid = d.children?.[0]?.school_id;
+          if (sid) localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, sid);
+        } catch { /* storage unavailable — switcher simply won't show */ }
         toast.success(tN('parent.linkedChildren', d.children?.length || 0));
       }
     } catch (err: unknown) {
@@ -186,7 +196,21 @@ export default function ParentDashboard() {
         <div className="mx-auto max-w-md">
           <div className="mb-5 flex items-center justify-between">
             <h1 className="text-lg font-extrabold text-gray-800">👨‍👩‍👧 {t('parent.myChildren')}</h1>
-            <button onClick={() => { setView('login'); setChildren([]); }} className="text-xs font-semibold text-gray-400 hover:text-gray-600">{t('parent.signOut')}</button>
+            <div className="flex items-center gap-1.5">
+              <AppSwitcher />
+              <button
+                onClick={() => {
+                  setView('login');
+                  setChildren([]);
+                  localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+                  localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+                  localStorage.removeItem(STORAGE_KEYS.SCHOOL_ID);
+                }}
+                className="text-xs font-semibold text-gray-400 hover:text-gray-600"
+              >
+                {t('parent.signOut')}
+              </button>
+            </div>
           </div>
           {children.length === 0 ? (
             <div className="rounded-2xl bg-white p-8 text-center shadow-sm">

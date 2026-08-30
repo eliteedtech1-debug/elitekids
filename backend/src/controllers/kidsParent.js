@@ -63,11 +63,45 @@ async function login(req, res) {
       return res.status(401).json({ success: false, message: 'Invalid phone or PIN.' });
     }
 
-    // Generate JWT for parent
+    // Generate ECOSYSTEM JWT for parent — signed with the shared JWT_SECRET_KEY and
+    // carrying id + school_id so the cross-app AppSwitcher (/api/apps/access) and the
+    // other Elite-suite apps accept it for ?token= handoff. phone + children claims are
+    // kept so the kids parent routes (passport lightweight parent session) keep working.
     const jwt = require('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET_KEY || 'elitekids_jwt_secret_2024';
+
+    // School context: linked children should share one school (v1).
+    const schoolIds = [...new Set(rows.map(r => r.school_id).filter(Boolean))];
+    const schoolId = schoolIds.length === 1 ? schoolIds[0] : (schoolIds[0] || null);
+
+    // Link to the real parent record (elite_db.parents) for id + branch context.
+    let parentId = null;
+    let branchId = null;
+    if (schoolId) {
+      try {
+        const [parentRows] = await dbm().sequelize.query(
+          `SELECT user_id, branch_id FROM parents WHERE phone = :phone AND school_id = :school_id LIMIT 1`,
+          { replacements: { phone: cleanPhone, school_id: schoolId } },
+        );
+        const p = (Array.isArray(parentRows) ? parentRows : [])[0];
+        if (p) {
+          parentId = p.user_id || null;
+          branchId = p.branch_id || null;
+        }
+      } catch (err) {
+        console.error('parent record lookup skipped:', err.message);
+      }
+    }
+
     const token = jwt.sign(
-      { user_type: 'parent', phone: cleanPhone, children: rows.map(r => r.child_admission_no) },
+      {
+        id: parentId,
+        user_type: 'parent',
+        phone: cleanPhone,
+        school_id: schoolId,
+        branch_id: branchId,
+        children: rows.map(r => r.child_admission_no),
+      },
       JWT_SECRET,
       { expiresIn: '7d' },
     );

@@ -27,6 +27,7 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 import { playTap } from '@/lib/utils/sound';
 import A11ySettings from '@/components/A11ySettings';
 import SpeechSettings from '@/components/SpeechSettings';
+import AppSwitcher from '@/components/AppSwitcher';
 import OnboardingTour from '@/components/OnboardingTour';
 import CompanionSelect, { CompanionBubble } from '@/components/CompanionSelect';
 import GardenScene from '@/components/GardenScene';
@@ -409,6 +410,7 @@ export default function StudentHome() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3">
+            <AppSwitcher />
             <A11ySettings />
             <SpeechSettings />
             <button

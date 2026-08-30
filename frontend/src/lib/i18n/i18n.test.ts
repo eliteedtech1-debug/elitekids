@@ -77,7 +77,7 @@ describe('i18n dictionary integrity', () => {
 describe('t() interpolation + fallback', () => {
   it('interpolates {param} placeholders', () => {
     expect(t('offline.indicator.saved', { count: 4 })).toBe('4 items saved');
-    expect(t('login.welcomeTo', { school: 'DKG' })).toBe('Welcome to DKG');
+    expect(t('login.welcomeTo', { school: 'Demo School' })).toBe('Welcome to Demo School');
   });
 
   it('returns the raw key for unknown keys (never crashes)', () => {
