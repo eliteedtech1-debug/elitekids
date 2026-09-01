@@ -30,7 +30,7 @@ require('dotenv').config();
 const db = require('../models');
 
 const SERIES_ID = 'series-jolly-phonics';
-const SCHOOL = { school_id: 'SCH-KIDS', branch_id: 'BR-MAIN', created_by: 'SYSTEM' };
+const SCHOOL = { school_id: 'SCH-ELITE', branch_id: 'BR-MAIN', created_by: 'SYSTEM' };
 const MODEL_VERSION = 'jolly-phonics-v1';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

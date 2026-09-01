@@ -5,7 +5,7 @@
  *
  * Access rule (spec C.1):
  *   - Real schools: every child who wants series needs the SCHOOL subscribed.
- *   - Flagship `elite` (SCH-KIDS): parents without a school self-register,
+ *   - Flagship `elite` (SCH-ELITE): parents without a school self-register,
  *     get a FREE tier (limited games), and subscribe for all games.
  *
  * Pricing (spec C.2, DB-configurable): kids_term = NGN 500, kids_annual = NGN 1 200.
@@ -82,7 +82,7 @@ async function ensureSchema() {
   _schemaReady = true;
 }
 
-const FLAGSHIP_SCHOOL_ID = 'SCH-KIDS';
+const FLAGSHIP_SCHOOL_ID = 'SCH-ELITE';
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
 

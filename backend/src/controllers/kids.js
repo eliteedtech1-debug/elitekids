@@ -357,9 +357,11 @@ async function createChildForParent(req, res) {
 // ── Lessons ──────────────────────────────────────────────────────────────
 
 /** GET /kids/lessons — list lessons (published for children, all for staff).
- * Global lessons (is_global=1 from SCH-KIDS) are included for ALL schools.
+ * Global lessons (is_global=1 from the platform schools) are included for ALL
+ * schools. The model flagship is SCH-ELITE ('elite'); legacy SCH-KIDS kept so
+ * existing platform content is never orphaned.
  */
-const PLATFORM_SCHOOL_ID = 'SCH-KIDS';
+const PLATFORM_SCHOOL_IDS = ['SCH-ELITE', 'SCH-KIDS'];
 
 async function listLessons(req, res) {
   try {
@@ -375,13 +377,13 @@ async function listLessons(req, res) {
       where = {
         [Op.or]: [
           { school_id },
-          { school_id: PLATFORM_SCHOOL_ID, is_global: 1 },
+          { school_id: { [Op.in]: PLATFORM_SCHOOL_IDS }, is_global: 1 },
         ],
       };
     } else {
       // Students/parents: only global platform lessons (no duplicates)
       where = {
-        school_id: PLATFORM_SCHOOL_ID,
+        school_id: { [Op.in]: PLATFORM_SCHOOL_IDS },
         is_global: 1,
         content_state: 'published',
       };
@@ -436,7 +438,7 @@ async function nerdcReport(req, res) {
       where: {
         [Op.or]: [
           { school_id },
-          { school_id: PLATFORM_SCHOOL_ID, is_global: 1 },
+          { school_id: { [Op.in]: PLATFORM_SCHOOL_IDS }, is_global: 1 },
         ],
       },
       attributes: ['id', 'title', 'subject', 'age_level', 'lesson_type', 'content_state', 'nerdc_code', 'nerdc_strand', 'nerdc_sub_strand', 'created_at'],
@@ -505,8 +507,8 @@ async function createLesson(req, res) {
     const school_id = req.headers['x-school-id'] || req.user.school_id;
     const branch_id = req.headers['x-branch-id'] || req.user.branch_id;
 
-    // Only the platform school (SCH-KIDS) can create global lessons
-    const is_global = (school_id === PLATFORM_SCHOOL_ID && req.body.is_global) ? 1 : 0;
+    // Only platform schools (SCH-ELITE flagship / legacy SCH-KIDS) can create global lessons
+    const is_global = (PLATFORM_SCHOOL_IDS.includes(school_id) && req.body.is_global) ? 1 : 0;
 
     const lesson = await db.KidLesson.create({
       id: uuidv4(),
@@ -594,7 +596,7 @@ async function createLessonManual(req, res) {
 
     const school_id = req.headers['x-school-id'] || req.user.school_id;
     const branch_id = req.headers['x-branch-id'] || req.user.branch_id;
-    const isGlobal = (school_id === PLATFORM_SCHOOL_ID && is_global) ? 1 : 0;
+    const isGlobal = (PLATFORM_SCHOOL_IDS.includes(school_id) && is_global) ? 1 : 0;
 
     // Create the lesson
     const lesson = await db.KidLesson.create({
@@ -740,7 +742,7 @@ function toRuntimeGameConfig(cfg) {
 }
 
 /** GET /kids/lessons/:id/game — CHILD-FACING: published game config only.
- * Resolves global platform lessons (from SCH-KIDS) for any school.
+ * Resolves global platform lessons for any school.
  */
 async function getPublishedGame(req, res) {
   try {
@@ -754,7 +756,7 @@ async function getPublishedGame(req, res) {
       return res.status(404).json({ success: false, message: 'Lesson not found.' });
     }
     const isOwned = lesson.school_id === school_id;
-    const isGlobal = lesson.is_global === 1 && lesson.school_id === PLATFORM_SCHOOL_ID;
+    const isGlobal = lesson.is_global === 1 && PLATFORM_SCHOOL_IDS.includes(lesson.school_id);
     if (!isOwned && !isGlobal) {
       return res.status(404).json({ success: false, message: 'No published game for this lesson.' });
     }
@@ -788,7 +790,7 @@ async function getPublishedScenes(req, res) {
       return res.status(404).json({ success: false, message: 'Lesson not found.' });
     }
     const isOwned = lesson.school_id === school_id;
-    const isGlobal = lesson.is_global === 1 && lesson.school_id === PLATFORM_SCHOOL_ID;
+    const isGlobal = lesson.is_global === 1 && PLATFORM_SCHOOL_IDS.includes(lesson.school_id);
     if (!isOwned && !isGlobal) {
       return res.status(404).json({ success: false, message: 'No published scenes for this lesson.' });
     }

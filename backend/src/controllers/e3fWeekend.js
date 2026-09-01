@@ -140,7 +140,7 @@ async function getWeekendTest(req, res) {
 
     await db.KidLesson.upsert({
       id: lessonId,
-      school_id: 'SCH-KIDS',
+      school_id: 'SCH-ELITE',
       branch_id: 'BR-MAIN',
       title: `Weekend Challenge — ${weekKey}`,
       subject: 'Review',

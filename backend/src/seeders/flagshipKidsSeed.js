@@ -1,17 +1,18 @@
 /**
  * Flagship kids school seeder (mirrors elite-cbt-api/src/seeders/flagshipSchoolSeed.js).
  *
- * Creates the platform's own demo school (short_name = 'kids',
- * URL: kids.elitekids.com.ng) where parents/teachers can try the nursery
- * learning app. Idempotent — safe to run on every boot.
+ * Ensures the model flagship school (SCH-ELITE, short_name 'elite' — owned by
+ * Elite EduTech Systems Ltd). All flagship subdomains (kids., games., …)
+ * resolve here; SCH-KIDS ('kids') is the LEGACY demo school and stays
+ * reachable by its school_id. Idempotent — safe to run on every boot.
  */
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const db = require('../models');
 
-const FLAGSHIP_SCHOOL_ID = 'SCH-KIDS';
+const FLAGSHIP_SCHOOL_ID = 'SCH-ELITE';
 const FLAGSHIP_SHORT_NAME = 'elite';
-// Short names that resolve to the flagship school (primary + back-compat aliases)
+// Short names that resolve to the flagship school (primary + faceplate aliases)
 const FLAGSHIP_ALIASES = ['kids', 'practice'];
 // The canonical model-school display name (owned by Elite EduTech Systems Ltd)
 const FLAGSHIP_NAME = 'Elite EduTech Systems Ltd — Model School';
@@ -60,8 +61,8 @@ function flagshipIdFromHost(rawHost) {
 
 /**
  * Is this request coming from the flagship kids portal? (Used to gate
- * self-registration into SCH-KIDS only — not a security boundary.) localhost
- * counts for local dev, but login/lookup resolution does NOT use this.
+ * self-registration into the flagship school only — not a security boundary.)
+ * localhost counts for local dev, but login/lookup resolution does NOT use this.
  */
 function isFlagshipRequest(req) {
   const DEV_ALLOWED = ['localhost', '127.0.0.1', '::1'];
@@ -94,8 +95,8 @@ async function ensureFlagshipKidsSchool() {
       )
       .catch(() => []);
     if (existing.length) {
-      // Idempotent rebrand: keep SCH-KIDS id, adopt the `elite` short name and
-      // the model-school display name (owned by Elite EduTech Systems Ltd).
+      // Idempotent rebrand: the flagship is SCH-ELITE with the `elite` short
+      // name + model-school display name (owned by Elite EduTech Systems Ltd).
       const sid = existing[0].school_id;
       if (String(existing[0].short_name || '') !== FLAGSHIP_SHORT_NAME
           || String(existing[0].school_name || '') !== FLAGSHIP_NAME) {

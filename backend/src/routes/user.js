@@ -93,6 +93,7 @@ module.exports = (app) => {
         const [rows] = await db.sequelize.query(
           `SELECT * FROM school_setup
            WHERE (LOWER(short_name) = LOWER(:short_name) OR school_id = :flagship_id)
+           ORDER BY (school_id = :flagship_id) DESC
            LIMIT 1`,
           {
             replacements: { short_name: short_name.trim(), flagship_id: flagshipId || null },

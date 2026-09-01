@@ -10,7 +10,7 @@
 require('dotenv').config();
 const db = require('../models');
 
-const SCHOOL = { school_id: 'SCH-KIDS', branch_id: 'BR-MAIN', created_by: 'SYSTEM' };
+const SCHOOL = { school_id: 'SCH-ELITE', branch_id: 'BR-MAIN', created_by: 'SYSTEM' };
 
 // ── Animals Series ────────────────────────────────────────────────────────────
 const ANIMALS_SERIES_ID = 'series-animals';

@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
 const { generateLoginToken } = require('../middleware/sessionAuth');
-const { flagshipIdForAlias, flagshipShortNameFromHost } = require('../seeders/flagshipKidsSeed');
+const { flagshipIdForAlias, flagshipShortNameFromHost, FLAGSHIP_SCHOOL_ID } = require('../seeders/flagshipKidsSeed');
 
 /** Safe SELECT — returns [] when a table doesn't exist (mirrors elite-cbt-api). */
 const safeQuery = async (sql, replacements) => {
@@ -26,10 +26,11 @@ const safeQuery = async (sql, replacements) => {
  * matching elite-cbt-api's login. Returns null when unresolvable.
  */
 async function resolveSchoolId({ short_name, school_id }) {
-  // If no school provided, default to SCH-KIDS (platform's own school)
+  // If no school provided, default to the model flagship school (SCH-ELITE)
   if (!short_name && !school_id) {
     const [defaultRow] = await safeQuery(
-      `SELECT school_id FROM school_setup WHERE school_id = 'SCH-KIDS' AND LOWER(status) = 'active' LIMIT 1`
+      `SELECT school_id FROM school_setup WHERE school_id = :flagship_id AND LOWER(status) = 'active' LIMIT 1`,
+      { flagship_id: FLAGSHIP_SCHOOL_ID }
     );
     return defaultRow?.school_id || null;
   }
@@ -38,7 +39,9 @@ async function resolveSchoolId({ short_name, school_id }) {
     `SELECT school_id FROM school_setup
      WHERE (school_id = :school_id OR LOWER(short_name) = LOWER(:short_name)
             OR school_id = :flagship_id)
-     AND LOWER(status) = 'active' LIMIT 1`,
+     AND LOWER(status) = 'active'
+     ORDER BY (school_id = :flagship_id) DESC
+     LIMIT 1`,
     { school_id: school_id || null, short_name: short_name || null, flagship_id: flagshipId || null }
   );
   return rows?.school_id || null;
