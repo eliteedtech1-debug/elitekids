@@ -26,7 +26,7 @@ export default function ParentDashboard() {
     if (!phone.trim()) return toast.error(t('parent.phoneRequired'));
     setLoading(true);
     try {
-      const res = await apiClient.post('/kids/parent/login', { phone: phone.trim(), pin: pin || '1234' });
+      const res = await apiClient.post('/kids/parent/login', { phone: phone.trim(), password: pin || '1234' });
       const d = res.data?.data;
       if (d?.token) {
         setToken(d.token);
@@ -56,7 +56,7 @@ export default function ParentDashboard() {
     try {
       const res = await apiClient.post('/kids/parent/register', {
         phone: regPhone.trim(),
-        pin: regPin || '1234',
+        password: regPin || '1234',
         admission_no: regAdm.trim(),
         school_id: regSchool.trim(),
       });
@@ -110,14 +110,14 @@ export default function ParentDashboard() {
               />
             </label>
             <label className="mb-4 block text-xs font-bold text-gray-600">
-              <Lock className="mr-1 inline h-3.5 w-3.5" /> {t('parent.pin')}
+              <Lock className="mr-1 inline h-3.5 w-3.5" /> {t('parent.password')}
               <input
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder={t('parent.pinPlaceholder')}
+                placeholder={t('parent.passwordPlaceholder')}
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
                 type="password"
-                maxLength={6}
+                maxLength={20}
               />
             </label>
             <button
@@ -157,8 +157,8 @@ export default function ParentDashboard() {
               <input value={regPhone} onChange={(e) => setRegPhone(e.target.value)} placeholder={t('parent.phonePlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="tel" />
             </label>
             <label className="mb-3 block text-xs font-bold text-gray-600">
-              <Lock className="mr-1 inline h-3.5 w-3.5" /> {t('parent.pinForLogin')}
-              <input value={regPin} onChange={(e) => setRegPin(e.target.value)} placeholder={t('parent.pinPlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="password" maxLength={6} />
+              <Lock className="mr-1 inline h-3.5 w-3.5" /> {t('parent.passwordForLogin')}
+              <input value={regPin} onChange={(e) => setRegPin(e.target.value)} placeholder={t('parent.passwordPlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="password" maxLength={20} />
             </label>
             <label className="mb-3 block text-xs font-bold text-gray-600">
               <Baby className="mr-1 inline h-3.5 w-3.5" /> {t('parent.childAdmission')}
