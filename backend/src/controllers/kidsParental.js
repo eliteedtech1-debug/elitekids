@@ -14,6 +14,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const db = require('../models');
+const { requireChildOwnership } = require('../services/routesHelper');
 
 /**
  * GET /kids/parental-controls?student_id=X
@@ -25,6 +26,9 @@ async function getParentalControls(req, res) {
     if (!studentId) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     const controls = await db.KidParentalControl.findOne({ where: { student_id: studentId } });
     if (!controls) {
@@ -61,6 +65,9 @@ async function setParentalControls(req, res) {
     if (!student_id) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     // Only parents of the child or staff can set controls
     const userType = String(user.user_type || user.role || '').toLowerCase();
@@ -113,6 +120,9 @@ async function checkPlayAllowed(req, res) {
     if (!studentId) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     const controls = await db.KidParentalControl.findOne({ where: { student_id: studentId } });
     if (!controls) {

@@ -15,6 +15,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const db = require('../models');
+const { requireChildOwnership } = require('../services/routesHelper');
 
 /** Number of practice passes needed before re-test is offered. */
 const PRACTICE_PASSES_BEFORE_RETEST = 2;
@@ -40,6 +41,10 @@ async function recordTestComplete(req, res) {
         message: 'student_id, item_id, tier, and result are required.',
       });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
+
     if (!['pass', 'fail'].includes(result)) {
       return res.status(400).json({ success: false, message: "result must be 'pass' or 'fail'." });
     }
@@ -118,6 +123,9 @@ async function getRetryStatus(req, res) {
     if (!student_id || !item_id) {
       return res.status(400).json({ success: false, message: 'student_id and item_id are required.' });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     const attempts = await db.KidTestAttempt.findAll({
       where: { student_id, item_id },

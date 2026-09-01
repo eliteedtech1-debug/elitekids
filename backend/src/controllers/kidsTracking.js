@@ -21,6 +21,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const db = require('../models');
+const { requireChildOwnership } = require('../services/routesHelper');
 
 /**
  * POST /kids/tracking/item-response — record a single item response.
@@ -37,6 +38,10 @@ async function recordItemResponse(req, res) {
         message: 'student_id, item_id, tier, mode, and correct are required.',
       });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
+
     if (!['learning', 'practice', 'test'].includes(mode)) {
       return res.status(400).json({ success: false, message: "mode must be 'learning', 'practice', or 'test'." });
     }
@@ -77,6 +82,9 @@ async function recordSessionSnapshot(req, res) {
       });
     }
 
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
+
     const snapshot = await db.KidEngagementSnapshot.create({
       session_id,
       student_id,
@@ -104,6 +112,9 @@ async function getProgress(req, res) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
 
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
+
     const where = { student_id };
     if (category) where.category = category;
 
@@ -127,6 +138,9 @@ async function getDigest(req, res) {
     if (!student_id) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     // Get student info
     const student = await db.KidChild.findOne({ where: { admission_no: student_id } });

@@ -18,6 +18,7 @@
  *   Admin/superadmin treated as teacher-level.
  */
 const db = require('../models');
+const { requireChildOwnership } = require('../services/routesHelper');
 // kids_mode_locks lives in the kids/content DB (elite_content) — NOT in
 // elite_db. All queries here MUST use db.content (C1).
 
@@ -82,6 +83,9 @@ async function getModeLock(req, res) {
       return res.status(400).json({ success: false, message: 'child_admission_no and lesson_id are required.' });
     }
 
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
+
     const lock = await findEffectiveLock(child_admission_no, lesson_id, class_code);
     return res.json({ success: true, data: lock || null });
   } catch (err) {
@@ -112,6 +116,12 @@ async function setModeLock(req, res) {
 
     if (!['teacher', 'parent'].includes(role)) {
       return res.status(403).json({ success: false, message: 'Only teachers and parents can lock modes.' });
+    }
+
+    // Parent must own the child
+    if (role === 'parent' && child_admission_no && child_admission_no !== '*') {
+      const ownership = await requireChildOwnership(req);
+      if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
     }
 
     const callerId = String(req.user?.id || '');
@@ -154,6 +164,12 @@ async function setModeLock(req, res) {
       /* ── Per-student lock ──────────────────────────── */
       if (!child_admission_no) {
         return res.status(400).json({ success: false, message: 'child_admission_no is required for per-student lock.' });
+      }
+
+      // Parent must own the child
+      if (role === 'parent') {
+        const ownership = await requireChildOwnership(req);
+        if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
       }
 
       const [existing] = await db.content.query(
@@ -228,6 +244,13 @@ async function removeModeLock(req, res) {
       if (!child_admission_no) {
         return res.status(400).json({ success: false, message: 'child_admission_no is required.' });
       }
+
+      // Parent must own the child
+      if (role === 'parent') {
+        const ownership = await requireChildOwnership(req);
+        if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
+      }
+
       const [existing] = await db.content.query(
         `SELECT * FROM kids_mode_locks
          WHERE child_admission_no = :child AND lesson_id = :lesson

@@ -21,6 +21,7 @@
  */
 const { v4: uuidv4 } = require('uuid');
 const db = require('../models');
+const { requireChildOwnership } = require('../services/routesHelper');
 
 const COMPANION_TYPES = ['fox', 'owl', 'bunny', 'bear', 'cat'];
 
@@ -34,6 +35,9 @@ async function getGarden(req, res) {
     if (!studentId) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     let garden = await db.KidGardenState.findOne({ where: { student_id: studentId } });
     if (!garden) {
@@ -61,6 +65,9 @@ async function initializeGarden(req, res) {
     if (!studentId) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     const existing = await db.KidGardenState.findOne({ where: { student_id: studentId } });
     if (existing) {
@@ -103,6 +110,9 @@ async function addGardenElement(req, res) {
         message: 'student_id, item_id, category, and tier are required.',
       });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     let garden = await db.KidGardenState.findOne({ where: { student_id } });
     if (!garden) {
@@ -175,6 +185,9 @@ async function getCompanion(req, res) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
 
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
+
     const companion = await db.KidCompanionState.findOne({ where: { student_id: studentId } });
     if (!companion) {
       return res.json({ success: true, data: null, message: 'No companion chosen yet.' });
@@ -205,6 +218,9 @@ async function chooseCompanion(req, res) {
         message: `companion_type must be one of: ${COMPANION_TYPES.join(', ')}`,
       });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     // Idempotent: if already chosen, return existing
     const existing = await db.KidCompanionState.findOne({ where: { student_id } });
@@ -242,6 +258,9 @@ async function customizeCompanion(req, res) {
     if (!student_id) {
       return res.status(400).json({ success: false, message: 'student_id is required.' });
     }
+
+    const ownership = await requireChildOwnership(req);
+    if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
     const companion = await db.KidCompanionState.findOne({ where: { student_id } });
     if (!companion) {
