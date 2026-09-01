@@ -37,9 +37,9 @@ interface EliteApp {
 
 const ELITE_APPS: EliteApp[] = [
   {
-    key: 'core', label: 'EliteCore', emoji: '⚙️',
+    key: 'core', label: 'Elite SMS', emoji: '⚙️',
     desc: 'Core Platform — Students, Teachers, Academics, SMS',
-    url: 'https://elitecore.com.ng', demo: 'https://demo.elitesms.com.ng', color: '#3D5EE1',
+    url: 'https://elitesms.com.ng', demo: 'https://demo.elitesms.com.ng', color: '#3D5EE1',
     roles: ['admin', 'staff', 'proprietor', 'principal', 'director', 'accountant', 'teacher', 'parent', 'student'],
   },
   {

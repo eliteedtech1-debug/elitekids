@@ -11,6 +11,7 @@ import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import AppSwitcher from '@/components/AppSwitcher';
 import PublicLoginSwitcher from '@/components/PublicLoginSwitcher';
+import LoginAppsPanel from '@/components/LoginAppsPanel';
 import { t } from '@/lib/i18n';
 
 interface SchoolDetails {
@@ -205,15 +206,11 @@ export default function Login() {
       <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-lg lg:flex">
         <section className="hidden min-h-[620px] w-[40%] flex-col justify-between bg-gradient-to-br from-[#0a1628] via-[#0F4D92] to-[#2c5282] p-10 text-white lg:flex">
           <div>
-            <img src="/logo.svg" alt="Elite brand" className="mb-6 h-24 w-24 rounded-2xl object-contain" />
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-100">Elite Suite</p>
-            <h1 className="mt-3 text-4xl font-bold">Elite Kids</h1>
-            <p className="mt-3 text-blue-100">Gamified learning for early education.</p>
+            <img src="/logo.svg" alt="Elite brand" className="mb-6 h-20 w-20 rounded-2xl object-contain" />
+            <h1 className="text-3xl font-bold">Elite Kids</h1>
+            <p className="mt-2 text-sm text-blue-100">Gamified learning for early education.</p>
           </div>
-          <div className="space-y-3 text-sm text-blue-50">
-            <p>Secure school access for teachers, parents, and students.</p>
-            <p className="text-xs text-blue-200">Powered by Elite Edu Tech Systems</p>
-          </div>
+          <LoginAppsPanel />
         </section>
         <section className="w-full p-6 sm:p-8 lg:w-[60%] lg:p-10">
           <div className="mb-4 flex items-center justify-end lg:hidden">

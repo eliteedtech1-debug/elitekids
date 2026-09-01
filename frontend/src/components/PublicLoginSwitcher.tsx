@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Bell, ExternalLink, LayoutGrid, Megaphone } from 'lucide-react';
 
 const APPS = [
-  { key: 'core', label: 'EliteCore', emoji: '⚙️', url: 'https://elitecore.com.ng', description: 'School management' },
+  { key: 'core', label: 'Elite SMS', emoji: '⚙️', url: 'https://elitesms.com.ng', description: 'School management' },
   { key: 'fees', label: 'EliteFin', emoji: '💰', url: 'https://elitefin.com.ng', description: 'Finance and payments' },
   { key: 'cbt', label: 'EliteCBT', emoji: '📝', url: 'https://elitecbt.com.ng', description: 'Exams and assessments' },
   { key: 'kids', label: 'EliteKids', emoji: '👶', url: 'https://elitekids.com.ng', description: 'Gamified learning' },
