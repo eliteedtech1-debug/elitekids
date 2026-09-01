@@ -141,7 +141,7 @@ describe('POST /kids/parent/register — links child with shared password only',
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.message).toMatch(/Child linked/i);
+    expect(res.body.data.message).toMatch(/Child linked/i);
     // No auto-login / no PIN credential minted — auth is the unified login.
     expect(res.body.data.token).toBeUndefined();
   });
