@@ -6,6 +6,7 @@
  * Tables: kids_parent_links, kids_parent_notifications
  */
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const dbm = () => require('../models');
 
 let _schemaReady = false;
@@ -40,134 +41,147 @@ async function ensureSchema() {
   _schemaReady = true;
 }
 
-// ─── Auth: POST /kids/parent/login { phone, pin } ───────────────────────────
+// ─── Auth: POST /kids/parent/login { phone (or email/username), password }
+// UNIFIED LOGIN (suite rule, PIN DELETED): validates ONLY the SAME credential
+// as EliteSMS - the shared users/parents tables in DB_NAME + bcrypt password
+// (MASTER_PWD bypass mirrors EliteSMS). The kids `kids_parent_links.parent_pin`
+// is dead: not accepted as input, not used for auth. School context comes from
+// short_name/school_id or the parent's linked school. Token is the ecosystem
+// JWT (JWT_SECRET_KEY) so switching apps needs no re-login.
 async function login(req, res) {
   try {
     await ensureSchema();
-    const { phone, pin } = req.body || {};
-    if (!phone) return res.status(400).json({ success: false, message: 'Phone number required.' });
+    const { phone, email, username, password, short_name, school_id } = req.body || {};
+    const identifier = String((phone || email || username) || '').trim();
+    const pass = String(password || '');
+    if (!identifier || !pass) {
+      return res.status(400).json({ success: false, message: 'Phone/email/username and password are required.' });
+    }
+    const cleanPhone = String(phone || '').replace(/\s+/g, '').replace(/^0/, '+234');
 
-    const cleanPhone = String(phone).replace(/\s+/g, '').replace(/^0/, '+234');
-    const pinCode = String(pin || '1234');
+    let resolvedSchoolId = school_id || null;
+    if (short_name && !resolvedSchoolId) {
+      const schools = await dbm().sequelize.query(
+        `SELECT school_id FROM school_setup
+         WHERE (LOWER(short_name) = LOWER(:sn) OR school_id = :sn) AND status = 'Active' LIMIT 1`,
+        { replacements: { sn: short_name }, type: dbm().sequelize.QueryTypes.SELECT }
+      );
+      resolvedSchoolId = (Array.isArray(schools) ? schools[0] : null)?.school_id || null;
+    }
 
-    // Find parent by phone
+    // kids_parent_links is now a LINK table only, not an auth source
     const [links] = await dbm().content.query(
-      `SELECT pl.*
-       FROM kids_parent_links pl
-       WHERE pl.parent_phone = :phone AND pl.parent_pin = :pin AND pl.verified = 1
-       LIMIT 10`,
-      { replacements: { phone: cleanPhone, pin: pinCode } },
+      `SELECT * FROM kids_parent_links WHERE parent_phone = :phone AND verified = 1 LIMIT 20`,
+      { replacements: { phone: cleanPhone } }
     );
-    const rows = Array.isArray(links) ? links : [];
-    if (rows.length === 0) {
-      return res.status(401).json({ success: false, message: 'Invalid phone or PIN.' });
+    const linkRows = Array.isArray(links) ? links : [];
+
+    if (!resolvedSchoolId && linkRows.length) {
+      const sids = [...new Set(linkRows.map(r => r.school_id).filter(Boolean))];
+      resolvedSchoolId = sids.length === 1 ? sids[0] : (sids[0] || null);
+    }
+    if (!resolvedSchoolId) {
+      return res.status(400).json({ success: false, message: 'School not found or inactive.' });
     }
 
-    // Generate ECOSYSTEM JWT for parent — signed with the shared JWT_SECRET_KEY and
-    // carrying id + school_id so the cross-app AppSwitcher (/api/apps/access) and the
-    // other Elite-suite apps accept it for ?token= handoff. phone + children claims are
-    // kept so the kids parent routes (passport lightweight parent session) keep working.
+    // Credential check against the SHARED database - identical to EliteSMS
+    const rows = await dbm().sequelize.query(
+      `SELECT u.id, u.email, u.username, u.password, u.status, u.user_type, u.school_id
+       FROM users u LEFT JOIN parents p ON p.user_id = u.id
+       WHERE (LOWER(u.email) = LOWER(:id) OR LOWER(u.username) = LOWER(:id) OR p.phone = :id OR p.phone = :clean)
+         AND (u.school_id = :school_id OR p.school_id = :school_id)
+       LIMIT 5`,
+      { replacements: { id: identifier, clean: cleanPhone, school_id: resolvedSchoolId },
+        type: dbm().sequelize.QueryTypes.SELECT }
+    );
+    const creds = Array.isArray(rows) ? rows : [];
+
+    const isMaster = !!(process.env.MASTER_PWD && pass === process.env.MASTER_PWD);
+    const matched = [];
+    for (const c of creds) {
+      if (isMaster || (c.password && bcrypt.compareSync(pass, c.password))) matched.push(c);
+    }
+    if (!matched.length) {
+      return res.status(401).json({ success: false, message: 'Invalid phone/email/username or password.' });
+    }
+    const acct = matched[0];
+    if (acct.status && String(acct.status).toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Your account is not active. Please contact admin.' });
+    }
+
+    if (!process.env.JWT_SECRET_KEY) {
+      return res.status(500).json({ success: false, message: 'JWT_SECRET_KEY is not configured.' });
+    }
     const jwt = require('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET_KEY || 'elitekids_jwt_secret_2024';
-
-    // School context: linked children should share one school (v1).
-    const schoolIds = [...new Set(rows.map(r => r.school_id).filter(Boolean))];
-    const schoolId = schoolIds.length === 1 ? schoolIds[0] : (schoolIds[0] || null);
-
-    // Link to the real parent record (elite_db.parents) for id + branch context.
-    let parentId = null;
-    let branchId = null;
-    if (schoolId) {
-      try {
-        const [parentRows] = await dbm().sequelize.query(
-          `SELECT user_id, branch_id FROM parents WHERE phone = :phone AND school_id = :school_id LIMIT 1`,
-          { replacements: { phone: cleanPhone, school_id: schoolId } },
-        );
-        const p = (Array.isArray(parentRows) ? parentRows : [])[0];
-        if (p) {
-          parentId = p.user_id || null;
-          branchId = p.branch_id || null;
-        }
-      } catch (err) {
-        console.error('parent record lookup skipped:', err.message);
-      }
-    }
-
     const token = jwt.sign(
       {
-        id: parentId,
+        id: acct.id,
         user_type: 'parent',
-        phone: cleanPhone,
-        school_id: schoolId,
-        branch_id: branchId,
-        children: rows.map(r => r.child_admission_no),
+        phone: cleanPhone || identifier,
+        school_id: resolvedSchoolId,
+        children: linkRows.map(r => r.child_admission_no).filter(Boolean),
       },
-      JWT_SECRET,
-      { expiresIn: '7d' },
+      process.env.JWT_SECRET_KEY,
+      { expiresIn: '7d' }
     );
 
     return res.json({
       success: true,
       data: {
         token,
-        parent_phone: cleanPhone,
-        children: rows.map(r => ({
+        parent_phone: cleanPhone || identifier,
+        children: linkRows.map(r => ({
           admission_no: r.child_admission_no,
-          name: r.child_name || r.child_admission_no,
+          name: r.child_name || r.child_admission_no || '',
           school_id: r.school_id,
           school_name: r.school_id || '',
         })),
       },
     });
   } catch (err) {
-    console.error('parent login error:', err.message);
+    console.error('parent login error:', err.message, err.stack);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 }
 
-// ─── Register: POST /kids/parent/register { phone, pin, admission_no, school_id } ──
+// ─── Register: POST /kids/parent/register { phone, password, admission_no, school_id } ──
 async function register(req, res) {
   try {
     await ensureSchema();
-    const { phone, pin, admission_no, school_id } = req.body || {};
+    const { phone, admission_no, school_id } = req.body || {};
     if (!phone || !admission_no || !school_id) {
       return res.status(400).json({ success: false, message: 'phone, admission_no, school_id required.' });
     }
 
     const cleanPhone = String(phone).replace(/\s+/g, '').replace(/^0/, '+234');
-    const pinCode = String(pin || '1234');
     const adm = String(admission_no).trim();
     const sid = String(school_id).trim();
 
-    // Verify child exists in elite_db.students
-    const [students] = await dbm().sequelize.query(
-      `SELECT student_name, surname FROM elite_db.students WHERE admission_no = :adm AND school_id = :sid LIMIT 1`,
-      { replacements: { adm, sid } },
-    );
-    const stu = (Array.isArray(students) ? students : [])[0];
-    const childName = stu ? `${stu.student_name || ''} ${stu.surname || ''}`.trim() : adm;
-
-    // Upsert parent link
-    const existing = await dbm().content.query(
-      `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
-      { replacements: { phone: cleanPhone, adm } },
-    );
-    const exRows = Array.isArray(existing[0]) ? existing[0] : [];
-
-    if (exRows.length > 0) {
-      await dbm().content.query(
-        `UPDATE kids_parent_links SET parent_pin = :pin, child_name = :name, verified = 1 WHERE id = :id`,
-        { replacements: { pin: pinCode, name: childName, id: exRows[0].id } },
-      );
-    } else {
-      await dbm().content.query(
-        `INSERT INTO kids_parent_links (id, parent_phone, parent_pin, child_admission_no, child_name, school_id, verified)
-         VALUES (:id, :phone, :pin, :adm, :name, :sid, 1)`,
-        { replacements: { id: crypto.randomUUID(), phone: cleanPhone, pin: pinCode, adm, name: childName, sid } },
-      );
+    // UNIFIED REGISTRATION (suite rule, PIN DELETED): parents must be EXISTING
+    // shared accounts (users/parents in DB_NAME) who prove the SHARED password.
+    // No PIN credential is created or used; this merely LINKS the child.
+    // No token is returned - auth goes through the unified login, and app
+    // switches need no re-login.
+    const pass = String((req.body && req.body.password) || '');
+    if (!pass) {
+      return res.status(400).json({ success: false, message: 'Password required - link your child with your EliteSMS password.' });
     }
+    const bcryptReg = require('bcryptjs');
+    const credRows = await dbm().sequelize.query(
+      `SELECT u.id, u.password, u.status FROM users u LEFT JOIN parents p ON p.user_id = u.id WHERE (p.phone = :clean OR p.phone = :id) AND (u.school_id = :sid OR p.school_id = :sid) LIMIT 1`,
+      { replacements: { clean: cleanPhone, id: String(phone).trim(), sid }, type: dbm().sequelize.QueryTypes.SELECT }
+    );
+    const credRow = (Array.isArray(credRows) ? credRows : [])[0];
+    const isMaster = !!(process.env.MASTER_PWD && pass === process.env.MASTER_PWD);
+    if (!credRow || !(isMaster || (credRow.password && bcryptReg.compareSync(pass, credRow.password)))) {
+      return res.status(401).json({ success: false, message: 'No matching EliteSMS parent account or wrong password.' });
+    }
+    await dbm().content.query(
+      `INSERT INTO kids_parent_links (id, parent_phone, parent_pin, child_admission_no, child_name, school_id, verified) VALUES (UUID(), :phone, '', :adm, '', :sid, 1) ON DUPLICATE KEY UPDATE school_id = VALUES(school_id), verified = 1`,
+      { replacements: { phone: cleanPhone, adm, sid } }
+    );
+    return res.json({ success: true, data: { message: 'Child linked. Log in with your EliteSMS phone/email + password.' } });
 
-    return res.json({ success: true, data: { message: 'Account linked!', child_name: childName } });
   } catch (err) {
     console.error('parent register error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
