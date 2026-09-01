@@ -42,7 +42,7 @@ beforeAll(async () => {
   // kidsParent.ensureSchema() — create idempotently so the link row exists
   // before the student/parent WS connections resolve their rooms.
   const dbm = require('../src/models');
-  await dbm().content.query(`CREATE TABLE IF NOT EXISTS kids_parent_links (
+  await dbm.content.query(`CREATE TABLE IF NOT EXISTS kids_parent_links (
     id CHAR(36) NOT NULL PRIMARY KEY,
     parent_phone VARCHAR(20) NOT NULL,
     parent_pin VARCHAR(10) NOT NULL DEFAULT '',
@@ -54,7 +54,7 @@ beforeAll(async () => {
     UNIQUE KEY uq_parent_child (parent_phone, child_admission_no),
     KEY idx_parent_phone (parent_phone)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
-  await dbm().content.query(
+  await dbm.content.query(
     `INSERT INTO kids_parent_links (id, parent_phone, parent_pin, child_admission_no, child_name, school_id, verified)
      VALUES (UUID(), :phone, '', :adm, 'Test Child', :sid, 1)
      ON DUPLICATE KEY UPDATE verified = 1`,

@@ -33,8 +33,11 @@ function flagshipIdForAlias(shortName) {
  * WILDCARD by design: ANY subdomain of a flagship base domain counts —
  * kids.elitekids.com.ng, games.elitekids.com.ng, practice., elite., even the
  * bare elitekids.com.ng and www. — so users can never miss the flagship
- * school regardless of which flagship subdomain they arrive on. localhost is
- * treated as flagship for local dev.
+ * school regardless of which flagship subdomain they arrive on.
+ *
+ * localhost/127.0.0.1 are deliberately NOT mapped here: it keeps the hermetic
+ * jest suite deterministic (supertest sends Host: 127.0.0.1) and in production
+ * only a REAL flagship subdomain should auto-resolve.
  */
 function flagshipShortNameFromHost(rawHost) {
   const clean = String(rawHost || '')
@@ -44,8 +47,6 @@ function flagshipShortNameFromHost(rawHost) {
     .toLowerCase()
     .replace(/\.$/, '');
   if (!clean) return null;
-  const DEV_ALLOWED = ['localhost', '127.0.0.1', '::1'];
-  if (DEV_ALLOWED.includes(clean) || clean.endsWith('.localhost')) return FLAGSHIP_SHORT_NAME;
   for (const base of FLAGSHIP_BASE_DOMAINS) {
     if (clean === base || clean.endsWith(`.${base}`)) return FLAGSHIP_SHORT_NAME;
   }
@@ -59,9 +60,11 @@ function flagshipIdFromHost(rawHost) {
 
 /**
  * Is this request coming from the flagship kids portal? (Used to gate
- * self-registration into SCH-KIDS only — not a security boundary.)
+ * self-registration into SCH-KIDS only — not a security boundary.) localhost
+ * counts for local dev, but login/lookup resolution does NOT use this.
  */
 function isFlagshipRequest(req) {
+  const DEV_ALLOWED = ['localhost', '127.0.0.1', '::1'];
   const candidates = [
     req.headers?.['x-forwarded-host'],
     req.headers?.host,
@@ -69,7 +72,17 @@ function isFlagshipRequest(req) {
     req.headers?.origin,
     req.headers?.referer,
   ].filter(Boolean);
-  return candidates.some((raw) => !!flagshipShortNameFromHost(raw));
+  return candidates.some((raw) => {
+    const clean = String(raw || '')
+      .replace(/^https?:\/\//i, '')
+      .split('/')[0]
+      .split(':')[0]
+      .toLowerCase()
+      .replace(/\.$/, '');
+    if (!clean) return false;
+    if (DEV_ALLOWED.includes(clean) || clean.endsWith('.localhost')) return true;
+    return !!flagshipShortNameFromHost(raw);
+  });
 }
 
 async function ensureFlagshipKidsSchool() {
