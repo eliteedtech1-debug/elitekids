@@ -198,11 +198,13 @@ function attach(server) {
         const parentSchoolIds = new Map(); // phone -> school_id (links may cross schools)
         let links = [];
         try {
-          links = await dbm().content.query(
+          // mysql2 query() resolves [rows, fields] — destructure to get the rows
+          const [rows2] = await dbm().content.query(
             `SELECT parent_phone, school_id FROM kids_parent_links
              WHERE child_admission_no = :adm AND verified = 1`,
             { replacements: { adm } },
           );
+          links = rows2 || [];
         } catch (e) { /* kids_parent_links may not exist yet — shared-DB fallback below still runs */ }
         const linkRows = Array.isArray(links) ? links : [];
         for (const l of linkRows) {
@@ -256,6 +258,7 @@ function attach(server) {
           ws.close(4003, 'class-required');
           return;
         }
+        conn.role = 'teacher'; // staff JWTs carry user_type like 'Admin' — classroom role is teacher
         conn.adm = `staff:${payload.id || payload.email || ''}`.slice(0, 64);
         conn.name = 'Teacher';
         const classKey = `${schoolId}:${cls}`;
