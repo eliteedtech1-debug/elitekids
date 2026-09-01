@@ -19,6 +19,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: elitekids-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: self-hosted
@@ -46,9 +50,9 @@ jobs:
           # Restore local-only edits if they still apply (never blocks the deploy)
           git stash pop 2>/dev/null && echo "local edits restored" || echo "(no local edits to restore — ok)"
 
-          # Incremental production deps (no-op when nothing changed)
+          # Deterministic production deps (uses package-lock.json)
           cd backend
-          npm install --omit=dev --no-audit --no-fund 2>&1 | tail -2 || true
+          npm ci --omit=dev --no-audit --no-fund 2>&1 | tail -2 || true
 
           # Restart the live user unit + verify
           systemctl --user restart elite-kids-api
@@ -68,7 +72,7 @@ jobs:
           DOCROOT=$(grep -rhoE '/var/www[^ ;]+elite-kids[^ ;]*' /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -1)
           [ -n "$DOCROOT" ] || DOCROOT=/var/www/html/elite/elite-kids/frontend/dist
           echo "frontend docroot: $DOCROOT"
-          npm install --no-audit --no-fund 2>&1 | tail -2
+          npm ci --no-audit --no-fund 2>&1 | tail -2
           npm run build 2>&1 | tail -4
           mkdir -p "$DOCROOT"
           rsync -a --delete dist/ "$DOCROOT/"
