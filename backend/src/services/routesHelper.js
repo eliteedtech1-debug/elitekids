@@ -99,9 +99,10 @@ const denyForeignChildData = (req) => {
  * Parent-child ownership guard: a parent may only act on their own linked children.
  * Returns { ok: true } or a 403 response object.
  *
- * Two linkage paths are checked:
+ * Three linkage paths are checked:
  *   1. kids_parent_links  (phone-based login → parent_phone → child_admission_no)
  *   2. kids_children      (ecosystem JWT → parent_user_id → admission_no)
+ *   3. students.parent_id = parents.parent_id  (EliteSMS parent → student link)
  *
  * Admins and teachers bypass the check.
  */
@@ -141,6 +142,17 @@ async function requireChildOwnership(req) {
       `SELECT 1 FROM kids_children
        WHERE parent_user_id = :pid AND admission_no = :adm LIMIT 1`,
       { replacements: { pid: parentId, adm: requested } },
+    );
+    if (Array.isArray(rows) && rows.length > 0) return { ok: true };
+  }
+
+  // Path 3: EliteSMS parent link (users.id → parents.user_id → parents.parent_id → students.parent_id → students.admission_no)
+  if (parentId) {
+    const [rows] = await db.sequelize.query(
+      `SELECT 1 FROM parents p
+       JOIN students s ON s.parent_id = p.parent_id
+       WHERE p.user_id = :uid AND s.admission_no = :adm LIMIT 1`,
+      { replacements: { uid: parentId, adm: requested } },
     );
     if (Array.isArray(rows) && rows.length > 0) return { ok: true };
   }
