@@ -8,7 +8,6 @@ import ParentDashboard from '@/components/ParentDashboard';
 import StudentHome from '@/pages/Student/StudentHome';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import OfflineIndicator from '@/components/OfflineIndicator';
 import { applyDir, t, useI18n } from '@/lib/i18n';
 
 /**
@@ -57,9 +56,12 @@ export default function App() {
     applyDir();
   }, [dir]);
 
+  // The OfflineIndicator used to live here globally. It was removed because
+  // it leaked a connection/sync badge onto every route (teacher, admin, and a
+  // second copy on student). Student-facing routes opt into a `silent` indicator
+  // instead; the sync service (lib/offline/sync) auto-drains regardless of UI.
   return (
     <>
-    <OfflineIndicator />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route

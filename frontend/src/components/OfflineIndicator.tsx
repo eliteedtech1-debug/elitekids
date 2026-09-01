@@ -15,14 +15,18 @@ import { t, tN } from '@/lib/i18n';
  *
  * Props:
  *   - compact: show as a small dot instead of a full banner (default: false)
+ *   - silent: render nothing — sync stays fully automatic and invisible to
+ *     the user. Used for student-facing surfaces where kids must never see
+ *     online/offline state (the sync service auto-drains regardless).
  *   - className: additional CSS classes
  */
 interface OfflineIndicatorProps {
   compact?: boolean;
+  silent?: boolean;
   className?: string;
 }
 
-export default function OfflineIndicator({ compact = false, className = '' }: OfflineIndicatorProps) {
+export default function OfflineIndicator({ compact = false, silent = false, className = '' }: OfflineIndicatorProps) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -32,11 +36,14 @@ export default function OfflineIndicator({ compact = false, className = '' }: Of
     setPendingCount(count);
   }, []);
 
-  // Listen for online/offline events
+  // Listen for online/offline events. Kept mounted even when silent so that
+  // on reconnect we can kick an explicit drain (defense-in-depth alongside
+  // the sync service's own online listener).
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
       updatePendingCount();
+      if (silent) offlineSync.drainNow().catch(() => {});
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -54,7 +61,7 @@ export default function OfflineIndicator({ compact = false, className = '' }: Of
       window.removeEventListener('offline', handleOffline);
       clearInterval(interval);
     };
-  }, [updatePendingCount]);
+  }, [updatePendingCount, silent]);
 
   const handleSyncNow = useCallback(async () => {
     setSyncing(true);
@@ -65,6 +72,9 @@ export default function OfflineIndicator({ compact = false, className = '' }: Of
       setSyncing(false);
     }
   }, [updatePendingCount]);
+
+  // Silent mode — kids never see online/offline state. Sync stays automatic.
+  if (silent) return null;
 
   // Compact mode — just a dot
   if (compact) {

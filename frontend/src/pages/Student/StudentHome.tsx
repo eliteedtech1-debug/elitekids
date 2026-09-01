@@ -471,8 +471,9 @@ export default function StudentHome() {
           <BossBattleOverlay onDismiss={() => setShowBossRaid(false)} />
         </div>
 
-        {/* Offline Indicator */}
-        <OfflineIndicator />
+        {/* Offline Indicator — silent for kids: no online/offline badge, no
+            manual sync button. The sync service auto-drains on reconnect. */}
+        <OfflineIndicator silent />
 
         {/* Daily & Weekly Revision */}
         <div className="mb-5">
@@ -486,12 +487,6 @@ export default function StudentHome() {
 
         {error && !offlineMode && (
           <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-        )}
-
-        {!error && offlineMode && (
-          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            📴 <span className="font-semibold">{t('offline.mode.banner')}</span> — {t('offline.mode.bannerDesc')}
-          </div>
         )}
 
         {loading ? (
