@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elite Suite — Architecture Diagram</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            color: #e2e8f0;
+        }
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            margin-bottom: 40px;
+        }
+        .diagram {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* ── Ecosystem Box ── */
+        .ecosystem {
+            border: 2px solid #334155;
+            border-radius: 24px;
+            padding: 32px;
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+        .ecosystem-label {
+            position: absolute;
+            top: -16px;
+            left: 32px;
+            background: #1e293b;
+            padding: 4px 16px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #60a5fa;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+
+        /* ── Grid Layout ── */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-top: 16px;
+        }
+
+        /* ── App Cards ── */
+        .app {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .app:hover {
+            border-color: #60a5fa;
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(96, 165, 250, 0.15);
+        }
+        .app::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+        .app.core::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .app.finance::before { background: linear-gradient(90deg, #1e40af, #3b82f6); }
+        .app.cbt::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+        .app.kids::before { background: linear-gradient(90deg, #ea580c, #fb923c); }
+        .app.sms::before { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .app-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .core .app-icon { background: rgba(59, 130, 246, 0.2); }
+        .finance .app-icon { background: rgba(30, 64, 175, 0.2); }
+        .cbt .app-icon { background: rgba(124, 58, 237, 0.2); }
+        .kids .app-icon { background: rgba(234, 88, 12, 0.2); }
+        .sms .app-icon { background: rgba(37, 99, 235, 0.2); }
+
+        .app-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .app-tag {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .tag-primary { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .tag-standalone { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .tag-former { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+
+        .app-desc {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .app-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .meta-chip {
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            background: rgba(51, 65, 85, 0.5);
+            border-radius: 6px;
+            color: #cbd5e1;
+        }
+        .meta-chip.port { color: #60a5fa; }
+        .meta-chip.stack { color: #a78bfa; }
+
+        /* ── Connection Lines ── */
+        .connections {
+            margin-top: 32px;
+            text-align: center;
+        }
+        .connection-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        .connection-icon {
+            font-size: 1.5rem;
+        }
+        .connection-text {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        .connection-text strong {
+            color: #60a5fa;
+        }
+
+        /* ── Flow Diagram ── */
+        .flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        .flow-step {
+            padding: 12px 20px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            text-align: center;
+            min-width: 140px;
+        }
+        .flow-step.active {
+            border-color: #60a5fa;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .flow-arrow {
+            font-size: 1.2rem;
+            color: #60a5fa;
+        }
+
+        /* ── Deployment Info ── */
+        .deployment {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 32px;
+        }
+        .deploy-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .deploy-card h3 {
+            font-size: 0.9rem;
+            color: #60a5fa;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .deploy-list {
+            list-style: none;
+        }
+        .deploy-list li {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .deploy-list li:last-child { border-bottom: none; }
+        .deploy-list .label { color: #cbd5e1; }
+        .deploy-list .value { color: #60a5fa; font-family: monospace; }
+
+        /* ── Rules Banner ── */
+        .rules {
+            margin-top: 32px;
+            padding: 20px 24px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+        }
+        .rules h3 {
+            color: #f87171;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+        .rules-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .rule {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #fca5a5;
+        }
+        .rule-icon { font-size: 1rem; }
+
+        /* ── Footer ── */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #475569;
+            font-size: 0.8rem;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+            .deployment { grid-template-columns: 1fr; }
+            .rules-grid { grid-template-columns: 1fr; }
+            .flow { flex-direction: column; }
+            .flow-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🏗️ Elite Suite</h1>
+    <p class="subtitle">Modular School Management Ecosystem</p>
+
+    <div class="diagram">
+        <div class="ecosystem">
+            <span class="ecosystem-label">Elite Suite Ecosystem</span>
+
+            <div class="grid">
+                <!-- Elite SMS -->
+                <div class="app core">
+                    <div class="app-header">
+                        <div class="app-icon">🏫</div>
+                        <div>
+                            <div class="app-name">Elite SMS</div>
+                            <span class="app-tag tag-primary">Center of Gravity</span>
+                        </div>
+                    </div>
+                    <p class="app-desc">
+                        The main School Management System. Issues JWT tokens for all apps.
+                        Formerly called <strong>EliteCore</strong>.
+                    </p>
+                    <div class="app-meta">
+                        <span class="meta-chip port">:8383</span>
+                        <span class="meta-chip stack">React + Express</span>
+                        <span class="meta-chip">systemd</span>
+                    </div>
+                </div>
+
+                <!-- EliteFin -->
+                <div class="app finance">
+                    <div class="app-header">
+                        <div class="app-icon">💰</div>
+                        <div>
+                            <div class="app-name">EliteFin</div>
+                            <span class="app-tag tag-standalone">Standalone</span>
+                        </div>
+                    </div>
+                    <p class="app-desc">
+                        School Finance — Invoicing, Payments, Receipts, Payroll, Financial Reports.
+                    </p>
+                    <div class="app-meta">
+                        <span class="meta-chip port">:3001</span>
+                        <span class="meta-chip stack">React + Express</span>
+                        <span class="meta-chip">systemd</span>
+                    </div>
+                </div>
+
+                <!-- EliteCBT -->
+                <div class="app cbt">
+                    <div class="app-header">
+                        <div class="app-icon">📝</div>
+                        <div>
+                            <div class="app-name">EliteCBT</div>
+                            <span class="app-tag tag-standalone">Standalone</span>
+                        </div>
+                    </div>
+                    <p class="app-desc">
+                        Computer-Based Testing — Exams, Question Banks, Auto-grading, Analytics.
+                    </p>
+                    <div class="app-meta">
+                        <span class="meta-chip port">:34567</span>
+                        <span class="meta-chip stack">React + Express</span>
+                        <span class="meta-chip">systemd</span>
+                    </div>
+                </div>
+
+                <!-- EliteKids -->
+                <div class="app kids">
+                    <div class="app-header">
+                        <div class="app-icon">👶</div>
+                        <div>
+                            <div class="app-name">EliteKids</div>
+                            <span class="app-tag tag-standalone">Standalone</span>
+                        </div>
+                    </div>
+                    <p class="app-desc">
+                        Gamified Nursery & Primary Content Delivery — Like Duolingo for education.
+                        Teachers create learning games.
+                    </p>
+                    <div class="app-meta">
+                        <span class="meta-chip port">:8484</span>
+                        <span class="meta-chip stack">React + Express</span>
+                        <span class="meta-chip">systemd</span>
+                    </div>
+                </div>
+
+                <!-- EliteSMS -->
+                <div class="app sms">
+                    <div class="app-header">
+                        <div class="app-icon">📱</div>
+                        <div>
+                            <div class="app-name">EliteSMS</div>
+                            <span class="app-tag tag-former">Reduced Module</span>
+                        </div>
+                    </div>
+                    <p class="app-desc">
+                        School Management System — Same codebase as Elite SMS, focused for smaller schools.
+                    </p>
+                    <div class="app-meta">
+                        <span class="meta-chip port">elitesms.com.ng</span>
+                        <span class="meta-chip">Multi-domain</span>
+                    </div>
+                </div>
+
+                <!-- EliteCampus -->
+                <div class="app" style="opacity: 0.5;">
+                    <div class="app-header">
+                        <div class="app-icon">🎓</div>
+                        <div>
+                            <div class="app-name">EliteCampus</div>
+                            <span class="app-tag" style="background: rgba(100,116,139,0.2); color: #94a3b8;">Separate</span>
+                        </div>
+                    </div>
+                    <p class="app-desc">
+                        University & College system — Separate architecture from K-12 Elite Suite.
+                    </p>
+                    <div class="app-meta">
+                        <span class="meta-chip">elitecampus.com.ng</span>
+                        <span class="meta-chip">Docker</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connection Bar -->
+            <div class="connections">
+                <div class="connection-bar">
+                    <span class="connection-icon">🔗</span>
+                    <span class="connection-text">
+                        <strong>Cross-App SSO</strong> — JWT tokens shared via <code>?token=</code> parameter
+                        &nbsp;|&nbsp; Shared storage key: <code>@@auth_token</code>
+                        &nbsp;|&nbsp; Same <code>JWT_SECRET_KEY</code> across all apps
+                    </span>
+                </div>
+            </div>
+
+            <!-- SSO Flow -->
+            <div class="flow">
+                <div class="flow-step active">
+                    <div style="font-size: 1.2rem; margin-bottom: 4px;">🏫</div>
+                    <div><strong>Login</strong></div>
+                    <div style="font-size: 0.7rem; color: #64748b;">Elite SMS</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step">
+                    <div style="font-size: 1.2rem; margin-bottom: 4px;">🎫</div>
+                    <div><strong>JWT Issued</strong></div>
+                    <div style="font-size: 0.7rem; color: #64748b;">Signed token</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step">
+                    <div style="font-size: 1.2rem; margin-bottom: 4px;">🔀</div>
+                    <div><strong>AppSwitcher</strong></div>
+                    <div style="font-size: 0.7rem; color: #64748b;">?token=jwt</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step active">
+                    <div style="font-size: 1.2rem; margin-bottom: 4px;">✅</div>
+                    <div><strong>Auto-Login</strong></div>
+                    <div style="font-size: 0.7rem; color: #64748b;">No re-login</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deployment Info -->
+        <div class="deployment">
+            <div class="deploy-card">
+                <h3>🖥️ VPS (62.72.0.209)</h3>
+                <ul class="deploy-list">
+                    <li><span class="label">EliteFin</span><span class="value">systemd :3001</span></li>
+                    <li><span class="label">Elite API</span><span class="value">systemd :8383</span></li>
+                    <li><span class="label">EliteCBT API</span><span class="value">systemd :34567</span></li>
+                    <li><span class="label">EliteKids API</span><span class="value">systemd :8484</span></li>
+                    <li><span class="label">EliteKids Web</span><span class="value">systemd :34601</span></li>
+                    <li><span class="label">Actions Runner</span><span class="value">systemd</span></li>
+                </ul>
+            </div>
+            <div class="deploy-card">
+                <h3>🌐 Domains</h3>
+                <ul class="deploy-list">
+                    <li><span class="label">elitesms.com.ng</span><span class="value">VPS + nginx</span></li>
+                    <li><span class="label">elitecore.com.ng</span><span class="value">go54 cPanel</span></li>
+                    <li><span class="label">elitefin.com.ng</span><span class="value">VPS + nginx</span></li>
+                    <li><span class="label">elitecbt.com.ng</span><span class="value">go54 cPanel</span></li>
+                    <li><span class="label">elitekids.com.ng</span><span class="value">VPS + nginx</span></li>
+                    <li><span class="label">api.elitecore.com.ng</span><span class="value">VPS + nginx</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Rules -->
+        <div class="rules">
+            <h3>🚨 Deployment Rules (Non-Negotiable)</h3>
+            <div class="rules-grid">
+                <div class="rule">
+                    <span class="rule-icon">❌</span>
+                    <span><strong>No PM2</strong> — All services use systemd</span>
+                </div>
+                <div class="rule">
+                    <span class="rule-icon">❌</span>
+                    <span><strong>No manual deploys</strong> — GitHub Actions only</span>
+                </div>
+                <div class="rule">
+                    <span class="rule-icon">✅</span>
+                    <span><strong>Self-hosted runner</strong> — On VPS</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Elite Suite — Modular. Integrated. Focused.</p>
+        <p style="margin-top: 4px;">Last updated: August 29, 2026</p>
+    </div>
+</body>
+</html>

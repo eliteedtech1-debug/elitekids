@@ -1,0 +1,198 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#60a5fa"/>
+    </linearGradient>
+    <linearGradient id="finance" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1e40af"/>
+      <stop offset="100%" style="stop-color:#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="cbt" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="100%" style="stop-color:#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="kids" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ea580c"/>
+      <stop offset="100%" style="stop-color:#fb923c"/>
+    </linearGradient>
+    <linearGradient id="sms" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#60a5fa"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="800" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="600" y="50" text-anchor="middle" fill="#60a5fa" font-size="28" font-weight="800">🏗️ Elite Suite</text>
+  <text x="600" y="75" text-anchor="middle" fill="#94a3b8" font-size="14">Modular School Management Ecosystem</text>
+
+  <!-- Ecosystem Border -->
+  <rect x="40" y="100" width="1120" height="420" rx="20" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="8,4"/>
+  <rect x="60" y="92" width="200" height="24" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="160" y="108" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700" letter-spacing="2">ELITE SUITE</text>
+
+  <!-- App Cards -->
+  <!-- Elite SMS (Core) -->
+  <rect x="60" y="130" width="340" height="160" rx="16" fill="rgba(15,23,42,0.8)" stroke="#334155" stroke-width="1"/>
+  <rect x="60" y="130" width="340" height="4" rx="2" fill="url(#core)"/>
+  <rect x="80" y="150" width="40" height="40" rx="10" fill="rgba(59,130,246,0.2)"/>
+  <text x="100" y="177" text-anchor="middle" font-size="20">🏫</text>
+  <text x="130" y="167" fill="#e2e8f0" font-size="14" font-weight="700">Elite SMS</text>
+  <rect x="130" y="175" width="80" height="16" rx="4" fill="rgba(59,130,246,0.2)"/>
+  <text x="170" y="186" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">CENTER OF GRAVITY</text>
+  <text x="80" y="220" fill="#94a3b8" font-size="11">Main School Management System</text>
+  <text x="80" y="236" fill="#94a3b8" font-size="11">Issues JWT tokens for all apps</text>
+  <text x="80" y="252" fill="#94a3b8" font-size="11">Formerly called EliteCore</text>
+  <rect x="80" y="265" width="50" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="105" y="277" text-anchor="middle" fill="#60a5fa" font-size="9">:8383</text>
+  <rect x="140" y="265" width="70" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="175" y="277" text-anchor="middle" fill="#a78bfa" font-size="9">systemd</text>
+
+  <!-- EliteFin -->
+  <rect x="420" y="130" width="340" height="160" rx="16" fill="rgba(15,23,42,0.8)" stroke="#334155" stroke-width="1"/>
+  <rect x="420" y="130" width="340" height="4" rx="2" fill="url(#finance)"/>
+  <rect x="440" y="150" width="40" height="40" rx="10" fill="rgba(30,64,175,0.2)"/>
+  <text x="460" y="177" text-anchor="middle" font-size="20">💰</text>
+  <text x="490" y="167" fill="#e2e8f0" font-size="14" font-weight="700">EliteFin</text>
+  <rect x="490" y="175" width="80" height="16" rx="4" fill="rgba(34,197,94,0.2)"/>
+  <text x="530" y="186" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">STANDALONE</text>
+  <text x="440" y="220" fill="#94a3b8" font-size="11">School Finance Module</text>
+  <text x="440" y="236" fill="#94a3b8" font-size="11">Invoices, Payments, Receipts</text>
+  <text x="440" y="252" fill="#94a3b8" font-size="11">Payroll & Financial Reports</text>
+  <rect x="440" y="265" width="50" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="465" y="277" text-anchor="middle" fill="#60a5fa" font-size="9">:3001</text>
+  <rect x="500" y="265" width="70" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="535" y="277" text-anchor="middle" fill="#a78bfa" font-size="9">systemd</text>
+
+  <!-- EliteCBT -->
+  <rect x="780" y="130" width="340" height="160" rx="16" fill="rgba(15,23,42,0.8)" stroke="#334155" stroke-width="1"/>
+  <rect x="780" y="130" width="340" height="4" rx="2" fill="url(#cbt)"/>
+  <rect x="800" y="150" width="40" height="40" rx="10" fill="rgba(124,58,237,0.2)"/>
+  <text x="820" y="177" text-anchor="middle" font-size="20">📝</text>
+  <text x="850" y="167" fill="#e2e8f0" font-size="14" font-weight="700">EliteCBT</text>
+  <rect x="850" y="175" width="80" height="16" rx="4" fill="rgba(34,197,94,0.2)"/>
+  <text x="890" y="186" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">STANDALONE</text>
+  <text x="800" y="220" fill="#94a3b8" font-size="11">Computer-Based Testing</text>
+  <text x="800" y="236" fill="#94a3b8" font-size="11">Exams, Question Banks</text>
+  <text x="800" y="252" fill="#94a3b8" font-size="11">Auto-grading & Analytics</text>
+  <rect x="800" y="265" width="60" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="830" y="277" text-anchor="middle" fill="#60a5fa" font-size="9">:34567</text>
+  <rect x="870" y="265" width="70" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="905" y="277" text-anchor="middle" fill="#a78bfa" font-size="9">systemd</text>
+
+  <!-- EliteKids -->
+  <rect x="60" y="310" width="340" height="160" rx="16" fill="rgba(15,23,42,0.8)" stroke="#334155" stroke-width="1"/>
+  <rect x="60" y="310" width="340" height="4" rx="2" fill="url(#kids)"/>
+  <rect x="80" y="330" width="40" height="40" rx="10" fill="rgba(234,88,12,0.2)"/>
+  <text x="100" y="357" text-anchor="middle" font-size="20">👶</text>
+  <text x="130" y="347" fill="#e2e8f0" font-size="14" font-weight="700">EliteKids</text>
+  <rect x="130" y="355" width="80" height="16" rx="4" fill="rgba(34,197,94,0.2)"/>
+  <text x="170" y="366" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">STANDALONE</text>
+  <text x="80" y="400" fill="#94a3b8" font-size="11">Gamified Nursery &amp; Primary</text>
+  <text x="80" y="416" fill="#94a3b8" font-size="11">Like Duolingo for education</text>
+  <text x="80" y="432" fill="#94a3b8" font-size="11">Teachers create learning games</text>
+  <rect x="80" y="445" width="50" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="105" y="457" text-anchor="middle" fill="#60a5fa" font-size="9">:8484</text>
+  <rect x="140" y="445" width="70" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="175" y="457" text-anchor="middle" fill="#a78bfa" font-size="9">systemd</text>
+
+  <!-- EliteSMS -->
+  <rect x="420" y="310" width="340" height="160" rx="16" fill="rgba(15,23,42,0.8)" stroke="#334155" stroke-width="1"/>
+  <rect x="420" y="310" width="340" height="4" rx="2" fill="url(#sms)"/>
+  <rect x="440" y="330" width="40" height="40" rx="10" fill="rgba(37,99,235,0.2)"/>
+  <text x="460" y="357" text-anchor="middle" font-size="20">📱</text>
+  <text x="490" y="347" fill="#e2e8f0" font-size="14" font-weight="700">EliteSMS</text>
+  <rect x="490" y="355" width="90" height="16" rx="4" fill="rgba(234,179,8,0.2)"/>
+  <text x="535" y="366" text-anchor="middle" fill="#facc15" font-size="8" font-weight="600">REDUCED MODULE</text>
+  <text x="440" y="400" fill="#94a3b8" font-size="11">School Management System</text>
+  <text x="440" y="416" fill="#94a3b8" font-size="11">Same codebase as Elite SMS</text>
+  <text x="440" y="432" fill="#94a3b8" font-size="11">Focused for smaller schools</text>
+  <rect x="440" y="445" width="110" height="18" rx="4" fill="rgba(51,65,85,0.5)"/>
+  <text x="495" y="457" text-anchor="middle" fill="#60a5fa" font-size="9">elitesms.com.ng</text>
+
+  <!-- EliteCampus (faded) -->
+  <rect x="780" y="310" width="340" height="160" rx="16" fill="rgba(15,23,42,0.4)" stroke="#334155" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+  <rect x="800" y="330" width="40" height="40" rx="10" fill="rgba(100,116,139,0.2)"/>
+  <text x="820" y="357" text-anchor="middle" font-size="20">🎓</text>
+  <text x="850" y="347" fill="#94a3b8" font-size="14" font-weight="700">EliteCampus</text>
+  <rect x="850" y="355" width="70" height="16" rx="4" fill="rgba(100,116,139,0.2)"/>
+  <text x="885" y="366" text-anchor="middle" fill="#94a3b8" font-size="8" font-weight="600">SEPARATE</text>
+  <text x="800" y="400" fill="#64748b" font-size="11">University &amp; College system</text>
+  <text x="800" y="416" fill="#64748b" font-size="11">Separate architecture</text>
+  <text x="800" y="432" fill="#64748b" font-size="11">Docker deployment</text>
+
+  <!-- Connection Lines -->
+  <line x1="230" y1="290" x2="230" y2="310" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4,2"/>
+  <line x1="590" y1="290" x2="590" y2="310" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4,2"/>
+  <line x1="950" y1="290" x2="950" y2="310" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4,2"/>
+
+  <!-- SSO Flow -->
+  <rect x="60" y="540" width="1080" height="70" rx="12" fill="rgba(15,23,42,0.6)" stroke="#334155" stroke-width="1"/>
+  <text x="80" y="560" fill="#60a5fa" font-size="12" font-weight="700">Cross-App SSO Flow:</text>
+
+  <rect x="80" y="570" width="120" height="30" rx="8" fill="rgba(59,130,246,0.1)" stroke="#60a5fa" stroke-width="1"/>
+  <text x="140" y="590" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">🏫 Login</text>
+
+  <text x="215" y="590" text-anchor="middle" fill="#60a5fa" font-size="16">→</text>
+
+  <rect x="230" y="570" width="140" height="30" rx="8" fill="rgba(15,23,42,0.8)" stroke="#334155" stroke-width="1"/>
+  <text x="300" y="590" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">🎫 JWT Issued</text>
+
+  <text x="385" y="590" text-anchor="middle" fill="#60a5fa" font-size="16">→</text>
+
+  <rect x="400" y="570" width="140" height="30" rx="8" fill="rgba(15,23,42,0.8)" stroke="#334155" stroke-width="1"/>
+  <text x="470" y="590" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">🔀 AppSwitcher</text>
+
+  <text x="555" y="590" text-anchor="middle" fill="#60a5fa" font-size="16">→</text>
+
+  <rect x="570" y="570" width="140" height="30" rx="8" fill="rgba(15,23,42,0.8)" stroke="#334155" stroke-width="1"/>
+  <text x="640" y="590" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">?token=jwt</text>
+
+  <text x="725" y="590" text-anchor="middle" fill="#60a5fa" font-size="16">→</text>
+
+  <rect x="740" y="570" width="140" height="30" rx="8" fill="rgba(59,130,246,0.1)" stroke="#60a5fa" stroke-width="1"/>
+  <text x="810" y="590" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">✅ Auto-Login</text>
+
+  <text x="900" y="580" fill="#64748b" font-size="9">No re-login required</text>
+  <text x="900" y="595" fill="#64748b" font-size="9">Token stripped from URL</text>
+
+  <!-- Deployment Info -->
+  <rect x="60" y="630" width="520" height="140" rx="12" fill="rgba(15,23,42,0.6)" stroke="#334155" stroke-width="1"/>
+  <text x="80" y="655" fill="#60a5fa" font-size="12" font-weight="700">🖥️ VPS (62.72.0.209)</text>
+  <text x="80" y="675" fill="#94a3b8" font-size="10">EliteFin: systemd :3001</text>
+  <text x="80" y="690" fill="#94a3b8" font-size="10">Elite API: systemd :8383</text>
+  <text x="80" y="705" fill="#94a3b8" font-size="10">EliteCBT API: systemd :34567</text>
+  <text x="280" y="675" fill="#94a3b8" font-size="10">EliteKids: systemd :8484</text>
+  <text x="280" y="690" fill="#94a3b8" font-size="10">EliteKids Web: systemd :34601</text>
+  <text x="280" y="705" fill="#94a3b8" font-size="10">Actions Runner: systemd</text>
+  <text x="80" y="730" fill="#94a3b8" font-size="10">nginx reverse proxy</text>
+  <text x="80" y="745" fill="#94a3b8" font-size="10">Let's Encrypt SSL</text>
+  <text x="280" y="730" fill="#94a3b8" font-size="10">GitHub Actions self-hosted</text>
+  <text x="280" y="745" fill="#94a3b8" font-size="10">No PM2 — systemd only</text>
+
+  <!-- Rules -->
+  <rect x="600" y="630" width="540" height="140" rx="12" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+  <text x="620" y="655" fill="#f87171" font-size="12" font-weight="700">🚨 Deployment Rules</text>
+  <text x="620" y="680" fill="#fca5a5" font-size="10">❌ No PM2 — All services use systemd</text>
+  <text x="620" y="700" fill="#fca5a5" font-size="10">❌ No manual deploys — GitHub Actions only</text>
+  <text x="620" y="720" fill="#fca5a5" font-size="10">✅ Self-hosted runner on VPS</text>
+  <text x="620" y="740" fill="#fca5a5" font-size="10">✅ Every app needs deploy workflow</text>
+  <text x="620" y="755" fill="#fca5a5" font-size="10">✅ systemd service with MemoryMax</text>
+
+  <!-- Footer -->
+  <text x="600" y="790" text-anchor="middle" fill="#475569" font-size="10">Elite Suite — Modular. Integrated. Focused. | August 2026</text>
+</svg>
