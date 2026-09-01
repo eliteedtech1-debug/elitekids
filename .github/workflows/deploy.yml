@@ -1,0 +1,97 @@
+name: Deploy EliteKids (live)
+
+# Self-deploy: a push to `main` (or manual dispatch) deploys the LIVE service
+# on the VPS self-hosted runner.
+#
+# Live layout contract (verified against the running service):
+#   • code dir    = /var/www/html/elite/elite-kids  (a git checkout of this repo)
+#   • backend     = systemd USER unit `elite-kids-api` on :8484 (nginx proxy)
+#   • frontend    = built `frontend/dist` (nginx docroot detected from nginx config)
+#   • game-engine = rsynced sibling of backend (non-fatal)
+#
+# No sudo needed: everything runs as the `dev` user who owns the checkout and
+# the user units. node_modules / node_modules / .env / .git are never touched
+# by rsync of file trees; the backend update is a git fast-forward of the live
+# checkout, which is exactly how the service has been patched all along.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Deploy backend (git fast-forward live checkout)
+        run: |
+          set -e
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          LIVE=/var/www/html/elite/elite-kids
+          echo "==== Deploy EliteKids $(date -u +%Y-%m-%dT%H:%M:%SZ) head $(git rev-parse --short HEAD) ===="
+
+          [ -d "$LIVE/.git" ] || { echo "❌ $LIVE is not a git checkout — refusing"; exit 1; }
+          cd "$LIVE"
+
+          # Preserve any local-only working-tree edits, then fast-forward to the
+          # pushed head (ignored files like .env are untouched by this).
+          if [ -n "$(git status --porcelain)" ]; then
+            git stash push -m "live-local-before-deploy-$(date +%s)" || true
+          fi
+          git fetch origin main 2>&1 | tail -1
+          BEFORE=$(git rev-parse --short HEAD)
+          git reset --hard origin/main
+          AFTER=$(git rev-parse --short HEAD)
+          echo "backend: $BEFORE -> $AFTER"
+          # Restore local-only edits if they still apply (never blocks the deploy)
+          git stash pop 2>/dev/null && echo "local edits restored" || echo "(no local edits to restore — ok)"
+
+          # Incremental production deps (no-op when nothing changed)
+          cd backend
+          npm install --omit=dev --no-audit --no-fund 2>&1 | tail -2 || true
+
+          # Restart the live user unit + verify
+          systemctl --user restart elite-kids-api
+          sleep 2
+          systemctl --user is-active elite-kids-api
+          echo "--- health ---"
+          curl -sf http://127.0.0.1:8484/health || curl -s -o /dev/null -w 'root http %{http_code}\n' http://127.0.0.1:8484/ || true
+          echo "--- recent log ---"
+          journalctl --user -u elite-kids-api -n 8 --no-pager | tail -8
+
+      - name: Deploy frontend (build + rsync to nginx docroot, non-fatal)
+        run: |
+          set +e
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          LIVE=/var/www/html/elite/elite-kids
+          cd "$LIVE/frontend" || exit 0
+          DOCROOT=$(grep -rhoE '/var/www[^ ;]+elite-kids[^ ;]*' /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -1)
+          [ -n "$DOCROOT" ] || DOCROOT=/var/www/html/elite/elite-kids/frontend/dist
+          echo "frontend docroot: $DOCROOT"
+          npm install --no-audit --no-fund 2>&1 | tail -2
+          npm run build 2>&1 | tail -4
+          mkdir -p "$DOCROOT"
+          rsync -a --delete dist/ "$DOCROOT/"
+          echo "frontend deployed to $DOCROOT (exit $?)"
+          echo "(frontend step is non-fatal by design — backend deploy already completed)"
+
+      - name: Deploy game-engine (non-fatal)
+        run: |
+          set +e
+          LIVE=/var/www/html/elite/elite-kids
+          [ -d "$LIVE/game-engine" ] || mkdir -p "$LIVE/game-engine"
+          rsync -a --exclude node_modules --exclude .env --exclude .git \
+            "$GITHUB_WORKSPACE/game-engine/" "$LIVE/game-engine/" \
+            && echo "game-engine synced" || echo "game-engine sync skipped"
+
+      - name: Verify externally
+        run: |
+          set +e
+          for url in \
+            "http://127.0.0.1:8484/health" \
+            "https://kids.elitekids.com.ng/schools/get-details?query_type=select-by-short-name&short_name=elite" \
+            "https://demo.elitekids.com.ng/"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url")
+            echo "$code  $url"
+          done
+          echo "==== DONE ===="
