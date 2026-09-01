@@ -16,20 +16,8 @@ const FLAGSHIP_ALIASES = ['kids', 'practice'];
 // The canonical model-school display name (owned by Elite EduTech Systems Ltd)
 const FLAGSHIP_NAME = 'Elite EduTech Systems Ltd — Model School';
 
-/** Subdomains + base domains that count as the flagship kids portal. */
-const FLAGSHIP_SUBDOMAINS = ['elite', 'kids', 'practice'];
+/** Base domains that count as the flagship kids portal. */
 const FLAGSHIP_BASE_DOMAINS = ['elitekids.com.ng', 'elitekids.com'];
-
-/** Domain fragments used to recognise the flagship base domains. */
-const FLAGSHIP_DOMAINS = ['elitekids'];
-
-/** Map an alias short_name to the flagship school id (or null if not an alias). */
-function flagshipIdForAlias(shortName) {
-  const sn = String(shortName || '').trim().toLowerCase();
-  if (!sn) return null;
-  if (sn === FLAGSHIP_SHORT_NAME || FLAGSHIP_ALIASES.includes(sn)) return FLAGSHIP_SCHOOL_ID;
-  return null;
-}
 
 /** Map an alias short_name to the flagship school id (or null if not an alias). */
 function flagshipIdForAlias(shortName) {
@@ -40,11 +28,40 @@ function flagshipIdForAlias(shortName) {
 }
 
 /**
+ * Resolve the flagship short_name ('elite') from a Host header, or null.
+ *
+ * WILDCARD by design: ANY subdomain of a flagship base domain counts —
+ * kids.elitekids.com.ng, games.elitekids.com.ng, practice., elite., even the
+ * bare elitekids.com.ng and www. — so users can never miss the flagship
+ * school regardless of which flagship subdomain they arrive on. localhost is
+ * treated as flagship for local dev.
+ */
+function flagshipShortNameFromHost(rawHost) {
+  const clean = String(rawHost || '')
+    .replace(/^https?:\/\//i, '')
+    .split('/')[0]
+    .split(':')[0]
+    .toLowerCase()
+    .replace(/\.$/, '');
+  if (!clean) return null;
+  const DEV_ALLOWED = ['localhost', '127.0.0.1', '::1'];
+  if (DEV_ALLOWED.includes(clean) || clean.endsWith('.localhost')) return FLAGSHIP_SHORT_NAME;
+  for (const base of FLAGSHIP_BASE_DOMAINS) {
+    if (clean === base || clean.endsWith(`.${base}`)) return FLAGSHIP_SHORT_NAME;
+  }
+  return null;
+}
+
+/** Flagship school id for a Host header, or null when not a flagship host. */
+function flagshipIdFromHost(rawHost) {
+  return flagshipShortNameFromHost(rawHost) ? FLAGSHIP_SCHOOL_ID : null;
+}
+
+/**
  * Is this request coming from the flagship kids portal? (Used to gate
  * self-registration into SCH-KIDS only — not a security boundary.)
  */
 function isFlagshipRequest(req) {
-  const DEV_ALLOWED = ['localhost', '127.0.0.1'];
   const candidates = [
     req.headers?.['x-forwarded-host'],
     req.headers?.host,
@@ -52,21 +69,7 @@ function isFlagshipRequest(req) {
     req.headers?.origin,
     req.headers?.referer,
   ].filter(Boolean);
-
-  return candidates.some((raw) => {
-    const clean = String(raw)
-      .replace(/^https?:\/\//i, '')
-      .split('/')[0]
-      .split(':')[0]
-      .toLowerCase();
-    if (!clean) return false;
-    if (DEV_ALLOWED.includes(clean.split('.')[0])) return true;
-    if (FLAGSHIP_BASE_DOMAINS.includes(clean)) return true;
-    return (
-      FLAGSHIP_DOMAINS.some((d) => clean.includes(d)) &&
-      FLAGSHIP_SUBDOMAINS.includes(clean.split('.')[0])
-    );
-  });
+  return candidates.some((raw) => !!flagshipShortNameFromHost(raw));
 }
 
 async function ensureFlagshipKidsSchool() {
@@ -175,6 +178,9 @@ module.exports = {
   FLAGSHIP_SCHOOL_ID,
   FLAGSHIP_SHORT_NAME,
   FLAGSHIP_ALIASES,
+  FLAGSHIP_BASE_DOMAINS,
   flagshipIdForAlias,
+  flagshipShortNameFromHost,
+  flagshipIdFromHost,
   isFlagshipRequest,
 };

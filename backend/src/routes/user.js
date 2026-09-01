@@ -8,7 +8,7 @@ const {
   resetPassword,
   parentSignup,
 } = require('../controllers/auth');
-const { flagshipIdForAlias } = require('../seeders/flagshipKidsSeed');
+const { flagshipIdForAlias, flagshipIdFromHost } = require('../seeders/flagshipKidsSeed');
 const db = require('../models');
 
 module.exports = (app) => {
@@ -77,12 +77,19 @@ module.exports = (app) => {
   });
 
   // ── School lookup (public — login page pre-fills school branding) ───────
+  // Flagship rule: ANY *.elitekids.com.ng subdomain (kids., games., practice.,
+  // elite., bare domain, …) resolves to the flagship school — a user who lands
+  // on any flagship subdomain can never miss it.
   app.get('/schools/get-details', async (req, res) => {
     const { query_type, short_name, school_id } = req.query;
     try {
       let school = null;
+      const hostFlagshipId = flagshipIdFromHost(req.headers?.host || req.get?.('host'));
       if (query_type === 'select-by-short-name' && short_name) {
-        const flagshipId = flagshipIdForAlias(short_name);
+        // Alias short_names (elite/kids/practice) OR any request from a flagship
+        // subdomain resolve to the flagship school (covers arbitrary subdomains
+        // like `games` that aren't hardcoded aliases).
+        const flagshipId = flagshipIdForAlias(short_name) || hostFlagshipId;
         const [rows] = await db.sequelize.query(
           `SELECT * FROM school_setup
            WHERE (LOWER(short_name) = LOWER(:short_name) OR school_id = :flagship_id)
@@ -98,6 +105,17 @@ module.exports = (app) => {
           `SELECT * FROM school_setup WHERE school_id = :school_id LIMIT 1`,
           {
             replacements: { school_id },
+            type: db.sequelize.QueryTypes.SELECT,
+          }
+        );
+        school = rows || null;
+      } else if (hostFlagshipId) {
+        // No short_name/school_id given but the request came from a flagship
+        // subdomain — return the flagship school so lookup always succeeds.
+        const [rows] = await db.sequelize.query(
+          `SELECT * FROM school_setup WHERE school_id = :flagship_id LIMIT 1`,
+          {
+            replacements: { flagship_id: hostFlagshipId },
             type: db.sequelize.QueryTypes.SELECT,
           }
         );

@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const dbm = () => require('../models');
+const { flagshipShortNameFromHost } = require('../seeders/flagshipKidsSeed');
 
 let _schemaReady = false;
 async function ensureSchema() {
@@ -79,6 +80,20 @@ async function login(req, res) {
     if (!resolvedSchoolId && linkRows.length) {
       const sids = [...new Set(linkRows.map(r => r.school_id).filter(Boolean))];
       resolvedSchoolId = sids.length === 1 ? sids[0] : (sids[0] || null);
+    }
+    if (!resolvedSchoolId && !short_name) {
+      // Flagship rule: ANY *.elitekids.com.ng subdomain (kids., games., …)
+      // resolves to the flagship school — a parent arriving on any flagship
+      // URL logs into the same school and can never miss it.
+      const hostFlagshipSn = flagshipShortNameFromHost(req.headers?.host || req.get?.('host'));
+      if (hostFlagshipSn) {
+        const fsSchools = await dbm().sequelize.query(
+          `SELECT school_id FROM school_setup
+           WHERE LOWER(short_name) = LOWER(:sn) AND status = 'Active' LIMIT 1`,
+          { replacements: { sn: hostFlagshipSn }, type: dbm().sequelize.QueryTypes.SELECT }
+        );
+        resolvedSchoolId = (Array.isArray(fsSchools) ? fsSchools[0] : null)?.school_id || null;
+      }
     }
     if (!resolvedSchoolId) {
       return res.status(400).json({ success: false, message: 'School not found or inactive.' });

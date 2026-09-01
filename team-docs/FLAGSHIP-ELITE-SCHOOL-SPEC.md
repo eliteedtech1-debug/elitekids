@@ -36,20 +36,41 @@ This spec covers four workstreams:
 | `school_id` | `SCH-KIDS` (keep — existing flagship id, referenced by seeders) |
 | `short_name` | **`elite`** (primary), aliases: `kids`, `practice` (back-compat) |
 | `school_name` | `Elite EduTech Systems Ltd — Model School` |
-| Domain | `elite.elitekids.com.ng` (plus `kids.`/`practice.` aliases) |
+| Domain | **ANY `*.elitekids.com.ng` subdomain** (`elite.`, `kids.`, `games.`, `practice.`, …) |
 | Owner | Elite EduTech Systems Ltd |
 | `kids_stand_alone` | `1`, `nursery_section` `1`, `cbt_stand_alone` `1` (full suite demo) |
 
-### A.2 Changes to `seeders/flagshipKidsSeed.js`
+### A.2 Flagship subdomain policy (WILDCARD)
 
-- Add `'elite'` to `FLAGSHIP_SHORT_NAME`/`FLAGSHIP_ALIASES`/`FLAGSHIP_SUBDOMAINS`
-  so `flagshipIdForAlias('elite') === 'SCH-KIDS'` (school lookup + login already
-  honor flagship aliases via `routes/user.js` and `controllers/auth.js`).
+The flagship subdomain **varies** (`kids.`, `games.`, `practice.`, `elite.`, …)
+but every flagship URL must locate the SAME flagship school — users must never
+miss it. Implemented in `seeders/flagshipKidsSeed.js`:
+
+- `flagshipShortNameFromHost(host)` — returns `'elite'` for **any** host that is
+  a flagship base domain (`elitekids.com.ng`, `elitekids.com`) or a subdomain of
+  one, plus `localhost` for dev. Wildcard by design: no hardcoded subdomain list.
+- `flagshipIdFromHost(host)` — `'SCH-KIDS'` when the host is flagship, else `null`.
+- `isFlagshipRequest(req)` — reuses the same wildcard matcher (gates
+  self-registration; any flagship subdomain may self-register).
+
+Wired into school resolution so login/lookup never dead-ends:
+
+| Endpoint | Behavior when host is a flagship subdomain |
+|---|---|
+| `GET /schools/get-details` | `short_name` resolves to flagship (even unknown ones like `games`), and no `short_name` at all returns the flagship school |
+| `POST /users/login`, `/students/login` | no `school_id`/`short_name` in body → scoped to flagship school |
+| `POST /kids/parent/login` | no school in body → flagship school (after any linked-school match) |
+
+### A.3 Changes to `seeders/flagshipKidsSeed.js`
+
+- `FLAGSHIP_SHORT_NAME = 'elite'`, aliases `kids`/`practice` map via
+  `flagshipIdForAlias('elite') === 'SCH-KIDS'` (school lookup + login honor
+  these via `routes/user.js` and `controllers/auth.js`).
 - Update the seeded school display name to the Elite EduTech Systems Ltd model
   school (idempotent UPDATE on boot, keep `SCH-KIDS` id).
-- **Self-registration is flagship-only** (`isFlagshipRequest`): parents on
-  `elite.*` may create an account directly (see C.5). Real-school parents go
-  through their school (no self-signup).
+- **Self-registration is flagship-only** (`isFlagshipRequest`): parents on any
+  flagship subdomain may create an account directly (see C.5). Real-school
+  parents go through their school (no self-signup).
 
 ---
 
@@ -199,32 +220,40 @@ and server-side by the existing `getUnitSuggestedMode`/lock lookups.
 Gap: the child-facing mode-change endpoint should refuse when a lock is active
 (server-side guard), not just hide the button.
 
-### D.3 Live chat via socket.io (NEW)
+### D.3 Live talk — parent role on the EXISTING WebRTC + `ws` intercom (DONE)
 
-Parents talk directly to their child in real time.
+Parents talk directly to their child in real time — same capability as
+teachers, decided transport: **reuse `e3fLive` (WebRTC audio + `ws` control
+plane), NO socket.io** (a second transport would be redundant; the child client
+needs zero changes).
 
-- **Transport**: add `socket.io` to the kids backend (the repo currently ships
-  `ws` for WebRTC signaling; socket.io is additive, rooms keyed by
-  `child_admission_no`).
-- **Auth**: JWT from the `authorization` handshake header (`passport-jwt`
-  strategy reuse); room join allowed only if the caller is the child's linked
-  parent or a teacher/admin of the child's school.
-- **Events**:
-
-| Event | Direction | Payload |
-|---|---|---|
-| `chat:send` | parent → server | `{ child_admission_no, text }` |
-| `chat:message` | server → child's device(s) | `{ from, text, ts }` |
-| `chat:read` | child → server → parent | `{ message_id }` |
-| `mode:changed` | parent/teacher → child | `{ lesson_id, locked_mode }` — child UI switches mode immediately |
-| `presence` | both | online/offline of child device |
-
-- **Storage**: persist messages in `kids_chat_messages`
-  (`id, child_admission_no, from_user_id, from_role, text, read_at, created_at`)
-  so the parent dashboard shows history; unread count in the parent app.
-- **Sockets never replace the mode-lock authority**: `mode:changed` is a live
-  push of the existing `kids_mode_locks` state; the server still validates on
-  the next HTTP call.
+- **Parent role** in `controllers/e3fLive.js`: a parent connects to
+  `/kids/live` with their unified-login JWT (no `class` param) and joins room
+  `<school>:parent:<phone>`. The server auto-joins each **student** into every
+  guardian's parent room resolved from `kids_parent_links` — so the existing
+  student client already receives parent audio/floor/signaling with no change.
+- **Same controls as a teacher, scoped to the parent's own children**: broadcast
+  to all their children at once (`webrtc-start/stop`), mute/unmute each child
+  (`floor` → `you-floor` + `you-mic`), one-to-one WebRTC call per child
+  (`webrtc-offer/answer/ice`). Multi-room connections keep class and parent
+  rooms separate, so a floored child only speaks in the room that granted the
+  floor, and a parent's signals never leak into the class room.
+- **Auth**: same JWT (`JWT_SECRET_KEY`) as every suite app; room membership is
+  server-derived — a child can only join their own guardians' rooms; a parent
+  only their own. Guardians are resolved from TWO sources:
+  1. `kids_parent_links` (kids-owned mapping — flagship/self-service enrollments)
+  2. the **SHARED `parents` ↔ `students` `parent_id` relationship**
+     (`students.parent_id` / `guardian_id` → `parents.parent_id` → `parents.phone`,
+     read-only, owned by EliteSMS) — so a real-school parent whose child is
+     linked in the suite gets live rooms automatically, no kids-side setup.
+  Phones are normalized (`0…` → `+234…`) so room keys match across both
+  sources.
+- **Text chat / history** (optional follow-up): persist messages in
+  `kids_chat_messages` (`id, child_admission_no, from_user_id, from_role, text,
+  read_at, created_at`) — audio intercom ships first; chat is additive.
+- **Mode-lock authority is unchanged**: `mode:changed` remains a live push of
+  the existing `kids_mode_locks` state; the server still validates on the next
+  HTTP call.
 
 ---
 

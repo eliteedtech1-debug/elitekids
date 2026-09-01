@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
 const { generateLoginToken } = require('../middleware/sessionAuth');
-const { flagshipIdForAlias } = require('../seeders/flagshipKidsSeed');
+const { flagshipIdForAlias, flagshipShortNameFromHost } = require('../seeders/flagshipKidsSeed');
 
 /** Safe SELECT — returns [] when a table doesn't exist (mirrors elite-cbt-api). */
 const safeQuery = async (sql, replacements) => {
@@ -58,6 +58,13 @@ async function login(req, res) {
       resolvedSchoolId = await resolveSchoolId({ short_name, school_id });
       if (!resolvedSchoolId) {
         return res.status(400).json({ school: 'School not found or inactive.' });
+      }
+    } else {
+      // No school in the request, but a flagship subdomain (kids., games., …)
+      // means the user is on the flagship portal — resolve to the flagship school.
+      const hostFlagshipSn = flagshipShortNameFromHost(req.headers?.host || req.get?.('host'));
+      if (hostFlagshipSn) {
+        resolvedSchoolId = await resolveSchoolId({ short_name: hostFlagshipSn, school_id: null });
       }
     }
 
@@ -199,17 +206,29 @@ async function studentLogin(req, res) {
       );
       student = row;
     } else {
-      // No school specified — search across ALL active schools (platform-level login)
-      const [row] = await safeQuery(
-        `SELECT s.* FROM students s
-         JOIN school_setup ss ON s.school_id = ss.school_id
-         WHERE ss.status = 'Active'
-           AND ${isEmail ? 'LOWER(s.email) = LOWER(:email)' : 's.admission_no = :username'}
-         LIMIT 1`,
-        { email: String(username||'').trim(), username: String(username||'').trim() }
-      );
+      // No school specified — but a flagship subdomain (kids., games., …)
+      // scopes the search to the flagship school so users on any flagship
+      // URL land on the same school. Otherwise search across ALL active
+      // schools (platform-level login).
+      const hostFlagshipSn = flagshipShortNameFromHost(req.headers?.host || req.get?.('host'));
+      const flagshipSchoolId = hostFlagshipSn ? await resolveSchoolId({ short_name: hostFlagshipSn, school_id: null }) : null;
+      const [row] = flagshipSchoolId
+        ? await safeQuery(
+            `SELECT * FROM students WHERE school_id = :school_id
+               AND ${isEmail ? 'LOWER(email) = LOWER(:email)' : 'admission_no = :username'}
+             LIMIT 1`,
+            { school_id: flagshipSchoolId, email: String(username||'').trim(), username: String(username||'').trim() }
+          )
+        : await safeQuery(
+            `SELECT s.* FROM students s
+             JOIN school_setup ss ON s.school_id = ss.school_id
+             WHERE ss.status = 'Active'
+               AND ${isEmail ? 'LOWER(s.email) = LOWER(:email)' : 's.admission_no = :username'}
+             LIMIT 1`,
+            { email: String(username||'').trim(), username: String(username||'').trim() }
+          );
       student = row;
-      resolvedSchoolId = student?.school_id || null;
+      resolvedSchoolId = student?.school_id || flagshipSchoolId || null;
     }
 
     if (!student) {
