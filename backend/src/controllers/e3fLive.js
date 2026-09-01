@@ -237,6 +237,7 @@ function attach(server) {
           const pKey = `${parentSchoolIds.get(phone) || schoolId}:parent:${phone}`;
           tryJoin(conn, pKey); // non-fatal if a parent room is full
         }
+        if (process.env.NODE_ENV === 'test') console.log('e3fLive student rooms:', JSON.stringify([...conn.rooms]));
       } else if (userType === 'parent') {
         const phone = normPhone(payload.phone);
         if (!phone) {
@@ -251,6 +252,7 @@ function attach(server) {
           return;
         }
         primaryKey = pKey;
+        if (process.env.NODE_ENV === 'test') console.log('e3fLive parent room:', pKey);
       } else {
         // Teacher/staff can address any class: target via ?class=CLSxxxx
         const cls = String(url.searchParams.get('class') || '').slice(0, 40);
