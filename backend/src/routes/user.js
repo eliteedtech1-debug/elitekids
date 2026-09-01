@@ -86,13 +86,16 @@ module.exports = (app) => {
       let school = null;
       const hostFlagshipId = flagshipIdFromHost(req.headers?.host || req.get?.('host'));
       if (query_type === 'select-by-short-name' && short_name) {
-        // Alias short_names (elite/kids/practice) OR any request from a flagship
-        // subdomain resolve to the flagship school (covers arbitrary subdomains
-        // like `games` that aren't hardcoded aliases).
-        const flagshipId = flagshipIdForAlias(short_name) || hostFlagshipId;
+        // Check if this short_name is a flagship alias (elite/kids/practice).
+        // If NOT an alias, do NOT fall back to hostFlagshipId — let the school
+        // resolve by its own short_name. The wildcard *.elitekids.com.ng
+        // detection should only apply when NO short_name is provided.
+        const aliasFlagshipId = flagshipIdForAlias(short_name);
+        const flagshipId = aliasFlagshipId || null;
         const [rows] = await db.sequelize.query(
           `SELECT * FROM school_setup
-           WHERE (LOWER(short_name) = LOWER(:short_name) OR school_id = :flagship_id)
+           WHERE LOWER(short_name) = LOWER(:short_name)
+              OR school_id = :flagship_id
            ORDER BY (school_id = :flagship_id) DESC
            LIMIT 1`,
           {

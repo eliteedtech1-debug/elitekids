@@ -124,7 +124,7 @@
     'parent.trackJourney': "Track your child's learning journey",
     'parent.phoneNumber': 'Phone Number',
     'parent.phonePlaceholder': '08012345678',
-    'parent.schoolPlaceholder': 'e.g. DKG',
+    'parent.schoolPlaceholder': 'e.g. Elite',
     'parent.pin': 'Password',
     'parent.pinPlaceholder': 'Enter your password',
     'parent.password': 'Password',
@@ -164,7 +164,7 @@
     'login.noSubscription': "Your school doesn't subscribe to the Kids module. Please contact your administrator.",
     'login.modeTeacher': 'Teacher / Parent',
     'login.modeStudent': 'Student',
-    'login.schoolShortName': 'School Short Name (e.g. DKG)',
+    'login.schoolShortName': 'School Short Name (e.g. Elite)',
     'login.admissionNo': 'Admission number',
     'login.emailOrPhone': 'Email or phone number',
     'login.password': 'Password',
@@ -1080,4 +1080,12 @@
   'globalLibrary.domesticated': 'Series added to your subjects!',
   'globalLibrary.loadFailed': 'Failed to load series.',
   'globalLibrary.domesticateFailed': 'Failed to add series.',
+
+  // ── Chat ─────────────────────────────────────────────────────────────
+  'chat.connected': 'Online',
+  'chat.connecting': 'Connecting...',
+  'chat.noMessages': 'No messages yet',
+  'chat.startConversation': 'Send a message to start chatting!',
+  'chat.placeholder': 'Type a message...',
+  'chat.typing': 'typing...',
 };
