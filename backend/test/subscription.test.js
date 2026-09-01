@@ -44,7 +44,7 @@ async function loginAs(username, password, school_id) {
 async function loginFlagshipParent() {
   const res = await request(app)
     .post('/kids/parent/login')
-    .send({ phone: '08077777777', password: 'Parent@123', school_id: 'SCH-KIDS' });
+    .send({ phone: '08077777777', password: 'Parent@123', school_id: 'SCH-ELITE' });
   expect(res.status).toBe(200);
   return res.body.data.token; // raw jwt
 }
@@ -54,11 +54,11 @@ async function seedFlagshipParent() {
   const hash = bcrypt.hashSync('Parent@123', 10);
   await testQuery(
     `INSERT INTO users (id, name, email, username, password, role, user_type, school_id, branch_id, status, is_activated)
-     VALUES ('U-FLAG', 'Flag Parent', 'flag@kids.test', 'flag', ?, 'Parent', 'Parent', 'SCH-KIDS', 'BR-KIDS', 'active', 1)`,
+     VALUES ('U-FLAG', 'Flag Parent', 'flag@kids.test', 'flag', ?, 'Parent', 'Parent', 'SCH-ELITE', 'BR-ELITE', 'active', 1)`,
     [hash]
   );
   await testQuery(
-    `INSERT INTO parents (user_id, phone, school_id, password) VALUES ('U-FLAG', '08077777777', 'SCH-KIDS', ?)`,
+    `INSERT INTO parents (user_id, phone, school_id, password) VALUES ('U-FLAG', '08077777777', 'SCH-ELITE', ?)`,
     [hash]
   );
 }
@@ -96,7 +96,7 @@ describe('GET /kids/subscription/status (entitlement)', () => {
     const res = await request(app)
       .get('/kids/subscription/status')
       .set('authorization', `Bearer ${token}`)
-      .set('x-school-id', 'SCH-KIDS');
+      .set('x-school-id', 'SCH-ELITE');
     expect(res.status).toBe(200);
     expect(res.body.data.active).toBe(false);
     expect(res.body.data.tier).toBe('free_tier');
@@ -307,7 +307,7 @@ describe('POST /kids/paystack/webhook', () => {
     await request(app)
       .post('/kids/subscription/initiate')
       .set('authorization', `Bearer ${token}`)
-      .set('x-school-id', 'SCH-KIDS')
+      .set('x-school-id', 'SCH-ELITE')
       .send({ plan_code: 'kids_annual', email: 'flag@kids.test' });
     expect(paystack.initializeTransaction).toHaveBeenCalled();
 
@@ -324,7 +324,7 @@ describe('POST /kids/paystack/webhook', () => {
     const status = await request(app)
       .get('/kids/subscription/status')
       .set('authorization', `Bearer ${token}`)
-      .set('x-school-id', 'SCH-KIDS');
+      .set('x-school-id', 'SCH-ELITE');
     expect(status.body.data.active).toBe(true);
     expect(status.body.data.tier).toBe('all_games');
     expect(status.body.data.subscriber.plan_code).toBe('kids_annual');

@@ -537,6 +537,7 @@ async function ensureTestDb() {
     await conn.query(
       `INSERT INTO school_setup (school_id, school_name, short_name, school_motto, badge_url, status, kids_stand_alone, nursery_section, cbt_stand_alone) VALUES
        ('SCH-KIDS',  'Elite Kids Academy', 'kids',     'Learn, play and grow.', NULL,            'Active', 1, 1, 1),
+       ('SCH-ELITE', 'Elite EduTech Systems Ltd - Model School', 'elite', 'Excellence in learning.', NULL, 'Active', 1, 1, 1),
        ('SCH-TEST',  'Test Kids Academy',  'testkids', 'Test motto',           'http://cdn.test/badge.png', 'Active', 1, 1, 0),
        ('SCH-NOKIDS','No Kids Academy',    'nokids',   NULL,                   NULL,            'Active', 0, 1, 0),
        ('SCH-INACTIVE','Inactive School',  'inactivesch', NULL,                NULL,            'Inactive', 1, 1, 0)`
