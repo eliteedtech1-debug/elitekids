@@ -57,9 +57,19 @@ module.exports = (passport) => {
 
         // ── Parent auth ──────────────────────────────────────────────────
         if (user_type.toLowerCase() === 'parent') {
-          const { phone, children } = jwt_payload;
-          // kidsParent.js tokens carry phone + children (no id) — lightweight session.
-          if (phone) return done(null, { user_type: 'parent', phone, children: children || [] });
+          const { phone, children, id: parentId, school_id: parentSchoolId } = jwt_payload;
+          // kidsParent.js tokens carry phone + children — lightweight session, but
+          // keep id/school_id so subscription scope (kidsSubscription) can resolve
+          // the parent (flagship parent payments need user.id).
+          if (phone) {
+            return done(null, {
+              user_type: 'parent',
+              phone,
+              children: children || [],
+              ...(parentId ? { id: parentId } : {}),
+              ...(parentSchoolId ? { school_id: parentSchoolId } : {}),
+            });
+          }
           // Email/username parent tokens (/users/login) carry id — resolve the full
           // row so school/branch context survives (mode-lock b1 contract).
           if (!jwt_payload.id) return done(null, false);

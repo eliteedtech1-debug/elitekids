@@ -304,12 +304,13 @@ describe('POST /kids/paystack/webhook', () => {
       reference: 'KIDS-ANNUAL-FLAG',
     });
     const token = await loginFlagshipParent();
-    await request(app)
+    const initRes = await request(app)
       .post('/kids/subscription/initiate')
       .set('authorization', `Bearer ${token}`)
       .set('x-school-id', 'SCH-ELITE')
       .send({ plan_code: 'kids_annual', email: 'flag@kids.test' });
     expect(paystack.initializeTransaction).toHaveBeenCalled();
+    expect(initRes.status).toBe(200);
 
     paystack.verifyWebhookSignature.mockResolvedValue(true);
     paystack.verifyTransaction.mockResolvedValue({ status: 'success', amount: 120000 }); // NGN 1200
