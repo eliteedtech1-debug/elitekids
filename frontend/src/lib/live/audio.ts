@@ -12,7 +12,7 @@
 
 import { TeacherWebRTC, StudentWebRTC, setIceServers } from './webrtc';
 
-export type LiveRole = 'teacher' | 'student';
+export type LiveRole = 'teacher' | 'student' | 'parent';
 export interface LivePeer {
   adm: string;
   name: string;

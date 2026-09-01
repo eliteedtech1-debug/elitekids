@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   Baby,
@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Eye,
   BarChart3,
+  Radio,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -115,7 +116,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 
 export default function ParentChildren() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'children' | 'activities' | 'manage'>('children');
+  const [tab, setTab] = useState<'children' | 'activities' | 'manage' | 'live'>('children');
   const [children, setChildren] = useState<Child[]>([]);
   const [activities, setActivities] = useState<ChildActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -275,6 +276,9 @@ export default function ParentChildren() {
           </TabBtn>
           <TabBtn active={tab === 'manage'} onClick={() => setTab('manage')}>
             <Plus className="mr-1 inline h-4 w-4" /> {t('parent.tabLinkAdd')}
+          </TabBtn>
+          <TabBtn active={tab === 'live'} onClick={() => setTab('live')}>
+            <Radio className="mr-1 inline h-4 w-4" /> {t('parent.tabLive')}
           </TabBtn>
         </div>
 
@@ -576,6 +580,21 @@ export default function ParentChildren() {
                     </form>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ── Live Tab ── */}
+            {tab === 'live' && (
+              <div className="rounded-2xl border border-[#0F4D92]/10 bg-white p-5 shadow-sm">
+                <p className="mb-3 text-sm text-gray-600">
+                  Talk to your children in real time. They will hear you through their device when they are online.
+                </p>
+                <Link
+                  to="/parent/live"
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-base font-extrabold text-white shadow hover:bg-red-700"
+                >
+                  <Radio className="h-5 w-5" /> Open Live Audio
+                </Link>
               </div>
             )}
           </>
