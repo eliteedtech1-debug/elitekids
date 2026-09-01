@@ -79,7 +79,7 @@ beforeAll(async () => {
     server = app.listen(0, '127.0.0.1', () => {
       const addr = server.address();
       baseUrl = `ws://127.0.0.1:${addr.port}`;
-      require('./e3fLive').attach(server);
+      require('../src/controllers/e3fLive').attach(server);
       resolve();
     });
   });
