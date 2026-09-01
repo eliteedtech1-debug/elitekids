@@ -292,6 +292,8 @@ module.exports = (app) => {
   app.get('/kids/parent/children', auth, parentCtrl.getChildren);
   app.get('/kids/parent/child/:adm/progress', auth, parentCtrl.getChildProgress);
   app.get('/kids/parent/child/:adm/achievements', auth, parentCtrl.getChildAchievements);
+  app.get('/kids/parent/child/:adm/controls', auth, parentCtrl.getChildControls);
+  app.get('/kids/parent/child/:adm/report', auth, parentCtrl.getChildReport);
   app.get('/kids/parent/notifications', auth, parentCtrl.getNotifications);
   app.post('/kids/parent/notifications/:id/read', auth, parentCtrl.markRead);
 

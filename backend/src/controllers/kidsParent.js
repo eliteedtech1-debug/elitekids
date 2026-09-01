@@ -483,6 +483,174 @@ async function notifyOnGameComplete({ child_admission_no, score, lesson_id }) {
   }
 }
 
+// ─── GET /kids/parent/child/:adm/controls — merged controls + mode lock ─────
+async function getChildControls(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (u.user_type !== 'parent') return res.status(403).json({ success: false, message: 'Parents only.' });
+
+    const phone = String(u.phone || '');
+    const adm = String(req.params.adm || '').trim();
+
+    const [owned] = await dbm().content.query(
+      `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
+      { replacements: { phone, adm } },
+    );
+    if (!Array.isArray(owned) || owned.length === 0) {
+      return res.status(403).json({ success: false, message: 'Not linked to this child.' });
+    }
+
+    // Parental controls
+    const [controls] = await dbm().content.query(
+      `SELECT daily_play_limit_minutes, allowed_time_start, allowed_time_end
+       FROM kids_parental_controls WHERE student_id = :adm LIMIT 1`,
+      { replacements: { adm } },
+    );
+    const ctrl = (Array.isArray(controls) ? controls : [])[0] || {
+      daily_play_limit_minutes: 30, allowed_time_start: null, allowed_time_end: null,
+    };
+
+    // Active mode locks
+    const [locks] = await dbm().content.query(
+      `SELECT lesson_id, mode, locked_by, class_code, created_at
+       FROM kids_mode_locks
+       WHERE (child_admission_no = :adm OR child_admission_no = '*')
+       ORDER BY created_at DESC LIMIT 10`,
+      { replacements: { adm } },
+    );
+
+    // Today's play stats
+    const today = new Date().toISOString().split('T')[0];
+    const [todayStats] = await dbm().content.query(
+      `SELECT COUNT(*) AS games_today,
+              ROUND(AVG(score), 1) AS avg_score_today
+       FROM kids_progress
+       WHERE child_admission_no = :adm AND DATE(created_at) = :today`,
+      { replacements: { adm, today } },
+    );
+    const stats = (Array.isArray(todayStats[0]) ? todayStats[0] : [])[0] || { games_today: 0, avg_score_today: 0 };
+
+    return res.json({
+      success: true,
+      data: {
+        controls: ctrl,
+        mode_locks: Array.isArray(locks) ? locks : [],
+        today: stats,
+      },
+    });
+  } catch (err) {
+    console.error('parent getChildControls error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+// ─── GET /kids/parent/child/:adm/report?week=YYYY-MM-DD — printable weekly report ──
+async function getChildReport(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (u.user_type !== 'parent') return res.status(403).json({ success: false, message: 'Parents only.' });
+
+    const phone = String(u.phone || '');
+    const adm = String(req.params.adm || '').trim();
+
+    const [owned] = await dbm().content.query(
+      `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
+      { replacements: { phone, adm } },
+    );
+    if (!Array.isArray(owned) || owned.length === 0) {
+      return res.status(403).json({ success: false, message: 'Not linked to this child.' });
+    }
+
+    // Parse week param (default: current week)
+    const weekStr = String(req.query.week || '').trim();
+    let weekStart, weekEnd;
+    if (weekStr && /^\d{4}-\d{2}-\d{2}$/.test(weekStr)) {
+      weekStart = new Date(weekStr + 'T00:00:00Z');
+      weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+    } else {
+      const now = new Date();
+      weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+      weekStart.setHours(0, 0, 0, 0);
+      weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+    }
+    const ws = weekStart.toISOString().slice(0, 19).replace('T', ' ');
+    const we = weekEnd.toISOString().slice(0, 19).replace('T', ' ');
+
+    // Weekly summary
+    const [progress] = await dbm().content.query(
+      `SELECT COUNT(*) AS games_played,
+              ROUND(AVG(score), 1) AS avg_score,
+              SUM(CASE WHEN score >= 80 THEN 1 ELSE 0 END) AS excellent,
+              SUM(CASE WHEN score < 50 THEN 1 ELSE 0 END) AS needs_work,
+              COUNT(DISTINCT lesson_id) AS unique_lessons,
+              SUM(time_spent_seconds) AS total_time_seconds
+       FROM kids_progress
+       WHERE child_admission_no = :adm AND created_at >= :ws AND created_at < :we`,
+      { replacements: { adm, ws, we } },
+    );
+    const weekly = (Array.isArray(progress[0]) ? progress[0] : [])[0] || {
+      games_played: 0, avg_score: 0, excellent: 0, needs_work: 0, unique_lessons: 0, total_time_seconds: 0,
+    };
+
+    // Per-subject breakdown
+    const [subjects] = await dbm().content.query(
+      `SELECT p.lesson_id, l.title, l.subject, COUNT(*) AS plays, ROUND(AVG(p.score), 1) AS avg
+       FROM kids_progress p
+       LEFT JOIN kids_lessons l ON l.id = p.lesson_id
+       WHERE p.child_admission_no = :adm AND p.created_at >= :ws AND p.created_at < :we
+       GROUP BY p.lesson_id, l.title, l.subject
+       ORDER BY avg DESC`,
+      { replacements: { adm, ws, we } },
+    );
+
+    // All-time totals
+    const [allTime] = await dbm().content.query(
+      `SELECT COALESCE(SUM(points), 0) AS total_points,
+              COUNT(*) AS total_games
+       FROM kids_weekly_points WHERE child_admission_no = :adm`,
+      { replacements: { adm } },
+    );
+    const at = (Array.isArray(allTime[0]) ? allTime[0] : [])[0] || { total_points: 0, total_games: 0 };
+
+    // Badges this week
+    const [badges] = await dbm().content.query(
+      `SELECT badge_name, badge_emoji, awarded_at
+       FROM kids_badges
+       WHERE child_admission_no = :adm AND awarded_at >= :ws AND awarded_at < :we`,
+      { replacements: { adm, ws, we } },
+    );
+
+    // Child info
+    const [childInfo] = await dbm().content.query(
+      `SELECT child_name FROM kids_parent_links WHERE child_admission_no = :adm LIMIT 1`,
+      { replacements: { adm } },
+    );
+    const childName = (Array.isArray(childInfo) ? childInfo : [])[0]?.child_name || adm;
+
+    return res.json({
+      success: true,
+      data: {
+        child_name: childName,
+        admission_no: adm,
+        week_start: weekStart.toISOString().split('T')[0],
+        week_end: weekEnd.toISOString().split('T')[0],
+        summary: weekly,
+        subjects: Array.isArray(subjects) ? subjects : [],
+        all_time: at,
+        badges: Array.isArray(badges) ? badges : [],
+      },
+    });
+  } catch (err) {
+    console.error('parent getChildReport error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 module.exports = {
   ensureSchema,
   login,
@@ -490,6 +658,8 @@ module.exports = {
   getChildren,
   getChildProgress,
   getChildAchievements,
+  getChildControls,
+  getChildReport,
   getNotifications,
   markRead,
   sendNotification,
