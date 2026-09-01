@@ -1,0 +1,47 @@
+name: kids-suite-temp
+
+# TEMPORARY — runs the elite-kids jest suite on this repo's self-hosted runner
+# (VPS). Lives HERE (elite-kids repo) because that's where the self-runner is.
+# Triggered only by a change to this file itself.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/kids-suite-temp.yml'
+
+concurrency:
+  group: kids-suite-temp
+  cancel-in-progress: true
+
+jobs:
+  full-suite:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run jest suite (targeted + full, full output)
+        run: |
+          set +e
+          OUT=/var/www/html/elite/elite-core-app/kids-suite-report.txt
+          exec > >(tee "$OUT") 2>&1
+          echo "==== kids-suite-temp run $(date -u +%Y-%m-%dT%H:%M:%SZ) ===="
+          echo "runner: $(hostname)  head: $(git rev-parse --short HEAD) ($(git log -1 --format='%s' | head -c 80))"
+
+          cd backend
+          # Reuse the live node_modules (no new deps in this change-set; avoids a full reinstall)
+          ln -sfn /var/www/html/elite/elite-kids/backend/node_modules node_modules 2>/dev/null || true
+
+          # DB creds from the live .env (the hermetic test DB lives on this MySQL)
+          ENV=/var/www/html/elite/elite-kids/backend/.env
+          export TEST_DB_USER=$(grep -E '^DB_USERNAME=' "$ENV" | tail -1 | cut -d= -f2- | tr -d '\r')
+          export TEST_DB_PASSWORD=$(grep -E '^DB_PASSWORD=' "$ENV" | tail -1 | cut -d= -f2- | tr -d '\r')
+          echo "test db user: ${TEST_DB_USER:-root} (password set: $([ -n "$TEST_DB_PASSWORD" ] && echo yes || echo no))"
+
+          echo "==== TARGETED: unified-login + subscription + e4 + e5 ===="
+          npx jest test/unified-login.test.js test/subscription.test.js test/e4-webrtc-signaling.test.js test/e5-parent-live.test.js --runInBand --forceExit 2>&1
+          echo "targeted_exit=$?"
+          echo "==== FULL SUITE ===="
+          npm test -- --runInBand 2>&1 | tail -120
+          echo "full_exit=${PIPESTATUS[0]}"
+          echo "==== DONE ===="
