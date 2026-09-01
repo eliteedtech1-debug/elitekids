@@ -28,6 +28,8 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Deploy backend (git fast-forward live checkout)
+        env:
+          ELITEKIDS_TOKEN: ${{ secrets.ELITEKIDS_TOKEN }}
         run: |
           set -e
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
@@ -36,6 +38,9 @@ jobs:
 
           [ -d "$LIVE/.git" ] || { echo "❌ $LIVE is not a git checkout — refusing"; exit 1; }
           cd "$LIVE"
+
+          # Use token from Actions secret for auth (avoids plaintext PAT on disk)
+          git remote set-url origin "https://x-access-token:${ELITEKIDS_TOKEN}@github.com/eliteedtech1-debug/elitekids.git"
 
           # Preserve any local-only working-tree edits, then fast-forward to the
           # pushed head (ignored files like .env are untouched by this).
