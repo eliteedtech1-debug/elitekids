@@ -10,18 +10,26 @@ const bcrypt = require('bcryptjs');
 const db = require('../models');
 
 const FLAGSHIP_SCHOOL_ID = 'SCH-KIDS';
-const FLAGSHIP_SHORT_NAME = 'kids';
-const FLAGSHIP_NAME = 'Elite Kids Academy';
-
-/** Public-facing aliases that resolve to the flagship kids school. */
-const FLAGSHIP_ALIASES = ['practice'];
+const FLAGSHIP_SHORT_NAME = 'elite';
+// Short names that resolve to the flagship school (primary + back-compat aliases)
+const FLAGSHIP_ALIASES = ['kids', 'practice'];
+// The canonical model-school display name (owned by Elite EduTech Systems Ltd)
+const FLAGSHIP_NAME = 'Elite EduTech Systems Ltd — Model School';
 
 /** Subdomains + base domains that count as the flagship kids portal. */
-const FLAGSHIP_SUBDOMAINS = ['kids', 'practice'];
+const FLAGSHIP_SUBDOMAINS = ['elite', 'kids', 'practice'];
 const FLAGSHIP_BASE_DOMAINS = ['elitekids.com.ng', 'elitekids.com'];
 
 /** Domain fragments used to recognise the flagship base domains. */
 const FLAGSHIP_DOMAINS = ['elitekids'];
+
+/** Map an alias short_name to the flagship school id (or null if not an alias). */
+function flagshipIdForAlias(shortName) {
+  const sn = String(shortName || '').trim().toLowerCase();
+  if (!sn) return null;
+  if (sn === FLAGSHIP_SHORT_NAME || FLAGSHIP_ALIASES.includes(sn)) return FLAGSHIP_SCHOOL_ID;
+  return null;
+}
 
 /** Map an alias short_name to the flagship school id (or null if not an alias). */
 function flagshipIdForAlias(shortName) {
@@ -65,11 +73,23 @@ async function ensureFlagshipKidsSchool() {
   try {
     const existing = await db.sequelize
       .query(
-        `SELECT school_id FROM school_setup WHERE school_id = :sid OR short_name = :sn LIMIT 1`,
-        { replacements: { sid: FLAGSHIP_SCHOOL_ID, sn: FLAGSHIP_SHORT_NAME }, type: db.sequelize.QueryTypes.SELECT }
+        `SELECT school_id, school_name, short_name FROM school_setup WHERE school_id = :sid OR short_name IN (:aliases) LIMIT 1`,
+        { replacements: { sid: FLAGSHIP_SCHOOL_ID, aliases: [FLAGSHIP_SHORT_NAME, ...FLAGSHIP_ALIASES] }, type: db.sequelize.QueryTypes.SELECT }
       )
       .catch(() => []);
-    if (existing.length) return { school_id: existing[0].school_id, created: false };
+    if (existing.length) {
+      // Idempotent rebrand: keep SCH-KIDS id, adopt the `elite` short name and
+      // the model-school display name (owned by Elite EduTech Systems Ltd).
+      const sid = existing[0].school_id;
+      if (String(existing[0].short_name || '') !== FLAGSHIP_SHORT_NAME
+          || String(existing[0].school_name || '') !== FLAGSHIP_NAME) {
+        await db.sequelize.query(
+          `UPDATE school_setup SET short_name = :sn, school_name = :name, updated_at = NOW() WHERE school_id = :sid`,
+          { replacements: { sn: FLAGSHIP_SHORT_NAME, name: FLAGSHIP_NAME, sid } }
+        ).catch((e) => console.error('⚠️ Flagship rebrand skipped:', e.message));
+      }
+      return { school_id: sid, created: false };
+    }
 
     const t = await db.sequelize.transaction();
     const branch_id = `BRN${Date.now()}`.slice(0, 20);

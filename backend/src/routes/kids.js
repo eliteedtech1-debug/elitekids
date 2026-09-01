@@ -80,6 +80,8 @@ const {
 } = require('../controllers/kidsParental');
 const { denyForeignChildData, requireStaff } = require('../services/routesHelper');
 const { getModeLock, setModeLock, removeModeLock, listModeLocks, convertTestScores } = require('../controllers/kidsModeLock');
+// Flagship `elite` model school + subscriptions (spec: FLAGSHIP-ELITE-SCHOOL-SPEC.md)
+const subCtrl = require('../controllers/kidsSubscription');
 
 const auth = passport.authenticate('jwt', { session: false });
 const { getLeaderboard, getMyStatus, getMyBadges } = require('../controllers/kidsLeaderboard');
@@ -314,6 +316,14 @@ module.exports = (app) => {
   app.get('/kids/analytics/struggling', auth, requireStaff, analyticsCtrl.getStrugglingStudents);
   app.get('/kids/analytics/games', auth, requireStaff, analyticsCtrl.getGameEngagement);
   app.get('/kids/analytics/leaderboard', auth, requireStaff, analyticsCtrl.getTopPerformers);
+
+  // ── Flagship `elite` + subscriptions (spec C) ───────────────────────────
+  app.get('/kids/subscription/plans', subCtrl.listPlans);              // public
+  app.get('/kids/subscription/status', auth, subCtrl.getStatus);
+  app.post('/kids/subscription/initiate', auth, subCtrl.initiate);
+  app.post('/kids/subscription/verify', auth, subCtrl.verify);
+  // req.rawBody is captured by the global express.json({ verify }) in app.js
+  app.post('/kids/paystack/webhook', subCtrl.webhook);
 
   // ── Phase 4: Match History ──────────────────────────────────────────────
   app.get('/kids/match-history', auth, matchHistoryCtrl.getMatchHistory);

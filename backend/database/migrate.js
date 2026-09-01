@@ -118,6 +118,8 @@ const KIDS_CONTENT_TABLE_LIST = [
   'kids_engagement_snapshots', 'kids_mastery_progress', 'kids_test_attempts',
   'kids_review_schedule', 'kids_interface_onboarding', 'kids_garden_state',
   'kids_companion_state', 'kids_session_state', 'kids_parental_controls',
+  // Flagship `elite` + subscriptions (spec: FLAGSHIP-ELITE-SCHOOL-SPEC.md)
+  'kids_subscription_plans', 'kids_subscriptions', 'kids_payments',
 ];
 const KIDS_AI_TABLE_LIST = ['kids_content_generation_audit'];
 
