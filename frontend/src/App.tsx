@@ -25,6 +25,7 @@ const TeacherApprovals = lazy(() => import('@/pages/Teacher/TeacherApprovals'));
 const TeacherArena = lazy(() => import('@/pages/Teacher/TeacherArena'));
 const TeacherLive = lazy(() => import('@/pages/Teacher/TeacherLive'));
 const TeacherAnalytics = lazy(() => import('@/pages/Teacher/TeacherAnalytics'));
+const GlobalLibrary = lazy(() => import('@/pages/Teacher/GlobalLibrary'));
 const NerdcReport = lazy(() => import('@/pages/Teacher/NerdcReport'));
 const GameCreator = lazy(() => import('@/pages/Teacher/GameCreator'));
 const AssetLibrary = lazy(() => import('@/pages/Admin/AssetLibrary'));
@@ -159,6 +160,14 @@ export default function App() {
         element={
           <AuthGuard>
             <LazyRoute element={<TeacherAnalytics />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/global-library"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<GlobalLibrary />} />
           </AuthGuard>
         }
       />

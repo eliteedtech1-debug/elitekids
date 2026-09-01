@@ -1066,4 +1066,18 @@
   'error.notFound': 'The requested resource was not found.',
   'error.rateLimited': 'Too many requests. Please wait a moment.',
   'error.serverError': 'Something went wrong. Please try again later.',
+
+  // ── Global Library ───────────────────────────────────────────────────
+  'globalLibrary.title': 'Global Library',
+  'globalLibrary.subtitle': 'Browse Elite global content and add it to your subjects.',
+  'globalLibrary.searchPlaceholder': 'Search series by name or category...',
+  'globalLibrary.noResults': 'No series found.',
+  'globalLibrary.added': 'Added',
+  'globalLibrary.browse': 'Add',
+  'globalLibrary.pickSubject': 'Pick subject',
+  'globalLibrary.addToMySubjects': 'Add',
+  'globalLibrary.selectSubject': 'Please select a subject first.',
+  'globalLibrary.domesticated': 'Series added to your subjects!',
+  'globalLibrary.loadFailed': 'Failed to load series.',
+  'globalLibrary.domesticateFailed': 'Failed to add series.',
 };
