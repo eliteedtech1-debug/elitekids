@@ -41,6 +41,13 @@ apiClient.interceptors.response.use(
       window.location.href = '/login';
     }
 
+    if (error.response?.status === 403) {
+      const data = error.response?.data as Record<string, any>;
+      if (data?.error_code === 'SUBSCRIPTION_REQUIRED') {
+        window.dispatchEvent(new CustomEvent('kids:auth-error', { detail: data }));
+      }
+    }
+
     if (!error.response) {
       const friendly =
         typeof navigator !== 'undefined' && !navigator.onLine

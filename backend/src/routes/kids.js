@@ -82,6 +82,7 @@ const { denyForeignChildData, requireStaff } = require('../services/routesHelper
 const { getModeLock, setModeLock, removeModeLock, listModeLocks, convertTestScores } = require('../controllers/kidsModeLock');
 // Flagship `elite` model school + subscriptions (spec: FLAGSHIP-ELITE-SCHOOL-SPEC.md)
 const subCtrl = require('../controllers/kidsSubscription');
+const { requireKidsEntitlement } = require('../controllers/kidsSubscription');
 
 const auth = passport.authenticate('jwt', { session: false });
 const { getLeaderboard, getMyStatus, getMyBadges } = require('../controllers/kidsLeaderboard');
@@ -148,8 +149,8 @@ module.exports = (app) => {
 
   // ── Lessons & content (moved above, POST /kids/lessons now uses requireStaff) ──
   // Child-facing published content (parent/teacher/student auth required)
-  app.get('/kids/lessons/:id/game', auth, getPublishedGame);
-  app.get('/kids/lessons/:id/scenes', auth, getPublishedScenes);
+  app.get('/kids/lessons/:id/game', auth, requireKidsEntitlement, getPublishedGame);
+  app.get('/kids/lessons/:id/scenes', auth, requireKidsEntitlement, getPublishedScenes);
 
   // ── Generation job status (teacher/admin polling) ────────────────────────
   app.get('/kids/generation-jobs', auth, listGenerationJobs);
@@ -186,8 +187,8 @@ module.exports = (app) => {
 
   // ── Game Series & Unit Sequencing (Doc 12) ──────────────────────────
   app.post('/kids/series', auth, requireStaff, createSeries);
-  app.get('/kids/series', auth, listSeries);
-  app.get('/kids/series/:id', auth, getSeries);
+  app.get('/kids/series', auth, requireKidsEntitlement, listSeries);
+  app.get('/kids/series/:id', auth, requireKidsEntitlement, getSeries);
   // E3: subject-grouped curriculum map w/ sequential gating
   app.get('/kids/curriculum', auth, getCurriculum);
   app.post('/kids/series/:id/units', auth, requireStaff, createUnit);

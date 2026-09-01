@@ -1024,4 +1024,21 @@
   'arena.kids': '{count} kids',
   'arena.topPullers': 'Top pullers',
   'arena.noPulls': 'No pulls yet…',
+
+  // ── Subscription Upsell ──────────────────────────────────────────────
+  'upsell.title': 'Unlock All Games',
+  'upsell.subtitle': 'Your school or account needs a subscription to access all learning games.',
+  'upsell.loading': 'Loading plans...',
+  'upsell.noPlans': 'No plans available yet.',
+  'upsell.term': 'Per school term',
+  'upsell.annual': 'Per year (best value)',
+  'upsell.subscribe': 'Subscribe Now',
+  'upsell.processing': 'Redirecting to Paystack...',
+  'upsell.paymentFailed': 'Could not start payment. Please try again.',
+  'upsell.includes': 'Your subscription includes',
+  'upsell.feature_allGames': 'Access to all learning games',
+  'upsell.feature_progressTracking': 'Detailed progress tracking',
+  'upsell.feature_liveAudio': 'Live audio with teachers & parents',
+  'upsell.feature_adaptiveLearning': 'Adaptive difficulty engine',
+  'upsell.maybeLater': 'Maybe later',
 };
