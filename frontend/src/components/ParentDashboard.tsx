@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Phone, Lock, UserPlus, LogIn, Baby, Trophy, Star, TrendingUp, Bell, BookOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/api/client';
@@ -212,6 +212,8 @@ export default function ParentDashboard() {
               </button>
             </div>
           </div>
+          {/* ── Subscription card (flagship parents) — payment lives HERE, never on the child's screen ── */}
+          <ParentSubscriptionCard token={token} />
           {children.length === 0 ? (
             <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
               <Baby className="mx-auto mb-3 h-12 w-12 text-gray-300" />
@@ -376,6 +378,80 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
       <div className="text-lg">{icon}</div>
       <div className={`text-lg font-extrabold ${textMap[color] || 'text-gray-700'}`}>{value}</div>
       <div className="text-[10px] font-semibold text-gray-500">{label}</div>
+    </div>
+  );
+}
+
+/* ── Parent subscription card — where PAYMENTS live (flagship parents) ──
+ * Shows plan status and a Paystack subscribe/renew button. Children never
+ * see this; only the parent dashboard does. Session-free school checkout is
+ * handled by LoginUpsell; authenticated parents use /initiate directly.
+ */
+function ParentSubscriptionCard({ token }: { token: string }) {
+  const [state, setState] = useState<{
+    plan?: string; status?: string; expires_at?: string | null;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    apiClient
+      .get('/kids/subscription/status', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => setState(res.data?.data?.subscriber || null))
+      .catch(() => {});
+  }, [token]);
+
+  const subscribe = async () => {
+    setBusy(true);
+    try {
+      const res = await apiClient.post(
+        '/kids/subscription/initiate',
+        { plan_code: 'kids_annual' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const url = res.data?.data?.authorization_url;
+      if (url) window.location.href = url;
+      else toast.error('Could not start payment.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Could not start payment.';
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!state) return null;
+  const active = state.status === 'active';
+  const trial = state.status === 'trial';
+  const free = state.status === 'free';
+  const exp = state.expires_at ? new Date(String(state.expires_at).includes('T') ? state.expires_at : String(state.expires_at).replace(' ', 'T')) : null;
+  const daysLeft = exp ? Math.max(0, Math.ceil((exp.getTime() - Date.now()) / 86_400_000)) : null;
+
+  return (
+    <div className={`mb-4 rounded-2xl border p-4 ${active ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-extrabold text-gray-800">
+            {active ? '✅ Subscription active' : trial ? '⏳ Free trial' : '🧸 Free showcase tier'}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {active && exp
+              ? `All games unlocked · renews ${exp.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+              : trial && daysLeft !== null
+                ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} left — subscribe to keep all games after the trial`
+                : 'You are on the free showcase — unlock every game for your child'}
+          </p>
+          {!active && (
+            <button
+              onClick={subscribe}
+              disabled={busy}
+              className="mt-2.5 rounded-xl bg-teal-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-teal-700 disabled:opacity-60"
+            >
+              {busy ? 'Opening checkout…' : 'Subscribe — ₦1,200/year 💳'}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

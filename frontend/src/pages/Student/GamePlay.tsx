@@ -14,6 +14,7 @@ import {
   XCircle,
   Zap,
   Palette,
+  CreditCard,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { offlineApi } from '@/lib/offline/api';
@@ -30,6 +31,7 @@ import { useA11yStore } from '@/lib/utils/a11y-store';
 import SpeechSettings from '@/components/SpeechSettings';
 import SpeechInput from '@/components/SpeechInput';
 import CachedImg from '@/components/CachedImg';
+// NOTE: children never see payment UI — no SubscriptionUpsell here anymore.
 import StickerButton from '@/components/StickerButton';
 import { getFeedbackClasses, getTimerColor, FOCUS_RING_GAME, motionClass } from '@/lib/utils/accessibility';
 import {
@@ -53,7 +55,7 @@ import {
   playHint,
   playCelebration,
 } from '@/lib/utils/sound';
-import { playCombo, playComboBreak, playRageFill, playRageActive, playBossAttack, playBossDefeated, playVictory } from '@/lib/game/sound-effects';
+import { playCombo, playComboBreak, playRageFill, playRageActive, playBossAttack, playBossDefeated, playVictory, playLocked } from '@/lib/game/sound-effects';
 import { createCombo, recordCorrect as comboCorrect, recordIncorrect as comboIncorrect, getComboFireLevel } from '@/lib/game/combo';
 import type { ComboState } from '@/lib/game/combo';
 import { awardPowerUps, getAvailable, usePowerUp } from '@/lib/game/power-ups';
@@ -3377,9 +3379,19 @@ export default function GamePlay() {
   const [sceneIdx, setSceneIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Freemium gate: set when backend responds 403 SUBSCRIPTION_REQUIRED.
+  const [gate, setGate] = useState<{ locked: boolean; freeLimit: number; freeRemaining: number; dailyLessonId: string | null; dailyPlayed: boolean; message: string; childFriendly?: boolean } | null>(null);
   const [score, setScore] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  // Locked-game sound: play the iconic "locked" motif once per gate state.
+  // Gate is set from a 403 payload; an effect ensures it fires even when the
+  // browser blocks autoplay before any user gesture.
+  useEffect(() => {
+    if (gate?.locked && soundOn) {
+      try { playLocked(); } catch { /* audio unavailable */ }
+    }
+  }, [gate?.locked]);
   const [sceneSpeaking, setSceneSpeaking] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -3455,8 +3467,21 @@ export default function GamePlay() {
   useEffect(() => {
     if (!lessonId) return;
     setLoading(true);
+    // Freemium: capture SUBSCRIPTION_REQUIRED 403 (free games used up) so we
+    // can show subscribe/lock UI instead of a generic "Game not found".
+    const gateFail = (err: any) => {
+      const d = err?.data || {};
+      if (err?.status === 403 && d?.error_code === 'SUBSCRIPTION_REQUIRED') {
+        setGate({ locked: true, freeLimit: d.free_limit ?? 5, freeRemaining: d.freeRemaining ?? 0, dailyLessonId: d.dailyLessonId ?? null, dailyPlayed: !!d.dailyPlayed, message: err.message });
+      } else if (err?.status === 403 && d?.error_code === 'SCHOOL_NOT_SUBSCRIBED') {
+        // Real school whose trial ended: kids NEVER see payments — this is a
+        // gentle "no subscription" screen; the message asks them to tell an adult.
+        setGate({ locked: true, freeLimit: 0, freeRemaining: 0, dailyLessonId: null, dailyPlayed: false, message: d.message || 'Your school\'s subscription has ended.', childFriendly: true });
+      }
+      return { data: null };
+    };
     Promise.all([
-      apiClient.get(ENDPOINTS.LESSONS.GAME(lessonId)).catch(() => ({ data: null })),
+      apiClient.get(ENDPOINTS.LESSONS.GAME(lessonId)).catch(gateFail),
       apiClient.get(ENDPOINTS.LESSONS.SCENES(lessonId)).catch(() => ({ data: { data: [] } })),
     ])
       .then(async ([gameRes, scenesRes]) => {
@@ -3949,10 +3974,46 @@ export default function GamePlay() {
         </div>
       </div>
     );
-  }
-
-  /* ── Error ── */
+  }  /* ── Error ── */
   if (error || !config) {
+    // Freemium: free games used up → friendly locked screen.
+    // IMPORTANT: children NEVER see payments — no checkout buttons here.
+    // Flagship kids get "ask your parent"; locked-school kids get "tell an
+    // adult". Parents/admins do the subscribing (ParentDashboard, login wall).
+    if (gate?.locked) {
+      const isSchoolLock = !!gate.childFriendly;
+      const isDailyPlayed = gate.dailyLessonId === lessonId && gate.dailyPlayed;
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[#E7EEF6] p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg animate-game-spring-in">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-3xl shadow-lg">
+              {isSchoolLock ? '🔒' : isDailyPlayed ? '🌙' : '🔒'}
+            </div>
+            <h2 className="mb-2 text-lg font-extrabold text-gray-800">
+              {isSchoolLock ? t('freemium.schoolEndedTitle') : isDailyPlayed ? t('freemium.dailyDoneTitle') : t('freemium.lockedTitle')}
+            </h2>
+            <p className="mb-6 text-sm text-gray-500">{gate.message || t('freemium.lockedBody')}</p>
+            {isSchoolLock ? (
+              <p className="rounded-xl bg-teal-50 border border-teal-200 p-3 mb-5 text-xs font-medium text-teal-700">
+                {t('freemium.schoolEndedBody')}
+              </p>
+            ) : (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 mb-5">
+                <p className="text-xs font-medium text-amber-700">
+                  {t('freemium.quotaInfo', { freeLimit: gate.freeLimit })}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-amber-800">
+                  {t('freemium.askParent')}
+                </p>
+              </div>
+            )}
+            <button onClick={() => navigate('/student')} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 active:scale-95 transition-all">
+              {t('game.backToGames')}
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#E7EEF6]">
         <div className="text-center animate-game-spring-in">

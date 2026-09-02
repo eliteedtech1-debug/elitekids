@@ -433,7 +433,7 @@ async function markRead(req, res) {
 }
 
 // ─── Helper: sendNotification (called from other controllers) ─────────────────
-async function sendNotification({ parent_phone, type, title, body, child_admission_no }) {
+async function sendNotification({ parent_phone, type, title, body, child_admission_no, school_id }) {
   try {
     await ensureSchema();
     await dbm().content.query(
@@ -441,22 +441,34 @@ async function sendNotification({ parent_phone, type, title, body, child_admissi
        VALUES (:id, :phone, :type, :title, :body, :adm)`,
       { replacements: { id: crypto.randomUUID(), phone: parent_phone, type, title, body, adm: child_admission_no || null } },
     );
+    // Real-time: push notification to parent's WebSocket connection
+    try {
+      const { broadcastToParent } = require('./e3fLive');
+      const normPhone = String(parent_phone || '').replace(/\s+/g, '').replace(/^0/, '+234').toLowerCase();
+      const sid = String(school_id || '').trim();
+      if (sid) {
+        broadcastToParent(sid, normPhone, {
+          type: 'parent-notification',
+          notification: { type, title, body, child_admission_no, created_at: new Date().toISOString() },
+        });
+      }
+    } catch { /* non-fatal — notification already saved to DB */ }
   } catch (err) {
     console.error('parent sendNotification error:', err.message);
   }
 }
 
 // ─── Helper: notifyOnGameComplete (hook into recordGameComplete) ───────────────
-async function notifyOnGameComplete({ child_admission_no, score, lesson_id }) {
+async function notifyOnGameComplete({ child_admission_no, score, lesson_id, school_id }) {
   try {
     await ensureSchema();
     // Find parent links for this child
     const [links] = await dbm().content.query(
-      `SELECT parent_phone FROM kids_parent_links WHERE child_admission_no = :adm AND verified = 1`,
+      `SELECT parent_phone, school_id FROM kids_parent_links WHERE child_admission_no = :adm AND verified = 1`,
       { replacements: { adm: child_admission_no } },
     );
-    const phones = Array.isArray(links) ? links.map(l => l.parent_phone) : [];
-    if (phones.length === 0) return;
+    const linkRows = Array.isArray(links) ? links : [];
+    if (linkRows.length === 0) return;
 
     // Get child name
     const [stu] = await dbm().sequelize.query(
@@ -469,13 +481,14 @@ async function notifyOnGameComplete({ child_admission_no, score, lesson_id }) {
     const emoji = score >= 80 ? '🌟' : score >= 50 ? '✅' : '📝';
     const msg = `${emoji} ${childName} scored ${score}% on a game!`;
 
-    for (const phone of phones) {
+    for (const link of linkRows) {
       await sendNotification({
-        parent_phone: phone,
+        parent_phone: link.parent_phone,
         type: score >= 80 ? 'achievement' : 'daily_summary',
         title: 'Game Update',
         body: msg,
         child_admission_no,
+        school_id: link.school_id || school_id || '',
       });
     }
   } catch (err) {

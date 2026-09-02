@@ -60,6 +60,15 @@ function noise(duration: number, volume = 0.08) {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
+/** Iconic "locked / can't play" motif — soft clunk-clunk + descending wah.
+ *  Fired when a child opens a game they can't play yet (no subscription /
+ *  free games used up). Gentle, not scary. */
+export function playLocked() {
+  beep(240, 0.14, 'square', 0.11);
+  setTimeout(() => beep(190, 0.16, 'square', 0.11), 130);
+  setTimeout(() => beep(140, 0.4, 'sawtooth', 0.09), 300);
+}
+
 export function playTap() {
   beep(800, 0.06, 'sine', 0.1);
 }

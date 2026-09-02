@@ -14,6 +14,7 @@
  * IP RULE: ZERO Sony God of War strings. Original characters only.
  */
 const crypto = require('crypto');
+const { broadcastToClass } = require('./e3fLive');
 
 const dbm = () => require('../models');
 
@@ -397,6 +398,22 @@ async function submitDamage(req, res) {
         { replacements: { id: raidId } },
       ).catch(() => {});
     }
+
+    // Real-time: broadcast boss HP update to all connected students in this class
+    try {
+      broadcastToClass(String(schoolId), raid.class_code, {
+        type: 'raid-hp',
+        raidId,
+        guardianSlug: raid.guardian_slug,
+        guardianName: guardian.name,
+        guardianEmoji: guardian.emoji,
+        currentHp: hp,
+        maxHp: raid.max_hp,
+        defeated,
+        damagedBy: adm,
+        ts: Date.now(),
+      });
+    } catch { /* never break game flow */ }
 
     return res.json({
       success: true,

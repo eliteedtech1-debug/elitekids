@@ -33,6 +33,7 @@ import CompanionSelect, { CompanionBubble } from '@/components/CompanionSelect';
 import GardenScene from '@/components/GardenScene';
 import StudentLeaderboardPanel from './StudentLeaderboardPanel';
 import StudentFestival from '@/components/StudentFestival';
+import StudentLiveBar from '@/components/StudentLiveBar';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
@@ -423,6 +424,9 @@ export default function StudentHome() {
         </div>
       </header>
 
+      {/* Live audio bar — teacher/parent speaking indicator + mic reply */}
+      <StudentLiveBar />
+
       <main className="mx-auto max-w-5xl px-4 py-6">
         {/* Companion greeting */}
         {companion && !showOnboarding && !showCompanionSelect && (
@@ -521,7 +525,7 @@ export default function StudentHome() {
             </div>
 
             {activeTab === 'festival' ? (
-              <StudentFestival onGoPlay={() => navigate('/student/game')} />
+              <StudentFestival onGoPlay={() => navigate('/student')} />
             ) : activeTab === 'leaderboard' ? (
               <StudentLeaderboardPanel />
             ) : (

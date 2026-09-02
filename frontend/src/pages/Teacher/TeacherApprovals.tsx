@@ -29,7 +29,17 @@ interface Approval {
   school_id: string;
   branch_id: string;
   rejection_reason?: string;
-  created_at: string;
+  created_at?: string;
+  createdAt?: string;
+}
+
+/** Safe date formatting — handles created_at/createdAt + MySQL dateStrings form.
+ *  Returns '' instead of "Invalid Date" for missing/unparseable values. */
+function formatApprovalDate(value?: string | null): string {
+  if (!value) return '';
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(value) ? value.replace(' ', 'T') : value;
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString();
 }
 
 /* ── Content type display ────────────────────────────── */
@@ -131,7 +141,7 @@ export default function TeacherApprovals() {
                     <div className="flex items-center gap-2 mb-2">
                       <ContentTypeBadge type={approval.content_type} />
                       <span className="text-xs text-gray-400">
-                        {new Date(approval.created_at).toLocaleString()}
+                        {formatApprovalDate(approval.created_at || approval.createdAt)}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">

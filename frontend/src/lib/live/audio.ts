@@ -11,6 +11,7 @@
  */
 
 import { TeacherWebRTC, StudentWebRTC, setIceServers } from './webrtc';
+import { liveEvents } from './events';
 
 export type LiveRole = 'teacher' | 'student' | 'parent';
 export interface LivePeer {
@@ -24,6 +25,11 @@ export interface LiveHandlers {
   onPresence?: (peers: LivePeer[]) => void;
   onTeacherLive?: (on: boolean) => void;
   onYouFloor?: (on: boolean) => void;
+  onArenaScore?: (data: { competitionId: string; childAdmissionNo: string; score: number; mode: string | null; ts: number }) => void;
+  onRaidHp?: (data: { raidId: string; guardianSlug: string; guardianName: string; guardianEmoji: string; currentHp: number; maxHp: number; defeated: boolean; damagedBy: string; ts: number }) => void;
+  onFestivalHp?: (data: { festivalId: string; guardianSlug: string; guardianName: string; guardianEmoji: string; currentHp: number; maxHp: number; defeated: boolean; allDefeated: boolean; damagedBy: string; ts: number }) => void;
+  onReaction?: (data: { emoji: string; from: string; ts: number }) => void;
+  onParentNotification?: (data: { notification: { type: string; title: string; body: string; child_admission_no: string; created_at: string } }) => void;
 }
 
 const CHUNK = 2048;
@@ -116,8 +122,11 @@ export class EliteLive {
   /** Teacher grants/revokes a student's mic. */
   giveFloor(adm: string, on: boolean) {
     this.sendJson({ type: 'floor', adm, on });
-    // WebRTC: mic add/remove is driven by student receiving you-mic message
-    // The server sends you-mic alongside you-floor when LIVE_WEBRTC=1
+  }
+
+  /** Send an emoji reaction to all peers in the class. */
+  sendReaction(emoji: string, classCode?: string) {
+    this.sendJson({ type: 'reaction', emoji, classCode: classCode || '' });
   }
 
   /** Start capturing + streaming the local mic. */
@@ -188,6 +197,7 @@ export class EliteLive {
       case 'welcome':
         this.role = String(msg.role) as LiveRole;
         this.hasFloor = !!msg.floor || this.role === 'teacher';
+        liveEvents.emit('teacher-live', { on: !!msg.live });
         // Negotiate transport mode
         this.webrtcMode = !!msg.webrtc && typeof RTCPeerConnection !== 'undefined';
         if (this.webrtcMode) {
@@ -199,6 +209,7 @@ export class EliteLive {
 
       case 'presence':
         this.handlers.onPresence?.((msg.online as LivePeer[]) || []);
+        liveEvents.emit('presence', msg);
         // WebRTC: create PCs for newly-joined students (teacher only)
         if (this.webrtcMode && this.role === 'teacher' && this.teacherRtc) {
           const students = (msg.online as LivePeer[]).filter((p) => p.role === 'student');
@@ -210,11 +221,13 @@ export class EliteLive {
 
       case 'live':
         this.handlers.onTeacherLive?.(!!msg.on);
+        liveEvents.emit('teacher-live', msg);
         break;
 
       case 'you-floor':
         this.hasFloor = !!msg.on;
         this.handlers.onYouFloor?.(this.hasFloor);
+        liveEvents.emit('you-floor', msg);
         break;
 
       // ── WebRTC signaling ──────────────────────────────────────────────
@@ -272,6 +285,32 @@ export class EliteLive {
         }
         break;
 
+      // ── Arena / Competition real-time events ──────────────────────────
+      case 'arena-score':
+        this.handlers.onArenaScore?.(msg as any);
+        liveEvents.emit('arena-score', msg);
+        break;
+
+      case 'raid-hp':
+        this.handlers.onRaidHp?.(msg as any);
+        liveEvents.emit('raid-hp', msg);
+        break;
+
+      case 'festival-hp':
+        this.handlers.onFestivalHp?.(msg as any);
+        liveEvents.emit('festival-hp', msg);
+        break;
+
+      case 'reaction':
+        this.handlers.onReaction?.(msg as any);
+        liveEvents.emit('reaction', msg);
+        break;
+
+      case 'parent-notification':
+        this.handlers.onParentNotification?.(msg as any);
+        liveEvents.emit('parent-notification', msg);
+        break;
+
       default:
         break;
     }
@@ -288,7 +327,11 @@ export class EliteLive {
         onRemoteAudioRemoved: (adm) => this.removeRemoteAudio(adm),
       });
       // If teacher is already broadcasting when WebRTC activates, start the mic
-      // (This handles the case where the teacher started in PCM mode then WebRTC was enabled)
+      if (this.speaking) {
+        this.teacherRtc.startBroadcast().then((stream) => {
+          if (stream) this.speaking = true;
+        });
+      }
     } else {
       this.studentRtc = new StudentWebRTC(sendSignal, {
         onRemoteAudio: (stream) => this.playRemoteStream(stream, 'teacher'),

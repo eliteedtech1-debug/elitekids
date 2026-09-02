@@ -3,6 +3,7 @@ import { Swords, Loader2, RefreshCw, Flag, Trophy, Users, PlusCircle } from 'luc
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { liveEvents } from '@/lib/live/events';
 import { t, tN } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
 import TeacherBossRaid from '@/components/TeacherBossRaid';
@@ -43,6 +44,9 @@ export default function TeacherArena() {
 
   useEffect(() => {
     load();
+    // Real-time: re-fetch competition list when any score event comes in
+    const unsub = liveEvents.on('arena-score', () => { load(); });
+    return unsub;
   }, [load]);
 
   const create = async () => {

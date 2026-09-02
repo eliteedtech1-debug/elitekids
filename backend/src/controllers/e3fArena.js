@@ -23,6 +23,7 @@
  */
 const crypto = require('crypto');
 const { Op } = require('sequelize');
+const { broadcastToClass } = require('./e3fLive');
 
 const TEAM_PAIRS = [
   ['🦁 Team Lion', '🦅 Team Eagle'],
@@ -439,6 +440,19 @@ async function onGameComplete({ school_id, child_admission_no, lesson_id, score,
         },
       },
     );
+
+    // Real-time: broadcast score update to all connected teachers/students in this class
+    try {
+      const sc = Number(score) || 0;
+      broadcastToClass(school_id, stu.class_code, {
+        type: 'arena-score',
+        competitionId: comp.id,
+        childAdmissionNo: child_admission_no,
+        score: sc,
+        mode: mode || null,
+        ts: Date.now(),
+      });
+    } catch { /* never break game flow */ }
   } catch (err) {
     console.error('[arena] onGameComplete hook:', err.message); // never break game flow
   }

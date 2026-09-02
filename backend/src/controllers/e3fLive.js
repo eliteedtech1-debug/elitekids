@@ -44,6 +44,31 @@ const crypto = require('crypto');
 
 let attached = false;
 
+// ── Shared broadcast API for other modules (arena, reactions, notifications) ──
+// Other controllers import these to push real-time events through the WebSocket.
+const _broadcastFns = { toClass: null, toParent: null };
+
+/**
+ * Broadcast a JSON message to ALL connections in a class room.
+ * Call from arena, competition, or any module that needs real-time push.
+ * @param {string} schoolId
+ * @param {string} classCode
+ * @param {object} msg - will be JSON-stringified
+ */
+function broadcastToClass(schoolId, classCode, msg) {
+  if (_broadcastFns.toClass) _broadcastFns.toClass(schoolId, classCode, msg);
+}
+
+/**
+ * Broadcast a JSON message to a specific parent room.
+ * @param {string} schoolId
+ * @param {string} phone - normalized phone (+234...)
+ * @param {object} msg
+ */
+function broadcastToParent(schoolId, phone, msg) {
+  if (_broadcastFns.toParent) _broadcastFns.toParent(schoolId, phone, msg);
+}
+
 function verifyJwt(token, secret) {
   try {
     const parts = String(token || '').replace(/^Bearer\s+/i, '').split('.');
@@ -92,6 +117,19 @@ function attach(server) {
   // key → { conns:Set<conn>, speaker:null|string, speakerTimer, pendingOffers:Map<adm,adm> }
   const rooms = new Map();
   const ROOM_CAPACITY = 60;
+
+  // Wire up shared broadcast API for other modules
+  _broadcastFns.toClass = (schoolId, classCode, msg) => {
+    const key = `${schoolId}:${classCode}`;
+    const r = rooms.get(key);
+    if (r) broadcast(r, msg);
+  };
+  _broadcastFns.toParent = (schoolId, phone, msg) => {
+    const norm = String(phone || '').replace(/\s+/g, '').replace(/^0/, '+234').toLowerCase();
+    const key = `${schoolId}:parent:${norm}`;
+    const r = rooms.get(key);
+    if (r) broadcast(r, msg);
+  };
 
   function tryJoin(conn, key) {
     let r = rooms.get(key);
@@ -418,6 +456,27 @@ function attach(server) {
           }
           return;
         }
+
+        // ── Emoji reaction relay (any user → class room) ─────────────────
+        if (msg.type === 'reaction') {
+          const emoji = String(msg.emoji || '').slice(0, 8);
+          const target = String(msg.classCode || '').slice(0, 40);
+          if (!emoji) return;
+          const reactionMsg = { type: 'reaction', emoji, from: conn.name || conn.adm, ts: Date.now() };
+          if (target) {
+            // Targeted to a specific class (student reaction in competition)
+            const rKey = `${conn.schoolId}:${target}`;
+            const r = rooms.get(rKey);
+            if (r) broadcast(r, reactionMsg, conn);
+          } else {
+            // Broadcast to all rooms the sender is in
+            for (const rKey of conn.rooms) {
+              const r = rooms.get(rKey);
+              if (r) broadcast(r, reactionMsg, conn);
+            }
+          }
+          return;
+        }
       });
 
       let cleanedUp = false;
@@ -455,4 +514,4 @@ function attach(server) {
   console.log('e3fLive: kids-live audio intercom attached at /kids/live (teacher + parent roles)');
 }
 
-module.exports = { attach };
+module.exports = { attach, broadcastToClass, broadcastToParent };

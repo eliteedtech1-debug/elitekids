@@ -4,6 +4,7 @@ import { playTap } from '@/lib/utils/sound';
 import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { liveEvents } from '@/lib/live/events';
 
 interface Guardian {
   slug: string;
@@ -46,8 +47,26 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
         .catch(() => {})
         .finally(() => { if (!dead) setLoaded(true); });
     load();
-    const t = setInterval(load, 15000); // poll for boss HP updates
-    return () => { dead = true; clearInterval(t); };
+    // Real-time: subscribe to festival HP updates via WebSocket
+    const unsub = liveEvents.on('festival-hp', (d: any) => {
+      if (dead) return;
+      setData((prev) => {
+        if (!prev || prev.id !== d.festivalId) return prev;
+        const guardians = prev.guardians.map((g) =>
+          g.slug === d.guardianSlug
+            ? { ...g, hp: d.currentHp, max_hp: d.maxHp, status: d.defeated ? 'defeated' as const : 'active' as const }
+            : g
+        );
+        return {
+          ...prev,
+          guardians,
+          current_guardian: d.defeated ? null : guardians.find((g) => g.slug === d.guardianSlug) || prev.current_guardian,
+          all_defeated: d.allDefeated,
+          total_defeated: guardians.filter((g) => g.status === 'defeated').length,
+        };
+      });
+    });
+    return () => { dead = true; unsub(); };
   }, []);
 
   if (!loaded) {

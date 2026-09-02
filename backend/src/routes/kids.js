@@ -325,6 +325,9 @@ module.exports = (app) => {
   app.get('/kids/subscription/status', auth, subCtrl.getStatus);
   app.post('/kids/subscription/initiate', auth, subCtrl.initiate);
   app.post('/kids/subscription/verify', auth, subCtrl.verify);
+  // Session-free checkout for the login wall (locked-school admins aren't logged in)
+  app.post('/kids/subscription/public-initiate', subCtrl.publicInitiate);
+  app.post('/kids/subscription/public-verify', subCtrl.publicVerify);
   // req.rawBody is captured by the global express.json({ verify }) in app.js
   app.post('/kids/paystack/webhook', subCtrl.webhook);
 

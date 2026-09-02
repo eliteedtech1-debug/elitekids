@@ -4,6 +4,7 @@ import { Swords, Heart, Zap, Shield } from 'lucide-react';
 import { playVictory } from '@/lib/game/sound-effects';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { liveEvents } from '@/lib/live/events';
 import { t, tN } from '@/lib/i18n';
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -78,8 +79,17 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
 
   useEffect(() => {
     loadRaid();
-    const t = setInterval(loadRaid, 15000); // poll every 15s
-    return () => clearInterval(t);
+    // Real-time: subscribe to boss HP updates via WebSocket
+    const unsub = liveEvents.on('raid-hp', (d: any) => {
+      setRaid((prev) => {
+        if (!prev || prev.id !== d.raidId) return prev;
+        return {
+          ...prev,
+          hp: { current: d.currentHp, max: d.maxHp, pct: d.maxHp > 0 ? (d.currentHp / d.maxHp) * 100 : 0 },
+        };
+      });
+    });
+    return unsub;
   }, [loadRaid]);
 
   useEffect(() => {

@@ -11,6 +11,75 @@ const jwt = require('jsonwebtoken');
 const db = require('../models');
 const { generateLoginToken } = require('../middleware/sessionAuth');
 const { flagshipIdForAlias, flagshipShortNameFromHost, FLAGSHIP_SCHOOL_ID } = require('../seeders/flagshipKidsSeed');
+const {
+  grantSchoolAccess,
+  subscriptionUpsellPayload,
+  isFlagshipSchoolId,
+  subIsActive,
+} = require('./kidsSubscription');
+
+/**
+ * School access gate (login-level paywall): real schools may log in only
+ * while subscribed (status active) or inside their 14-day auto-trial
+ * (status trial — granted/refreshed by grantSchoolAccess). The flagship
+ * school is the free showcase and always passes. superadmin bypasses.
+ * Fails OPEN on subscription-store errors so a content-DB hiccup can never
+ * lock every school out of authentication.
+ */
+async function schoolAccessFor(schoolId) {
+  if (!schoolId) return { allowed: true, sub: null }; // no school scope (superadmin)
+  if (isFlagshipSchoolId(schoolId)) return { allowed: true, sub: null };
+  try {
+    const sub = await grantSchoolAccess(schoolId);
+    return { allowed: subIsActive(sub), sub: sub || null };
+  } catch (err) {
+    console.error('schoolAccessFor error:', err.message);
+    return { allowed: true, sub: null, degraded: true };
+  }
+}
+
+/**
+ * Sales hook: a locked school just tried to log in. Logs it and emails the
+ * sales inbox (rate-limited 1/6h per school, fail-open — see services/mailer).
+ * The 403 payload itself carries plans + Paystack checkout for the admin.
+ */
+async function notifySchoolAdminLocked({ school, userType }) {
+  try {
+    console.log(`[kids:sales] locked-school login attempt — school=${school?.school_id || '?'} name=${school?.school_name || '?'} user_type=${userType || '?'}`);
+    const mailer = require('../services/mailer');
+    const subCtrl = require('./kidsSubscription');
+    const upsell = await subCtrl.subscriptionUpsellPayload(school?.school_id).catch(() => null);
+    // Only alert when the trial is gone or expired — an ACTIVE trial is normal
+    // onboarding, not a sales signal. (lockedSchoolResponse is only called when
+    // access is denied, so reaching here already means the school is locked out.)
+    setImmediate(() => {
+      mailer.notifyLockedSchoolAttempt({
+        school,
+        userType,
+        plans: upsell?.plans || [],
+        trial: upsell?.subscription || null,
+      }).catch(() => {});
+    });
+  } catch (_) { /* never block the auth response on notify failures */ }
+}
+
+/** Build the 403 SCHOOL_NOT_SUBSCRIBED body with plans + demo link attached. */
+async function lockedSchoolResponse(schoolId, userType) {
+  const [school] = await safeQuery(
+    `SELECT school_id, school_name, short_name, badge_url FROM school_setup WHERE school_id = :s LIMIT 1`,
+    { s: schoolId }
+  );
+  const upsell = await subscriptionUpsellPayload(schoolId).catch(() => ({ plans: [], subscription: null }));
+  await notifySchoolAdminLocked({ school, userType });
+  return {
+    success: false,
+    error_code: 'SCHOOL_NOT_SUBSCRIBED',
+    message: `${school?.school_name || 'Your school'}'s EliteKids subscription has ended. Subscribe to restore access for all staff and students.`,
+    school: school || null,
+    ...upsell,
+    demo: { label: 'Try the flagship demo first', url: 'https://kids.elitekids.com.ng' },
+  };
+}
 
 /** Safe SELECT — returns [] when a table doesn't exist (mirrors elite-cbt-api). */
 const safeQuery = async (sql, replacements) => {
@@ -129,10 +198,22 @@ async function login(req, res) {
     });
     const validUsers = activeUsers.length ? activeUsers : matchedUsers;
 
-    // Multi-school account → return school list + selection token
-    if (validUsers.length > 1) {
+    // Multi-school account → resolve access per school, then either offer the
+    // accessible ones for selection or bounce with the subscription upsell.
+    const accessByUser = new Map();
+    for (const u of validUsers) {
+      accessByUser.set(u.id, await schoolAccessFor(u.school_id));
+    }
+    const accessibleUsers = validUsers.filter((u) => accessByUser.get(u.id)?.allowed);
+    if (!accessibleUsers.length) {
+      const first = validUsers[0];
+      const body = await lockedSchoolResponse(first.school_id, first.user_type || first.role);
+      return res.status(403).json(body);
+    }
+
+    if (accessibleUsers.length > 1) {
       const schools = [];
-      for (const u of validUsers) {
+      for (const u of accessibleUsers) {
         const [school] = await safeQuery(
           `SELECT school_id, school_name, short_name, badge_url FROM school_setup WHERE school_id = :school_id LIMIT 1`,
           { school_id: u.school_id }
@@ -153,7 +234,7 @@ async function login(req, res) {
       });
     }
 
-    const user = validUsers[0];
+    const user = accessibleUsers[0];
     const userType = user.user_type || user.role || 'Admin';
 
     const token = generateLoginToken({
@@ -241,6 +322,17 @@ async function studentLogin(req, res) {
     const isMatch = await bcrypt.compare(password, student.password);
     if (!isMatch) {
       return res.status(400).json({ success: false, errors: { password: 'Incorrect password!' } });
+    }
+
+    // School access gate: real-school children need the school subscribed or
+    // in-trial (the trial is auto-granted here on first login). Flagship kids
+    // are the free showcase and always pass.
+    resolvedSchoolId = student.school_id || resolvedSchoolId;
+    const access = await schoolAccessFor(resolvedSchoolId);
+    if (!access.allowed) {
+      const body = await lockedSchoolResponse(resolvedSchoolId, 'Student');
+      body.errors = { school: body.message };
+      return res.status(403).json(body);
     }
 
     const token = generateLoginToken({

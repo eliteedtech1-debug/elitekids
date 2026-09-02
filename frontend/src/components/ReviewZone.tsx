@@ -59,7 +59,7 @@ export default function ReviewZone() {
 
   const handleStartReview = (review: DueReview) => {
     playTap();
-    navigate(`/student/play/${review.lesson_id}?mode=practice`);
+    navigate(`/student/game/${review.lesson_id}?mode=practice`);
   };
 
   if (!loaded) {

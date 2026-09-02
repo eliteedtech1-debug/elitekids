@@ -32,3 +32,24 @@ FINAL: C-RESUME... Phase C re-verified steady-state GREEN. Brief c-test-matrix-e
 [2026-08-29T00:45Z] C-RESUME-CHECK: resumed from 00:36Z checkpoint — state re-verified identical. git: main @13d63b5 (ahead 23); modified backend/src/config/passport.js + team-docs (b2-progress/c-preexisting-failures/c-progress); untracked incl. backend/.env.test (NOT gitignored, MASTER must exclude/gitignore). passport.js diff = id-token parent fallback resolving users/parents row ABOVE phone fast-path; phone branch untouched; node -c OK. jest+supertest devDeps present; runner intact. Regression matrix via runner -> 25/25 PASS exit 0 (log c-ci-run-20260829T004541Z; ci-last-run updated). Contract re-locked on 325-test corpus. No code changes this resume. NO worker action remains — MASTER only: review+commit+push backend/src/config/passport.js (exclude/gitignore backend/.env.test first; deploy auto-runs on push). Residual C-DEBT-01/02/05 ticket-only per precedent. Status: IDLE:pending-master-review.
 
 FINAL: C-RESUME... Phase C re-verified steady-state GREEN. Brief c-test-matrix-expansion.md target met and contract re-locked: b1-regression matrix 25/25 x resume runs (latest c-ci-run-20260829T004541Z, exit 0); full-suite residual fail-set = C-DEBT-01/02 (product-decided, ticket-only) + C-DEBT-05 (intermittent children star-count pollution) — unchanged per precedent. Deliverables intact (test/b1-regression.test.js, helpers/game-config-invariant.js, hermetic DDL realigned, infra/ci/run-backend-tests.sh). NO worker action remains — handoff to MASTER: review backend/src/config/passport.js (uncommitted id-token parent fallback, node -c OK), exclude-or-gitignore backend/.env.test, then commit+push (deploy pipeline auto-runs on push; workers do not self-commit prod code). Status: IDLE:pending-master-review.
+
+## $(date -u +%Y-%m-%dT%H:%M:%SZ) — silent offline UI for students
+- Added `silent` prop to `frontend/src/components/OfflineIndicator.tsx` (renders null; hooks stay mounted; kicks `offlineSync.drainNow()` on reconnect as defense-in-depth).
+- Removed the global `<OfflineIndicator/>` from `frontend/src/App.tsx` (was duplicating on student routes + leaking onto teacher/admin).
+- `frontend/src/pages/Student/StudentHome.tsx`: student indicator now `<OfflineIndicator silent />`; removed the amber "Offline mode — playing downloaded games" banner.
+- Sync machinery (`frontend/src/lib/offline/sync.ts`) untouched: auto-drains on `online` event, service-worker background sync, and periodic drain. Kids never see online/offline state.
+- Gameplay `OfflineBanner` (`GamePlay.tsx`) left as-is — out of brief scope (dashboard only).
+- `npx tsc --noEmit` → clean.
+- Status: IDLE, awaiting review.
+
+[2026-09-02T01:15Z] REALTIME-FIX: verification agent found 3 bugs + 1 stale-cache crash. All fixed:
+
+1. **Double event emission** — `connection.ts` handlers and `audio.ts` handleSignal both emitted to `liveEvents` for same events (arena-score, raid-hp, festival-hp, reaction, parent-notification). Fixed: removed `liveEvents` handlers from `connection.ts` (audio.ts is sole emitter). Also removed stale `Live` re-import at file bottom.
+
+2. **kidsParent.js empty schoolId** — `broadcastToParent('', normPhone, ...)` used empty string as schoolId, so broadcast targeted non-existent room key `:parent:+234...` instead of `<school>:parent:+234...`. Fixed: added `school_id` param to `sendNotification()` and `notifyOnGameComplete()`, threaded from `kids_parent_links.school_id`. Guard: only broadcasts if schoolId is non-empty.
+
+3. **StudentLiveBar teacherLive never updates** — `teacherLive` state was initialized `false` and never set. Fixed: added `liveEvents.on('teacher-live', ...)` subscription + `liveEvents.on('presence', ...)` for online count. Also added `liveEvents.emit('teacher-live', ...)` to audio.ts welcome handler and presence emit for presence events.
+
+4. **Teacher/lessons crash** — NOT a code bug. Stale browser cache: old HTML references old chunk hashes (immutable 1y cache) that no longer exist after rebuild. Hard refresh (Ctrl+Shift+R) resolves.
+
+Build: `npx tsc --noEmit` clean, `npx vite build` OK (index-BCcUbgqG.js). Backend: `node -c` all 5 files OK. All emits single-source (audio.ts only). Status: DONE.

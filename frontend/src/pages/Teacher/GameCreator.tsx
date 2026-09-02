@@ -25,6 +25,7 @@ import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
+import GameConfigEditor from '@/components/GameConfigEditor';
 import type { PromptMode, ResponseMode } from '@/lib/types/game';
 import { GAME_INTERACTIONS, validateInteraction, suggestResponseMode, describeInteraction } from '@/lib/types/game';
 
@@ -594,30 +595,13 @@ export default function GameCreator() {
               </div>
             </div>
 
-            <div className="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-700">{t('gameCreator.jsonTip')}</p>
-              </div>
-            </div>
-
-            <div className="relative">
-              <textarea
-                value={configJson}
-                onChange={(e) => handleConfigChange(e.target.value)}
-                className={`w-full rounded-xl border px-3 py-2.5 font-mono text-xs leading-relaxed focus:outline-none focus:ring-1 ${
-                  jsonError
-                    ? 'border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-200'
-                    : 'border-gray-200 focus:border-[#0F4D92] focus:ring-[#0F4D92]/30'
-                }`}
-                rows={20}
-                spellCheck={false}
-              />
-            </div>
-
-            {jsonError && (
-              <p className="mt-2 text-xs text-red-500">{t('gameCreator.invalidJson', { error: jsonError })}</p>
-            )}
+            {/* Visual plug-&-play forms (Easy mode) + Advanced JSON tab.
+                configJson remains the single source of truth. */}
+            <GameConfigEditor
+              template={template}
+              configJson={configJson}
+              onJsonChange={handleConfigChange}
+            />
 
             <div className="mt-6 flex justify-between">
               <button

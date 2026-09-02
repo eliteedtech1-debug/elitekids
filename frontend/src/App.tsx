@@ -1,14 +1,14 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Navigate, Route, Routes, useParams, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import Login from '@/pages/Login/Login';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ParentChildren from '@/pages/Parent/ParentChildren';
 import ParentActivities from '@/pages/Parent/ParentActivities';
 import ParentDashboard from '@/components/ParentDashboard';
-import ParentChat from '@/pages/Parent/ParentChat';
 import StudentHome from '@/pages/Student/StudentHome';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import TrialBanner from '@/components/TrialBanner';
 import { applyDir, t, useI18n } from '@/lib/i18n';
 
 /**
@@ -29,6 +29,8 @@ const TeacherAnalytics = lazy(() => import('@/pages/Teacher/TeacherAnalytics'));
 const GlobalLibrary = lazy(() => import('@/pages/Teacher/GlobalLibrary'));
 const NerdcReport = lazy(() => import('@/pages/Teacher/NerdcReport'));
 const GameCreator = lazy(() => import('@/pages/Teacher/GameCreator'));
+const TeacherVoiceNotes = lazy(() => import('@/pages/Teacher/TeacherVoiceNotes'));
+const ParentLive = lazy(() => import('@/pages/Parent/ParentLive'));
 const AssetLibrary = lazy(() => import('@/pages/Admin/AssetLibrary'));
 
 /** Minimal loading fallback so lazy chunks don't flash a blank screen. */
@@ -48,19 +50,6 @@ function LazyRoute({ element }: { element: React.ReactNode }) {
     <Suspense fallback={<RouteFallback />}>
       <ErrorBoundary>{element}</ErrorBoundary>
     </Suspense>
-  );
-}
-
-/** Wrapper to extract URL params for ParentChat. */
-function ParentChatWrapper() {
-  const { childAdmissionNo } = useParams();
-  const navigate = useNavigate();
-  return (
-    <ParentChat
-      childAdmissionNo={childAdmissionNo || ''}
-      childName={childAdmissionNo || ''}
-      onBack={() => navigate('/parent')}
-    />
   );
 }
 
@@ -112,10 +101,10 @@ export default function App() {
         }
       />
       <Route
-        path="/parent/chat/:childAdmissionNo"
+        path="/parent/live"
         element={
           <AuthGuard>
-            <ParentChatWrapper />
+            <LazyRoute element={<ParentLive />} />
           </AuthGuard>
         }
       />
@@ -178,6 +167,14 @@ export default function App() {
         }
       />
       <Route
+        path="/teacher/voice-notes"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<TeacherVoiceNotes />} />
+          </AuthGuard>
+        }
+      />
+      <Route
         path="/teacher/analytics"
         element={
           <AuthGuard>
@@ -212,6 +209,8 @@ export default function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    {/* Trial countdown + subscribe CTA — self-hiding (non-trial schools see nothing) */}
+    <TrialBanner />
     </>
   );
 }

@@ -411,6 +411,9 @@ async function listLessons(req, res) {
       const gcMap = new Map(gameCounts.map((g) => [g.lesson_id, parseInt(g.cnt, 10)]));
       const enriched = lessons.map((l) => ({
         ...l.toJSON(),
+        // Sequelize timestamps are camelCase (createdAt); frontend + CSV export
+        // expect snake_case — send both so no consumer breaks.
+        created_at: l.createdAt,
         has_games: (gcMap.get(l.id) || 0) > 0,
       }));
       return res.json({ success: true, data: enriched });
@@ -1195,7 +1198,8 @@ async function listApprovals(req, res) {
       where: { school_id, status: 'pending' },
       order: [['createdAt', 'ASC']],
     });
-    return res.json({ success: true, data: rows });
+    // Alias camelCase Sequelize timestamps → snake_case (see listLessons).
+    return res.json({ success: true, data: rows.map((r) => ({ ...r.toJSON(), created_at: r.createdAt })) });
   } catch (err) {
     console.error('listApprovals error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });

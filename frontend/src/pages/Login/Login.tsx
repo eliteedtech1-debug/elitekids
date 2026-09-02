@@ -12,6 +12,7 @@ import { STORAGE_KEYS } from '@/lib/utils/constants';
 import AppSwitcher from '@/components/AppSwitcher';
 import PublicLoginSwitcher from '@/components/PublicLoginSwitcher';
 import LoginAppsPanel from '@/components/LoginAppsPanel';
+import LoginUpsell, { verifyPendingSubscription, type LoginUpsellPayload } from '@/components/LoginUpsell';
 import { t } from '@/lib/i18n';
 
 interface SchoolDetails {
@@ -64,7 +65,15 @@ export default function Login() {
   const [authView, setAuthView] = useState<AuthView>('login');
   const [signupForm, setSignupForm] = useState({ name: '', phone: '', email: '', password: '' });
   const [signupLoading, setSignupLoading] = useState(false);
+  const [upsell, setUpsell] = useState<LoginUpsellPayload | null>(null);
   const tokenHandled = useRef(false);
+
+  // ── Returning from Paystack? verify and activate the school subscription ──
+  useEffect(() => {
+    verifyPendingSubscription().then((ok) => {
+      if (ok) toast.success(t('login.loginSuccess'));
+    });
+  }, []);
 
   // ── Cross-app handoff uses a short-lived ticket, never a raw JWT URL ──
   useEffect(() => {
@@ -177,7 +186,11 @@ export default function Login() {
         setError(data?.message || t('login.loginFailed'));
       }
     } catch (err: any) {
-      setError(err?.message || t('login.loginFailed'));
+      if (err?.data?.error_code === 'SCHOOL_NOT_SUBSCRIBED') {
+        setUpsell(err.data as LoginUpsellPayload);
+      } else {
+        setError(err?.message || t('login.loginFailed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -218,6 +231,7 @@ export default function Login() {
       <FloatingShapes />
 
       <div className="relative z-10 w-full max-w-5xl overflow-hidden rounded-[2rem] bg-white/60 backdrop-blur-2xl shadow-[0_20px_80px_rgba(13,148,136,0.15)] border border-white/60 lg:flex">
+        {upsell && <LoginUpsell payload={upsell} onClose={() => setUpsell(null)} />}
         {/* ── Left hero panel ─────────────────────────────────────────────── */}
         <section className="hidden min-h-[680px] w-[40%] flex-col justify-between rounded-l-[2rem] bg-gradient-to-br from-[#0a1628] via-[#0F4D92] to-[#0d9488] p-10 text-white relative overflow-hidden lg:flex">
           {/* 3D decorative blobs */}

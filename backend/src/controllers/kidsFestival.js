@@ -8,6 +8,7 @@
  * Guardian slugs: sango, anansi, amina, baobab, mami, elena
  */
 const crypto = require('crypto');
+const { broadcastToClass } = require('./e3fLive');
 const dbm = () => require('../models');
 
 const GUARDIANS = [
@@ -346,6 +347,23 @@ async function dealDamage(req, res) {
         { replacements: { hp: newHp, id: festivalId } },
       );
     }
+
+    // Real-time: broadcast festival HP update to all connected students in this class
+    try {
+      broadcastToClass(sid, f.class_code, {
+        type: 'festival-hp',
+        festivalId,
+        guardianSlug: f.current_guardian_slug,
+        guardianName: guardian?.name || 'Unknown',
+        guardianEmoji: guardian?.emoji || '⚔️',
+        currentHp: newHp,
+        maxHp: f.current_guardian_max_hp,
+        defeated,
+        allDefeated,
+        damagedBy: adm,
+        ts: Date.now(),
+      });
+    } catch { /* never break game flow */ }
 
     return res.json({
       success: true,

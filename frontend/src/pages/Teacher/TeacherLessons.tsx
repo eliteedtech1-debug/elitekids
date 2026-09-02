@@ -33,7 +33,8 @@ interface Lesson {
   age_level: string;
   lesson_type: string;
   content_state: string;
-  created_at: string;
+  created_at?: string;
+  createdAt?: string;
   is_global: number;
   has_games?: boolean;
   nerdc_code?: string;
@@ -47,8 +48,10 @@ interface GenerationJob {
   status: string;
   progress: number;
   error_message?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
 }
 
 interface Approval {
@@ -58,7 +61,28 @@ interface Approval {
   status: string;
   school_id: string;
   branch_id: string;
-  created_at: string;
+  created_at?: string;
+  createdAt?: string;
+}
+
+/* ── Safe date formatting (backend may send created_at or createdAt) ── */
+
+/** Normalize MySQL dateStrings format ('2026-08-23 09:10:00') — Safari/Firefox
+ *  can't parse the space-separated form, so swap it to ISO 'T'. */
+function normalizeDate(value: string): string {
+  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(value) ? value.replace(' ', 'T') : value;
+}
+
+function formatDate(value?: string | null): string {
+  if (!value) return '';
+  const d = new Date(normalizeDate(value));
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString();
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return '';
+  const d = new Date(normalizeDate(value));
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString();
 }
 
 /* ── Lesson state badge ──────────────────────────────── */
@@ -417,7 +441,7 @@ export default function TeacherLessons() {
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${AGE_COLORS[lesson.age_level] || 'bg-gray-100 text-gray-600'}`}>
                         {lesson.age_level}
                       </span>
-                      <span className="text-gray-400">{new Date(lesson.created_at).toLocaleDateString()}</span>
+                      <span className="text-gray-400">{formatDate(lesson.created_at || lesson.createdAt)}</span>
                     </div>
                     {(lesson.nerdc_code || lesson.nerdc_strand) && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
