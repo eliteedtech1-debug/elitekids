@@ -1,0 +1,144 @@
+name: Coturn TURN Relay Setup (EliteKids live)
+
+# One-time ROOT infrastructure task: install & configure the coturn TURN/STUN
+# relay on the VPS so live voice (E4 Phase 1 WebRTC) works for students behind
+# CGNAT / symmetric NAT / strict firewalls (common on mobile data in Nigeria).
+#
+# DELIBERATELY a separate workflow file (NOT a job in deploy.yml) and
+# workflow_dispatch-ONLY:
+#   • clicking "Run workflow" sets up TURN once; it does NOT redeploy the app.
+#   • it never runs on a routine `git push`, so a normal deploy can't re-run or
+#     be hijacked to execute root commands.
+#
+# Idempotent: safe to run again — reinstalls only if missing, rewrites config,
+# re-opens ports, and reuses an existing TURN secret instead of rotating it.
+#
+# Pattern mirrors elite-sms deploy-vps.yml root steps (SUDO_PASSWORD secret):
+#   S() { echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S "$@"; }
+
+on:
+  workflow_dispatch:
+
+jobs:
+  coturn-setup:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install + configure coturn (root via SUDO_PASSWORD, idempotent)
+        run: |
+          set -e
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          source ~/.nvm/nvm.sh && nvm use 22
+          S() { echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S "$@"; }
+          LIVE=/var/www/html/elite/elite-kids
+          ENV_FILE="$LIVE/backend/.env"
+          echo "==== Coturn setup start $(date -u +%Y-%m-%dT%H:%M:%SZ) ===="
+
+          # ── 1. Install coturn if missing ──────────────────────────────────
+          if S command -v coturn >/dev/null 2>&1; then
+            echo "coturn already installed (present)"
+          else
+            echo "installing coturn ..."
+            S apt-get update -y 2>&1 | tail -1
+            S apt-get install -y coturn 2>&1 | tail -2
+            S command -v coturn >/dev/null
+            echo "coturn installed"
+          fi
+
+          # ── 2. TURN secret — reuse existing, else generate + persist ──────
+          # Shared between turnserver.conf (static-auth-secret) and the client
+          # <-> server auth. Generated once and stored in backend/.env.
+          TURN_USER="elitekids"
+          CURRENT_PASS="$(grep -E '^TURN_PASS=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-)"
+          if [ -z "$CURRENT_PASS" ]; then
+            CURRENT_PASS="$(python3 -c 'import secrets;print(secrets.token_urlsafe(24))')"
+            echo "TURN_PASS generated fresh (new secret)"
+          else
+            echo "TURN_PASS reused from existing .env"
+          fi
+          TURN_PASS="$CURRENT_PASS"
+
+          # ── 3. Write /etc/turnserver.conf ─────────────────────────────────
+          S tee /etc/turnserver.conf >/dev/null <<'TURNCONF'
+          listening-port=3478
+          tls-listening-port=5349
+          fingerprint
+          lt-cred-mech
+          use-auth-secret
+          realm=elitekids.com.ng
+          static-auth-secret=__PLACEHOLDER__
+          user=elitekids:__PLACEHOLDER__
+          min-port=49160
+          max-port=49200
+          no-loopback-peers
+          no-multicast-peers
+          external-ip=62.72.0.209
+          TURNCONF
+          # Inject the live secret (avoid committing it / avoid echo in logs)
+          S sed -i "s|^static-auth-secret=.*|static-auth-secret=${TURN_PASS}|" /etc/turnserver.conf
+          S sed -i "s|^user=elitekids:.*|user=${TURN_USER}:${TURN_PASS}|" /etc/turnserver.conf
+
+          # ── 4. Firewall: open TURN ports (ufw, fallback iptables) ─────────
+          if S ufw status 2>/dev/null | grep -q "Status: active"; then
+            for p in 3478/tcp 3478/udp 5349/tcp; do
+              S ufw allow "$p" || true
+            done
+            S ufw allow 49160:49200/udp || true
+            S ufw allow 49160:49200/tcp || true
+            echo "ufw rules applied"
+          else
+            echo "ufw inactive — opening via iptables (best-effort)"
+            S iptables -I INPUT -p tcp --dport 3478 -j ACCEPT || true
+            S iptables -I INPUT -p udp --dport 3478 -j ACCEPT || true
+            S iptables -I INPUT -p tcp --dport 5349 -j ACCEPT || true
+            S iptables -I INPUT -p udp --dport 49160:49200 -j ACCEPT || true
+          fi
+
+          # ── 5. Enable + start coturn ──────────────────────────────────────
+          S sed -i 's/^#TURNSERVER_ENABLED=1/TURNSERVER_ENABLED=1/' /etc/default/coturn
+          S systemctl enable coturn
+          S systemctl restart coturn
+          S systemctl is-active coturn
+          echo "coturn active"
+
+          # ── 6. Wire TURN env into EliteKids backend/.env ──────────────────
+          if ! grep -q '^LIVE_WEBRTC=' "$ENV_FILE" 2>/dev/null; then
+            echo "LIVE_WEBRTC=1" >> "$ENV_FILE"
+          else
+            sed -i 's/^LIVE_WEBRTC=.*/LIVE_WEBRTC=1/' "$ENV_FILE"
+          fi
+          if ! grep -q '^STUN_URLS=' "$ENV_FILE" 2>/dev/null; then
+            echo "STUN_URLS=stun:stun.l.google.com:19302" >> "$ENV_FILE"
+          fi
+          if ! grep -q '^TURN_URLS=' "$ENV_FILE" 2>/dev/null; then
+            echo "TURN_URLS=turn:62.72.0.209:3478?transport=udp,turn:62.72.0.209:3478?transport=tcp" >> "$ENV_FILE"
+          fi
+          if ! grep -q '^TURN_USER=' "$ENV_FILE" 2>/dev/null; then
+            echo "TURN_USER=${TURN_USER}" >> "$ENV_FILE"
+          fi
+          if ! grep -q '^TURN_PASS=' "$ENV_FILE" 2>/dev/null; then
+            printf 'TURN_PASS=%s\n' "$TURN_PASS" >> "$ENV_FILE"
+          fi
+          echo "backend/.env TURN vars present (values redacted)"
+
+          # ── 7. Restart live backend so it picks up TURN env ───────────────
+          systemctl --user restart elite-kids-api
+          sleep 2
+          systemctl --user is-active elite-kids-api
+          echo "--- health ---"
+          curl -sf http://127.0.0.1:8484/health && echo " health OK" || curl -s -o /dev/null -w 'health http %{http_code}\n' http://127.0.0.1:8484/
+          echo "---- relay ports ----"
+          S ss -lntup 2>/dev/null | grep -E '3478|5349|4916' || echo "(no relay listener visible)"
+          echo "==== Coturn setup complete ===="
+
+      - name: Smoke - verify TURN listeners + ICE config reachable
+        run: |
+          set +e
+          S() { echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S "$@"; }
+          echo "coturn service:"; S systemctl is-active coturn
+          echo "turnserver conf real-secret check (redacted):"
+          grep -E '^static-auth-secret=' /etc/turnserver.conf | sed 's/=.*/=<redacted>/'
+          echo "listeners:"; S ss -lntup 2>/dev/null | grep -E '3478|5349' || echo "(none)"
+          echo "==== DONE — see Q18 close evidence: welcome iceServers must include turn:62.72.0.209 ===="

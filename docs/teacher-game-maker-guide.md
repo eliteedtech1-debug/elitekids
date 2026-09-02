@@ -1,18 +1,18 @@
 # Teacher's Game Maker Guide
 
-*Elite Kids · manual game creation with the admin form (no AI). Written from the Phase D content-factory run, 2026-08-23. Companion templates live in `team-docs/templates/`.*
+*Elite Kids · manual game creation with the admin form (no AI). First written 2026-08-23 from the Phase D content-factory run; updated 2026-09-02 to cover the new visual Easy-mode editor and the scene-script GUI. Companion templates live in `team-docs/templates/`.*
 
 ## Who this is for
-Teachers and admins who want to build a lesson game **with full control over every question, picture and reward**. You will use the **Create Game Manually** form (`/teacher/game-creator` → "Create Game Manually"). Nothing here uses the AI generator.
+Teachers and admins who want to build a lesson game **with full control over every question, picture and reward**. You will use the **Create Game Manually** wizard (`/teacher/create-game` → "Create Game Manually"). Nothing here uses the AI generator. You do **not** need to know JSON — every step now has a plug-&-play visual editor, with an optional Advanced tab if you want full control.
 
 ## The 5 steps at a glance
 | Step | Screen | You provide |
 |---|---|---|
-| 1 | Lesson Details | Title, Subject, Age Level (Creche/Nursery/KG1/KG2/Primary), optional lesson text |
+| 1 | Lesson Details | Title, Subject, Age Level (Creche/Nursery/KG1/KG2/Primary), optional NERDC alignment |
 | 2 | Template | One of 7 game types (table below) |
-| 3 | Config (JSON) | The game content — start from "Reset to template" then edit |
-| 4 | Scenes (optional) | Intro story text shown before the game |
-| 5 | Review & Send | Submit → goes to the approval queue |
+| 3 | Config | The game content — a **visual form** per template (Easy mode) or raw JSON (Advanced) |
+| 4 | Scenes (optional) | Intro story / narration shown before the game — built as **scene cards** |
+| 5 | Review & Send | Read the summary, then submit → goes to the approval queue |
 
 After you submit, an approver publishes it from **Teacher Approvals**. Students see it immediately after.
 
@@ -27,7 +27,16 @@ After you submit, an approver publishes it from **Teacher Approvals**. Students 
 | Fill in the Blank | complete the sentence/number sequence | KG1+ | `sentences[]` + `wordBank` |
 | Puzzle Split | jigsaw with easy/hard levels | KG1+ | `difficulties.*.pieces` (never leave empty!) |
 
-**Scene scripts** are not a 7th card — they are Step 4 on any lesson. Author them as one wrapper object: `{ "scenes": [ {"id":1,"text":"...","type":"intro"}, ... ] }`. Types used today: `intro`, `teach`, `reinforce`, `match`.
+**Scene scripts** are not a 7th card — they are Step 4 on any lesson. You build them as **scene cards** in Easy mode (each card = one line of narration the student hears before play). Under the hood they are saved as one wrapper object `{ "scenes": [ {"id":1,"text":"...","type":"teach"}, ... ] }`. Scene types: `intro`, `teach`, `reinforce`, `match`. They are optional — leave them empty to skip.
+
+## Filling in the forms (Step 3 Config & Step 4 Scenes)
+Both content steps now open in **Easy mode** by default — no JSON required.
+
+**Step 3 — Config form.** Each template gets purpose-built controls instead of raw JSON: item rows, a "tap the CORRECT answer" picker for quizzes, emoji pickers (`😊`), a **Library** button to grab images, and word-bank chips for Fill-in-the-Blank. Use **Reset to template** to load a safe starting config, then only change the words/emoji you need. A live **green ✓ Valid** badge confirms your game is well-formed.
+
+**Step 4 — Scene cards.** Press **Add scene** to create a narration card, type what the narrator says, and pick a **Scene type** (Intro / Teach / Reinforce / Match). Use the ⭡ / ⭣ arrows to reorder cards and the ✕ to delete one. The scene order and text are exactly what students see — intro first, recap last.
+
+**Advanced (JSON) tab.** Every editor also has an **Advanced (JSON)** tab that shows the exact same config as editable JSON. Anything the visual forms don't cover is still reachable here, and the two views stay in sync — switch back and forth freely. If the JSON becomes invalid, Easy mode steps aside automatically and a red hint tells you to fix it before continuing.
 
 ## Golden rules (learned the hard way)
 1. **No external image links.** Use emoji in labels (`"Hen 🐔"`) or SVG data-URI art. Broken URLs = broken games.
@@ -39,8 +48,8 @@ After you submit, an approver publishes it from **Teacher Approvals**. Students 
 7. Leave `lessonId` as-is — the app fills it automatically.
 8. If Memory Pairs fails to save with "Server error", it is a known platform bug (D-OBS-04) — report it, don't retry.
 
-## Copy-paste starters
-Full worked lessons ready to paste into Steps 3-4:
+## Copy-paste starters (for the Advanced tab)
+Full worked lessons you can paste into the **Advanced (JSON)** tab of Steps 3-4 (or use as a reference while filling the forms):
 - `team-docs/templates/d-series1-sound-match-bank.json` (Memory Pairs ×3)
 - `team-docs/templates/d-series2-number-gym.json` (Tap / Sort / Fill-blank / Quiz)
 - `team-docs/templates/d-series3-animal-world.json` (Matching / bucket Sort / Puzzle WITH pieces / Quiz + scenes)
@@ -50,15 +59,25 @@ Full worked lessons ready to paste into Steps 3-4:
 ## After publishing — check your work
 Open the student view for your lesson (or ask the approver to). A healthy game returns your template and content from `GET /kids/lessons/:id/game`; scenes return from `/scenes`. If scenes were skipped, see D-OBS-08/D-OBS-01 in `team-docs/reports/d-form-obstacles.md`.
 
+## Spaced repetition & the Review Zone (what your students see)
+Once a game is published and a student plays it, Elite Kids schedules it for **spaced repetition** so learning sticks.
+
+- Students see a **Review Zone** on their home screen. It shows four tiles — **Due Today**, **Reviewed**, **Day Streak** and **Accuracy** — plus a list of each review that is due now.
+- Each due review is a short **`?mode=practice`** replay of the game (not a fresh quiz, and not graded). Tapping it re-opens that lesson for low-stakes practice.
+- The zone is driven by the adaptive engine: accuracy over the last 7 days, difficulty level, and a `next_review_at` schedule decide when each topic is due again.
+- As a teacher you don't have to do anything — reviews populate automatically from real play. If a topic keeps coming back due (low accuracy), that's a signal a child may need a small reteach or a different game.
+
 ## Known rough edges (full list: reports/d-form-obstacles.md)
-D-OBS-01 can't add scenes later · D-OBS-02 rich scene JSON invisible · D-OBS-03 no Nursery 1/2/3 · D-OBS-04 Memory Pairs save bug · D-OBS-05 errors all say "Server error." · D-OBS-06 bucket sort degrades · D-OBS-07 empty puzzle pieces pattern · D-OBS-09 JSON-only editing.
+**Resolved in the 2026-09-02 GUI update:** D-OBS-02 (rich scene JSON invisible) and D-OBS-09 (JSON-only editing) are gone — Step 3 & 4 are now visual.
+Remaining: D-OBS-01 can't add scenes later · D-OBS-03 no Nursery 1/2/3 · D-OBS-04 Memory Pairs save bug · D-OBS-05 errors all say "Server error." · D-OBS-06 bucket sort degrades · D-OBS-07 empty puzzle pieces pattern.
 
 ## Guided tour outline (for the in-app onboarding tour)
 1. **Welcome** (Step-1 header): "Build a learning game in 5 steps — no AI, your rules."
 2. **Lesson details**: name it like a topic ("Counting 1-10"), pick ONE age band; the band drives difficulty defaults.
 3. **Template gallery** (Step-2 cards): hover each card; caption = classroom activity ("Flip cards, find pairs!").
-4. **Start from a template** (Step-3): press *Reset to template*, change ONLY the words/emoji between quotes; green check = valid JSON.
-5. **Scenes made simple** (Step-4): paste a `scenes` wrapper; warn: only this shape reaches students.
-6. **Send for review** (Step-5): explain pending → approved states; where the approvals screen lives.
+4. **Start from a template** (Step-3 Easy mode): press *Reset to template*, then fill the **form controls** (items, the tap-the-correct-answer picker, emoji/Library). Green check = valid.
+5. **Scenes made simple** (Step-4 Easy mode): press *Add scene*, type the narration, pick a type, reorder with ⭡⭣. Advance to JSON only if you need it.
+6. **Send for review** (Step-5): read the summary, submit — explain pending → approved states; where the approvals screen lives.
 7. **Test drive**: open the student game page for the new lesson; play once in Learning mode.
 8. **When things fail**: error toast meanings; pointer into the guide's golden rules + known issues list.
+9. **Review Zone**: mention students get scheduled low-stakes practice replays of published games (spaced repetition).
