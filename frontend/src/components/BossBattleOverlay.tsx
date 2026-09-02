@@ -54,6 +54,13 @@ const GUARDIAN_WISDOM: Record<string, string> = {
   elena: 'Every path leads to those who seek wisely.',
 };
 
+/* ── Floating decoration for game feel ─────────────────────── */
+function FloatingDeco({ className }: { className?: string }) {
+  return (
+    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-30 ${className}`} />
+  );
+}
+
 export default function BossBattleOverlay({ onDismiss }: Props) {
   const navigate = useNavigate();
   const [raid, setRaid] = useState<RaidData | null>(null);
@@ -116,7 +123,7 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
   if (!loaded) {
     return (
       <div className="flex items-center justify-center p-4">
-        <div className="animate-spin h-5 w-5 border-2 border-amber-500 border-t-transparent rounded-full" />
+        <div className="animate-spin h-5 w-5 border-2 border-[#C90016] border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -132,18 +139,25 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
   if (showVictory) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="bg-gradient-to-br from-amber-50 to-yellow-100 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl border-2 border-amber-300">
-          <div className="text-6xl mb-3">{avatar}</div>
-          <h2 className="text-xl font-bold text-amber-800">{t('bossBattle.guardianDefeated')}</h2>
-          <p className="text-sm text-amber-600 mt-1">{t('bossBattle.outwitted', { title })}</p>
-          <div className="mt-4 bg-amber-100 rounded-xl p-3">
-            <p className="text-xs text-amber-700 italic">
-              "{GUARDIAN_WISDOM[raid.guardian?.slug || ''] || t('bossBattle.defaultWisdom')}"
-            </p>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-8 max-w-sm w-full text-center shadow-2xl border-2 border-amber-300">
+          <FloatingDeco className="-right-8 -top-8 h-32 w-32 bg-gradient-to-br from-amber-400 to-yellow-400" />
+          <FloatingDeco className="-left-6 -bottom-6 h-24 w-24 bg-gradient-to-br from-orange-400 to-red-400" />
+          <div className="relative">
+            <div className="text-7xl mb-4 animate-bounce">{avatar}</div>
+            <h2 className="text-2xl font-extrabold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">{t('bossBattle.guardianDefeated')}</h2>
+            <p className="text-sm text-amber-700 mt-1 font-medium">{t('bossBattle.outwitted', { title })}</p>
+            <div className="mt-5 bg-amber-100/80 backdrop-blur-sm rounded-2xl p-4 border border-amber-200/60">
+              <p className="text-xs text-amber-700 italic font-medium">
+                "{GUARDIAN_WISDOM[raid.guardian?.slug || ''] || t('bossBattle.defaultWisdom')}"
+              </p>
+            </div>
+            <button
+              onClick={onDismiss}
+              className="mt-6 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl font-bold hover:from-amber-600 hover:to-orange-600 transition shadow-lg shadow-amber-300/40 active:scale-95"
+            >
+              {t('bossBattle.collectRewards')}
+            </button>
           </div>
-          <button
-            onClick={onDismiss}
-            className="mt-4 px-6 py-2 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition">{t('bossBattle.collectRewards')}</button>
         </div>
       </div>
     );
@@ -151,59 +165,61 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
 
   /* ── Active Raid ─────────────────────────────────────────── */
   return (
-    <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-2xl border-2 border-red-200 p-4 shadow-lg">
+    <div className="relative overflow-hidden rounded-3xl border-2 border-[#C90016]/20 bg-gradient-to-br from-red-50/80 via-orange-50/50 to-amber-50/60 p-5 shadow-xl shadow-red-200/30">
+      <FloatingDeco className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-red-400 to-orange-400" />
+      <FloatingDeco className="-left-6 -bottom-6 h-20 w-20 bg-gradient-to-br from-[#C90016] to-red-600" />
       {/* Boss Header */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className="text-4xl animate-pulse">{avatar}</div>
+      <div className="relative flex items-center gap-4 mb-4">
+        <div className="text-5xl animate-pulse">{avatar}</div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <Swords className="h-4 w-4 text-red-500" />
-            <span className="text-xs font-bold text-red-600 uppercase tracking-wide">{t('bossBattle.active')}</span>
+            <Swords className="h-4 w-4 text-[#C90016]" />
+            <span className="text-xs font-bold text-[#C90016] uppercase tracking-wide">{t('bossBattle.active')}</span>
           </div>
-          <h3 className="text-lg font-bold text-red-800">{raid.title || title}</h3>
+          <h3 className="text-lg font-extrabold text-gray-800">{raid.title || title}</h3>
         </div>
       </div>
 
       {/* HP Bar */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="flex items-center gap-1 text-red-600">
-            <Heart className="h-3 w-3" /> {t('bossBattle.guardianHp')}
+      <div className="relative mb-4">
+        <div className="flex items-center justify-between text-xs mb-1.5">
+          <span className="flex items-center gap-1 font-bold text-[#C90016]">
+            <Heart className="h-3 w-3 fill-[#C90016]" /> {t('bossBattle.guardianHp')}
           </span>
-          <span className="font-mono font-bold text-red-700">
+          <span className="font-mono font-bold text-[#C90016]">
             {raid.hp.current.toLocaleString()} / {raid.hp.max.toLocaleString()}
           </span>
         </div>
-        <div className="h-4 bg-red-100 rounded-full overflow-hidden border border-red-200">
+        <div className="h-5 bg-red-100 rounded-full overflow-hidden border border-red-200 shadow-inner">
           <div
-            className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all duration-700"
+            className="h-full bg-gradient-to-r from-[#C90016] to-orange-500 rounded-full transition-all duration-700 shadow-sm"
             style={{ width: `${hpPct}%` }}
           />
         </div>
       </div>
 
       {/* Stats Row */}
-      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-        <span className="flex items-center gap-1">
-          <Zap className="h-3 w-3" /> {t('bossBattle.yourDamage', { damage: raid.my_damage })}
+      <div className="relative flex items-center justify-between text-xs text-gray-500 mb-4">
+        <span className="flex items-center gap-1 font-semibold">
+          <Zap className="h-3 w-3 text-amber-500" /> {t('bossBattle.yourDamage', { damage: raid.my_damage })}
         </span>
         {raid.games?.length > 0 && (
-          <span className="flex items-center gap-1">
-            <Shield className="h-3 w-3" /> {tN('bossBattle.games', raid.games.length, { count: raid.games.length })}
+          <span className="flex items-center gap-1 font-semibold">
+            <Shield className="h-3 w-3 text-blue-500" /> {tN('bossBattle.games', raid.games.length, { count: raid.games.length })}
           </span>
         )}
       </div>
 
       {/* Top fighters */}
       {raid.top_damage?.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-1">
+        <div className="relative mb-4 flex flex-wrap gap-1.5">
           {raid.top_damage.slice(0, 5).map((m, i) => (
             <span
               key={m.name}
-              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+              className={`px-3 py-1 rounded-full text-xs font-bold ${
                 i === 0
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-white text-gray-600 border border-gray-200'
+                  ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-md shadow-amber-200/40'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-600 border border-gray-200'
               }`}
             >
               {i === 0 ? '🏆 ' : ''}{m.name} ({m.damage})
@@ -216,9 +232,9 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
       <button
         onClick={handleGoFight}
         disabled={joining || !isBossAlive}
-        className="w-full py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold rounded-xl 
-                   hover:from-red-600 hover:to-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed
-                   flex items-center justify-center gap-2 shadow-lg"
+        className="relative w-full py-3.5 bg-gradient-to-r from-[#C90016] to-orange-500 text-white font-extrabold rounded-2xl 
+                   hover:from-red-700 hover:to-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed
+                   flex items-center justify-center gap-2 shadow-xl shadow-red-300/40 active:scale-[0.98] hover:scale-[1.02]"
       >
         <Swords className="h-5 w-5" />
         {joining ? t('bossBattle.joining') : isBossAlive ? t('bossBattle.goFight') : t('bossBattle.raidOver')}

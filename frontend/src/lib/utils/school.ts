@@ -5,7 +5,7 @@
 import { STORAGE_KEYS } from './constants';
 
 // ── Subdomain detection ─────────────────────────────────────────────────────
-const EXCLUDED_SUBDOMAINS = ['www', 'app', 'api', 'admin', 'portal', 'test', 'staging', 'demo'];
+const EXCLUDED_SUBDOMAINS = ['www', 'app', 'api', 'admin', 'portal', 'test', 'staging'];
 const KNOWN_MULTI_TLDS = ['com.ng', 'co.uk', 'org.ng', 'net.ng', 'edu.ng', 'gov.ng'];
 
 export const getSubdomain = (): string => {

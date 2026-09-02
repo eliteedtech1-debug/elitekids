@@ -42,6 +42,45 @@ async function ensureSchema() {
   _schemaReady = true;
 }
 
+// Ownership check that honors the canonical SHARED EliteSMS relationship
+// (students.parent_id/guardian_id = parent's par_code, resolved via
+// parents.user_id or parents.phone) in addition to the kids-owned
+// kids_parent_links mapping. Returns true if the parent owns the child through
+// either relationship.
+async function ownsChild(u, adm) {
+  const phone = String(u?.phone || '');
+  const uid = String(u?.id || u?.user_id || '');
+  const childAdm = String(adm || '').trim();
+  if ((!phone && !uid) || !childAdm) return false;
+  const [links] = await dbm().content.query(
+    `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
+    { replacements: { phone, adm: childAdm } },
+  ).catch(() => [[], []]);
+  if (Array.isArray(links) && links.length > 0) return true;
+  try {
+    const codes = await dbm().sequelize.query(
+      `SELECT parent_id FROM parents
+       WHERE parent_id IS NOT NULL AND parent_id <> ''
+         AND (
+               (LENGTH(:uid) > 0 AND user_id = :uid)
+            OR (LENGTH(:phone) > 0 AND phone = :phone)
+         )
+       LIMIT 10`,
+      { replacements: { uid, phone }, type: dbm().sequelize.QueryTypes.SELECT },
+    );
+    const codeList = [...new Set((Array.isArray(codes) ? codes : []).map((p) => String(p.parent_id || '').trim()).filter(Boolean))];
+    if (!codeList.length) return false;
+    const rows = await dbm().sequelize.query(
+      `SELECT admission_no FROM students
+       WHERE admission_no = :adm AND status = 'Active'
+         AND (parent_id IN (:codes) OR guardian_id IN (:codes)) LIMIT 1`,
+      { replacements: { adm: childAdm, codes: codeList }, type: dbm().sequelize.QueryTypes.SELECT },
+    );
+    return Array.isArray(rows) && rows.length > 0;
+  } catch (e) { /* shared parents/students may be missing the parent_id column */ }
+  return false;
+}
+
 // ─── Auth: POST /kids/parent/login { phone (or email/username), password }
 // UNIFIED LOGIN (suite rule, PIN DELETED): validates ONLY the SAME credential
 // as EliteSMS - the shared users/parents tables in DB_NAME + bcrypt password
@@ -211,13 +250,65 @@ async function getChildren(req, res) {
     if (u.user_type !== 'parent') return res.status(403).json({ success: false, message: 'Parents only.' });
 
     const phone = String(u.phone || '');
+
+    // 1) Kids-owned mapping (flagship/self-service link table).
     const [links] = await dbm().content.query(
       `SELECT pl.child_admission_no, pl.child_name, pl.school_id
        FROM kids_parent_links pl
        WHERE pl.parent_phone = :phone AND pl.verified = 1`,
       { replacements: { phone } },
     );
-    const children = Array.isArray(links) ? links : [];
+    const linkedChildren = Array.isArray(links) ? links : [];
+
+    // 2) Canonical SHARED EliteSMS relationship — students.parent_id/guardian_id
+    //    hold the parent's par_code (parents.parent_id). Mirrors EliteSMS
+    //    (user.js: `SELECT * FROM students WHERE parent_id = parent.parent_id`).
+    //    Resolve the logged-in parent's code via parents.user_id (or phone), then
+    //    return their children. Read-only, sourced from EliteSMS.
+    const uid = String(u.id || u.user_id || '');
+    let sharedChildren = [];
+    try {
+      const parentRows = await dbm().sequelize.query(
+        `SELECT parent_id FROM parents
+         WHERE parent_id IS NOT NULL AND parent_id <> ''
+           AND (
+                 (LENGTH(:uid) > 0 AND user_id = :uid)
+              OR (LENGTH(:phone) > 0 AND phone = :phone)
+           )
+         LIMIT 10`,
+        { replacements: { uid, phone }, type: dbm().sequelize.QueryTypes.SELECT },
+      );
+      const codes = [...new Set(
+        (Array.isArray(parentRows) ? parentRows : [])
+          .map((p) => String(p.parent_id || '').trim())
+          .filter(Boolean)
+      )];
+      if (codes.length) {
+        sharedChildren = await dbm().sequelize.query(
+          `SELECT admission_no AS child_admission_no, student_name AS child_name, school_id
+           FROM students
+           WHERE status = 'Active' AND (parent_id IN (:codes) OR guardian_id IN (:codes))
+           GROUP BY admission_no`,
+          { replacements: { codes }, type: dbm().sequelize.QueryTypes.SELECT },
+        );
+      }
+    } catch (e) { /* shared parents/students may be missing the parent_id column — skip */ }
+    sharedChildren = Array.isArray(sharedChildren) ? sharedChildren : [];
+
+    // Merge + dedupe by admission_no; kids_parent_links rows take precedence.
+    const seen = new Set();
+    const children = [];
+    for (const row of [...linkedChildren, ...sharedChildren]) {
+      const adm = String(row.child_admission_no || '').trim();
+      if (!adm || seen.has(adm)) continue;
+      seen.add(adm);
+      children.push({
+        child_admission_no: adm,
+        child_name: String(row.child_name || '').trim() || adm,
+        school_id: row.school_id || u.school_id || null,
+      });
+    }
+
     return res.json({ success: true, data: children });
   } catch (err) {
     console.error('parent getChildren error:', err.message);
@@ -235,12 +326,8 @@ async function getChildProgress(req, res) {
     const phone = String(u.phone || '');
     const adm = String(req.params.adm || '').trim();
 
-    // Verify parent owns this child
-    const [owned] = await dbm().content.query(
-      `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
-      { replacements: { phone, adm } },
-    );
-    if (!Array.isArray(owned) || owned.length === 0) {
+    // Verify parent owns this child (kids_parent_links OR shared students.parent_id)
+    if (!(await ownsChild(u, adm))) {
       return res.status(403).json({ success: false, message: 'Not linked to this child.' });
     }
 
@@ -340,11 +427,7 @@ async function getChildAchievements(req, res) {
     const adm = String(req.params.adm || '').trim();
 
     // Verify ownership
-    const [owned] = await dbm().content.query(
-      `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
-      { replacements: { phone, adm } },
-    );
-    if (!Array.isArray(owned) || owned.length === 0) {
+    if (!(await ownsChild(u, adm))) {
       return res.status(403).json({ success: false, message: 'Not linked to this child.' });
     }
 
@@ -506,11 +589,7 @@ async function getChildControls(req, res) {
     const phone = String(u.phone || '');
     const adm = String(req.params.adm || '').trim();
 
-    const [owned] = await dbm().content.query(
-      `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
-      { replacements: { phone, adm } },
-    );
-    if (!Array.isArray(owned) || owned.length === 0) {
+    if (!(await ownsChild(u, adm))) {
       return res.status(403).json({ success: false, message: 'Not linked to this child.' });
     }
 
@@ -568,11 +647,7 @@ async function getChildReport(req, res) {
     const phone = String(u.phone || '');
     const adm = String(req.params.adm || '').trim();
 
-    const [owned] = await dbm().content.query(
-      `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
-      { replacements: { phone, adm } },
-    );
-    if (!Array.isArray(owned) || owned.length === 0) {
+    if (!(await ownsChild(u, adm))) {
       return res.status(403).json({ success: false, message: 'Not linked to this child.' });
     }
 

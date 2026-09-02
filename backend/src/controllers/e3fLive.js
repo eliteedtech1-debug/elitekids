@@ -277,14 +277,34 @@ function attach(server) {
           tryJoin(conn, pKey); // non-fatal if a parent room is full
         }
       } else if (userType === 'parent') {
-        const phone = normPhone(payload.phone);
+        let phone = normPhone(payload.phone);
+        let parentSchoolId = String(payload.school_id || '');
+        // Shared /users/login (EliteSMS) parent tokens carry id but NOT phone —
+        // resolve the phone from the parents table so the parent room key matches
+        // whatever the student joined via students.parent_id (canonical link).
+        if ((!phone || !parentSchoolId) && payload.id) {
+          try {
+            const rows = await dbm.sequelize.query(
+              `SELECT p.phone, p.school_id FROM parents p
+               WHERE p.user_id = :id LIMIT 1`,
+              { replacements: { id: String(payload.id) }, type: dbm.Sequelize.QueryTypes.SELECT },
+            );
+            const row = Array.isArray(rows) ? rows[0] : null;
+            if (row) {
+              if (!phone) phone = normPhone(row.phone);
+              if (!parentSchoolId) parentSchoolId = String(row.school_id || '');
+            }
+          } catch (e) { /* parents table may be missing columns */ }
+        }
         if (!phone) {
           ws.close(4005, 'no-phone');
           return;
         }
+        const parentRoomSchool = parentSchoolId || schoolId;
         conn.adm = `parent:${phone}`;
         conn.name = 'Parent';
-        const pKey = `${schoolId}:parent:${phone}`;
+        conn.schoolId = parentRoomSchool;
+        const pKey = `${parentRoomSchool}:parent:${phone}`;
         if (!tryJoin(conn, pKey)) {
           ws.close(4004, 'room-full');
           return;

@@ -61,9 +61,10 @@ async function updateProfile({ child_admission_no, school_id, subject, topic, sc
     const rows = Array.isArray(existing[0]) ? existing[0] : (existing[0] || []);
     const profile = rows[0] || null;
 
-    let totalAttempts = (profile ? profile.total_attempts : 0) + 1;
-    let correctAttempts = (profile ? profile.correct_attempts : 0) + (correct ? 1 : 0);
+    let totalAttempts = Math.max(0, Number(profile ? profile.total_attempts : 0) || 0) + 1;
+    let correctAttempts = Math.max(0, Number(profile ? profile.correct_attempts : 0) || 0) + (correct ? 1 : 0);
     let accuracy = totalAttempts > 0 ? (correctAttempts / totalAttempts) * 100 : (correct ? 100 : 0);
+    accuracy = Number.isFinite(accuracy) ? Math.round(accuracy * 100) / 100 : 0;
     let oldDifficulty = profile ? profile.current_difficulty : 3;
 
     // Compute rolling accuracy (weighted toward recent)

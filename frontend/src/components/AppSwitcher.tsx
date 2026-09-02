@@ -215,8 +215,13 @@ export default function AppSwitcher() {
   const rows = useMemo(() => {
     if (!access) return null;
     const { modules, role } = access;
+    const isStudent = role === 'student';
 
-    return ELITE_APPS.map((app) => {
+    return ELITE_APPS.filter((app) => {
+      // Hide EliteFin (fees) from students — not relevant for kids
+      if (isStudent && app.key === 'fees') return false;
+      return true;
+    }).map((app) => {
       const current = isCurrentApp(app);
       const roleAllowed = app.roles.includes(role);
       const subscribed = modules.includes(app.key);

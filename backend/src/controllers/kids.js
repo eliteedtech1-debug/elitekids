@@ -88,19 +88,92 @@ async function childAccessAllowed(req, child) {
 async function listChildrenForParent(req, res) {
   try {
     const user = req.user;
-    const where = {};
-    if (String(user.user_type || '').toLowerCase() === 'parent') {
-      where.parent_user_id = String(user.id || user.user_id);
-    } else {
-      where.school_id = req.headers['x-school-id'] || user.school_id;
+    const isParent = String(user.user_type || '').toLowerCase() === 'parent';
+
+    if (!isParent) {
+      const where = { school_id: req.headers['x-school-id'] || user.school_id };
+      const children = await db.KidChild.findAll({ where, order: [['full_name', 'ASC']] });
+      return res.json({ success: true, data: children });
     }
-    const children = await db.KidChild.findAll({ where, order: [['full_name', 'ASC']] });
-    return res.json({ success: true, data: children });
+
+    // 1) Kids-owned profiles (kids_children.parent_user_id = users.id)
+    const kidChildren = await db.KidChild.findAll({
+      where: { parent_user_id: String(user.id || user.user_id) },
+      order: [['full_name', 'ASC']],
+    });
+
+    // 2) Canonical SHARED EliteSMS relationship — students.parent_id/guardian_id
+    //    hold the parent's par_code (parents.parent_id). Mirrors EliteSMS
+    //    (user.js: `SELECT * FROM students WHERE parent_id = parent.parent_id`).
+    //    Resolve the logged-in parent's code via parents.user_id (or phone), then
+    //    return their children. Read-only against the shared school DB.
+    const userId = String(user.id || user.user_id || '');
+    const userPhone = String(user.phone || '');
+    let sharedRows = [];
+    if (userId || userPhone) {
+      try {
+        const parentRows = await db.sequelize.query(
+          `SELECT parent_id, phone FROM parents
+           WHERE parent_id IS NOT NULL AND parent_id <> ''
+             AND (
+                   (LENGTH(:uid) > 0 AND user_id = :uid)
+                OR (LENGTH(:phone) > 0 AND phone = :phone)
+             )
+           LIMIT 10`,
+          { replacements: { uid: userId, phone: userPhone }, type: db.Sequelize.QueryTypes.SELECT },
+        );
+        const codes = [...new Set(
+          (Array.isArray(parentRows) ? parentRows : [])
+            .map((p) => String(p.parent_id || '').trim())
+            .filter(Boolean)
+        )];
+        if (codes.length) {
+          sharedRows = await db.sequelize.query(
+            `SELECT admission_no, school_id,
+                    COALESCE(class_code, current_class) AS class_code,
+                    class_name, student_name AS full_name
+             FROM students
+             WHERE status = 'Active' AND (parent_id IN (:codes) OR guardian_id IN (:codes))
+             GROUP BY admission_no`,
+            { replacements: { codes }, type: db.Sequelize.QueryTypes.SELECT },
+          );
+        }
+      } catch (e) { /* shared parents/students may be missing columns — use kids_children only */ }
+    }
+    sharedRows = Array.isArray(sharedRows) ? sharedRows : [];
+
+    // Merge + dedupe by admission_no; kids_children profiles take precedence.
+    const seen = new Map();
+    for (const c of kidChildren) seen.set(String(c.admission_no), c);
+    for (const r of sharedRows) {
+      const adm = String(r.admission_no || '').trim();
+      if (!adm || seen.has(adm)) continue;
+      seen.set(adm, {
+        id: `shared_${adm}`,
+        admission_no: adm,
+        school_id: r.school_id || user.school_id || null,
+        branch_id: null,
+        full_name: String(r.full_name || '').trim() || adm,
+        age_level: r.class_name || r.class_code || null,
+        class_code: r.class_code || null,
+        class_name: r.class_name || null,
+        avatar_url: null,
+        parent_user_id: userId || null,
+        parent_phone: userPhone || null,
+        status: 'Active',
+      });
+    }
+
+    const merged = [...seen.values()].sort((a, b) =>
+      String(a.full_name || '').localeCompare(String(b.full_name || ''), undefined, { sensitivity: 'base' })
+    );
+    return res.json({ success: true, data: merged });
   } catch (err) {
     console.error('listChildrenForParent error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 }
+
 
 /** GET /kids/children/detail?admission_no=X or /kids/children/:admissionNo — one child + progress summary. */
 async function getChild(req, res) {
@@ -211,7 +284,9 @@ async function linkChildForParent(req, res) {
     // 1) Must exist in the shared students table for this school.
     const [student] = await db.sequelize
       .query(
-        `SELECT admission_no, student_name, class_code, parent_id, guardian_id, phone, email
+        `SELECT admission_no, student_name,
+               COALESCE(class_code, current_class) AS class_code, class_name,
+               parent_id, guardian_id, phone, email
          FROM students WHERE admission_no = :a AND school_id = :school_id LIMIT 1`,
         { replacements: { a: admission_no, school_id }, type: db.sequelize.QueryTypes.SELECT }
       )
@@ -291,7 +366,9 @@ async function createChild(req, res) {
     // The child must exist in the shared students table (admission_no + school_id)
     const [student] = await db.sequelize
       .query(
-        `SELECT admission_no, student_name, class_code FROM students WHERE admission_no = :a AND school_id = :school_id LIMIT 1`,
+        `SELECT admission_no, student_name,
+               COALESCE(class_code, current_class) AS class_code, class_name
+         FROM students WHERE admission_no = :a AND school_id = :school_id LIMIT 1`,
         { replacements: { a: admission_no, school_id }, type: db.sequelize.QueryTypes.SELECT }
       )
       .catch(() => []);

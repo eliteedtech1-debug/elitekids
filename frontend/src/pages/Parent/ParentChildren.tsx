@@ -17,11 +17,14 @@ import {
   Eye,
   BarChart3,
   Radio,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { t, tN } from '@/lib/i18n';
+import { useParentPresence } from '@/lib/live/useParentPresence';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -48,6 +51,7 @@ interface Child {
   full_name: string;
   age_level: string;
   class_code: string | null;
+  class_name?: string | null;
   avatar_url?: string | null;
   parent_user_id: string | null;
   status: string;
@@ -126,6 +130,15 @@ export default function ParentChildren() {
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ full_name: '', age_level: 'Creche', admission_no: '' });
   const [creating, setCreating] = useState(false);
+
+  // Real-time child online/offline presence via background WebSocket
+  const { isOnline } = useParentPresence();
+
+  // Check online status — shared children have id "shared_ADM", students use raw admission_no
+  const checkOnline = useCallback((child: Child) => {
+    const adm = String(child.admission_no || '').trim();
+    return isOnline(adm) || isOnline(`shared_${adm}`);
+  }, [isOnline]);
 
   const loadChildren = useCallback(async () => {
     setLoading(true);
@@ -217,6 +230,7 @@ export default function ParentChildren() {
   const totalStars = children.reduce((sum, c) => sum + (progressOf(c).total_stars || 0), 0);
   const totalXp = children.reduce((sum, c) => sum + (progressOf(c).total_xp || 0), 0);
   const totalGames = children.reduce((sum, c) => sum + (progressOf(c).games_completed || 0), 0);
+  const onlineCount = children.filter((c) => checkOnline(c)).length;
 
   return (
     <div className="min-h-screen bg-[#E7EEF6]">
@@ -231,6 +245,12 @@ export default function ParentChildren() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {children.length > 0 && (
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${onlineCount > 0 ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`h-2 w-2 rounded-full ${onlineCount > 0 ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                {onlineCount} {onlineCount === 1 ? 'child' : 'children'} online
+              </span>
+            )}
             <button
               onClick={handleLogout}
               className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
@@ -314,20 +334,28 @@ export default function ParentChildren() {
                           className="rounded-2xl border border-[#0F4D92]/10 bg-white p-5 shadow-sm transition hover:shadow-md"
                         >
                           <div className="flex items-start gap-3">
-                            {child.avatar_url ? (
-                              <img src={child.avatar_url} alt={child.full_name} className="h-12 w-12 rounded-full object-cover" />
-                            ) : (
-                              <span className={`inline-flex h-12 w-12 items-center justify-center rounded-full text-base font-bold text-white ${colorFor(child.full_name)}`}>
-                                {initials(child.full_name)}
-                              </span>
-                            )}
+                            <div className="relative">
+                              {child.avatar_url ? (
+                                <img src={child.avatar_url} alt={child.full_name} className="h-12 w-12 rounded-full object-cover" />
+                              ) : (
+                                <span className={`inline-flex h-12 w-12 items-center justify-center rounded-full text-base font-bold text-white ${colorFor(child.full_name)}`}>
+                                  {initials(child.full_name)}
+                                </span>
+                              )}
+                              <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${checkOnline(child) ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
+                            </div>
                             <div className="min-w-0 flex-1">
                               <h3 className="flex items-center gap-2 truncate font-semibold text-gray-800">
                                 {child.full_name}
+                                {checkOnline(child) && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-600">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Online
+                                  </span>
+                                )}
                                 {inactive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">{t('parent.inactive')}</span>}
                               </h3>
                               <p className="text-xs text-gray-500">
-                                {child.age_level}{child.class_code ? ` · ${child.class_code}` : ''} · {child.admission_no}
+                                {child.class_name || child.age_level}{child.class_code ? ` · ${child.class_code}` : ''} · {child.admission_no}
                               </p>
                             </div>
                           </div>

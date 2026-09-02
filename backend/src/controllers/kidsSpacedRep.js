@@ -104,12 +104,21 @@ async function getReviewStats(req, res) {
     const t = (Array.isArray(total[0]) ? total[0] : [])[0] || { total: 0, due: 0 };
     const s = (Array.isArray(streak[0]) ? streak[0] : [])[0] || { best_streak: 0 };
 
+    // Compute average accuracy across all adaptive profiles for this child
+    const [accRows] = await dbm().content.query(
+      `SELECT AVG(accuracy_7d) AS avg_acc FROM kids_adaptive_profiles WHERE child_admission_no=:adm AND accuracy_7d IS NOT NULL`,
+      { replacements: { adm } },
+    ).catch(() => [[{ avg_acc: 0 }]]);
+    const rawAcc = (Array.isArray(accRows[0]) ? accRows[0] : [])[0]?.avg_acc;
+    const avgAcc = Number.isFinite(Number(rawAcc)) ? Number(rawAcc) : 0;
+
     return res.json({
       success: true,
       data: {
-        total_topics: t.total || 0,
-        due_for_review: t.due || 0,
-        best_streak: s.best_streak || 0,
+        total_reviewed: t.total || 0,
+        due_today: t.due || 0,
+        streak_days: s.best_streak || 0,
+        avg_accuracy: Math.round(avgAcc),
       },
     });
   } catch (err) {

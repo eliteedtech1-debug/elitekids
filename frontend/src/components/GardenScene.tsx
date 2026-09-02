@@ -51,10 +51,17 @@ function GardenPlant({ element, index }: { element: GardenElement; index: number
       <span className={`${size} drop-shadow-sm animate-game-float`} style={{ animationDelay: `${delay * 2}s` }}>
         {emoji}
       </span>
-      <span className="text-[9px] font-medium text-gray-500 capitalize max-w-[60px] truncate">
+      <span className="text-[9px] font-medium text-green-700 capitalize max-w-[60px] truncate">
         {element.item_id.replace(/-/g, ' ').split(' ').slice(-1)[0]}
       </span>
     </div>
+  );
+}
+
+/* ── Floating decoration for game feel ─────────────────────── */
+function FloatingDeco({ className }: { className?: string }) {
+  return (
+    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-20 ${className}`} />
   );
 }
 
@@ -88,36 +95,43 @@ export default function GardenScene({ compact = false }: { compact?: boolean }) 
   if (elements.length === 0) return null;
 
   if (compact) {
-    // Mini garden for the student home header
+    // Mini garden for the student home header — game-style glassmorphism
     return (
-      <div className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 px-3 py-2 border border-green-200/50">
-        <span className="text-sm">🌱</span>
-        <span className="text-[10px] font-bold text-green-700">{elements.length}</span>
-        {elements.slice(0, 3).map((el, i) => (
-          <span key={i} className="text-xs">{STAGE_EMOJIS[el.type]?.[el.stage] || '🌱'}</span>
-        ))}
-        {elements.length > 3 && <span className="text-[9px] text-green-600">+{elements.length - 3}</span>}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-50/80 via-emerald-50/60 to-teal-50/40 backdrop-blur-xl px-4 py-2.5 border border-green-200/40 shadow-lg shadow-green-200/20">
+        <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-green-300/20 blur-xl" />
+        <div className="relative flex items-center gap-1.5">
+          <span className="text-sm">🌱</span>
+          <span className="text-[11px] font-bold text-green-700">{elements.length}</span>
+          {elements.slice(0, 3).map((el, i) => (
+            <span key={i} className="text-xs drop-shadow-sm">{STAGE_EMOJIS[el.type]?.[el.stage] || '🌱'}</span>
+          ))}
+          {elements.length > 3 && <span className="text-[9px] font-bold text-green-600">+{elements.length - 3}</span>}
+        </div>
       </div>
     );
   }
 
-  // Full garden view
+  // Full garden view — game-style
   return (
-    <div className="rounded-2xl bg-gradient-to-b from-sky-100 to-green-100 p-4 shadow-inner border border-green-200/30">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-lg">🏡</span>
-        <h3 className="text-sm font-bold text-green-800">{t('garden.title')}</h3>
-        <span className="text-[10px] bg-green-200 text-green-700 rounded-full px-2 py-0.5 font-bold">
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-sky-100/80 via-green-50/60 to-emerald-100/80 p-5 shadow-inner border border-green-200/30">
+      <FloatingDeco className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-green-400 to-emerald-400" />
+      <FloatingDeco className="-left-6 -bottom-6 h-20 w-20 bg-gradient-to-br from-sky-400 to-blue-400" />
+      <div className="relative flex items-center gap-2.5 mb-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 shadow-lg shadow-green-300/40">
+          <span className="text-lg">🏡</span>
+        </div>
+        <h3 className="text-sm font-extrabold text-green-800">{t('garden.title')}</h3>
+        <span className="text-[10px] bg-green-200/80 text-green-700 rounded-full px-2.5 py-0.5 font-bold">
           {t('garden.plants', { count: elements.length })}
         </span>
       </div>
-      <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+      <div className="relative grid grid-cols-4 sm:grid-cols-6 gap-3">
         {elements.map((el, i) => (
           <GardenPlant key={el.item_id} element={el} index={i} />
         ))}
       </div>
       {elements.length === 0 && (
-        <p className="text-center text-xs text-green-600/60 py-4">
+        <p className="relative text-center text-xs text-green-600/60 py-4 font-medium">
           {t('garden.empty')}
         </p>
       )}

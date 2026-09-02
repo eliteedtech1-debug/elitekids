@@ -12,6 +12,7 @@ import {
   XCircle,
   Eye,
   BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
@@ -19,6 +20,7 @@ import { getSchoolId } from '@/lib/utils/school';
 import { t } from '@/lib/i18n';
 import A11ySettings from '@/components/A11ySettings';
 import AdminNav from '@/components/AdminNav';
+import KidPageBackground from '@/components/KidPageBackground';
 
 /** Decode the JWT payload (role/school claims) — never trust it for authz. */
 function decodeToken(token: string): Record<string, any> | null {
@@ -49,7 +51,7 @@ const NAV_CARDS: Array<NavCard & NavCardI18n> = [
   {
     titleKey: 'dashboard.card.children',
     descriptionKey: 'dashboard.card.childrenDesc',
-    title: 'My Children', // legacy — resolved via t(titleKey) at render
+    title: 'My Children',
     description: '',
     icon: Baby,
     audience: 'parent',
@@ -130,7 +132,6 @@ export default function Dashboard() {
       setUser(null);
     }
 
-    // Live wiring check: proves the SPA can reach elite-kids-api.
     apiClient
       .get('/health')
       .then(() => setApiOk(true))
@@ -152,78 +153,82 @@ export default function Dashboard() {
   const isStudent = /student/i.test(role);
   const isParent = /parent/i.test(role);
 
-  // Parents should be on /parent — redirect if they land here
   useEffect(() => {
     if (isParent) navigate('/parent', { replace: true });
   }, [isParent, navigate]);
 
-  // Staff auto-redirects to lessons — but still renders if they navigate here directly
   const cards = NAV_CARDS.filter((c) => {
     if (isStaff) return c.audience === 'staff';
     if (isStudent) return c.audience === 'student';
-    return c.audience === 'parent'; // default: parent view
+    return c.audience === 'parent';
   });
   const schoolId = getSchoolId();
 
   const welcomeLabel = isStaff ? 'teacher' : isStudent ? 'student' : isParent ? 'parent' : 'staff';
 
   return (
-    <div className="min-h-screen bg-[#E7EEF6]">
+    <div className="min-h-screen">
       {isStaff ? (
         <AdminNav />
       ) : (
-      <header className="border-b border-[#0F4D92]/10 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt={t('dashboard.brand')} className="h-10 w-10 rounded-full object-contain" />
-            <div>
-              <h1 className="text-lg font-bold leading-tight text-[#0F4D92]">{t('dashboard.brand')}</h1>
-              <p className="text-xs text-gray-500">
-                {schoolId ? `${schoolId} · ` : ''}
-                <span className="capitalize">{role}</span>
-              </p>
+        <>
+          {isStudent && <KidPageBackground />}
+          <header className="border-b border-[#0F4D92]/10 bg-white/80 backdrop-blur-xl">
+            <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <img src="/logo.svg" alt={t('dashboard.brand')} className="h-10 w-10 rounded-2xl object-contain shadow-lg shadow-[#0F4D92]/20" />
+                  <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 border-2 border-white shadow-sm" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-extrabold leading-tight bg-gradient-to-r from-[#0F4D92] to-[#0d9488] bg-clip-text text-transparent">{t('dashboard.brand')}</h1>
+                  <p className="text-xs text-gray-500 font-medium">
+                    {schoolId ? `${schoolId} · ` : ''}
+                    <span className="capitalize">{role}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <A11ySettings />
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-xs font-semibold backdrop-blur-sm ${
+                    apiOk === null
+                      ? 'bg-gray-100 text-gray-500'
+                      : apiOk
+                        ? 'bg-green-50/80 text-green-700 border border-green-200/50'
+                        : 'bg-red-50/80 text-red-700 border border-red-200/50'
+                  }`}
+                  title={apiOk === null ? t('dashboard.checkingApi') : apiOk ? t('dashboard.apiReachable') : t('dashboard.apiUnreachable')}
+                >
+                  {apiOk === null ? (
+                    <GraduationCap className="h-3.5 w-3.5" />
+                  ) : apiOk ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5" />
+                  )}
+                  {apiOk === null ? t('dashboard.checking') : apiOk ? t('dashboard.apiOnline') : t('dashboard.apiOffline')}
+                </span>
+
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-1.5 rounded-2xl border border-red-200/80 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 hover:shadow-sm active:scale-95"
+                >
+                  <LogOut className="h-4 w-4" /> {t('dashboard.signOut')}
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <A11ySettings />
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
-                apiOk === null
-                  ? 'bg-gray-100 text-gray-500'
-                  : apiOk
-                    ? 'bg-green-50 text-green-700'
-                    : 'bg-red-50 text-red-700'
-              }`}
-              title={apiOk === null ? t('dashboard.checkingApi') : apiOk ? t('dashboard.apiReachable') : t('dashboard.apiUnreachable')}
-            >
-              {apiOk === null ? (
-                <GraduationCap className="h-3.5 w-3.5" />
-              ) : apiOk ? (
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              ) : (
-                <XCircle className="h-3.5 w-3.5" />
-              )}
-              {apiOk === null ? t('dashboard.checking') : apiOk ? t('dashboard.apiOnline') : t('dashboard.apiOffline')}
-            </span>
-
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
-            >
-              <LogOut className="h-4 w-4" /> {t('dashboard.signOut')}
-            </button>
-          </div>
-        </div>
-      </header>
+          </header>
+        </>
       )}
 
       {/* Body */}
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        <h2 className="text-xl font-semibold text-gray-800">
+      <main className={`mx-auto max-w-5xl px-4 py-8 ${isStudent ? 'relative z-10' : ''}`}>
+        <h2 className="text-xl font-extrabold text-gray-800">
           {t('dashboard.welcomeUser', { role: welcomeLabel })} 👋
         </h2>
-        <p className="mb-6 text-sm text-gray-500">
+        <p className="mb-6 text-sm text-gray-500 font-medium">
           {isStaff
             ? t('dashboard.staffBlurb')
             : isStudent
@@ -233,31 +238,24 @@ export default function Dashboard() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           {cards.map((card) => {
-            const badge = card.to ? (
-              <span className="rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-semibold text-green-700">
-                {t('dashboard.live')}
-              </span>
-            ) : (
-              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                {t('dashboard.live')}
-              </span>
-            );
             const body = (
               <div className="mb-3 flex items-center justify-between">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#0F4D92]/10 text-[#0F4D92]">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0F4D92]/10 to-[#0d9488]/10 text-[#0F4D92] shadow-sm">
                   <card.icon className="h-6 w-6" />
                 </span>
-                {badge}
+                <span className="rounded-2xl bg-green-50/80 px-2.5 py-1 text-[11px] font-semibold text-green-700 border border-green-200/50">
+                  {t('dashboard.live')}
+                </span>
               </div>
             );
-            const title = <h3 className="font-semibold text-gray-800">{t(card.titleKey)}</h3>;
-            const desc = <p className="mt-1 text-sm text-gray-500">{t(card.descriptionKey)}</p>;
+            const title = <h3 className="font-bold text-gray-800">{t(card.titleKey)}</h3>;
+            const desc = <p className="mt-1 text-sm text-gray-500 font-medium">{t(card.descriptionKey)}</p>;
 
             return card.to ? (
               <Link
                 key={card.title}
                 to={card.to}
-                className="rounded-2xl border border-[#0F4D92]/10 bg-white p-5 shadow-sm transition hover:border-[#0F4D92]/30 hover:shadow-md"
+                className="group rounded-3xl border border-white/80 bg-white/70 backdrop-blur-sm p-5 shadow-lg shadow-[#0F4D92]/5 transition-all hover:border-[#0F4D92]/20 hover:shadow-xl hover:shadow-[#0F4D92]/10 hover:scale-[1.02] active:scale-[0.99]"
               >
                 {body}
                 {title}
@@ -266,7 +264,7 @@ export default function Dashboard() {
             ) : (
               <div
                 key={card.title}
-                className="rounded-2xl border border-[#0F4D92]/10 bg-white p-5 shadow-sm transition hover:shadow-md"
+                className="rounded-3xl border border-white/80 bg-white/70 backdrop-blur-sm p-5 shadow-lg shadow-[#0F4D92]/5 transition-all hover:shadow-xl"
               >
                 {body}
                 {title}

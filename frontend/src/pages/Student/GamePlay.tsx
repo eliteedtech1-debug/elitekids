@@ -4280,7 +4280,7 @@ export default function GamePlay() {
         </button>
         <SpeechSettings />
         {adaptiveProfile && (
-          <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] sm:text-xs font-bold text-blue-600" title={`Difficulty: ${adaptiveProfile.difficulty}/5 | Accuracy: ${Math.round(adaptiveProfile.accuracy_7d)}%`}>
+          <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] sm:text-xs font-bold text-blue-600" title={`Difficulty: ${adaptiveProfile.difficulty}/5 | Accuracy: ${Math.round(adaptiveProfile.accuracy_7d || 0)}%`}>
             L{adaptiveProfile.difficulty}
           </span>
         )}
