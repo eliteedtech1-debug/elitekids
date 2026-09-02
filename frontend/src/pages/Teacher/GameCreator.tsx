@@ -26,6 +26,7 @@ import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
 import GameConfigEditor from '@/components/GameConfigEditor';
+import SceneEditor from '@/components/SceneEditor';
 import type { PromptMode, ResponseMode } from '@/lib/types/game';
 import { GAME_INTERACTIONS, validateInteraction, suggestResponseMode, describeInteraction } from '@/lib/types/game';
 
@@ -369,7 +370,17 @@ export default function GameCreator() {
       if (nerdcSubStrand.trim()) body.nerdc_sub_strand = nerdcSubStrand.trim();
       if (scenesJson.trim()) {
         try {
-          body.scenes = JSON.parse(scenesJson);
+          const parsed = JSON.parse(scenesJson);
+          // Flatten wrapper shape and drop blank/narration-less scenes before submit.
+          const list = Array.isArray(parsed) ? parsed : parsed?.scenes ? [parsed] : [];
+          const scenesFlat: any[] = [];
+          list.forEach((item: any) => {
+            if (Array.isArray(item)) item.forEach((s) => scenesFlat.push(s));
+            else if (item && Array.isArray(item.scenes)) item.scenes.forEach((s: any) => scenesFlat.push(s));
+            else if (item && typeof item === 'object') scenesFlat.push(item);
+          });
+          const clean = scenesFlat.filter((s: any) => (s?.text ?? s?.narration ?? '').trim() !== '');
+          if (clean.length > 0) body.scenes = clean;
         } catch { /* ignore bad scenes */ }
       }
 
@@ -631,17 +642,11 @@ export default function GameCreator() {
 
             <p className="mb-3 text-xs text-gray-500">{t('gameCreator.scenesHint')}</p>
 
-            <textarea
-              value={scenesJson}
-              onChange={(e) => handleScenesChange(e.target.value)}
-              placeholder={'[\n  {\n    "sceneType": "teach",\n    "narration": "Today we learn about numbers!",\n    "duration": 5\n  }\n]'}
-              className={`w-full rounded-xl border px-3 py-2.5 font-mono text-xs leading-relaxed focus:outline-none focus:ring-1 ${
-                scenesError
-                  ? 'border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-200'
-                  : 'border-gray-200 focus:border-[#0F4D92] focus:ring-[#0F4D92]/30'
-              }`}
-              rows={12}
-              spellCheck={false}
+            {/* Visual plug-&-play scenes editor (Easy mode) + Advanced JSON tab.
+                scenesJson remains the single source of truth. */}
+            <SceneEditor
+              scenesJson={scenesJson}
+              onJsonChange={handleScenesChange}
             />
 
             {scenesError && (

@@ -675,7 +675,7 @@ async function createLessonManual(req, res) {
     }
 
     const school_id = req.headers['x-school-id'] || req.user.school_id;
-    const branch_id = req.headers['x-branch-id'] || req.user.branch_id;
+    const branch_id = req.headers['x-branch-id'] || req.user.branch_id || 'BR-MAIN';
     const isGlobal = (PLATFORM_SCHOOL_IDS.includes(school_id) && is_global) ? 1 : 0;
 
     // Create the lesson
