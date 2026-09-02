@@ -9,6 +9,13 @@ NO LONGER reproduce (later E3f/S8 work resolved them). New intermittent C-DEBT-0
 pollution) logged below. Regression matrix (b1-regression.test.js) 25/25 in-suite + standalone. Evidence:
 `reports/c-ci-run-20260828T16*.log` + `reports/ci-last-run.txt`.
 
+**Resume re-verification 2026-08-31 (night run, 00:12Z):** full-suite exposed a NEW deterministic fail outside
+the known C-DEBT set — `test/parental.test.js` "allows play when within time window and under limit" FAILED
+because a prior test in the same file POSTs a 07:00–20:00 window on NUR-002 while the /check test assumed
+"no time window set" → wall-clock flake (00:12Z is outside the window). Fixed (C-F9, test-only) → parental
+11/11 PASS standalone + in-suite; full-suite back to 2F/323P/325T (garden C-DEBT-01/02 only). Change is
+UNCOMMITTED in working tree; MASTER review+commit+push per gate discipline.
+
 ---
 
 ## VERDICT
@@ -31,6 +38,7 @@ none are regressions introduced by phase C (`b1-regression.test.js`: 25/25 PASS 
 | C-F6 | Garden grow mutated Sequelize JSON array in place → update could be treated as unchanged and **silently skip persistence** | `src/controllers/kidsGarden.js` | Intermittent loss of garden growth |
 | C-F7 | Retry teacher-flags leaked rows from other schools as `student:null` instead of school-scoping | `src/controllers/kidsRetry.js` | Cross-school data exposure in flags list |
 | C-F8 | kidsSession resume ordered by nonexistent `updated_at` (prod col is `updatedAt`) | `src/controllers/kidsSession.js` | Save/resume always 500 |
+| C-F9 | GET /kids/parental-controls/check test asserted NUR-002 has "no time window" but a prior test in the same file POSTs a 07:00–20:00 window on NUR-002 → clock-dependent flake (fails 20:01–06:59 UTC). Test-only fix: /check test now owns its fixture (limit 60, no window) on NUR-005. | `test/parental.test.js` | Full-suite determinism at any hour (found on night run 00:12Z 2026-08-31; all prior runs were daytime) |
 
 ## RESIDUAL FAILURES (4) — TICKETS
 
