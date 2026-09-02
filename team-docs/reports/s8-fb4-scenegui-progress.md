@@ -53,3 +53,13 @@
 - Ran deep scene/story capability map + preview-gap exploration (read-only).
 - Report: team-docs/reports/story-game-preview-gap-analysis.md — scene/renderer gaps, preview gaps, and D1-D4 supervisor decisions (scene images, guide depth, preview format, preview surfaces).
 - No code changes; awaits D1-D4 decisions.
+
+## [2026-09-02 23:20] STORY-GAME PREVIEW + GUIDE (implemented)
+- Supervisor: implement BOTH (guide + preview). Built:
+  - Backend getGamePreview (staff, any content_state) + enrich game_config approvals with lesson_id.
+  - GamePlay preview mode (?preview=1 or in-memory initialConfig) skips progress/adaptive/media fetches; banner + back-to-teacher.
+  - Routes /teacher/preview/:lessonId + /teacher/preview-draft (pre-submit in-memory).
+  - Preview buttons in GameCreator (Test Play step4, Preview Game step5), TeacherApprovals, TeacherLessons.
+  - Guide section "Turning a learning objective into a story game" in docs/teacher-game-maker-guide.md (objective→story→per-type scene map→worked example→test).
+- Verification: tsc clean, build OK, vitest 48/48, node --check clean.
+- Report updated: team-docs/reports/story-game-preview-gap-analysis.md

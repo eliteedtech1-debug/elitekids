@@ -3360,10 +3360,13 @@ function PuzzleGame({
 
 /* ── Main GamePlay Page ────────────────────────────────────── */
 
-export default function GamePlay() {
+export default function GamePlay({ initialConfig }: { initialConfig?: { config: any; scenes?: SceneText[] } }) {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // Preview mode: staff/teacher play-test any content_state before submit/approval.
+  // True when the URL asks for preview OR a draft config was passed in-memory (pre-submit).
+  const isPreview = searchParams.get('preview') === '1' || !!initialConfig;
   const urlMode = (searchParams.get('mode') || '').toLowerCase();
   const validUrlMode = (['learning', 'practice', 'test'] as string[]).includes(urlMode) ? urlMode as GameMode : null;
   // E6: Boss raid URL params
@@ -3465,6 +3468,15 @@ export default function GamePlay() {
 
   // Load game data
   useEffect(() => {
+    if (initialConfig) {
+      // Pre-submit draft preview: use the in-memory config directly (no fetch).
+      setConfig(initialConfig.config);
+      if (Array.isArray(initialConfig.scenes) && initialConfig.scenes.length > 0) {
+        setScenes([{ scenes: initialConfig.scenes }]);
+      }
+      setLoading(false);
+      return;
+    }
     if (!lessonId) return;
     setLoading(true);
     // Freemium: capture SUBSCRIPTION_REQUIRED 403 (free games used up) so we
@@ -3481,24 +3493,28 @@ export default function GamePlay() {
       return { data: null };
     };
     Promise.all([
-      apiClient.get(ENDPOINTS.LESSONS.GAME(lessonId)).catch(gateFail),
-      apiClient.get(ENDPOINTS.LESSONS.SCENES(lessonId)).catch(() => ({ data: { data: [] } })),
+      apiClient.get(isPreview ? ENDPOINTS.LESSONS.GAME_PREVIEW(lessonId) : ENDPOINTS.LESSONS.GAME(lessonId)).catch(gateFail),
+      isPreview
+        ? Promise.resolve({ data: { data: [] } })
+        : apiClient.get(ENDPOINTS.LESSONS.SCENES(lessonId)).catch(() => ({ data: { data: [] } })),
     ])
       .then(async ([gameRes, scenesRes]) => {
         // E3-offline: fresh payload → cache it; fetch failed → play last downloaded copy
         let gameData: any = gameRes.data?.data || gameRes.data;
         if (gameData?.template) {
-          offlineContent.saveGamePayload(lessonId, gameData).catch(() => {});
+          if (!isPreview) offlineContent.saveGamePayload(lessonId, gameData).catch(() => {});
         } else {
           const cachedGame = await offlineContent.loadGamePayload(lessonId).catch(() => null);
           if (cachedGame && (cachedGame as any)?.template) gameData = cachedGame;
         }
         if (gameData?.template) setConfig(gameData);
 
-        let sceneData: any = scenesRes.data?.data || scenesRes.data;
-        if (Array.isArray(sceneData) && sceneData.length > 0) {
+        let sceneData: any = isPreview
+          ? (gameData?.scenes ?? [])
+          : (scenesRes.data?.data || scenesRes.data);
+        if (!isPreview && Array.isArray(sceneData) && sceneData.length > 0) {
           offlineContent.saveScenes(lessonId, sceneData).catch(() => {});
-        } else {
+        } else if (!isPreview) {
           const cachedScenes: any = await offlineContent.loadScenes(lessonId).catch(() => null);
           if (Array.isArray(cachedScenes) && cachedScenes.length > 0) sceneData = cachedScenes;
         }
@@ -3518,11 +3534,11 @@ export default function GamePlay() {
           setBossMode(true);
           setRaidId(urlRaidId);
         }
-  }, [lessonId]);
+  }, [lessonId, initialConfig]);
 
   // Review mixing: fetch failed items for this lesson and merge into quiz questions
   useEffect(() => {
-    if (!lessonId || !config || lessonId.startsWith('revision-')) return;
+    if (!lessonId || !config || isPreview || lessonId.startsWith('revision-')) return;
     // Only mix into quiz-style templates
     const quizTemplates = ['quiz', 'tap-recognition', 'matching', 'fill-in-blank'];
     if (!quizTemplates.includes(config.template)) return;
@@ -3576,7 +3592,8 @@ export default function GamePlay() {
   useEffect(() => {
     if (!loading && config && scenes.length > 0 && !introShown.current) {
       // If mode was pre-selected (URL param or localStorage), skip intro → go straight to play
-      if (validUrlMode || savedMode) {
+      // (unless previewing — reviewer should always see the story).
+      if ((validUrlMode || savedMode) && !isPreview) {
         introShown.current = true;
         setPhase('play');
         setTimerRunning(mode === 'test');
@@ -3605,7 +3622,7 @@ export default function GamePlay() {
 
   // Fetch mode lock when game loads — checks per-student AND class-wide
   useEffect(() => {
-    if (!lessonId || !admissionNo) return;
+    if (!lessonId || !admissionNo || isPreview) return;
     apiClient.get(ENDPOINTS.MODE_LOCK.GET(admissionNo, lessonId, className || undefined))
       .then((res) => {
         const lock = res.data?.data;
@@ -3620,7 +3637,7 @@ export default function GamePlay() {
 
   // Adaptive difficulty: fetch profile on mount
   useEffect(() => {
-    if (!lessonId || !admissionNo || adaptiveFetched.current) return;
+    if (!lessonId || !admissionNo || isPreview || adaptiveFetched.current) return;
     adaptiveFetched.current = true;
     // Use lessonId as topic (simple mapping — can be refined with subject metadata later)
     apiClient.get(ENDPOINTS.ADAPTIVE.PROFILE, {
@@ -3640,7 +3657,7 @@ export default function GamePlay() {
   // ── Natural progression: suggest learning mode for newly unlocked units ──
   const suggestedModeApplied = useRef(false);
   useEffect(() => {
-    if (!lessonId || !admissionNo || suggestedModeApplied.current || loading) return;
+    if (!lessonId || !admissionNo || isPreview || suggestedModeApplied.current || loading) return;
     // Fetch suggested mode — checks if this lesson belongs to a unit
     // whose prerequisite was just passed and the student hasn't played yet
     apiClient.get(ENDPOINTS.LESSONS.SUGGESTED_MODE(lessonId, admissionNo))
@@ -3740,6 +3757,7 @@ export default function GamePlay() {
   const submitProgress = useCallback(
     async (finalScore: number) => {
       if (!lessonId) return;
+      if (isPreview) return; // preview: never record child progress
       setSubmitting(true);
       try {
         const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
@@ -4235,10 +4253,22 @@ export default function GamePlay() {
   /* ── Play Phase ── */
   return (
     <div className="flex min-h-screen flex-col bg-[#E7EEF6]">
+      {/* Preview mode banner (teacher/admin play-test before submit/approval) */}
+      {isPreview && (
+        <div className="flex items-center justify-between gap-2 bg-indigo-600 px-3 py-2 text-white text-xs sm:text-sm font-semibold">
+          <span className="flex items-center gap-2">👁️ {t('game.previewMode')}</span>
+          <button
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/teacher/lessons'))}
+            className="rounded-lg bg-white/20 px-3 py-1 hover:bg-white/30 active:scale-95"
+          >
+            {t('game.backToTeacher')}
+          </button>
+        </div>
+      )}
       {/* E2: offline progress banner (shows queue state while offline) */}
       <OfflineBanner hasQueuedProgress={queuedCount > 0} pending={queuedCount} />
       <header className="flex items-center gap-1.5 border-b border-white/50 bg-white/80 px-2 py-2 sm:gap-2 sm:px-3 sm:py-2.5 backdrop-blur">
-        <button onClick={() => navigate('/student')} className="rounded-lg p-2 sm:p-1.5 hover:bg-gray-100 active:scale-95">
+        <button onClick={() => (isPreview ? (window.history.length > 1 ? navigate(-1) : navigate('/teacher/lessons')) : navigate('/student'))} className="rounded-lg p-2 sm:p-1.5 hover:bg-gray-100 active:scale-95">
           <ArrowLeft className="h-5 w-5 text-gray-600" />
         </button>
         <h1 className="text-[11px] sm:text-xs font-semibold text-gray-700 capitalize shrink-0">{config.template.replace('-', ' ')}</h1>

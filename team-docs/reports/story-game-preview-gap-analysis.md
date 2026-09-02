@@ -111,3 +111,34 @@ Await supervisor decisions (D1–D4), then implement guide + preview per choices
 
 ## Checkpoint
 - 2026-09-02: story-game + preview gap analysis saved (this file). No code changes (analysis brief).
+
+## Post-analysis: implementation (2026-09-02, "needs both")
+Supervisor chose **both** guide AND preview. Implemented:
+
+### Backend
+- `GET /kids/lessons/:id/game/preview` — staff-only (`auth + requireStaff`), serves latest game
+  config **regardless of content_state** + scenes, via `getGamePreview` controller
+  (`controllers/kids.js`) and route (`routes/kids.js`).
+- `listApprovals` now enriches `game_config` approvals with `lesson_id` so the frontend can
+  resolve the lesson to preview (`content_id` for a game_config is the config id, not lesson id).
+
+### Frontend
+- `GamePlay` preview mode: `?preview=1` OR an in-memory `initialConfig` prop → skips progress
+  recording, adaptive/mode-lock/suggested-mode/review-mixing fetches, offline caching, and offline
+  queue; shows an indigo banner + back-to-teacher button; always plays the story intro.
+- Routes: `/teacher/preview/:lessonId` and `/teacher/preview-draft` (in-memory, pre-submit).
+- Preview buttons: GameCreator Step 4 **Test Play** (in-memory) + Step 5 **Preview Game**;
+  TeacherApprovals **Preview per card**; TeacherLessons **Preview** per lesson card.
+- i18n keys: `game.previewMode`, `game.backToTeacher`, `gameCreator.testPlay`,
+  `gameCreator.previewGame`, `teacher.lessons.preview`.
+
+### Guide
+- `docs/teacher-game-maker-guide.md`: new section "Turning a learning objective into a story game" —
+  objective → character/place/problem → template-mapped story glue → 3–5 scene cards (with a worked
+  "Counting Fruits 1–5" example) → test before submit.
+- Updated "After publishing — check your work" to point at the new Preview button.
+
+### Verification
+- `tsc --noEmit` clean; `npm run build` OK; vitest 48/48 (incl. i18n 10/10).
+- `node --check` clean on controllers/kids.js + routes/kids.js.
+- Not yet live-deployed; deploy happens on push to origin/main.

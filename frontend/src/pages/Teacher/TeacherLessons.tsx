@@ -459,6 +459,16 @@ export default function TeacherLessons() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {/* Preview: play-test the current game config (any status) */}
+                    <Link
+                      to={`/teacher/preview/${lesson.id}?preview=1`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 sm:py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors active:scale-95"
+                      title={t('teacher.lessons.preview')}
+                    >
+                      <Eye className="h-3.5 w-3.5" /> {t('teacher.lessons.preview')}
+                    </Link>
                     {lesson.content_state === 'pending_human_review' && (
                       <>
                         {processingApproval === lesson.id ? (

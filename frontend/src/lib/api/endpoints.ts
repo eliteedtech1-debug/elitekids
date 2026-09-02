@@ -41,6 +41,7 @@ export const ENDPOINTS = {
     GET: (id: string) => `/kids/lessons/${id}`,
     GENERATE: (id: string) => `/kids/lessons/${id}/generate`,
     GAME: (id: string) => `/kids/lessons/${id}/game`,
+    GAME_PREVIEW: (id: string) => `/kids/lessons/${id}/game/preview`,
     SCENES: (id: string) => `/kids/lessons/${id}/scenes`,
     APPROVE: (id: string) => `/kids/lessons/${id}/approve`,
     SUGGESTED_MODE: (lessonId: string, studentId: string) => `/kids/lessons/${lessonId}/suggested-mode?student_id=${encodeURIComponent(studentId)}`,

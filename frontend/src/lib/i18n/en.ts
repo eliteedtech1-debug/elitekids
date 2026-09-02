@@ -411,6 +411,8 @@
     'game.lockMode': 'Lock to {mode} mode',
     'game.lockedBy': 'Locked by {role} — {scope}',
     'game.lockedByDetails': 'Locked by {role} ({name})',
+    'game.previewMode': 'Preview — no progress saved',
+    'game.backToTeacher': '← Back to Teacher',
 
 
     // ── Teacher: Lessons ───────────────────────────────────────────────────
@@ -456,6 +458,7 @@
     'teacher.lessons.empty': 'No lessons yet. Create your first lesson to get started!',
     'teacher.lessons.approve': 'Approve',
     'teacher.lessons.reject': 'Reject',
+    'teacher.lessons.preview': 'Preview',
     'teacher.lessons.live': 'Live',
     'teacher.state.generated': 'Generated',
     'teacher.state.pending_human_review': 'Pending Human Review',
@@ -594,6 +597,8 @@
   'gameCreator.invalid': '✗ Invalid',
   'gameCreator.pendingNote': 'The lesson will be created with status pending_human_review. An admin must approve it before students can play.',
   'gameCreator.submitForReview': 'Submit for Review',
+  'gameCreator.testPlay': 'Test Play',
+  'gameCreator.previewGame': 'Preview Game',
   'gameCreator.successTitle': 'Lesson Created!',
   'gameCreator.successBody': "Your manual lesson is pending review. An admin needs to approve it before it's live.",
   'gameCreator.lessonId': 'Lesson ID',

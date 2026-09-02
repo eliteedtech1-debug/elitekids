@@ -733,7 +733,7 @@ export default function GameCreator() {
               <p className="text-xs text-blue-700">{t('gameCreator.pendingNote')}</p>
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center gap-2">
               <button
                 onClick={() => setStep(3)}
                 disabled={submitting}
@@ -741,17 +741,36 @@ export default function GameCreator() {
               >
                 <ArrowLeft className="h-4 w-4" /> {t('common.back')}
               </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 active:scale-95 transition-all"
-              >
-                {submitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> {t('teacher.lessons.creating')}</>
-                ) : (
-                  <><Send className="h-4 w-4" /> {t('gameCreator.submitForReview')}</>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    let config: any = {};
+                    let scenes: any = [];
+                    try { config = JSON.parse(configJson); } catch {}
+                    try {
+                      const s = JSON.parse(scenesJson);
+                      if (Array.isArray(s)) scenes = s;
+                      else if (s?.scenes) scenes = Array.isArray(s.scenes) ? s.scenes : [s];
+                    } catch {}
+                    navigate('/teacher/preview-draft', { state: { config, scenes } });
+                  }}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 active:scale-95 transition-all"
+                >
+                  <Eye className="h-4 w-4" /> {t('gameCreator.testPlay')}
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 active:scale-95 transition-all"
+                >
+                  {submitting ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> {t('teacher.lessons.creating')}</>
+                  ) : (
+                    <><Send className="h-4 w-4" /> {t('gameCreator.submitForReview')}</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -778,7 +797,13 @@ export default function GameCreator() {
               </div>
             </div>
 
-            <div className="flex justify-center gap-3">
+            <div className="flex justify-center gap-3 flex-wrap">
+              <button
+                onClick={() => navigate(`/teacher/preview/${result.lesson_id}?preview=1`)}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 active:scale-95 transition-all"
+              >
+                <Eye className="h-4 w-4" /> {t('gameCreator.previewGame')}
+              </button>
               <button
                 onClick={() => navigate('/teacher/lessons')}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0b3d76] active:scale-95 transition-all"

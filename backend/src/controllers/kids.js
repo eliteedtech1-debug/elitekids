@@ -855,6 +855,52 @@ async function getPublishedGame(req, res) {
   }
 }
 
+/** GET /kids/lessons/:id/game/preview — STAFF preview: any content_state.
+ * Serves the latest game config (published or not) + scenes for a lesson so teachers
+ * and admins can play-test BEFORE submit / BEFORE approval. Staff-only route.
+ */
+async function getGamePreview(req, res) {
+  try {
+    const { id } = req.params;
+    const school_id = req.headers['x-school-id'] || req.user?.school_id;
+
+    const lesson = await db.KidLesson.findByPk(id);
+    if (!lesson) {
+      return res.status(404).json({ success: false, message: 'Lesson not found.' });
+    }
+    const isOwned = lesson.school_id === school_id;
+    const isGlobal = lesson.is_global === 1 && PLATFORM_SCHOOL_IDS.includes(lesson.school_id);
+    if (!isOwned && !isGlobal) {
+      return res.status(404).json({ success: false, message: 'Lesson not found for this school.' });
+    }
+
+    const config = await db.KidGameConfig.findOne({
+      where: { lesson_id: id },
+      order: [['createdAt', 'DESC']],
+    });
+    if (!config) {
+      return res.status(404).json({ success: false, message: 'No game config for this lesson yet.' });
+    }
+
+    const scenes = await db.KidSceneScript.findAll({
+      where: { lesson_id: id },
+      order: [['createdAt', 'ASC']],
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        ...toRuntimeGameConfig(config.config_json),
+        content_state: config.content_state,
+        scenes: scenes.map((s) => s.script_json),
+      },
+    });
+  } catch (err) {
+    console.error('getGamePreview error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 // ── Scene Scripts (child-facing) ─────────────────────────────────────────────
 
 /** GET /kids/lessons/:id/scenes — published scene scripts for a lesson.
@@ -1275,8 +1321,21 @@ async function listApprovals(req, res) {
       where: { school_id, status: 'pending' },
       order: [['createdAt', 'ASC']],
     });
+    // Enrich game_config approvals with their lesson_id so the teacher preview
+    // route can resolve the lesson to play-test (content_id = config id for these).
+    let enriched = rows.map((r) => ({ ...r.toJSON(), created_at: r.createdAt }));
+    const configApprovals = enriched.filter((r) => r.content_type === 'game_config');
+    if (configApprovals.length) {
+      const configIds = configApprovals.map((r) => r.content_id);
+      const configs = await db.KidGameConfig.findAll({ where: { id: configIds }, attributes: ['id', 'lesson_id'] });
+      const lessonByConfig = new Map(configs.map((c) => [c.id, c.lesson_id]));
+      enriched = enriched.map((r) => ({
+        ...r,
+        ...(r.content_type === 'game_config' ? { lesson_id: lessonByConfig.get(r.content_id) || r.lesson_id } : {}),
+      }));
+    }
     // Alias camelCase Sequelize timestamps → snake_case (see listLessons).
-    return res.json({ success: true, data: rows.map((r) => ({ ...r.toJSON(), created_at: r.createdAt })) });
+    return res.json({ success: true, data: enriched });
   } catch (err) {
     console.error('listApprovals error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
@@ -1387,6 +1446,7 @@ module.exports = {
   createLesson,
   createLessonManual,
   getPublishedGame,
+  getGamePreview,
   getPublishedScenes,
   getGenerationJob,
   listGenerationJobs,

@@ -29,6 +29,53 @@ After you submit, an approver publishes it from **Teacher Approvals**. Students 
 
 **Scene scripts** are not a 7th card — they are Step 4 on any lesson. You build them as **scene cards** in Easy mode (each card = one line of narration the student hears before play). Under the hood they are saved as one wrapper object `{ "scenes": [ {"id":1,"text":"...","type":"teach"}, ... ] }`. Scene types: `intro`, `teach`, `reinforce`, `match`. They are optional — leave them empty to skip.
 
+## 🎬 Turning a learning objective into a story game
+
+The **walking skeleton of a good game**: every story game follows the same arc. Write your scenes to express it, then pick the template whose gameplay matches the objective.
+
+```
+1  INTRO      Set the scene  → plot hook, character, place
+2  TEACH      Show the skill → narrate HOW to do it + one worked example
+3  [THE GAME] Player DOES it  → the template you chose in Step 2
+4  REINFORCE  Warm recap + praise → what they just did, why it matters
+5  MATCH      Extend/connect → one more link to what they know (optional)
+```
+
+### Step 1 — Write down the learning objective
+Start with a single, kid-sized objective. Examples:
+- "Count objects 1–5 and say the total."
+- "Identify the letters b, d, p, q by sound."
+- "Name 5 farm animals and match each to its sound."
+
+### Step 2 — Give it a character, a place, a problem
+Turn the objective into one sentence a child can picture: *"Maya the farmer lost her 5 fruits and needs help counting them back into the basket."* Borrow from the template's content — if your game is **Counting Fruits 1–5**, Maya, the farm, and the fruit ARE the story glue.
+
+### Step 3 — Map the arc to your template
+| Game type | Does the objective ask the child to… | Story glue to write in scenes |
+|---|---|---|
+| Matching | *pair* two things | "Maya's chicks are lost! Match each hen to her chick." |
+| Memory Pairs | *recall* where things are | "The animals hid behind cards — find each baby's mother." |
+| Tap Recognition | *pick the right one* | "A sound plays — tap the animal that makes it." |
+| Drag & Sort | *order / sequence* | "Put the numbers back in order so the rocket can launch." |
+| Quiz | *choose the answer* | "Maya asks questions — tap the correct answer to move on." |
+| Fill in the Blank | *complete the sentence/steps* | "Fill in the missing number so the count finishes." |
+| Puzzle Split | *reassemble an image* | "Put the picture back together to reveal the farm." |
+
+### Step 4 — Write the 3–5 scene cards
+Break your story sentence into scene cards. Keep each card to **one short line** a child can hold in memory, and end the last `teach` card with what the game will ask:
+
+**Worked example — "Counting Fruits 1–5" (Matching):**
+```
+1 intro      "Maya the farmer picked 5 fruits — but the basket tipped over!"
+2 teach      "Tap a fruit on the left, then tap the basket with the same number on the right."
+3 teach      "There is 1, 2, 3, 4, 5. Count them with your finger as you match."
+4 reinforce  "Wonderful! You helped Maya save all 5 fruits. Counting is fun!"
+```
+Then in **Step 3 (Config)**, make the Matching pairs literally the fruit↔number pairs from the story (🍎→"1", 🍌→"2", 🍊→"3", 🍇→"4", 🍉→"5").
+
+### Step 5 — Test it before you send it
+Use the new **Test Play** button on the step-5 review screen (and **Preview** on any lesson card or approval). You should be able to narrate the intro, play through, and hear the recap — exactly like a student, with **no progress saved**. If the story and the gameplay don't line up, edit the scenes or the config and test again before submitting.
+
 ## Filling in the forms (Step 3 Config & Step 4 Scenes)
 Both content steps now open in **Easy mode** by default — no JSON required.
 
@@ -58,6 +105,8 @@ Full worked lessons you can paste into the **Advanced (JSON)** tab of Steps 3-4 
 
 ## After publishing — check your work
 Open the student view for your lesson (or ask the approver to). A healthy game returns your template and content from `GET /kids/lessons/:id/game`; scenes return from `/scenes`. If scenes were skipped, see D-OBS-08/D-OBS-01 in `team-docs/reports/d-form-obstacles.md`.
+
+**Better: preview instead of guessing.** Use **Test Play** on the game-creator review step (before submit), **Preview** on any lesson card, and **Preview** on any pending approval. Preview reads the game config regardless of its status — including `pending_human_review` — and plays it exactly as a student would, **without saving any progress**. So a reviewer can approve with confidence that the story and gameplay match the objective.
 
 ## Spaced repetition & the Review Zone (what your students see)
 Once a game is published and a student plays it, Elite Kids schedules it for **spaced repetition** so learning sticks.

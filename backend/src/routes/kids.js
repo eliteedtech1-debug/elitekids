@@ -10,6 +10,7 @@ const {
   createLesson,
   createLessonManual,
   getPublishedGame,
+  getGamePreview,
   getPublishedScenes,
   getGenerationJob,
   listGenerationJobs,
@@ -150,6 +151,7 @@ module.exports = (app) => {
   // ── Lessons & content (moved above, POST /kids/lessons now uses requireStaff) ──
   // Child-facing published content (parent/teacher/student auth required)
   app.get('/kids/lessons/:id/game', auth, requireKidsEntitlement, getPublishedGame);
+  app.get('/kids/lessons/:id/game/preview', auth, requireStaff, getGamePreview);
   app.get('/kids/lessons/:id/scenes', auth, requireKidsEntitlement, getPublishedScenes);
 
   // ── Generation job status (teacher/admin polling) ────────────────────────

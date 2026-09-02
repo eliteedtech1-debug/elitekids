@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Login from '@/pages/Login/Login';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ParentChildren from '@/pages/Parent/ParentChildren';
@@ -51,6 +51,13 @@ function LazyRoute({ element }: { element: React.ReactNode }) {
       <ErrorBoundary>{element}</ErrorBoundary>
     </Suspense>
   );
+}
+
+/** Pre-submit draft preview: renders GamePlay from an in-memory config (no lesson saved yet). */
+function DraftPreview() {
+  const location = useLocation();
+  const state = (location.state || {}) as { config?: unknown; scenes?: unknown[] };
+  return <GamePlay initialConfig={{ config: state.config, scenes: state.scenes as any } as any} />;
 }
 
 export default function App() {
@@ -123,6 +130,22 @@ export default function App() {
         element={
           <AuthGuard>
             <LazyRoute element={<GamePlay />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/preview/:lessonId"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<GamePlay />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/preview-draft"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<DraftPreview />} />
           </AuthGuard>
         }
       />

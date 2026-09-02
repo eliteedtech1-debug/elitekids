@@ -28,6 +28,7 @@ interface Approval {
   status: string;
   school_id: string;
   branch_id: string;
+  lesson_id?: string;
   rejection_reason?: string;
   created_at?: string;
   createdAt?: string;
@@ -162,6 +163,24 @@ export default function TeacherApprovals() {
                       <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                     ) : (
                       <>
+                        {(() => {
+                          // Resolve which lesson to play-test. game_config → content_id is the
+                          // config id (enriched lesson_id); scene_script/lesson → content_id is the lesson id.
+                          const previewLessonId = approval.content_type === 'game_config'
+                            ? approval.lesson_id
+                            : approval.content_id;
+                          return previewLessonId ? (
+                            <Link
+                              to={`/teacher/preview/${previewLessonId}?preview=1`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+                            >
+                              <Eye className="h-4 w-4" />
+                              {t('teacher.lessons.preview')}
+                            </Link>
+                          ) : null;
+                        })()}
                         <button
                           onClick={() => handleDecide(approval.id, 'approve')}
                           className="inline-flex items-center gap-1 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 transition-colors"
