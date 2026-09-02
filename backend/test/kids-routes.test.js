@@ -8,6 +8,7 @@
 const request = require('supertest');
 const app = require('../src/app');
 const { closeConnections } = require('./helpers/teardown');
+const { testQuery } = require('./helpers/test-db');
 
 afterAll(async () => {
   await closeConnections();
@@ -62,15 +63,27 @@ describe('POST /kids/lessons (create lesson + enqueue generation)', () => {
 });
 
 describe('GET /kids/lessons/:id/game (child-facing published content)', () => {
-  it('returns the published game config JSON for LESSON-1', async () => {
+  it('returns the published game config JSON for a published lesson', async () => {
     const token = await loginAs('admin@kids.test', 'Admin@123');
+    // Own the fixture: LESSON-1 has multiple published adaptive-tier configs
+    // (GAME-1 / T1 / T2) whose createdAt order is non-deterministic across suites
+    // sharing the hermetic DB (and across seed second-boundaries). Insert our own
+    // newest published config so the endpoint (order createdAt DESC) picks it.
+    const fixId = `GAME-FIX-${Date.now()}`;
+    await testQuery(
+      `INSERT INTO kids_game_configs (id, lesson_id, template, age_level, config_json, content_state, created_by)
+       VALUES (?, 'LESSON-1', 'matching', 'Nursery', ?, 'published', 'U1')
+       ON DUPLICATE KEY UPDATE config_json = VALUES(config_json), content_state = 'published'`,
+      [fixId, JSON.stringify({ title: 'Owned Match Colors', pairs: [{ left: 'Red', right: '🔴' }, { left: 'Blue', right: '🔵' }] })]
+    );
+
     const res = await request(app)
       .get('/kids/lessons/LESSON-1/game')
       .set('authorization', token);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.title).toBe('Match the Colors');
+    expect(res.body.data.title).toBe('Owned Match Colors');
     expect(res.body.data.pairs).toHaveLength(2);
   });
 

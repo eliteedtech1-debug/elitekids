@@ -6,7 +6,7 @@
  * Flagship `elite` model school + school access (spec: FLAGSHIP-ELITE-SCHOOL-SPEC.md).
  * The Paystack gateway is MOCKED — no network calls. Covers:
  *   - public plan list with the DB-configurable prices (500 term / 1200 annual)
- *   - entitlement status: real school w/o sub → none; flagship parent → free_tier
+ *   - entitlement status: real school w/o paid sub → 14-day auto-trial; flagship parent → free_tier
  *   - initiate → Paystack initialize (kobo amount) + pending payment row
  *   - verify → activation, idempotent repeat, amount-mismatch guard
  *   - webhook → HMAC signature check + charge.success activation
@@ -79,15 +79,23 @@ describe('GET /kids/subscription/plans (public)', () => {
 });
 
 describe('GET /kids/subscription/status (entitlement)', () => {
-  it('real school without a subscription → tier none', async () => {
+  it('real school with no paid subscription gets the 14-day auto-trial on first login', async () => {
     const token = await loginAs('admin@kids.test', 'Admin@123', 'SCH-TEST');
+    // The login itself starts the trial (schoolAccessFor → grantSchoolAccess),
+    // so a real school is always active while inside its 14-day auto-trial.
     const res = await request(app)
       .get('/kids/subscription/status')
       .set('authorization', token)
       .set('x-school-id', 'SCH-TEST');
     expect(res.status).toBe(200);
-    expect(res.body.data.active).toBe(false);
-    expect(res.body.data.tier).toBe('none');
+    expect(res.body.data.active).toBe(true);
+    expect(res.body.data.tier).toBe('all_games');
+    expect(res.body.data.subscriber).toMatchObject({
+      type: 'school',
+      plan_code: 'kids_trial',
+      status: 'trial',
+    });
+    expect(new Date(res.body.data.subscriber.expires_at).getTime()).toBeGreaterThan(Date.now());
   });
 
   it('flagship parent without a paid subscription → tier free_tier', async () => {

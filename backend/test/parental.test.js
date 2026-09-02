@@ -132,13 +132,19 @@ describe('POST /kids/parental-controls (set)', () => {
 describe('GET /kids/parental-controls/check', () => {
   it('allows play when within time window and under limit', async () => {
     const token = await loginAs('admin@kids.test', 'Admin@123');
+    const setRes = await request(app)
+      .post('/kids/parental-controls')
+      .set('authorization', token)
+      .send({ student_id: 'NUR-005', daily_play_limit_minutes: 60 });
+    expect(setRes.status).toBe(201);
+
     const res = await request(app)
-      .get('/kids/parental-controls/check?student_id=NUR-002')
+      .get('/kids/parental-controls/check?student_id=NUR-005')
       .set('authorization', token);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    // NUR-002 has no time window set, so should be allowed
+    // NUR-005 has limit 60 but no time window and no today's snapshots, so should be allowed
     expect(res.body.data.allowed).toBe(true);
   });
 
