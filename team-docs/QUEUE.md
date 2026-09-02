@@ -17,5 +17,5 @@
 | Q14 | S8-FB1: QA checklist — i18n P3 key audit | fb-review | DONE 2026-09-02 (reports/s8-fb1-i18n-audit.md) |
 | Q15 | S8-FB2: QA checklist — Animals/Numbers U5-U10 content verification | fb-review | DONE 2026-09-02 (reports/s8-fb2-content-verification.md) |
 | Q16 | S8-FB3: Teacher guide update — spaced repetition docs | fb-review | DONE 2026-09-02 (docs/teacher-game-maker-guide.md; reports/s8-fb3-teacher-guide.md) |
-| Q17 | S8-FB4: Copy pass — review card, adaptive hints, locale validation | fb-review | RUNNING (2026-09-02) |
-| Q18 | E4 Phase 1: WebRTC realtime broadcast | opencode | BLOCKED (supervisor go + coturn ROOT) |
+| Q17 | S8-FB4: Copy pass — review card, adaptive hints, locale validation | fb-review | DONE 2026-09-02 (reports/s8-fb4-copy-pass.md) |
+| Q18 | E4 Phase 1: WebRTC realtime broadcast | opencode | DONE 2026-09-02 — coturn TURN installed+active via coturn-setup.yml workflow; 3478 relaying; LIVE_WEBRTC=1 in .env (reports/e4-coturn-Q18.md) |
