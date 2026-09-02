@@ -38,7 +38,9 @@ apiClient.interceptors.response.use(
       localStorage.removeItem(STORAGE_KEYS.SCHOOL_ID);
       localStorage.removeItem(STORAGE_KEYS.BRANCH_ID);
       localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCH);
-      window.location.href = '/login';
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
 
     if (error.response?.status === 403) {

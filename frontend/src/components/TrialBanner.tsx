@@ -23,6 +23,8 @@ export default function TrialBanner() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // No token → skip (avoids 401 redirect loop on /login)
+    try { if (!localStorage.getItem('@@auth_token')) return; } catch { return; }
     // Children NEVER see payment UI — banner is for staff/parents only.
     let userType = '';
     try { userType = (JSON.parse(localStorage.getItem('user_data') || '{}')?.user_type || '').toLowerCase(); } catch { /* ignore */ }
