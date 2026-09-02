@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams, useNavigate } from 'react-router-dom';
 import Login from '@/pages/Login/Login';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ParentChildren from '@/pages/Parent/ParentChildren';
 import ParentActivities from '@/pages/Parent/ParentActivities';
 import ParentDashboard from '@/components/ParentDashboard';
+import ParentChat from '@/pages/Parent/ParentChat';
 import StudentHome from '@/pages/Student/StudentHome';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -47,6 +48,19 @@ function LazyRoute({ element }: { element: React.ReactNode }) {
     <Suspense fallback={<RouteFallback />}>
       <ErrorBoundary>{element}</ErrorBoundary>
     </Suspense>
+  );
+}
+
+/** Wrapper to extract URL params for ParentChat. */
+function ParentChatWrapper() {
+  const { childAdmissionNo } = useParams();
+  const navigate = useNavigate();
+  return (
+    <ParentChat
+      childAdmissionNo={childAdmissionNo || ''}
+      childName={childAdmissionNo || ''}
+      onBack={() => navigate('/parent')}
+    />
   );
 }
 
@@ -94,6 +108,14 @@ export default function App() {
         element={
           <AuthGuard>
             <ParentDashboard />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/parent/chat/:childAdmissionNo"
+        element={
+          <AuthGuard>
+            <ParentChatWrapper />
           </AuthGuard>
         }
       />

@@ -337,5 +337,11 @@ module.exports = (app) => {
   app.get("/kids/voice-notes/mine", auth, requireStaff, listMyVoiceNotes);
   app.get("/kids/voice-notes/:id/audio", auth, streamVoiceNoteAudio);
 
+  // ── Parent↔Child Chat ─────────────────────────────────────────────────
+  const chatCtrl = require('../controllers/kidsChat');
+  app.get('/kids/chat/:adm/messages', auth, chatCtrl.getMessages);
+  app.post('/kids/chat/:adm/read', auth, chatCtrl.markRead);
+  app.get('/kids/chat/:adm/unread', auth, chatCtrl.unreadCount);
+
   app.get('/kids/match-history/stats', auth, requireStaff, matchHistoryCtrl.getMatchStats);
 };

@@ -91,6 +91,7 @@ if (SKIP_DB_SYNC) {
   const server = app.listen(port, '0.0.0.0', () => {
     console.log(`🚀 elite-kids-api listening on port ${port} (read-only boot)`);
     require('./controllers/e3fLive').attach(server);
+    require('./sockets/chat').attach(server);
   });
   server.timeout = 120000;
   return;
@@ -120,6 +121,7 @@ ensureSchemaMigrations()
     const server = app.listen(port, '0.0.0.0', () => {
       console.log(`🚀 elite-kids-api listening on port ${port}`);
       require('./controllers/e3fLive').attach(server);
+      require('./sockets/chat').attach(server);
     });
     server.timeout = 120000;
 
