@@ -560,6 +560,8 @@
   "login.registerTitle": "Parent Registration",
   "login.rememberMe": "Remember me",
   "login.schoolLogoAlt": "School Logo",
+  "login.schoolResolved": "School found — signing in",
+  "login.changeSchool": "Change school",
   "login.schoolShortName": "School Short Name (e.g. Elite)",
   "login.serverUnreachable": "Unable to reach the server. Please check your connection.",
   "login.shortNameFirst": "Please enter a valid school short name first.",

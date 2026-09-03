@@ -195,6 +195,8 @@
     'login.noSchoolFound': 'No active school found for this short name.',
     'login.serverUnreachable': 'Unable to reach the server. Please check your connection.',
     'login.schoolLogoAlt': 'School Logo',
+    'login.schoolResolved': 'School found — signing in',
+    'login.changeSchool': 'Change school',
 
     // ── Dashboard ───────────────────────────────────────────────────────────
     'dashboard.welcomeUser': 'Welcome, {role} 👋',

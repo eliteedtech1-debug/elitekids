@@ -349,8 +349,8 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {/* School short name (localhost only) */}
-            {(!short_name || short_name === 'localhost') && (
+            {/* School short name (localhost only) — auto-hides once the lookup resolves */}
+            {(!short_name || short_name === 'localhost') && !school && (
               <div className="group relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-500 group-focus-within:bg-teal-500 group-focus-within:text-white transition-colors duration-200">
@@ -374,6 +374,38 @@ export default function Login() {
                   required
                   className="w-full rounded-2xl border border-gray-200/80 bg-white/70 py-3 pl-14 pr-4 text-sm shadow-[0_2px_10px_rgba(0,0,0,0.04)] focus:border-teal-400 focus:bg-white focus:shadow-[0_4px_20px_rgba(13,148,136,0.1)] focus:outline-none transition-all duration-200"
                 />
+              </div>
+            )}
+
+            {/* Resolved school (input auto-hides after correct data is fetched) */}
+            {(!short_name || short_name === 'localhost') && school && (
+              <div className="flex items-center gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-4 py-3 backdrop-blur-sm">
+                <img
+                  src={school.badge_url || '/logo.svg'}
+                  alt={t('login.schoolLogoAlt')}
+                  className="h-11 w-11 shrink-0 rounded-xl object-contain border border-emerald-100/80 bg-white/70 p-0.5"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-[#0F4D92]">{school.school_name}</p>
+                  <p className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    </svg>
+                    {t('login.schoolResolved')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSchool(null);
+                    setSchoolError('');
+                    setShortNameInput('');
+                    setForm((p) => ({ ...p, school_id: '' }));
+                  }}
+                  className="shrink-0 text-xs font-bold text-[#0d9488] hover:underline underline-offset-2"
+                >
+                  {t('login.changeSchool')}
+                </button>
               </div>
             )}
 

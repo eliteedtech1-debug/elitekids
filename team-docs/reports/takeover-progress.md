@@ -28,6 +28,15 @@
 - 2026-09-03 Z: LOOSE ENDS — (1) VPS git stash: `git stash list` EMPTY → the live-local-* flagshipKidsSeed stash was already resolved during the ce05be6 stash-conflict merge; closed. (2) Login-flow E2E: unified-login.test.js 11/11 PASS + ParentDashboard now code-verified to send {phone, password} (no pin) — API-level verified; full browser smoke remains a MASTER G-W2 step. (3) PAT exposure: ghp_ token still embedded in origin remote URL (.git/config) — flagged for ROOT revocation per ROOT-ACTIONS-REQUIRED.md.
 - 2026-09-03 Z: FINAL GATES GREEN — backend full suite 476P/2F (2 = garden-companion C-DEBT-01/02 documented baseline only), Q1 sweep 77/77, q1-e2e 17/17, unified-login 11/11, frontend tsc clean, vitest 98/98, npm run build OK. One build error found+fixed during gate (ha.json missing trailing comma from i18n insert).
 
+## SCHOOL-LOOKUP + WEEKLY-GOAL INVESTIGATION (user report, 2026-09-03 PM)
+- VERIFIED WORKING on live: /schools/get-details 200 for all short names; real-browser (playwright) typed flow renders 'Welcome to Elite Practice Academy'; kids.elitekids.com.ng subdomain OK; POST /kids/goals/Demo2 200 saved; GET /kids/learning-path 200. kids_learning_goals matches model in prod.
+- Root causes of user's experience: (a) 12:48 today API crash-looped (SyntaxError from a bad deploy, recovered) + ~6 deploy restarts → stale bundles/testing during window; (b) flagship badge_url was NULL → generic /logo.svg. Economy UUID 'Incorrect integer value' error in 13:09 log was from the transient mid-wave deploy — current code inserts no UUIDs, live balance+earn verified 200 with zero errors.
+- FIXES DEPLOYED: d54b2ae — login now resolves school by typed short name at submit time (blur-race fix: fast Sign-In tap previously blocked with empty school_id). badge_url set for SCH-ELITE/SCH-KIDS → https://elitekids.com.ng/logo.svg (200). 7234975 earlier: Phase-4 v1 engine removal + review.ts tests.
+- OPEN: real Elite EduTech logo artwork URL to swap into badge_url (currently brand mark); G-W2 live-smoke still pending.
+
+## SCHOOL-LOOKUP UX (user request, 2026-09-03 PM #2)
+- Auto-hide school short-name input once the lookup resolves: on bare-domain/login, typing the short name + successful fetch now replaces the input with a resolved-school chip (badge, name, 'school found' state) + a Change link; subdomain auto-lookup unchanged (crest/name already take over). i18n keys login.schoolResolved/login.changeSchool added (en.ts, en.json, ha.json).
+
 ## FINAL STATUS — COMPLETE, DEPLOYED
 - 2026-09-03 Z: Committed 31295c3 + pushed origin/main → auto-deploy verified LIVE: elite-kids-api active (boot 16:31:45 pid 3418827, Chat WS attached), :8484 → 200, frontend dist rebuilt 16:32. All takeover work is live.
 - Handoff to MASTER: G-W2 browser live-smoke (teacher wizard → admin approve → child path) remains the last gate (needs real browser + staff account); PAT in origin remote URL needs ROOT revocation. Otherwise QUEUE is empty of unimplemented rows.
