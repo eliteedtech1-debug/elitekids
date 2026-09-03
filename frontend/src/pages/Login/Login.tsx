@@ -62,6 +62,7 @@ export default function Login() {
   const [school, setSchool] = useState<SchoolDetails | null>(null);
   const [schoolError, setSchoolError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [forceSchoolPicker, setForceSchoolPicker] = useState(false);
   const [authView, setAuthView] = useState<AuthView>('login');
   const [signupForm, setSignupForm] = useState({ name: '', phone: '', email: '', password: '' });
   const [signupLoading, setSignupLoading] = useState(false);
@@ -165,9 +166,13 @@ export default function Login() {
     // runs on blur, so a fast tap on Sign In can race ahead of the async
     // lookup and leave school_id empty — resolve it here (idempotent if the
     // blur lookup already landed).
+    // Resolve the school by typed short name whenever school_id is still
+    // empty — covers the bare-domain flow, a fast Sign-In tap after typing
+    // (blur race), and a subdomain Change-school where the user picked another
+    // tenant. Idempotent if a blur lookup already landed.
     let schoolId = form.school_id;
-    if ((!short_name || short_name === 'localhost') && !schoolId) {
-      const sn = shortNameInput.trim();
+    if (!schoolId) {
+      const sn = shortNameInput.trim() || ((short_name && short_name !== 'localhost') ? getSchoolShortName() : '');
       if (!sn) {
         setError(t('login.invalidShortName'));
         setLoading(false);
@@ -349,8 +354,9 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {/* School short name (localhost only) — auto-hides once the lookup resolves */}
-            {(!short_name || short_name === 'localhost') && !school && (
+            {/* School short name — shown until the lookup resolves (typed flow),
+                after Change on a subdomain, or when the auto subdomain lookup failed */}
+            {!school && (forceSchoolPicker || !short_name || short_name === 'localhost' || !!schoolError) && (
               <div className="group relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-500 group-focus-within:bg-teal-500 group-focus-within:text-white transition-colors duration-200">
@@ -378,7 +384,7 @@ export default function Login() {
             )}
 
             {/* Resolved school (input auto-hides after correct data is fetched) */}
-            {(!short_name || short_name === 'localhost') && school && (
+            {school && (
               <div className="flex items-center gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-4 py-3 backdrop-blur-sm">
                 <img
                   src={school.badge_url || '/logo.svg'}
@@ -401,6 +407,7 @@ export default function Login() {
                     setSchoolError('');
                     setShortNameInput('');
                     setForm((p) => ({ ...p, school_id: '' }));
+                    setForceSchoolPicker(true);
                   }}
                   className="shrink-0 text-xs font-bold text-[#0d9488] hover:underline underline-offset-2"
                 >
