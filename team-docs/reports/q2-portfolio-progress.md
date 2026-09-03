@@ -24,8 +24,16 @@ Next unassigned lane: **Portfolio (roadmap §2.7, Q2-E)** — backend v1 first (
 
 ## CHECKPOINTS
 - 2026-09-03 23:0x: portfolio controller + routes + tests written; targeted 7/7.
-- Full-suite result + final status appended after run completes.
+- 2026-09-03 23:02: commit daff474 pushed origin/main — auto-deploy ran (npm install --omit=dev stripped
+  jest/supertest from backend/node_modules; restored via npm install for gate re-verify).
+- 2026-09-03 23:1x: full gate re-run ×3 — result is FLAKY, not 499/2 stable:
+  - run A: 7 failed / 494 passed (garden-companion 2 + b1-regression 5)
+  - run B: garden-companion only (b1-regression PASSED)
+  - garden-companion "auto-initializes" + "does not downgrade" = 2 genuine pre-existing failures
+    (stage downgrade + auto-init row-count; pre-existing, unrelated to portfolio)
+  - q2-portfolio.test.js 7/7 PASS every run
 
-**FINAL STATUS:** Q28 IMPLEMENTED — awaiting full-suite green + push order confirmation
-(MASTER's standing "push" order covers this continuation slice; pushed as its own commit).
-IDLE after push: opencode holds Q25/Q26/Q27/Q29; worker lane next = Q2-C drawing engine decision.
+**FINAL STATUS:** Q28 MERGED (daff474). Gate not fully green — 2 pre-existing garden-companion
+failures + occasional b1-regression 403 flake (needs its own investigation; NOT portfolio-caused).
+QUEUE.md Q24/Q28 updated to MERGED; Q29 hold released for opencode.
+IDLE: opencode holds Q25/Q26/Q27/Q29; worker lane next = Q2-C drawing engine decision (no brief queued).
