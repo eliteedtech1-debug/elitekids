@@ -385,34 +385,36 @@ export default function Login() {
 
             {/* Resolved school (input auto-hides after correct data is fetched) */}
             {school && (
-              <div className="flex items-center gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-4 py-3 backdrop-blur-sm">
+              <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-3.5 py-2.5 backdrop-blur-sm sm:gap-3 sm:px-4 sm:py-3">
                 <img
                   src={school.badge_url || '/logo.svg'}
                   alt={t('login.schoolLogoAlt')}
-                  className="h-11 w-11 shrink-0 rounded-xl object-contain border border-emerald-100/80 bg-white/70 p-0.5"
+                  className="h-10 w-10 shrink-0 self-start rounded-lg object-contain border border-emerald-100/80 bg-white/70 p-0.5 sm:h-11 sm:w-11 sm:rounded-xl"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-[#0F4D92]">{school.school_name}</p>
-                  <p className="flex items-center gap-1 text-xs font-medium text-emerald-600">
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <div className="flex items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#0F4D92]">{school.school_name}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSchool(null);
+                        setSchoolError('');
+                        setShortNameInput('');
+                        setForm((p) => ({ ...p, school_id: '' }));
+                        setForceSchoolPicker(true);
+                      }}
+                      className="shrink-0 text-xs font-bold whitespace-nowrap text-[#0d9488] hover:underline underline-offset-2"
+                    >
+                      {t('login.changeSchool')}
+                    </button>
+                  </div>
+                  <p className="mt-0.5 flex items-center gap-1 text-xs font-medium leading-snug text-emerald-600">
+                    <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
                     </svg>
-                    {t('login.schoolResolved')}
+                    <span className="min-w-0">{t('login.schoolResolved')}</span>
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSchool(null);
-                    setSchoolError('');
-                    setShortNameInput('');
-                    setForm((p) => ({ ...p, school_id: '' }));
-                    setForceSchoolPicker(true);
-                  }}
-                  className="shrink-0 text-xs font-bold text-[#0d9488] hover:underline underline-offset-2"
-                >
-                  {t('login.changeSchool')}
-                </button>
               </div>
             )}
 
