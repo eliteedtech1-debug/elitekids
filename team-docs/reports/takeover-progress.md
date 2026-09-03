@@ -44,6 +44,11 @@
 ## SCHOOL-LOOKUP UX (user request, 2026-09-03 PM #4) — mobile chip styling
 - Resolved-school chip restyled responsive: Change-school button moved onto the school-name line (keeps global 48px tap-target), status line spans the full text column, tighter mobile padding/sizes, status copy shortened to 'School found' (single line). Browser-measured on live: chip height STABLE 89px at 360/320/280 viewports (was 126px at 320), text column 158px at 320 (was 53px), zero horizontal overflow. Commits ba37b7a + b84f88e, deployed (dist 17:29).
 
+## SET-GOAL FIX + LIVE VERIFY (2026-09-03 evening, Buffy)
+- USER REPORT (set-goal submit fails on 1st screen after login): API innocent — POST /kids/goals 200 ×3 live. ROOT CAUSE: WelcomeSpotlight full-screen scrim (z-40) swallowed the child's FIRST tap on the auto-opened goal picker; reproduced pre-fix via raw-coordinate tap (elementFromPoint = scrim). FIX: goal-card wrapper `relative z-50` while spotlight shown → card taps through above scrim. LIVE-VERIFIED post-fix (playwright/Demo2): first tap opens picker → POST 200 → 0/5 + toast. Report: reports/set-goal-submit-fix-live-verified.md.
+- Q1 backend sweep re-run post-deploy: 94/94 PASS (deploy prunes backend devDeps — restore with `npm install --no-save` before running jest; do NOT `npm ci` under the live API).
+- G7: blocked on asset — no Elite EduTech artwork anywhere in frontend/public or backend/uploads; swap is a 1-line DB update once a URL exists.
+
 ## G4 + G5 CLOSURE (2026-09-03, Buffy)
 - G4 DONE — FE `types/adaptive.ts` LEVELS aligned to backend economyService 14-entry table (added L4 Seeker/350, L6 Sage/800, L8 Adept/1800, L9 Virtuoso/2500; cumulative_xp already matched). BONUS FIX: `levelFromXp` cap-guard bug — old `xp >= next.xp_required → isMax` showed Grandmaster for every kid ≥500 XP (cliff would move to ≥350 with 14 rows); now isMax only past the final threshold. Covered by adaptive.test.ts (6 tests incl. backend-parity contract).
 - G5 DONE — equipped garden decorations now render: `lib/game/garden.ts` (DECOR_META for garden_flower_bed/flower_bed/fountain/gazebo + sanitizeDecorations over the type-keyed equipped map) + GardenScene accepts `equippedDecorations` prop (compact strip with divider + full-view decoration tray, i18n garden.decorations en/ha) + StudentHome passes equippedItems through. garden.test.ts 5 tests.

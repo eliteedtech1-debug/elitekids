@@ -652,7 +652,10 @@ export default function StudentHome() {
                     first lesson" hint card instead so the path is the very
                     first thing they interact with. */}
                 {isReturningStudent ? (
-                  <div id="welcome-goal-card" className="mb-4">
+                  <div
+                    id="welcome-goal-card"
+                    className={`mb-4 ${showWelcomeSpotlight ? 'relative z-50' : ''}`}
+                  >
                     <GoalCard
                       admissionNo={String(student?.admission_no || student?.id || '')}
                       goal={pathData?.goal || null}
