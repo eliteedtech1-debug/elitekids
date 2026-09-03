@@ -69,6 +69,10 @@
 - Q22/Q23 runbook prep (root steps only)
 - Login-flow browser E2E (chromium present at /snap/bin/chromium)
 - VPS git stash resolution
+## Q2 KICKOFF — SPEECH SLICE (2026-09-03 night, Buffy)
+- Persisted q1-coverage-refresh.md (568786e): overall ~24%, Q1 ~97%, G4/G5 closed, gates re-verified.
+- Q2-A/W1-3 started (roadmap §2.5): backend/src/services/speechAnalyzer.js (pure scoring: word/letter/fluency, kid-accent-tolerant Levenshtein ≥0.6 match, phonics-mode weights) + controllers/kidsSpeech.js (POST /kids/speech/assess — scores+logs to additive kids_speech_logs table via ensureSchema, students-only, PASS≥60; GET /kids/speech/progress — per-day averages) + routes wired + test/q2-speech.test.js 11/11. Full suite 487P/2F (same garden C-DEBT baseline). FE SpeechGame + i18n = next.
+
 ## STREAK FIX RECOVERY + COPY ENHANCEMENT (2026-09-03 night, Buffy)
 - Session-restore `git reset` had ORPHANED 073c18d (streak economy-route fix) before push; teammate's e99f699 (StreakReminder banner) landed without it. Recovered via cherry-pick → bd7f3d8; applied cleanly on top of e99f699.
 - Backend on new code: full suite 476P/2F (garden C-DEBT-01/02 baseline only). FE gates on combined tree: tsc clean, vitest 117/117, build OK.

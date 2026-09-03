@@ -303,6 +303,11 @@ module.exports = (app) => {
   app.post('/kids/economy/shop/buy', auth, shopCtrl.buyItem);
   app.post('/kids/economy/shop/equip', auth, shopCtrl.equipItem);
 
+  // ── Q2 2027: NGEd-game — Voice-First Learning (speech) ─────────────
+  const speechCtrl = require('../controllers/kidsSpeech');
+  app.post('/kids/speech/assess', auth, speechCtrl.assess);
+  app.get('/kids/speech/progress', auth, speechCtrl.progress);
+
   // ── Revision (reinforcement-based) ────────────────────────────────────
   const revision = require('../controllers/kidsRevision');
   app.get('/kids/revision/status', auth, revision.getRevisionStatus);
