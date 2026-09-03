@@ -12,7 +12,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const db = require('../models');
-const { AGE_BANDS, visibleLevels, resolveChildBand } = require('../services/ageBand');
+const { AGE_BANDS, visibleLevels, resolveBandForAdmission } = require('../services/ageBand');
 const { admissionAllowed, getCurrentGoalData } = require('./kidsGoals');
 
 const CATEGORY_MAX_LEN = 100;
@@ -589,8 +589,11 @@ async function getLearningPath(req, res) {
       return res.status(403).json({ success: false, message: 'Not allowed to view this child.' });
     }
 
+    // Band chain: kids_children → age declaration (tour) → SMS students row.
+    // SMS-imported kids have no kids_children row; without the fallback the
+    // path 400s for them ("games no longer showing" report).
     const child = await db.KidChild.findOne({ where: { admission_no: studentId } });
-    const band = resolveChildBand(child);
+    const band = await resolveBandForAdmission(studentId);
     if (!band) {
       // Isolate by default: a child with no resolvable band gets no lessons.
       return res.status(400).json({ success: false, message: 'Could not resolve the child\'s age band (class/age_level missing).' });

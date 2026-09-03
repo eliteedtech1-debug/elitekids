@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  Flame,
   Gamepad2,
   Loader2,
   LogOut,
@@ -20,6 +21,7 @@ import {
   Swords,
   Sparkles,
   Mic,
+  ChevronDown,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -158,6 +160,9 @@ export default function StudentHome() {
   const [offlineMode, setOfflineMode] = useState(false);
   const [streak, setStreak] = useState(() => getStreakLocal());
   const [showShop, setShowShop] = useState(false);
+  // Sequential board: level/streak DETAILS stay collapsed until the kid taps
+  // the summary chip (the 4-stat row already shows streak+XP — no dupe text).
+  const [showProgressDetail, setShowProgressDetail] = useState(false);
   // Q1: equipped shop items (keyed by item_type) — applied to rendering below.
   const [equippedItems, setEquippedItems] = useState<Record<string, any>>({});
   const [reviewDue, setReviewDue] = useState(0);
@@ -447,6 +452,9 @@ export default function StudentHome() {
         <OnboardingTour onComplete={() => {
           setShowOnboarding(false);
           if (!companion) setShowCompanionSelect(true);
+          // The tour's "How old are you?" step may have just declared the
+          // child's age band — reload so the path/lessons reflect it.
+          loadData();
           // No welcome spotlight for first-time students — the goal/spotlight
           // is a returning-student affordance. They see the path immediately
           // and the spotlight will fire on the next login if they play.
@@ -614,15 +622,34 @@ export default function StudentHome() {
           </div>
         </div>
 
-        {/* Q1 engagement economy — level progress bar + streak (with freeze & multiplier) */}
+        {/* Q1 engagement economy — one quiet summary chip; the full level
+            bar + streak details open on tap (sequential, less text at once). */}
         {economy && (
-          <div className="mb-5 grid gap-3 md:grid-cols-2">
-            <XPBar xpTotal={economy.xp_total} streakDays={economy.streak.current} />
-            <StreakCounter
-              current={economy.streak.current}
-              longest={economy.streak.longest}
-              freezeCount={economy.streak.freeze_count}
-            />
+          <div className="mb-5">
+            <button
+              onClick={() => { playTap(); setShowProgressDetail((v) => !v); }}
+              aria-expanded={showProgressDetail}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/60 bg-white/70 px-4 py-2.5 shadow-lg shadow-[#0F4D92]/5 backdrop-blur-xl transition hover:bg-white/85 active:scale-[0.99]"
+            >
+              <span className="flex items-center gap-2 text-sm font-extrabold text-gray-700">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                Level {economy.level}{economy.level_name ? ` · ${economy.level_name}` : ''}
+              </span>
+              <span className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                <span className="flex items-center gap-0.5"><Flame className="h-3.5 w-3.5 text-orange-400" />{economy.streak.current}</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${showProgressDetail ? 'rotate-180' : ''}`} />
+              </span>
+            </button>
+            {showProgressDetail && (
+              <div className="mt-2 grid gap-3 md:grid-cols-2 animate-game-slide-down">
+                <XPBar xpTotal={economy.xp_total} streakDays={economy.streak.current} />
+                <StreakCounter
+                  current={economy.streak.current}
+                  longest={economy.streak.longest}
+                  freezeCount={economy.streak.freeze_count}
+                />
+              </div>
+            )}
           </div>
         )}
 

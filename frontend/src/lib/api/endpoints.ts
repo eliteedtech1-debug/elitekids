@@ -86,6 +86,12 @@ export const ENDPOINTS = {
     COMPLETE: '/kids/onboarding/complete',
   },
 
+  // Age declaration ("How old are you?" tour step)
+  AGE: {
+    GET: '/kids/age',
+    SET: '/kids/age',
+  },
+
   // Retry / Adaptive Difficulty (Doc 16)
   RETRY: {
     TEST_COMPLETE: '/kids/retry/test-complete',

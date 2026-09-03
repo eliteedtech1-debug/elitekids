@@ -40,6 +40,7 @@ const {
 } = require('../controllers/kidsSeries');
 const { getLessonNextUp } = require('../controllers/kidsSeries');
 const { getChildGoal, setChildGoal } = require('../controllers/kidsGoals');
+const { getMyAge, setMyAge } = require('../controllers/kidsAge');
 const { domesticateSeries, listDomestications } = require('../controllers/kidsModeLock');
 const {
   getOnboardingStatus,
@@ -164,7 +165,10 @@ module.exports = (app) => {
   app.get('/kids/lessons/:id/scenes', auth, requireKidsEntitlement, getPublishedScenes);
   app.get('/kids/scene-library', auth, requireStaff, getSceneLibrary);
   app.get('/kids/story-templates', auth, requireStaff, getStoryTemplates);
-  app.get('/kids/learning-path', auth, requireKidsEntitlement, getLearningPath);
+  // Navigation data, NOT game content — never gated by the freemium gate
+  // (the gate 403'd the whole path for free-tier kids → "games not showing".
+  // Freemium stays enforced where it belongs: lesson game/scene payloads.)
+  app.get('/kids/learning-path', auth, getLearningPath);
   app.get('/kids/goals/:admissionNo', auth, getChildGoal);
   app.post('/kids/goals/:admissionNo', auth, setChildGoal);
 
@@ -216,6 +220,10 @@ module.exports = (app) => {
   // ── Interface Onboarding (Doc 16) ───────────────────────────────────
   app.get('/kids/onboarding/status', auth, getOnboardingStatus);
   app.post('/kids/onboarding/complete', auth, completeOnboarding);
+
+  // ── Age declaration ("How old are you?" tour step) ──────────────
+  app.get('/kids/age', auth, getMyAge);
+  app.post('/kids/age', auth, setMyAge);
 
   // ── Retry / Adaptive Difficulty (Doc 16) ────────────────────────────
   app.post('/kids/retry/test-complete', auth, recordTestComplete);

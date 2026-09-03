@@ -13,7 +13,7 @@
 
 const db = require('../models');
 const { Op } = require('sequelize');
-const { resolveChildBand } = require('../services/ageBand');
+const { resolveChildBand, resolveBandForAdmission } = require('../services/ageBand');
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -38,9 +38,12 @@ async function admissionAllowed(req, admission) {
   const isStaff = type.includes('admin') || type.includes('branchadmin') || type.includes('teacher') || type.includes('superadmin');
   if (isStaff) return true;
   if (String(user.admission_no || user.id || '') === String(admission)) return true;
-  // Parent: only children linked to their account.
+  // Parent: only children linked to their account (kids_children row, or the
+  // elite_db.students mirror for SMS-imported kids whose parents re-linked).
   const child = await db.KidChild.findOne({ where: { admission_no: admission } });
   if (child && child.parent_user_id && String(child.parent_user_id) === String(user.id || user.user_id || '')) return true;
+  const student = await db.Student.findOne({ where: { admission_no: admission } });
+  if (student && student.parent_id && String(student.parent_id) === String(user.id || user.user_id || '')) return true;
   return false;
 }
 
@@ -62,8 +65,9 @@ async function getCurrentGoalData(admission, { now = new Date() } = {}) {
     });
   }
 
-  const child = await db.KidChild.findOne({ where: { admission_no: admission } });
-  const band = resolveChildBand(child);
+  // Band chain (kids_children → tour declaration → SMS students row): Creche
+  // kids are graded on practice completions, everyone else on passed tests.
+  const band = await resolveBandForAdmission(admission).catch(() => resolveChildBand(null));
   const creche = band === 'Creche';
 
   // Real Date objects (never ISO strings w/ 'Z'): MySQL compares DATETIME

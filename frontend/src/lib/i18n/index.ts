@@ -11,8 +11,10 @@
  *   t('login.welcome', { school: name })          // reads current locale dict
  *   tN('offline.indicator.itemsToSync', count)   // "{count} item(s) to sync"
  *
- * TTS locale: sound.ts reads `useI18n.getState().ttsLocale` so speech follows
- * the same locale switch (default en-NG for Nigerian deployment).
+ * TTS locale: pinned to English regardless of the UI locale (see setLocale
+ * below and speak() in sound.ts — Hausa voice quality is poor on target
+ * devices, and kids' content audio is English). `getTtsLocale()` always
+ * returns en-NG for the Nigerian deployment.
  *
  * Locales are registered in `dictionaries` below (en + en-NG alias en).
  * Future locales (yo/ha/ig) are added via `addLocale(code, dict)` and can be
@@ -53,7 +55,9 @@ export const useI18n = create<I18nState>()(
       setLocale: (locale) =>
         set({
           locale,
-          ttsLocale: locale === 'en' ? 'en-US' : locale === 'ha' ? 'ha-NG' : 'en-NG',
+          // TTS is pinned to English regardless of UI language (Hausa voice
+          // quality is poor on target devices and kids' content audio is EN).
+          ttsLocale: 'en-NG',
           dir: resolveDir(locale),
         }),
     }),
@@ -61,11 +65,11 @@ export const useI18n = create<I18nState>()(
   )
 );
 
-/** Available locales (UI label → code). */
-export const LOCALES: Array<{ code: Locale; label: string; tts: string }> = [
-  { code: 'en', label: 'English (US)', tts: 'en-US' },
-  { code: 'en-NG', label: 'English (Nigeria)', tts: 'en-NG' },
-  { code: 'ha', label: 'Hausa', tts: 'ha-NG' },
+/** Available locales (UI label → code). TTS is pinned to English — see speak() in sound.ts. */
+export const LOCALES: Array<{ code: Locale; label: string }> = [
+  { code: 'en', label: 'English (US)' },
+  { code: 'en-NG', label: 'English (Nigeria)' },
+  { code: 'ha', label: 'Hausa' },
 ];
 
 /** Registered dictionaries, keyed by locale code. en-NG aliases en initially. */
@@ -116,6 +120,22 @@ export async function loadLocale(locale: string): Promise<void> {
   } catch {
     // locale file not found — silently ignore, fallback to en
   }
+}
+
+/**
+ * Translate a key ALWAYS from the base English dictionary — used for TTS
+ * (speech stays English even when the UI language is Hausa, per product
+ * decision: an English voice reading Hausa text is unintelligible).
+ */
+export function tEn(key: string, params?: Record<string, string | number>): string {
+  let str: string | undefined = dictionaries.en[key];
+  if (str === undefined) return key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+    }
+  }
+  return str;
 }
 
 /**

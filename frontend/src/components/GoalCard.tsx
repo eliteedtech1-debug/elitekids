@@ -32,6 +32,31 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
   const [lastError, setLastError] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
 
+  // The learning-path payload usually carries the goal, but it CAN be absent
+  // (path fetch failed/offline) — the card then showed a fake "0/1" and, worse,
+  // a successful save was dropped because the result was only merged into the
+  // (null) path state — which read as "save goal not submitting". Keep our own
+  // copy: seed it from the prop, fetch the real goal when the prop is null,
+  // and always keep the save result locally.
+  const [localGoal, setLocalGoal] = useState<WeeklyGoal | null>(goal);
+  useEffect(() => {
+    if (goal) setLocalGoal(goal);
+  }, [goal]);
+  useEffect(() => {
+    if (goal || !admissionNo) return;
+    let dead = false;
+    apiClient
+      .get(ENDPOINTS.GOALS.GET(admissionNo))
+      .then((r) => {
+        if (!dead && r.data?.data) setLocalGoal(r.data.data);
+      })
+      .catch(() => {});
+    return () => {
+      dead = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [admissionNo]);
+
   // Auto-open the picker when the welcome spotlight asks for it AND the
   // current goal is still the lazy default (auto-init, never set by the
   // child or teacher) so the first post-login interaction lands on the
@@ -72,6 +97,7 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
       });
       const data = res.data?.data;
       if (data) {
+        setLocalGoal(data); // survive even when path data (and prop sync) is absent
         onUpdated(data);
         setPicking(false);
         toast.success(t('student.goal.saved', { defaultValue: 'Goal saved! Go play! 🎯' }));
@@ -90,10 +116,11 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
     }
   };
 
-  const target = goal?.target ?? 1;
-  const done = goal?.done ?? 0;
-  const pct = goalPercent(goal);
-  const reached = goal?.status === 'done' || done >= target;
+  const g = localGoal;
+  const target = g?.target ?? 1;
+  const done = g?.done ?? 0;
+  const pct = goalPercent(g);
+  const reached = g?.status === 'done' || done >= target;
 
   return (
     <div
@@ -116,7 +143,7 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
           </span>
           <div>
             <p className="text-sm font-extrabold text-gray-800">
-              {goal?.set_by === 'auto' && done === 0 ? (
+              {g?.set_by === 'auto' && done === 0 ? (
                 <span className="inline-flex items-center gap-1">
                   <span>🌱</span> {t('student.goal.title')}
                 </span>
@@ -125,9 +152,9 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
               )}
             </p>
             <p className="text-xs font-medium text-gray-500">
-              {goal?.set_by === 'teacher'
+              {g?.set_by === 'teacher'
                 ? t('student.goal.teacherNote')
-                : goal?.set_by === 'auto' && done === 0
+                : g?.set_by === 'auto' && done === 0
                 ? t('student.goal.childNote')
                 : t('student.goal.childNote')}
             </p>
@@ -181,7 +208,7 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
           <p className="mb-2 text-xs font-bold text-gray-600">{t('student.goal.choose')}</p>
           <div className="flex flex-wrap gap-1.5">
             {GOAL_CHOICES.map((n) => {
-              const active = !goal || n === goal.target;
+              const active = !g || n === g.target;
               return (
                 <button
                   key={n}
@@ -200,7 +227,7 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
               );
             })}
           </div>
-          {goal?.set_by === 'teacher' && (
+          {g?.set_by === 'teacher' && (
             <p className="mt-2 text-[11px] font-medium text-amber-600">👩‍🏫 {t('student.goal.teacherHint')}</p>
           )}
           {/* Inline error + retry so save failures are visible, not just a fading toast. */}

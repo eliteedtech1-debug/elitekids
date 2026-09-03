@@ -60,6 +60,7 @@ const KIDS_CONTENT_TABLES = [
   'kids_parental_controls',
   'kids_mode_locks',
   'kids_learning_goals',
+  'kids_age_declarations',
 ];
 
 const KIDS_AI_TABLES = ['kids_content_generation_audit'];
@@ -93,6 +94,7 @@ const KIDS_CONTENT_MODEL_FILES = [
   'KidParentalControl.js',
   'KidModeLock.js',
   'KidLearningGoal.js',
+  'KidAgeDeclaration.js',
 ];
 
 // Model files bound to the AI DB (AI_DB_NAME; elite_bot on the prod server)

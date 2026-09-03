@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS parents (
 );
 
 CREATE TABLE IF NOT EXISTS students (
+  id VARCHAR(50) NULL,
   admission_no VARCHAR(50) PRIMARY KEY,
   school_id VARCHAR(20) NOT NULL,
   branch_id VARCHAR(20) NULL,
@@ -454,6 +455,17 @@ CREATE TABLE IF NOT EXISTS kids_review_schedule (
   updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY kids_review_schedule_student_item (student_id, item_id, tier)
 );
+
+CREATE TABLE IF NOT EXISTS kids_age_declarations (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  child_admission_no VARCHAR(64) NOT NULL,
+  school_id VARCHAR(40) NOT NULL DEFAULT '',
+  age_years TINYINT NOT NULL,
+  source VARCHAR(20) NOT NULL DEFAULT 'tour',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_kids_age_child (child_admission_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS kids_interface_onboarding (
   id VARCHAR(50) PRIMARY KEY,

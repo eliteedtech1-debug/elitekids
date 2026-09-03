@@ -12,7 +12,7 @@ import './test-shim';
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
-import { t, tN, setLocale, getLocale, getTtsLocale, useI18n } from './index';
+import { t, tN, setLocale, loadLocale, getLocale, getTtsLocale, useI18n } from './index';
 
 /** Recursively collect source files (skip .test.ts, .bak-*, node_modules). */
 function collectSrcFiles(dir: string, out: string[] = []): string[] {
@@ -100,13 +100,15 @@ describe('tN() plurals', () => {
 });
 
 describe('locale switching', () => {
-  it('setLocale updates getLocale and the TTS tag', () => {
+  it('setLocale updates the UI locale; TTS stays pinned to English', async () => {
     setLocale('en');
     expect(getLocale()).toBe('en');
-    expect(getTtsLocale()).toBe('en-US');
-    setLocale('en-NG');
-    expect(getLocale()).toBe('en-NG');
-    expect(getTtsLocale()).toBe('en-NG');
+    expect(getTtsLocale()).toBe('en-NG'); // voice never follows the UI language
+    await loadLocale('ha'); // ha is lazy-loaded; register before switching
+    setLocale('ha');
+    expect(getLocale()).toBe('ha');
+    expect(getTtsLocale()).toBe('en-NG'); // Hausa UI still gets an EN voice
+    setLocale('en-NG'); // restore default for later tests
   });
 
   it('ignores unknown locales (store unchanged)', () => {

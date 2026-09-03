@@ -869,8 +869,8 @@
   'student.tab.path': 'Learning Path',
 
   // ── Student: Learning Path (replaces flat All-Games grid) ─────────────
-  'student.path.relation.passedBelow': '✅ Passed level',
-  'student.path.relation.spillover': '↪ Level below',
+  'student.path.relation.passedBelow': '🏆 Review — you know this!',
+  'student.path.relation.spillover': '🔁 Review time — get stronger!',
   'student.path.relation.current': '🎯 Your level',
   'student.path.state.passed': 'Passed — play again anytime',
   'student.path.state.practiceDone': 'Practice done — pass the Test to finish this level',
@@ -1035,6 +1035,7 @@
   'reviewZone.dueToday': 'Due Today',
   'reviewZone.reviewed': 'Reviewed',
   'reviewZone.accuracy': 'Accuracy',
+  'reviewZone.emptyCompact': 'All caught up! Play to earn reviews ⚡',
   'reviewZone.empty': 'All caught up!',
   'reviewZone.emptyHint': 'No reviews due right now. Keep playing to earn more!',
   'reviewZone.difficulty': 'Difficulty {difficulty}/5',
@@ -1078,6 +1079,16 @@
   'a11y.reset': 'Reset to defaults',
 
   // ── Student: Onboarding ─────────────────────────────────────────────────
+  'onboarding.step.language.title': 'Pick your language! 🗣️',
+  'onboarding.step.language.description': 'Tap the one you understand best — you can change it later!',
+  'onboarding.language.prompt': 'Which one do you understand best?',
+  'onboarding.language.done': 'Great choice! 🎉',
+  'onboarding.step.age.title': 'How old are you? 🎈',
+  'onboarding.step.age.description': "Be frank with me — how old are you? Tap your birthday number, no fibbing! 🎈",
+  'onboarding.age.prompt': 'Tap the number that tells your age',
+  'onboarding.age.saved': 'Got it — you are {age}! 🎉',
+  'onboarding.age.boy': 'Boy 🧑',
+  'onboarding.age.girl': 'Girl 🧑‍♀️',
   'onboarding.step.welcome.title': 'Welcome! 🌟',
   'onboarding.step.welcome.description': "Let's learn how to play! I'll show you how everything works.",
   'onboarding.step.tap.title': 'Tap to Choose! 👆',

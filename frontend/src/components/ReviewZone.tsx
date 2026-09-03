@@ -184,20 +184,12 @@ export default function ReviewZone() {
         </div>
       )}
 
-      {/* Due Reviews */}
+      {/* Due Reviews — empty state is ONE quiet line (kids don't need the essay;
+          the section only earns space once there are real reviews to do) */}
       {reviews.length === 0 ? (
-        <div className="relative overflow-hidden rounded-3xl border-2 border-dashed border-[#0d9488]/20 bg-gradient-to-br from-[#0d9488]/5 via-teal-50 to-emerald-50 p-10 text-center shadow-inner">
-          <FloatingDeco className="-right-6 -top-6 h-28 w-28 bg-gradient-to-br from-[#0d9488] to-teal-400" />
-          <FloatingDeco className="-left-4 -bottom-4 h-20 w-20 bg-gradient-to-br from-emerald-400 to-green-400" />
-          <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0d9488] to-emerald-500 shadow-xl shadow-[#0d9488]/30 ring-2 ring-white/60">
-            <BookOpen className="h-8 w-8 text-white drop-shadow" />
-          </div>
-          <p className="relative text-lg font-extrabold text-gray-800">{t('reviewZone.empty')}</p>
-          <p className="relative mt-1 text-sm text-gray-500">{t('reviewZone.emptyHint')}</p>
-          <p className="relative mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#0d9488]/10 px-3 py-1 text-[11px] font-bold text-[#0d9488]">
-            <span>💡</span>
-            Reviews appear when you answer questions. Practice strengthens memory!
-          </p>
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-[#0d9488]/25 bg-white/60 px-4 py-3 backdrop-blur-sm">
+          <span className="text-lg">🌈</span>
+          <p className="text-xs font-bold text-gray-400">{t('reviewZone.emptyCompact', { defaultValue: 'All caught up! Play to earn reviews ⚡' })}</p>
         </div>
       ) : (
         <div className="space-y-3">

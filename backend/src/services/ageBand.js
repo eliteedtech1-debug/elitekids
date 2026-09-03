@@ -103,10 +103,60 @@ function resolveChildBand(childRow) {
   );
 }
 
+/** Map a declared age (from the tour's "How old are you?" step) to a band.
+ *  Kid-friendly ladders: 3 → Creche, 4 → Nursery, 5 → KG1, 6 → KG2, ≥7 → Primary. */
+function ageToBand(ageYears) {
+  const age = Number(ageYears);
+  if (!Number.isFinite(age) || age <= 0) return null;
+  if (age <= 3) return 'Creche';
+  if (age === 4) return 'Nursery';
+  if (age === 5) return 'KG1';
+  if (age === 6) return 'KG2';
+  return 'Primary';
+}
+
+/**
+ * Full-resolution chain for one admission (async — may hit the DB):
+ *   1. kids_children row (kids-app-native children)
+ *   2. kids_age_declarations row (child's own "How old are you?" tour pick)
+ *   3. elite_db.students row (SMS-imported kids — class_name/class_code)
+ * Returns null only when nothing is known → callers keep isolate-by-default.
+ */
+async function resolveBandForAdmission(admissionNo) {
+  const admission = String(admissionNo || '').trim();
+  if (!admission) return null;
+  // Lazy require: models/index.js is heavy and ageBand is imported early.
+  const db = require('../models');
+  try {
+    const child = await db.KidChild.findOne({ where: { admission_no: admission } });
+    const direct = resolveChildBand(child);
+    if (direct) return direct;
+  } catch { /* kids_children unavailable — fall through */ }
+  try {
+    const { content } = db;
+    const [rows] = await content.query(
+      'SELECT age_years FROM kids_age_declarations WHERE child_admission_no = ? LIMIT 1',
+      { replacements: [admission] }
+    );
+    const declared = rows && rows[0] ? ageToBand(rows[0].age_years) : null;
+    if (declared) return declared;
+  } catch { /* table may not exist yet — fall through */ }
+  try {
+    const st = await db.Student.findOne({ where: { admission_no: admission } });
+    if (st) {
+      const band = classToAgeLevel(st.class_name) || classToAgeLevel(st.class_code);
+      if (band) return band;
+    }
+  } catch { /* students mirror unavailable — fall through */ }
+  return null;
+}
+
 module.exports = {
   AGE_BANDS,
   bandIndexOf,
   classToAgeLevel,
   visibleLevels,
   resolveChildBand,
+  ageToBand,
+  resolveBandForAdmission,
 };

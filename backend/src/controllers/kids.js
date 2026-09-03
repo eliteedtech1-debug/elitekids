@@ -8,7 +8,7 @@ const db = require('../models');
 const { generateGameConfig, persistGameConfig, generateSceneScript, persistSceneScript } = require('../services/contentGeneratorService');
 const { enqueueLessonGeneration } = require('../media/generation.queue');
 const { validateManualConfig, canonicalSceneType, sceneCardErrors } = require('../services/gameConfigRules');
-const { visibleLevels, resolveChildBand } = require('../services/ageBand');
+const { visibleLevels, resolveBandForAdmission } = require('../services/ageBand');
 const sceneAssetsSeed = require('../seeders/sceneAssetsSeed');
 
 // ── Children (parent + teacher) ────────────────────────────────────────────
@@ -469,11 +469,10 @@ async function listLessons(req, res) {
       };
       // G6 hard server-side age ceiling: never return a lesson whose age_level
       // is above the child's band (old client fell back to ALL — gone now).
+      // Full chain (kids_children → tour declaration → SMS students row) so
+      // SMS-imported nursery kids keep their ceiling too.
       const admission = String(user.admission_no || user.id || '');
-      const kidChild = admission
-        ? await db.KidChild.findOne({ where: { admission_no: admission } })
-        : null;
-      const childBand = resolveChildBand(kidChild);
+      const childBand = admission ? await resolveBandForAdmission(admission) : null;
       if (childBand) where.age_level = { [Op.in]: visibleLevels(childBand) };
     }
 

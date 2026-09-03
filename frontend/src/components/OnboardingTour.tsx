@@ -5,12 +5,13 @@ import {
   Gamepad2,
   CheckCircle2,
   Volume2,
+  Languages,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { speak, playCorrect, playMatch, playTap } from '@/lib/utils/sound';
-import { t } from '@/lib/i18n';
+import { t, tEn, setLocale, loadLocale } from '@/lib/i18n';
 
 /* ── Onboarding steps ─────────────────────────────────────────── */
 
@@ -20,10 +21,22 @@ interface Step {
   description: string;
   shape: string;        // emoji
   shapeColor: string;   // tailwind bg
-  action: 'tap' | 'drag' | 'match' | 'watch';
+  action: 'tap' | 'drag' | 'match' | 'watch' | 'age' | 'language';
 }
 
 const STEP_META: Array<Pick<Step, 'id' | 'shape' | 'shapeColor' | 'action'>> = [
+  {
+    id: 'language',
+    shape: '🗣️',
+    shapeColor: 'bg-gradient-to-br from-sky-400 to-indigo-400',
+    action: 'language',
+  },
+  {
+    id: 'age',
+    shape: '🎈',
+    shapeColor: 'bg-gradient-to-br from-pink-400 to-orange-400',
+    action: 'age',
+  },
   {
     id: 'welcome',
     shape: '🌈',
@@ -68,6 +81,140 @@ function getSteps(): Step[] {
     title: t(`onboarding.step.${step.id}.title`),
     description: t(`onboarding.step.${step.id}.description`),
   }));
+}
+
+/* ── Language picker — FIRST step: a kid can't answer anything in a
+      language they don't understand yet. Labels are native names so they
+      read the same in every locale. ── */
+
+const LANGUAGE_CHOICES: Array<{ code: 'en' | 'ha'; label: string; emoji: string }> = [
+  { code: 'en', label: 'English', emoji: '🇬🇧' },
+  { code: 'ha', label: 'Hausa', emoji: '🌍' },
+];
+
+function LanguageDemo({ onComplete }: { onComplete: () => void }) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const handlePick = async (code: 'en' | 'ha') => {
+    if (busy || picked) return;
+    playTap();
+    setBusy(true);
+    try {
+      if (code !== 'en') await loadLocale(code); // lazy dict, then switch
+      setLocale(code); // persisted by the i18n store; TTS stays pinned to English
+    } finally {
+      setPicked(code);
+      setBusy(false);
+      playMatch();
+      // Spoken in the NEW language — instant feedback it worked.
+      speak(tEn('onboarding.language.done'));
+      setTimeout(onComplete, 1200);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <p className="text-sm text-gray-500 font-medium">{t('onboarding.language.prompt')}</p>
+      <div className="flex gap-3">
+        {LANGUAGE_CHOICES.map((l) => (
+          <button
+            key={l.code}
+            onClick={() => handlePick(l.code)}
+            disabled={busy}
+            className={`flex h-24 w-28 flex-col items-center justify-center gap-1 rounded-3xl border-4 text-lg font-black shadow-lg transition-all hover:scale-105 active:scale-90 disabled:opacity-50 animate-game-zoom-in ${
+              picked === l.code
+                ? 'border-green-400 bg-green-50 text-green-700'
+                : 'border-white bg-gradient-to-br from-sky-400 to-indigo-400 text-white shadow-indigo-300/40'
+            }`}
+          >
+            <span className="text-3xl">{picked === l.code ? '✅' : l.emoji}</span>
+            {l.label}
+          </button>
+        ))}
+      </div>
+      {picked && (
+        <p className="text-sm font-bold text-green-600 animate-game-pop">
+          {t('onboarding.language.done')}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ── Age picker — "How old are you?" (be frank!) ─────────────── */
+
+function AgeDemo({ onComplete }: { onComplete: () => void }) {
+  const [savedAge, setSavedAge] = useState<number | null>(null);
+  const [gender, setGender] = useState<'m' | 'f' | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handlePick = async (age: number) => {
+    if (saving || savedAge) return;
+    playTap();
+    setSaving(true);
+    try {
+      // Persist first so the age-band resolver can use it even if the
+      // child closes the tour right after (freemium/offline safe).
+      await apiClient.post(ENDPOINTS.AGE.SET, { age }).catch(() => {});
+    } finally {
+      setSaving(false);
+      setSavedAge(age);
+      playMatch();
+      // English TTS for the confirmation (voice is pinned to EN).
+      speak(tEn('onboarding.age.saved', { age }));
+      setTimeout(onComplete, 1200);
+    }
+  };
+
+  if (savedAge) {
+    const key = gender === 'f' ? 'onboarding.age.saved.f' : 'onboarding.age.saved.m';
+    return (
+      <div className="flex flex-col items-center gap-3 animate-game-pop">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-500 text-4xl font-black text-white shadow-xl shadow-green-300/50 ring-4 ring-white">
+          {savedAge}
+        </div>
+        <p className="text-sm font-bold text-green-600">
+          {t(key, { age: savedAge, defaultValue: t('onboarding.age.saved', { age: savedAge }) })}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      {/* Hausa has grammatical gender (ka/ki) — let the child say who they
+          are so copy can address them correctly (defaults to neutral/male). */}
+      <div className="flex items-center gap-2">
+        {(['m', 'f'] as const).map((g) => (
+          <button
+            key={g}
+            onClick={() => { playTap(); setGender(g); }}
+            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all active:scale-90 ${
+              gender === g
+                ? 'bg-[#0F4D92] text-white shadow-md'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {g === 'm' ? t('onboarding.age.boy') : t('onboarding.age.girl')}
+          </button>
+        ))}
+      </div>
+      <p className="text-sm text-gray-500 font-medium">{t('onboarding.age.prompt')}</p>
+      <div className="grid grid-cols-5 gap-2">
+        {[3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+          <button
+            key={n}
+            onClick={() => handlePick(n)}
+            disabled={saving}
+            className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-400 to-orange-400 text-xl font-black text-white shadow-lg shadow-orange-300/40 transition-all hover:scale-110 active:scale-90 disabled:opacity-50 animate-game-zoom-in"
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /* ── Interactive tap demo ──────────────────────────────────────── */
@@ -349,6 +496,8 @@ export default function OnboardingTour({ onComplete }: { onComplete: () => void 
 
         {/* Interactive demo area */}
         <div className="mb-6 flex justify-center">
+          {step.action === 'language' && <LanguageDemo onComplete={() => setDemoDone(true)} />}
+          {step.action === 'age' && <AgeDemo onComplete={() => setDemoDone(true)} />}
           {step.action === 'tap' && <TapDemo onComplete={() => setDemoDone(true)} />}
           {step.action === 'drag' && <DragDemo onComplete={() => setDemoDone(true)} />}
           {step.action === 'match' && <MatchDemo onComplete={() => setDemoDone(true)} />}
