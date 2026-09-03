@@ -4030,6 +4030,27 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
             correct: correctCount > answers.length / 2,
           }).catch(() => {}); // Best-effort — don't block game flow
         }
+
+        // Q1 NGEd — ADE v2 (BKT) update + engagement economy earn. Best-effort,
+        // fire-and-forget; both are non-blocking and must never interrupt play.
+        if (admissionNo && mode !== 'learning') {
+          const correctCount = answers.filter((a) => a.correct).length;
+          try {
+            await apiClient.post(ENDPOINTS.ADE_V2.UPDATE, {
+              item_id: lessonId,
+              skill_key: 'general',
+              correct: correctCount > answers.length / 2,
+              response_time_ms: answers.reduce((s, a) => s + (a.response_time_ms || 0), 0) || undefined,
+            });
+          } catch { /* best-effort */ }
+
+          try {
+            await apiClient.post(ENDPOINTS.ECONOMY.EARN, {
+              action: 'game_complete',
+              context: { score: finalScore, lesson_id: lessonId },
+            });
+          } catch { /* best-effort */ }
+        }
       } finally {
         setSubmitting(false);
       }

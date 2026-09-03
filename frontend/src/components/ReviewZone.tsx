@@ -41,12 +41,46 @@ export default function ReviewZone() {
 
   const loadData = useCallback(async () => {
     try {
-      const [reviewsRes, statsRes] = await Promise.all([
-        apiClient.get(ENDPOINTS.REVIEWS.DUE).catch(() => ({ data: { data: [] } })),
-        apiClient.get(ENDPOINTS.REVIEWS.STATS).catch(() => ({ data: { data: null } })),
+      // Q1: prefer the v2 (SM-2+) spaced repetition endpoints; fall back to v1.
+      let reviewsData: any[] | null = null;
+      let statsData: any = null;
+      const [v2Today, v2Stats] = await Promise.all([
+        apiClient.get(ENDPOINTS.REVIEWS_V2.TODAY).catch(() => ({ data: { data: null } })),
+        apiClient.get(ENDPOINTS.REVIEWS_V2.STATS).catch(() => ({ data: { data: null } })),
       ]);
-      setReviews(reviewsRes.data?.data || []);
-      setStats(statsRes.data?.data || null);
+      if (v2Today.data?.data) {
+        const v2 = v2Today.data.data;
+        // Map v2 review items into the existing render contract.
+        reviewsData = (v2.reviews || []).map((r: any) => ({
+          subject: r.skill_key || 'general',
+          topic: r.skill_key || '', // skill_key doubles as the topic label
+          difficulty: r.mastery_probability ? Math.max(1, Math.min(5, Math.round(Number(r.mastery_probability) * 5))) : 3,
+          accuracy_7d: r.quality_last != null ? Number(r.quality_last) * 20 : 0,
+          next_review_at: r.next_review_at,
+          lesson_id: r.lesson_id || r.item_id,
+          lesson_title: r.lesson_title,
+        }));
+        const s = v2Stats.data?.data;
+        if (s) {
+          statsData = {
+            total_reviewed: Number(s.total_items || 0),
+            due_today: Number(v2.due_count != null ? v2.due_count : s.due_today || 0),
+            streak_days: Number(s.streak_days || 0),
+            avg_accuracy: Number(s.avg_accuracy || 0),
+          };
+        }
+      }
+      if (!reviewsData) {
+        // Fallback to v1
+        const [v1Due, v1Stats] = await Promise.all([
+          apiClient.get(ENDPOINTS.REVIEWS.DUE).catch(() => ({ data: { data: [] } })),
+          apiClient.get(ENDPOINTS.REVIEWS.STATS).catch(() => ({ data: { data: null } })),
+        ]);
+        reviewsData = v1Due.data?.data || [];
+        statsData = v1Stats.data?.data || null;
+      }
+      setReviews(reviewsData || []);
+      setStats(statsData || null);
     } catch {
       // ignore
     } finally {

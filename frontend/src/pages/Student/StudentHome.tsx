@@ -39,6 +39,8 @@ import StudentLiveBar from '@/components/StudentLiveBar';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
+import XPBar from '@/components/XPBar';
+import StreakCounter from '@/components/StreakCounter';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
 import { offlineContent } from '@/lib/offline/content';
 import { t, tN } from '@/lib/i18n';
@@ -147,6 +149,14 @@ export default function StudentHome() {
   const [showCompanionSelect, setShowCompanionSelect] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
   const [streak, setStreak] = useState(() => getStreakLocal());
+  const [economy, setEconomy] = useState<{
+    xp_total: number;
+    level: number;
+    level_name: string | null;
+    streak: { current: number; longest: number; freeze_count: number };
+    multiplier: number;
+    title: string | null;
+  } | null>(null);
   const { colorblindMode } = useA11yStore();
 
   const loadData = useCallback(async () => {
@@ -202,6 +212,28 @@ export default function StudentHome() {
             throw progressErr;
           }
         }
+
+        // Q1 engagement economy: balance (XP/level/streak) for XPBar + StreakCounter
+        apiClient
+          .get(ENDPOINTS.ECONOMY.BALANCE)
+          .then((r) => {
+            const d = r.data?.data;
+            if (d) {
+              setEconomy({
+                xp_total: Number(d.xp_total) || 0,
+                level: Number(d.level) || 1,
+                level_name: d.level_name ?? null,
+                streak: {
+                  current: Number(d.streak?.current) || 0,
+                  longest: Number(d.streak?.longest) || 0,
+                  freeze_count: Number(d.streak?.freeze_count) || 0,
+                },
+                multiplier: Number(d.multiplier) || 1,
+                title: d.title ?? null,
+              });
+            }
+          })
+          .catch(() => {});
 
         // Learning path + embedded weekly goal (server band-caps, locks and
         // orders spill-over first). Falls back to the cached snapshot offline.
@@ -409,6 +441,18 @@ export default function StudentHome() {
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('student.home.gamesPlayed')}</p>
           </div>
         </div>
+
+        {/* Q1 engagement economy — level progress bar + streak (with freeze & multiplier) */}
+        {economy && (
+          <div className="mb-5 grid gap-3 md:grid-cols-2">
+            <XPBar xpTotal={economy.xp_total} streakDays={economy.streak.current} />
+            <StreakCounter
+              current={economy.streak.current}
+              longest={economy.streak.longest}
+              freezeCount={economy.streak.freeze_count}
+            />
+          </div>
+        )}
 
         {/* Boss Battle Overlay */}
         <div className="mb-5">

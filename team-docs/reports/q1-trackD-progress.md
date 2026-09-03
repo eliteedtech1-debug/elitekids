@@ -32,15 +32,25 @@ editing any of these, pause and coordinate via MASTER:
 - I preserve the other team's recent game-chain FE work verbatim.
 
 ## Steps
-- [ ] S1 StudentHome: fetch /kids/economy/balance, render XPBar + StreakCounter
-- [ ] S2 GamePlay: best-effort ADE_V2.UPDATE + ECONOMY.EARN on submit
-- [ ] S3 ReviewZone: v2 endpoints with v1 fallback
-- [ ] S4 q1-integration.test.js
-- [ ] S5 tsc + jest verify, commit + push
+- [x] S1 StudentHome: fetch /kids/economy/balance, render XPBar + StreakCounter
+- [x] S2 GamePlay: best-effort ADE_V2.UPDATE + ECONOMY.EARN on submit
+- [x] S3 ReviewZone: v2 endpoints with v1 fallback
+- [x] S4 q1-integration.test.js (A17 contract tests)
+- [x] S5 tsc + jest verify, commit + push
 
 ## Status
-- S1: pending
-- S2: pending
-- S3: pending
-- S4: pending
-- S5: pending
+- S1: done — StudentHome fetches ECONOMY.BALANCE, renders XPBar (level progress + streak) and StreakCounter (freeze/multiplier). Additive only; existing cards/streak/tabs untouched.
+- S2: done — GamePlay submitProgress adds best-effort (fire-and-forget) Q1 `ADE_V2.UPDATE` + `ECONOMY.EARN(game_complete)`. Existing v1 ADAPTIVE.UPDATE + game-chain untouched.
+- S3: done — ReviewZone prefers REVIEWS_V2.TODAY/STATS, maps v2 shape into existing render contract, falls back to v1 if v2 unavailable.
+- S4: done — `q1-integration.test.js` (A17): every controller-emitted Q1 error_code must be in frontend ERROR_MAP, and each ERROR_MAP entry must have an i18n key. Caught + fixed 8 missing frontend mappings (ADE_FORBIDDEN/INVALID_CORRECT/SERVER_ERROR, SRE_FORBIDDEN/SERVER_ERROR, ECO_ITEM_REQUIRED/PURCHASE_FAILED/SERVER_ERROR) + added their en.ts keys.
+- S5: done — tsc exit 0; q1 suites 54/54.
+
+## Verification
+- `frontend` tsc --noEmit: exit 0
+- `backend` jest q1-{ade,sre,economy,integration}: 4 suites, 54 tests passing
+- Controllers unchanged this round (Track A/B already pushed)
+
+## Conflict-avoidance result
+- Rebased cleanly onto other team's `0fc403d` (docs-only) — no git conflicts.
+- Only touched: StudentHome.tsx, GamePlay.tsx, ReviewZone.tsx, mapApiError.ts, en.ts + new test/report files. Game-chain FE work preserved verbatim.
+

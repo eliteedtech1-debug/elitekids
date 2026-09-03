@@ -1244,6 +1244,14 @@
   'error.ecoInvalidAction': 'This action is not recognized.',
   'error.ecoForbidden': 'Please log in as a student to do that.',
   'error.sreItemRequired': 'Please pick an activity to review.',
+  'error.adeForbidden': 'Please log in as a student to do that.',
+  'error.adeInvalidCorrect': 'Something went wrong with this answer. Try again!',
+  'error.adeServerError': 'Something went wrong. Please try again later.',
+  'error.sreForbidden': 'Please log in as a student to do that.',
+  'error.sreServerError': 'Something went wrong. Please try again later.',
+  'error.ecoItemRequired': 'Please pick an item before continuing.',
+  'error.ecoPurchaseFailed': 'The purchase could not be completed. Please try again.',
+  'error.ecoServerError': 'Something went wrong. Please try again later.',
 
   // ── Global Library ───────────────────────────────────────────────────
   'globalLibrary.title': 'Global Library',
