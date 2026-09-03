@@ -1,5 +1,10 @@
 # Set-Goal submit failure — root cause + fix + live verification
 
+## MOBILE ADDENDUM (2026-09-03 late, Buffy) — picker below-the-fold on phones
+User follow-up: goal picker "page size is not mobile responsive when overlay shows" + submits still failing on phone. Measured at 360×780 (isMobile): with picker open, the number row rendered at **y=851–899 — entirely below the 780px fold**; page height didn't grow so the page couldn't scroll to it → taps hit nothing → "submit broken". Desktop (1280×900) never showed this, which is why the earlier fix verified clean.
+**Fix:** GoalCard now auto-scrolls the picker into view on open (`scrollIntoView({block:'nearest'})`, 80ms settle, via pickerRef + useEffect on `picking`).
+**Verified post-fix (mobile probe):** all 5 number buttons in-viewport (y=632–680) and `elementFromPoint` = button → **MOBILE PICKER FULLY REACHABLE**; full submit flow re-run on mobile viewport: POST /kids/goals → 200. Gates: tsc clean, vitest 117/117, build OK.
+
 **Date:** 2026-09-03 · **Author:** Buffy (worker) · **Scope:** user report "fix submit set goal failure" (goal card on the first screen after student login)
 
 ## TL;DR

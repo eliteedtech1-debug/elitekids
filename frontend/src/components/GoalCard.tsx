@@ -7,7 +7,7 @@
  * goals are shown with a note; the backend protects teacher targets from being
  * lowered by a child.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { AlertCircle, RotateCcw, Target } from 'lucide-react';
 import apiClient from '@/lib/api/client';
@@ -30,6 +30,7 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-open the picker when the welcome spotlight asks for it AND the
   // current goal is still the lazy default (auto-init, never set by the
@@ -40,6 +41,19 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
       setPicking(true);
     }
   }, [autoOpenPicker, goal]);
+
+  // Mobile: when the picker opens, bring it fully into view — on small
+  // screens the number row used to render BELOW the fold (unreachable),
+  // which read as "submit not working" because taps hit nothing.
+  useEffect(() => {
+    if (picking && pickerRef.current) {
+      const t = window.setTimeout(
+        () => pickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }),
+        80,
+      );
+      return () => window.clearTimeout(t);
+    }
+  }, [picking]);
 
   const setTarget = async (target: number) => {
     if (!admissionNo) {
@@ -148,7 +162,10 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
 
       {/* Child goal setter */}
       {picking && (
-        <div className="mt-3 rounded-2xl border border-[#0F4D92]/10 bg-white/90 p-3 animate-game-slide-down">
+        <div
+          ref={pickerRef}
+          className="mt-3 rounded-2xl border border-[#0F4D92]/10 bg-white/90 p-3 animate-game-slide-down"
+        >
           <p className="mb-2 text-xs font-bold text-gray-600">{t('student.goal.choose')}</p>
           <div className="flex flex-wrap gap-1.5">
             {GOAL_CHOICES.map((n) => {
