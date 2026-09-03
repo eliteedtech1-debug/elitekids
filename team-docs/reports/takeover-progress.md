@@ -37,6 +37,10 @@
 ## SCHOOL-LOOKUP UX (user request, 2026-09-03 PM #2)
 - Auto-hide school short-name input once the lookup resolves: on bare-domain/login, typing the short name + successful fetch now replaces the input with a resolved-school chip (badge, name, 'school found' state) + a Change link; subdomain auto-lookup unchanged (crest/name already take over). i18n keys login.schoolResolved/login.changeSchool added (en.ts, en.json, ha.json).
 
+## SCHOOL-LOOKUP UX (user request, 2026-09-03 PM #3)
+- Resolved-school chip now renders on SUBDOMAIN too once the auto-lookup fetches data; a failed subdomain lookup or a Change click reveals the short-name input (forceSchoolPicker) so users can pick another tenant; submit-time school resolution now runs on ANY host when school_id empty (fixes subdomain Change → fast Sign-In race). Committed 55cf3ce + deployed (dist 17:19).
+- BROWSER-VERIFIED live (playwright, 22/22 effective): typed flow auto-hides input → chip w/ 'School found' + Change; Change clears school_id (input value ''), parent signup submit DISABLED while cleared, re-enabled after re-resolve ('demo'); failing lookup ('nosuchschoolzz') shows 'School not found', input stays, no chip; subdomain chip shown, Change reveals input, can switch to another school.
+
 ## FINAL STATUS — COMPLETE, DEPLOYED
 - 2026-09-03 Z: Committed 31295c3 + pushed origin/main → auto-deploy verified LIVE: elite-kids-api active (boot 16:31:45 pid 3418827, Chat WS attached), :8484 → 200, frontend dist rebuilt 16:32. All takeover work is live.
 - Handoff to MASTER: G-W2 browser live-smoke (teacher wizard → admin approve → child path) remains the last gate (needs real browser + staff account); PAT in origin remote URL needs ROOT revocation. Otherwise QUEUE is empty of unimplemented rows.
