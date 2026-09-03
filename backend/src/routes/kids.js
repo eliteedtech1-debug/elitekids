@@ -316,6 +316,11 @@ module.exports = (app) => {
   app.post('/kids/speech/assess', auth, speechCtrl.assess);
   app.get('/kids/speech/progress', auth, speechCtrl.progress);
 
+  // ── Q2 2027: NGEd-game — Learning Portfolio (§2.7) ─────────────
+  const portfolioCtrl = require('../controllers/kidsPortfolio');
+  app.get('/kids/portfolio/:childId', auth, portfolioCtrl.getPortfolio);
+  app.get('/kids/portfolio/:childId/export', auth, portfolioCtrl.exportPortfolio);
+
   // ── Revision (reinforcement-based) ────────────────────────────────────
   const revision = require('../controllers/kidsRevision');
   app.get('/kids/revision/status', auth, revision.getRevisionStatus);

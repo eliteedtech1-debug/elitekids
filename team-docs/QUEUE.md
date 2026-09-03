@@ -28,3 +28,5 @@
 | Q25 | Q2 speech FE leaf (NO cross-lane deps): Pronunciation Coach + ReadingTracker components over LIVE /kids/speech/assess + /kids/speech/progress endpoints (i18n EN+HA, vitest, no backend changes) — briefs/q2-opencode-lowdep.md | opencode | QUEUED |
 | Q26 | Q2 drawing FE components (Q2-G, NO backend/ML deps): DrawingCanvas + TracingGuide + DrawingFeedback (pure canvas; TensorFlow.js recognition plugs in later, OUT of scope) — briefs/q2-opencode-lowdep.md | opencode | QUEUED |
 | Q27 | Q2 speech templates story/count (completes Q2-B 5/5) + registry/enum/i18n — QUEUE only AFTER Q24 lands (engine bridge is the play path) | opencode | QUEUED (hold until Q24 MERGED) |
+| Q28 | Q2-E Portfolio backend v1 (roadmap §2.7): skill map (ADE v2) + evidence (speech logs + game sessions) + recommendations + JSON export — read-only aggregation, pure helpers, q2-portfolio.test.js 7/7 | Buffy (worker) | IMPLEMENTED 2026-09-03 (awaiting push; full backend suite running) |
+| Q29 | Q2-E Portfolio frontend (SkillMap + EvidenceGallery + export button on ParentDashboard/Teacher view) | opencode (after Q28 MERGED) | QUEUED (hold) |
