@@ -99,6 +99,11 @@ const { setCompetitionGames, getCompetitionGames, getDashboard, markStarted, tra
 const { createRaid, getRaidDashboard, getActiveRaid, submitDamage, listRaids, setRaidGames, GUARDIANS } = require('../controllers/kidsBoss');
 const { updateProfile: updateAdaptiveProfile, getProfile: getAdaptiveProfile, updateProfileEndpoint, getDueReviews: getAdaptiveDueReviews, getRecommended } = require('../controllers/kidsAdaptive');
 const { getDueReviews: getSpacedDueReviews, markReviewComplete, getReviewStats } = require('../controllers/kidsSpacedRep');
+// ── Q1 2027: NGEd-game — ADE v2 / SRE v2 / Economy / Shop ──
+const adeV2 = require('../controllers/kidsAdaptiveV2');
+const sreV2 = require('../controllers/kidsSpacedRepV2');
+const econCtrl = require('../controllers/kidsEconomy');
+const shopCtrl = require('../controllers/kidsShop');
 // Phase 3: Parent Dashboard + Festival of Guardians
 const parentCtrl = require('../controllers/kidsParent');
 const festivalCtrl = require('../controllers/kidsFestival');
@@ -287,6 +292,27 @@ module.exports = (app) => {
   app.get('/kids/reviews/due', auth, getSpacedDueReviews);
   app.post('/kids/reviews/complete', auth, markReviewComplete);
   app.get('/kids/reviews/stats', auth, getReviewStats);
+
+  // ── Q1 2027: NGEd-game — ADE v2 (BKT) ───────────────────────────────
+  app.post('/kids/adaptive/v2/update', auth, adeV2.updateProfile);
+  app.get('/kids/adaptive/v2/profile', auth, adeV2.getProfile);
+  app.get('/kids/adaptive/v2/next-item', auth, adeV2.getNextItems);
+  app.get('/kids/adaptive/v2/skills', auth, adeV2.getSkills);
+
+  // ── Q1 2027: NGEd-game — SRE v2 (SM-2+) ─────────────────────────────
+  app.get('/kids/reviews/v2/today', auth, sreV2.getTodayReviews);
+  app.post('/kids/reviews/v2/complete', auth, sreV2.completeReview);
+  app.get('/kids/reviews/v2/stats', auth, sreV2.getStats);
+
+  // ── Q1 2027: NGEd-game — Economy ────────────────────────────────────
+  app.get('/kids/economy/balance', auth, econCtrl.getBalance);
+  app.post('/kids/economy/earn', auth, econCtrl.earnXP);
+  app.post('/kids/economy/streak/record', auth, econCtrl.recordStreak);
+
+  // ── Q1 2027: NGEd-game — Shop ───────────────────────────────────────
+  app.get('/kids/economy/shop', auth, shopCtrl.getShop);
+  app.post('/kids/economy/shop/buy', auth, shopCtrl.buyItem);
+  app.post('/kids/economy/shop/equip', auth, shopCtrl.equipItem);
 
   // ── Revision (reinforcement-based) ────────────────────────────────────
   const revision = require('../controllers/kidsRevision');

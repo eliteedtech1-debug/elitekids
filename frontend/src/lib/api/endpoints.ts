@@ -278,6 +278,32 @@ export const ENDPOINTS = {
     LEADERBOARD: '/kids/analytics/leaderboard',
   },
 
+  // Q1 2027: NGEd-game — Adaptive Difficulty Engine (v2, BKT)
+  ADE_V2: {
+    UPDATE: '/kids/adaptive/v2/update',
+    PROFILE: (skillKey: string) => `/kids/adaptive/v2/profile?skill_key=${encodeURIComponent(skillKey)}`,
+    NEXT_ITEM: (subject?: string, count?: number) =>
+      `/kids/adaptive/v2/next-item${subject ? `?subject=${encodeURIComponent(subject)}` : ''}${count ? `${subject ? '&' : '?'}count=${count}` : ''}`,
+    SKILLS: '/kids/adaptive/v2/skills',
+  },
+
+  // Q1 2027: NGEd-game — Spaced Repetition Engine (v2, SM-2+)
+  REVIEWS_V2: {
+    TODAY: '/kids/reviews/v2/today',
+    COMPLETE: '/kids/reviews/v2/complete',
+    STATS: '/kids/reviews/v2/stats',
+  },
+
+  // Q1 2027: NGEd-game — Engagement Economy
+  ECONOMY: {
+    BALANCE: '/kids/economy/balance',
+    EARN: '/kids/economy/earn',
+    STREAK_RECORD: '/kids/economy/streak/record',
+    SHOP: '/kids/economy/shop',
+    SHOP_BUY: '/kids/economy/shop/buy',
+    SHOP_EQUIP: '/kids/economy/shop/equip',
+  },
+
   // Phase 4: Match History
   MATCH_HISTORY: {
     LIST: '/kids/match-history',
