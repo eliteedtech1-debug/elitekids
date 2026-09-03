@@ -7,7 +7,9 @@ name: Deploy EliteKids (live)
 #   • code dir    = /var/www/html/elite/elite-kids  (a git checkout of this repo)
 #   • backend     = systemd USER unit `elite-kids-api` on :8484 (nginx proxy)
 #   • frontend    = built `frontend/dist` (nginx docroot detected from nginx config)
-#   • game-engine = rsynced sibling of backend (non-fatal)
+#   • game-engine = inside the git checkout (updated by the backend git
+#     reset below — no separate rsync; a stale runner workspace once
+#     re-copied an old scene-script.schema.json over the live tree)
 #
 # No sudo needed: everything runs as the `dev` user who owns the checkout and
 # the user units. node_modules / node_modules / .env / .git are never touched
@@ -86,15 +88,6 @@ jobs:
           rsync -a --delete dist/ "$DOCROOT/"
           echo "frontend deployed to $DOCROOT (exit $?)"
           echo "(frontend step is non-fatal by design — backend deploy already completed)"
-
-      - name: Deploy game-engine (non-fatal)
-        run: |
-          set +e
-          LIVE=/var/www/html/elite/elite-kids
-          [ -d "$LIVE/game-engine" ] || mkdir -p "$LIVE/game-engine"
-          rsync -a --exclude node_modules --exclude .env --exclude .git \
-            "$GITHUB_WORKSPACE/game-engine/" "$LIVE/game-engine/" \
-            && echo "game-engine synced" || echo "game-engine sync skipped"
 
       - name: Verify externally
         run: |
