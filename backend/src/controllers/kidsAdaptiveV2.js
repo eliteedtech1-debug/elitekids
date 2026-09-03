@@ -62,17 +62,17 @@ async function ensureSchema() {
 function getReplacementOrError(res, body) {
   const { skill_key, item_id, correct } = body || {};
   if (!skill_key || typeof skill_key !== 'string') {
-    return { error: res.status(400).json({ success: false, code: 'ADE_INVALID_SKILL_KEY', message: 'skill_key is required and must be a string' }) };
+    return { error: res.status(400).json({ success: false, error_code: 'ADE_INVALID_SKILL_KEY', message: 'skill_key is required and must be a string' }) };
   }
   if (!item_id || typeof item_id !== 'string') {
-    return { error: res.status(400).json({ success: false, code: 'ADE_INVALID_ITEM_ID', message: 'item_id is required' }) };
+    return { error: res.status(400).json({ success: false, error_code: 'ADE_INVALID_ITEM_ID', message: 'item_id is required' }) };
   }
   if (typeof correct !== 'boolean') {
-    return { error: res.status(400).json({ success: false, code: 'ADE_INVALID_CORRECT', message: 'correct must be a boolean' }) };
+    return { error: res.status(400).json({ success: false, error_code: 'ADE_INVALID_CORRECT', message: 'correct must be a boolean' }) };
   }
   const q = body.quality;
   if (q != null && (typeof q !== 'number' || !Number.isInteger(q) || q < 0 || q > 5)) {
-    return { error: res.status(400).json({ success: false, code: 'ADE_INVALID_QUALITY', message: 'quality must be an integer between 0 and 5' }) };
+    return { error: res.status(400).json({ success: false, error_code: 'ADE_INVALID_QUALITY', message: 'quality must be an integer between 0 and 5' }) };
   }
   return {};
 }
@@ -103,7 +103,7 @@ async function updateProfile(req, res) {
   try {
     const u = req.user || {};
     if (String(u.user_type || '').toLowerCase() !== 'student') {
-      return res.status(403).json({ success: false, code: 'ADE_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'ADE_FORBIDDEN', message: 'Students only.' });
     }
 
     const check = getReplacementOrError(res, req.body);
@@ -274,7 +274,7 @@ async function updateProfile(req, res) {
     });
   } catch (err) {
     console.error('ADE v2 update error:', err.message);
-    return res.status(500).json({ success: false, code: 'ADE_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'ADE_SERVER_ERROR', message: 'Server error.' });
   }
 }
 
@@ -294,13 +294,13 @@ async function getProfile(req, res) {
   try {
     const u = req.user || {};
     if (String(u.user_type || '').toLowerCase() !== 'student') {
-      return res.status(403).json({ success: false, code: 'ADE_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'ADE_FORBIDDEN', message: 'Students only.' });
     }
     const adm = String(u.admission_no || '');
     const skillKey = String(req.query.skill_key || '');
 
     if (!skillKey) {
-      return res.status(400).json({ success: false, code: 'ADE_INVALID_SKILL_KEY', message: 'skill_key is required' });
+      return res.status(400).json({ success: false, error_code: 'ADE_INVALID_SKILL_KEY', message: 'skill_key is required' });
     }
 
     await ensureSchema();
@@ -341,7 +341,7 @@ async function getProfile(req, res) {
     });
   } catch (err) {
     console.error('ADE v2 profile error:', err.message);
-    return res.status(500).json({ success: false, code: 'ADE_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'ADE_SERVER_ERROR', message: 'Server error.' });
   }
 }
 
@@ -350,7 +350,7 @@ async function getSkills(req, res) {
   try {
     const u = req.user || {};
     if (String(u.user_type || '').toLowerCase() !== 'student') {
-      return res.status(403).json({ success: false, code: 'ADE_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'ADE_FORBIDDEN', message: 'Students only.' });
     }
     const adm = String(u.admission_no || '');
     await ensureSchema();
@@ -387,7 +387,7 @@ async function getSkills(req, res) {
     return res.json({ success: true, data: { skills, summary } });
   } catch (err) {
     console.error('ADE v2 skills error:', err.message);
-    return res.status(500).json({ success: false, code: 'ADE_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'ADE_SERVER_ERROR', message: 'Server error.' });
   }
 }
 
@@ -396,7 +396,7 @@ async function getNextItems(req, res) {
   try {
     const u = req.user || {};
     if (String(u.user_type || '').toLowerCase() !== 'student') {
-      return res.status(403).json({ success: false, code: 'ADE_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'ADE_FORBIDDEN', message: 'Students only.' });
     }
     const adm = String(u.admission_no || '');
     const subject = String(req.query.subject || '');
@@ -452,7 +452,7 @@ async function getNextItems(req, res) {
     });
   } catch (err) {
     console.error('ADE v2 next-item error:', err.message);
-    return res.status(500).json({ success: false, code: 'ADE_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'ADE_SERVER_ERROR', message: 'Server error.' });
   }
 }
 

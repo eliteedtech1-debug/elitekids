@@ -51,7 +51,7 @@ async function getTodayReviews(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'SRE_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'SRE_FORBIDDEN', message: 'Students only.' });
     }
     const adm = String(u.admission_no || '');
 
@@ -144,7 +144,7 @@ async function getTodayReviews(req, res) {
     });
   } catch (err) {
     console.error('SRE today error:', err.message);
-    return res.status(500).json({ success: false, code: 'SRE_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'SRE_SERVER_ERROR', message: 'Server error.' });
   }
 }
 
@@ -153,17 +153,17 @@ async function completeReview(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'SRE_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'SRE_FORBIDDEN', message: 'Students only.' });
     }
     const adm = String(u.admission_no || '');
     const { skill_key, item_id, quality, review_id } = req.body || {};
 
     if (!item_id) {
-      return res.status(400).json({ success: false, code: 'SRE_ITEM_REQUIRED', message: 'item_id is required' });
+      return res.status(400).json({ success: false, error_code: 'SRE_ITEM_REQUIRED', message: 'item_id is required' });
     }
     const q = Number(quality);
     if (!Number.isInteger(q) || q < 0 || q > 5) {
-      return res.status(400).json({ success: false, code: 'SRE_INVALID_QUALITY', message: 'quality must be an integer between 0 and 5' });
+      return res.status(400).json({ success: false, error_code: 'SRE_INVALID_QUALITY', message: 'quality must be an integer between 0 and 5' });
     }
 
     await ensureSchema();
@@ -295,7 +295,7 @@ async function completeReview(req, res) {
     });
   } catch (err) {
     console.error('SRE complete error:', err.message);
-    return res.status(500).json({ success: false, code: 'SRE_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'SRE_SERVER_ERROR', message: 'Server error.' });
   }
 }
 
@@ -304,7 +304,7 @@ async function getStats(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'SRE_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'SRE_FORBIDDEN', message: 'Students only.' });
     }
     const adm = String(u.admission_no || '');
 
@@ -385,7 +385,7 @@ async function getStats(req, res) {
     });
   } catch (err) {
     console.error('SRE stats error:', err.message);
-    return res.status(500).json({ success: false, code: 'SRE_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'SRE_SERVER_ERROR', message: 'Server error.' });
   }
 }
 

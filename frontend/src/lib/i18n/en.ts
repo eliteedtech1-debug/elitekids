@@ -1229,6 +1229,22 @@
   'error.rateLimited': 'Too many requests. Please wait a moment.',
   'error.serverError': 'Something went wrong. Please try again later.',
 
+  // ── NGEd-game Q1 (SRS §10.2) ─────────────────────────────────────────
+  'error.adeInvalidSkillKey': 'Something went wrong with this activity. Try again!',
+  'error.adeInvalidQuality': 'Please answer the question to continue.',
+  'error.adeInvalidItemId': 'This activity could not be found.',
+  'error.adeSkillNotFound': 'This skill has not been started yet.',
+  'error.sreReviewNotFound': 'This review is no longer available.',
+  'error.sreInvalidQuality': 'Please rate your answer to continue.',
+  'error.ecoInsufficientXp': 'Not enough XP for that. Keep playing to earn more!',
+  'error.ecoItemNotFound': 'This item is no longer in the shop.',
+  'error.ecoItemAlreadyOwned': 'You already own this item.',
+  'error.ecoItemNotOwned': 'You need to buy this item before equipping it.',
+  'error.ecoDailyLimitReached': 'You have already collected today\'s reward. Come back tomorrow!',
+  'error.ecoInvalidAction': 'This action is not recognized.',
+  'error.ecoForbidden': 'Please log in as a student to do that.',
+  'error.sreItemRequired': 'Please pick an activity to review.',
+
   // ── Global Library ───────────────────────────────────────────────────
   'globalLibrary.title': 'Global Library',
   'globalLibrary.subtitle': 'Browse Elite global content and add it to your subjects.',

@@ -39,6 +39,22 @@ const ERROR_MAP: Record<string, string> = {
   NOT_FOUND: 'error.notFound',
   RATE_LIMITED: 'error.rateLimited',
   SERVER_ERROR: 'error.serverError',
+
+  // NGEd-game Q1 (SRS §10.2)
+  ADE_INVALID_SKILL_KEY: 'error.adeInvalidSkillKey',
+  ADE_INVALID_QUALITY: 'error.adeInvalidQuality',
+  ADE_INVALID_ITEM_ID: 'error.adeInvalidItemId',
+  ADE_SKILL_NOT_FOUND: 'error.adeSkillNotFound',
+  SRE_REVIEW_NOT_FOUND: 'error.sreReviewNotFound',
+  SRE_INVALID_QUALITY: 'error.sreInvalidQuality',
+  SRE_ITEM_REQUIRED: 'error.sreItemRequired',
+  ECO_INSUFFICIENT_XP: 'error.ecoInsufficientXp',
+  ECO_ITEM_NOT_FOUND: 'error.ecoItemNotFound',
+  ECO_ITEM_ALREADY_OWNED: 'error.ecoItemAlreadyOwned',
+  ECO_ITEM_NOT_OWNED: 'error.ecoItemNotOwned',
+  ECO_DAILY_LIMIT_REACHED: 'error.ecoDailyLimitReached',
+  ECO_INVALID_ACTION: 'error.ecoInvalidAction',
+  ECO_FORBIDDEN: 'error.ecoForbidden',
 };
 
 /**

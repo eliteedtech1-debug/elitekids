@@ -1835,11 +1835,15 @@ function calculateLevel(xp_total):
 
 ### 10.1 Error Response Format
 
+> Use the centralized `backend/src/services/responseHelper.js` (`sendError`/`sendSuccess`)
+> so error codes are exposed as `error_code` and consumed by the frontend `mapApiError()`
+> (`frontend/src/lib/api/mapApiError.ts`). This matches the codebase-wide envelope convention.
+
 ```json
 {
   "success": false,
   "message": "Human-readable error message",
-  "code": "ADE_INVALID_SKILL_KEY",
+  "error_code": "ADE_INVALID_SKILL_KEY",
   "data": null
 }
 ```

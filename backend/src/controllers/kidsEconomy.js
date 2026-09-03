@@ -106,7 +106,7 @@ async function getBalance(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'ECO_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'ECO_FORBIDDEN', message: 'Students only.' });
     }
     const adm = getAdmission(u);
     const schoolId = req.headers['x-school-id'] || u.school_id;
@@ -139,7 +139,7 @@ async function getBalance(req, res) {
     });
   } catch (err) {
     console.error('economy balance error:', err.message);
-    return res.status(500).json({ success: false, code: 'ECO_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'ECO_SERVER_ERROR', message: 'Server error.' });
   }
 }
 
@@ -148,7 +148,7 @@ async function earnXP(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'ECO_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'ECO_FORBIDDEN', message: 'Students only.' });
     }
     const adm = getAdmission(u);
     const schoolId = req.headers['x-school-id'] || u.school_id;
@@ -252,7 +252,7 @@ async function earnXP(req, res) {
     });
   } catch (err) {
     console.error('economy earn error:', err.message);
-    return res.status(500).json({ success: false, code: 'ECO_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'ECO_SERVER_ERROR', message: 'Server error.' });
   }
 }
 
@@ -261,7 +261,7 @@ async function recordStreak(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'ECO_FORBIDDEN', message: 'Students only.' });
+      return res.status(403).json({ success: false, error_code: 'ECO_FORBIDDEN', message: 'Students only.' });
     }
     const adm = getAdmission(u);
     const schoolId = req.headers['x-school-id'] || u.school_id;
@@ -328,7 +328,7 @@ async function recordStreak(req, res) {
     });
   } catch (err) {
     console.error('economy streak error:', err.message);
-    return res.status(500).json({ success: false, code: 'ECO_SERVER_ERROR', message: 'Server error.' });
+    return res.status(500).json({ success: false, error_code: 'ECO_SERVER_ERROR', message: 'Server error.' });
   }
 }
 

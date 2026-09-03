@@ -8,6 +8,7 @@
  */
 const crypto = require('crypto');
 const dbm = () => require('../models');
+const { sendError, sendSuccess } = require('../services/responseHelper');
 const {
   getFullCatalog,
   getItem,
@@ -66,7 +67,7 @@ async function getShop(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'ECO_FORBIDDEN', message: 'Students only.' });
+      return sendError(res, 403, 'ECO_FORBIDDEN', 'Students only.');
     }
     const adm = String(u.admission_no || '');
 
@@ -116,16 +117,13 @@ async function getShop(req, res) {
       });
     }
 
-    return res.json({
-      success: true,
-      data: {
-        categories: Object.values(categories),
-        balance,
-      },
+    return sendSuccess(res, {
+      categories: Object.values(categories),
+      balance,
     });
   } catch (err) {
     console.error('shop get error:', err.message);
-    return res.status(500).json({ success: false, code: 'ECO_SERVER_ERROR', message: 'Server error.' });
+    return sendError(res, 500, 'ECO_SERVER_ERROR', 'Server error.');
   }
 }
 
@@ -134,13 +132,13 @@ async function buyItem(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'ECO_FORBIDDEN', message: 'Students only.' });
+      return sendError(res, 403, 'ECO_FORBIDDEN', 'Students only.');
     }
     const adm = String(u.admission_no || '');
     const { item_id } = req.body || {};
 
     if (!item_id) {
-      return res.status(400).json({ success: false, code: 'ECO_ITEM_REQUIRED', message: 'item_id is required' });
+      return sendError(res, 400, 'ECO_ITEM_REQUIRED', 'item_id is required');
     }
 
     await ensureSchema();
@@ -161,7 +159,7 @@ async function buyItem(req, res) {
       item = getItem(item_id);
     }
     if (!item) {
-      return res.status(404).json({ success: false, code: 'ECO_ITEM_NOT_FOUND', message: 'Item not found in shop' });
+      return sendError(res, 404, 'ECO_ITEM_NOT_FOUND', 'Item not found in shop');
     }
 
     // Check if already owned
@@ -192,7 +190,7 @@ async function buyItem(req, res) {
     if (!validation.valid) {
       return res.status(alreadyOwned ? 409 : 400).json({
         success: false,
-        code: alreadyOwned ? 'ECO_ITEM_ALREADY_OWNED' : 'ECO_INSUFFICIENT_XP',
+        error_code: alreadyOwned ? 'ECO_ITEM_ALREADY_OWNED' : 'ECO_INSUFFICIENT_XP',
         message: validation.error,
         data: { required: cost, available: balance, shortfall: Math.max(0, cost - balance) },
       });
@@ -212,7 +210,7 @@ async function buyItem(req, res) {
         { replacements: { adm, iid: item_id, cost } }
       );
     } catch (e) {
-      return res.status(500).json({ success: false, code: 'ECO_PURCHASE_FAILED', message: 'Purchase failed, please retry' });
+      return sendError(res, 500, 'ECO_PURCHASE_FAILED', 'Purchase failed, please retry');
     }
 
     // Record transaction
@@ -230,18 +228,15 @@ async function buyItem(req, res) {
       );
     } catch (e) { /* non-fatal */ }
 
-    return res.json({
-      success: true,
-      data: {
-        item_id,
-        cost,
-        new_balance: newBalance,
-        owned_items: [item_id],
-      },
+    return sendSuccess(res, {
+      item_id,
+      cost,
+      new_balance: newBalance,
+      owned_items: [item_id],
     });
   } catch (err) {
     console.error('shop buy error:', err.message);
-    return res.status(500).json({ success: false, code: 'ECO_SERVER_ERROR', message: 'Server error.' });
+    return sendError(res, 500, 'ECO_SERVER_ERROR', 'Server error.');
   }
 }
 
@@ -250,13 +245,13 @@ async function equipItem(req, res) {
   try {
     const u = req.user || {};
     if (!isStudentUser(u)) {
-      return res.status(403).json({ success: false, code: 'ECO_FORBIDDEN', message: 'Students only.' });
+      return sendError(res, 403, 'ECO_FORBIDDEN', 'Students only.');
     }
     const adm = String(u.admission_no || '');
     const { item_id } = req.body || {};
 
     if (!item_id) {
-      return res.status(400).json({ success: false, code: 'ECO_ITEM_REQUIRED', message: 'item_id is required' });
+      return sendError(res, 400, 'ECO_ITEM_REQUIRED', 'item_id is required');
     }
 
     await ensureSchema();
@@ -269,7 +264,7 @@ async function equipItem(req, res) {
     );
     const owned = (Array.isArray(oRows) ? oRows : [])[0];
     if (!owned) {
-      return res.status(400).json({ success: false, code: 'ECO_ITEM_NOT_OWNED', message: "You don't own this item" });
+      return sendError(res, 400, 'ECO_ITEM_NOT_OWNED', "You don't own this item");
     }
 
     // Get category for this item
@@ -298,16 +293,13 @@ async function equipItem(req, res) {
       { replacements: { adm, iid: item_id } }
     );
 
-    return res.json({
-      success: true,
-      data: {
-        equipped: item_id,
-        category,
-      },
+    return sendSuccess(res, {
+      equipped: item_id,
+      category,
     });
   } catch (err) {
     console.error('shop equip error:', err.message);
-    return res.status(500).json({ success: false, code: 'ECO_SERVER_ERROR', message: 'Server error.' });
+    return sendError(res, 500, 'ECO_SERVER_ERROR', 'Server error.');
   }
 }
 
