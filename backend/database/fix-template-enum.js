@@ -15,7 +15,7 @@ async function fix() {
     database: process.env.CONTENT_DB_NAME || 'elite_content',
   });
 
-  const NEW_ENUM = "'matching','tap-recognition','drag-sort','quiz','fill-in-blank','puzzle-split','memory-pairs','label-diagram','stage-sequence','game-chain'";
+  const NEW_ENUM = "'matching','tap-recognition','drag-sort','quiz','fill-in-blank','puzzle-split','memory-pairs','label-diagram','stage-sequence','game-chain','speech-letter','speech-word','speech-sentence'";
 
   // Check current column type
   const [cols] = await conn.query(
@@ -36,9 +36,9 @@ async function fix() {
   // Guard against the full target set (not an intermediate milestone like
   // fill-in-blank alone) — otherwise the script no-ops when some values are
   // present but label-diagram / stage-sequence are still missing.
-  const missing = ['label-diagram', 'stage-sequence', 'game-chain'].filter((v) => !currentType.includes(v));
+  const missing = ['label-diagram', 'stage-sequence', 'game-chain', 'speech-letter', 'speech-word', 'speech-sentence'].filter((v) => !currentType.includes(v));
   if (!missing.length) {
-    console.log('✅ Already includes all 10 template values — nothing to do');
+    console.log('✅ Already includes all 13 template values — nothing to do');
     await conn.end();
     return;
   }

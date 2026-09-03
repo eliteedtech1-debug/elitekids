@@ -673,6 +673,12 @@
   'gameCreator.tpl.stageSequence.desc': 'Step graphics that grow in order, simple to complex — clock times, plant growth, life stages. Never shuffled.',
   'gameCreator.tpl.gameChain.label': 'Game Chain',
   'gameCreator.tpl.gameChain.desc': 'One lesson that plays a chain of whole mini-games in order, simple to complex — sort, label, match, quiz. Never shuffled.',
+  'gameCreator.tpl.speechLetter.label': 'Say the Letter',
+  'gameCreator.tpl.speechLetter.desc': 'Child sees a letter and says it out loud — AI scores pronunciation (voice-first).',
+  'gameCreator.tpl.speechWord.label': 'Say the Word',
+  'gameCreator.tpl.speechWord.desc': 'Child reads a word aloud — AI scores pronunciation and fluency (voice-first).',
+  'gameCreator.tpl.speechSentence.label': 'Read the Sentence',
+  'gameCreator.tpl.speechSentence.desc': 'Child reads a full sentence aloud — fluency and word-accuracy assessment (voice-first).',
 
   // ── Teacher: Live Class Audio ───────────────────────────────────────────
   'teacher.live.title': 'Live Class Audio',
@@ -832,6 +838,8 @@
   'student.home.defaultName': 'Student',
   'student.home.hello': 'Hello, {name}!',
   'student.home.shop': 'Shop',
+  'student.home.speak': 'Speak',
+  'student.home.speakDesc': 'Practice saying words out loud',
   'student.home.shopDesc': 'Spend your XP in the Companion Shop',
   'student.home.dayStreak': 'Day Streak',
   'student.home.starsEarned': 'Stars Earned',
@@ -932,6 +940,23 @@
   'student.streakReminder.comeback.body':
     "You're building something amazing, one day at a time. Play again today and that Super Star sticker moves closer!",
   'student.streakReminder.comeback.cta': 'Add to my streak',
+
+  // ── Student: Speech practice (Q2 Voice-First) ──────────────────────────
+  'speech.progress': 'Practice {current} of {total}',
+  'speech.sayThis': 'Say this!',
+  'speech.tapToSpeak': 'Tap to speak',
+  'speech.listening': 'Listening…',
+  'speech.typeInstead': 'Type it instead',
+  'speech.typePlaceholder': 'Type what you would say…',
+  'speech.checkAnswer': 'Check my answer',
+  'speech.useVoice': 'Use voice',
+  'speech.noSpeech': 'I didn\u2019t hear anything \u2014 try again! \ud83c\udf99\ufe0f',
+  'speech.micBlocked': 'Microphone is blocked \u2014 type your answer instead \u2328\ufe0f',
+  'speech.unsupported': 'Voice is not supported here \u2014 you can type it instead! \u2328\ufe0f',
+  'speech.saveError': 'Could not check your answer \u2014 check your connection. \ud83d\udc9b',
+  'speech.nextOne': 'Next one!',
+  'speech.finish': 'All done!',
+  'speech.done': 'Voice practice finished \u2014 amazing work! \ud83c\udf1f',
 
   // ── Student: Live Bar ───────────────────────────────────────────────────
   'student.liveBar.teacherSpeaking': 'LIVE — Teacher is speaking to your class!',

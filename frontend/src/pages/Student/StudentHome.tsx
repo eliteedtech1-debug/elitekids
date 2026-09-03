@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Swords,
   Sparkles,
+  Mic,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -486,6 +487,15 @@ export default function StudentHome() {
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3">
             <ReviewDueBadge dueCount={reviewDue} onClick={scrollToReviewZone} />
+            <button
+              onClick={() => { playTap(); navigate('/student/speech'); }}
+              aria-label={t('student.home.speak')}
+              title={t('student.home.speakDesc')}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-2.5 py-2 sm:px-3 text-sm font-medium text-white transition hover:bg-white/25 hover:shadow-md active:scale-95"
+            >
+              <Mic className="h-5 w-5" />
+              <span className="hidden sm:inline">{t('student.home.speak')}</span>
+            </button>
             <button
               onClick={() => { playTap(); setShowShop(true); }}
               aria-label={t('student.home.shop')}

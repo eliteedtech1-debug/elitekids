@@ -22,6 +22,9 @@ import {
   Layers,
   Tags,
   TrendingUp,
+  Mic,
+  BookA,
+  MessageSquareText,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -117,6 +120,30 @@ const TEMPLATES = [
     color: 'bg-orange-50 border-orange-200 text-orange-700',
     activeColor: 'bg-orange-100 border-orange-500 ring-2 ring-orange-200 text-orange-800',
   },
+  {
+    id: 'speech-letter',
+    labelKey: 'gameCreator.tpl.speechLetter.label',
+    icon: <BookA className="h-5 w-5" />,
+    descKey: 'gameCreator.tpl.speechLetter.desc',
+    color: 'bg-teal-50 border-teal-200 text-teal-700',
+    activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-200 text-teal-800',
+  },
+  {
+    id: 'speech-word',
+    labelKey: 'gameCreator.tpl.speechWord.label',
+    icon: <Mic className="h-5 w-5" />,
+    descKey: 'gameCreator.tpl.speechWord.desc',
+    color: 'bg-teal-50 border-teal-200 text-teal-700',
+    activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-200 text-teal-800',
+  },
+  {
+    id: 'speech-sentence',
+    labelKey: 'gameCreator.tpl.speechSentence.label',
+    icon: <MessageSquareText className="h-5 w-5" />,
+    descKey: 'gameCreator.tpl.speechSentence.desc',
+    color: 'bg-teal-50 border-teal-200 text-teal-700',
+    activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-200 text-teal-800',
+  },
 ] as const;
 
 /* ── JSON Editor Template ──────────────────────────────── */
@@ -138,6 +165,10 @@ function getConfigTemplate(template: string, ageLevel: string): string {
     'stage-sequence': { promptMode: 'image', responseMode: 'text' },
     // Ordered whole sub-game rounds (simple → complex, never shuffled)
     'game-chain': { promptMode: 'text', responseMode: 'text' },
+    // Q2: voice-first — child speaks; audio prompt, transcript scored server-side
+    'speech-letter': { promptMode: 'audio', responseMode: 'audio' },
+    'speech-word': { promptMode: 'audio', responseMode: 'audio' },
+    'speech-sentence': { promptMode: 'audio', responseMode: 'audio' },
   };
   const modes = defaultModes[template] || { promptMode: 'text', responseMode: 'text' };
 
@@ -388,6 +419,36 @@ function getConfigTemplate(template: string, ageLevel: string): string {
             speechText: 'Tap the part of the face I name! First, where is the nose?',
           },
         },
+      ],
+    },
+    // Q2 voice-first: single expected phrase + per-item practice list
+    'speech-letter': {
+      ...base,
+      scenario: 'Say the letter you see!',
+      characters: [{ name: 'Mrs. Ada', emoji: '👩🏾\u200d🏫', personality: 'encouraging' }],
+      items: [
+        { id: 'sp1', expected_text: 'B', mode: 'letter' },
+        { id: 'sp2', expected_text: 'D', mode: 'letter' },
+        { id: 'sp3', expected_text: 'M', mode: 'letter' },
+      ],
+    },
+    'speech-word': {
+      ...base,
+      scenario: 'Read the word out loud!',
+      characters: [{ name: 'Mrs. Ada', emoji: '👩🏾\u200d🏫', personality: 'encouraging' }],
+      items: [
+        { id: 'sp1', expected_text: 'cat', mode: 'word' },
+        { id: 'sp2', expected_text: 'sun', mode: 'word' },
+        { id: 'sp3', expected_text: 'book', mode: 'word' },
+      ],
+    },
+    'speech-sentence': {
+      ...base,
+      scenario: 'Read the sentence out loud!',
+      characters: [{ name: 'Mrs. Ada', emoji: '👩🏾\u200d🏫', personality: 'encouraging' }],
+      items: [
+        { id: 'sp1', expected_text: 'The cat sat on the mat.', mode: 'sentence' },
+        { id: 'sp2', expected_text: 'I love to read books.', mode: 'sentence' },
       ],
     },
   };

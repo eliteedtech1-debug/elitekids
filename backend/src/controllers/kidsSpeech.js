@@ -11,7 +11,7 @@
  */
 const speechAnalyzer = require('../services/speechAnalyzer');
 
-const dbm = () => require('../src/models');
+const dbm = () => require('../models');
 
 let _schemaReady = false;
 async function ensureSchema() {
