@@ -12,6 +12,8 @@ const {
   getPublishedGame,
   getGamePreview,
   getPublishedScenes,
+  getSceneLibrary,
+  getStoryTemplates,
   getGenerationJob,
   listGenerationJobs,
   recordGameComplete,
@@ -34,8 +36,10 @@ const {
   updateUnit,
   getUnitLockStatus,
   getUnitSuggestedMode,
+  getLearningPath,
 } = require('../controllers/kidsSeries');
 const { getLessonNextUp } = require('../controllers/kidsSeries');
+const { getChildGoal, setChildGoal } = require('../controllers/kidsGoals');
 const { domesticateSeries, listDomestications } = require('../controllers/kidsModeLock');
 const {
   getOnboardingStatus,
@@ -153,6 +157,11 @@ module.exports = (app) => {
   app.get('/kids/lessons/:id/game', auth, requireKidsEntitlement, getPublishedGame);
   app.get('/kids/lessons/:id/game/preview', auth, requireStaff, getGamePreview);
   app.get('/kids/lessons/:id/scenes', auth, requireKidsEntitlement, getPublishedScenes);
+  app.get('/kids/scene-library', auth, requireStaff, getSceneLibrary);
+  app.get('/kids/story-templates', auth, requireStaff, getStoryTemplates);
+  app.get('/kids/learning-path', auth, requireKidsEntitlement, getLearningPath);
+  app.get('/kids/goals/:admissionNo', auth, getChildGoal);
+  app.post('/kids/goals/:admissionNo', auth, setChildGoal);
 
   // ── Generation job status (teacher/admin polling) ────────────────────────
   app.get('/kids/generation-jobs', auth, listGenerationJobs);

@@ -59,6 +59,7 @@ const KIDS_CONTENT_TABLES = [
   'kids_session_state',
   'kids_parental_controls',
   'kids_mode_locks',
+  'kids_learning_goals',
 ];
 
 const KIDS_AI_TABLES = ['kids_content_generation_audit'];
@@ -91,6 +92,7 @@ const KIDS_CONTENT_MODEL_FILES = [
   'KidSessionState.js',
   'KidParentalControl.js',
   'KidModeLock.js',
+  'KidLearningGoal.js',
 ];
 
 // Model files bound to the AI DB (AI_DB_NAME; elite_bot on the prod server)
@@ -235,6 +237,7 @@ db.syncKidsTables = async () => {
     'kids_session_state',
     'kids_parental_controls',
     'kids_mode_locks',
+    'kids_learning_goals',
   ];
   const ordered = SYNC_ORDER
     .map((name) => contentModels.find((m) => m.getTableName() === name))

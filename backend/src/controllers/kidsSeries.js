@@ -12,6 +12,8 @@
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const db = require('../models');
+const { AGE_BANDS, visibleLevels, resolveChildBand } = require('../services/ageBand');
+const { admissionAllowed, getCurrentGoalData } = require('./kidsGoals');
 
 const CATEGORY_MAX_LEN = 100;
 
@@ -566,3 +568,146 @@ async function getLessonNextUp(req, res) {
 module.exports.getLessonNextUp = getLessonNextUp;
 module.exports.getCurriculum = getCurriculum;
 module.exports.findCrossSeriesItems = findCrossSeriesItems;
+
+/**
+ * GET /kids/learning-path?student_id=X — the child's ENTIRE journey in one call
+ * (TECH-SPEC-LEARNING-PATH §2.2). Rules enforced server-side:
+ *  1. Age ceiling: a lesson above the child's band is NEVER returned (units
+ *     containing any published higher-band lesson are omitted entirely).
+ *  2. Spill-over: lower-band units the child hasn't finished appear first,
+ *     flagged spillover/passed_below — never locked (go back & pass).
+ *  3. Unit locks: E3f gate semantics (every lesson of an earlier unit needs
+ *     Practice done AND Test >= 50) applied cumulatively through the unit chain.
+ *  4. Per-lesson state from KidProgress (none/practice_done/passed).
+ * Batched — one KidProgress query, one KidLesson query. No N+1.
+ */
+async function getLearningPath(req, res) {
+  try {
+    const studentId = String(req.query.student_id || req.body?.student_id || req.user?.admission_no || '').trim();
+    if (!studentId) return res.status(400).json({ success: false, message: 'student_id is required.' });
+    if (!(await admissionAllowed(req, studentId))) {
+      return res.status(403).json({ success: false, message: 'Not allowed to view this child.' });
+    }
+
+    const child = await db.KidChild.findOne({ where: { admission_no: studentId } });
+    const band = resolveChildBand(child);
+    if (!band) {
+      // Isolate by default: a child with no resolvable band gets no lessons.
+      return res.status(400).json({ success: false, message: 'Could not resolve the child\'s age band (class/age_level missing).' });
+    }
+    const bandIdx = AGE_BANDS.indexOf(band);
+    const visible = visibleLevels(band);
+    const rankOf = (age) => AGE_BANDS.indexOf(age);
+
+    const [seriesRows, unitRows] = await Promise.all([
+      db.KidGameSeries.findAll({ order: [['name', 'ASC']] }),
+      db.KidGameUnit.findAll({ order: [['series_id', 'ASC'], ['unit_number', 'ASC']] }),
+    ]);
+
+    const prog = await db.KidProgress.findAll({
+      where: { child_admission_no: studentId },
+      attributes: ['lesson_id', 'mode', 'score'],
+    });
+    const lessonState = {};
+    for (const r of prog) {
+      const st = lessonState[r.lesson_id] || (lessonState[r.lesson_id] = { practice: false, testPass: false });
+      if (r.mode === 'practice') st.practice = true;
+      if (r.mode === 'test' && Number(r.score) >= 50) st.testPass = true;
+    }
+    const lessonComplete = (l) => {
+      const st = lessonState[l];
+      return !!st && st.practice && st.testPass;
+    };
+
+    const idsOf = (u) => (Array.isArray(u.content_items) ? u.content_items : [])
+      .map((ci) => String(ci && (ci.lesson_id || ci.item_id || ci)))
+      .filter(Boolean);
+    const allIds = [...new Set(unitRows.flatMap(idsOf))];
+    const lessonRows = allIds.length
+      ? await db.KidLesson.findAll({ where: { id: { [Op.in]: allIds }, content_state: 'published' } })
+      : [];
+    const lessonById = new Map(lessonRows.map((l) => [String(l.id), l]));
+
+    const unitsBySeries = {};
+    for (const u of unitRows) (unitsBySeries[u.series_id] = unitsBySeries[u.series_id] || []).push(u);
+
+    const path = [];
+    for (const s of seriesRows) {
+      const list = unitsBySeries[s.id] || [];
+      if (!list.length) continue;
+
+      const unitOuts = [];
+      for (const u of list) {
+        const lessonIds = idsOf(u);
+        const rows = lessonIds.map((lid) => lessonById.get(lid)).filter(Boolean);
+        // 1) Hard ceiling: if ANY published lesson in the unit is above band,
+        //    omit the whole unit — its ids must never reach the child.
+        if (rows.some((l) => rankOf(l.age_level) > bandIdx)) continue;
+        const inVisible = rows.filter((l) => rankOf(l.age_level) <= bandIdx);
+        if (!inVisible.length) continue;
+        const maxRank = Math.max(...inVisible.map((l) => rankOf(l.age_level)));
+        const below = maxRank < bandIdx;
+        const done = inVisible.every((l) => lessonComplete(String(l.id)));
+        const lessonNodes = lessonIds
+          .map((lid) => {
+            const row = lessonById.get(lid);
+            if (!row || rankOf(row.age_level) > bandIdx) return null;
+            const st = lessonState[lid] || {};
+            const state = st.testPass ? 'passed' : st.practice ? 'practice_done' : 'none';
+            return { lesson_id: lid, title: row.title, age_level: row.age_level, state };
+          })
+          .filter(Boolean);
+        unitOuts.push({ u, below, done, lessonNodes });
+      }
+      if (!unitOuts.length) continue;
+
+      // Order: below-band units first (recovery), then current-band units.
+      // (Number(a.below) - Number(b.below) would sort current-first and break
+      // the cumulative E3f chain — below must lead so it can gate the band.)
+      unitOuts.sort((a, b) => Number(b.below) - Number(a.below) || a.u.unit_number - b.u.unit_number);
+
+      // 3) Cumulative E3f chain over the ordered unit list: a unit is locked
+      //    while any earlier unit is unfinished. passed_below/spillover units
+      //    are never locked (always allowed back), but an unfinished below-band
+      //    unit still gates the current band ("go back & pass to unlock").
+      let chainOk = true;
+      const units = unitOuts.map(({ u, below, done, lessonNodes }) => {
+        const locked = !done && !chainOk;
+        const relation = below ? (done ? 'passed_below' : 'spillover') : 'current';
+        const reason = locked
+          ? `Finish the previous level: play Practice AND pass the Test first.`
+          : below && !done
+            ? 'Go back and pass earlier levels to unlock your level.'
+            : null;
+        chainOk = chainOk && done;
+        return {
+          unit_id: u.id,
+          unit_number: u.unit_number,
+          title: u.title || null,
+          topic: u.topic || null,
+          relation,
+          done,
+          locked: below ? false : locked,
+          locked_reason: below ? null : reason,
+          lessons: lessonNodes,
+        };
+      });
+
+      path.push({ series_id: s.id, name: s.name, category: s.category || null, units });
+    }
+
+    const goal = await getCurrentGoalData(studentId);
+    return res.json({
+      success: true,
+      data: {
+        student: { age_band: band, class_name: child.class_code || null },
+        goal,
+        path,
+      },
+    });
+  } catch (err) {
+    console.error('getLearningPath error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+module.exports.getLearningPath = getLearningPath;

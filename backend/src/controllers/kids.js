@@ -7,6 +7,9 @@ const { recordAttemptPoints } = require('./kidsLeaderboard');
 const db = require('../models');
 const { generateGameConfig, persistGameConfig, generateSceneScript, persistSceneScript } = require('../services/contentGeneratorService');
 const { enqueueLessonGeneration } = require('../media/generation.queue');
+const { validateManualConfig, canonicalSceneType, sceneCardErrors } = require('../services/gameConfigRules');
+const { visibleLevels, resolveChildBand } = require('../services/ageBand');
+const sceneAssetsSeed = require('../seeders/sceneAssetsSeed');
 
 // ── Children (parent + teacher) ────────────────────────────────────────────
 
@@ -464,6 +467,14 @@ async function listLessons(req, res) {
         is_global: 1,
         content_state: 'published',
       };
+      // G6 hard server-side age ceiling: never return a lesson whose age_level
+      // is above the child's band (old client fell back to ALL — gone now).
+      const admission = String(user.admission_no || user.id || '');
+      const kidChild = admission
+        ? await db.KidChild.findOne({ where: { admission_no: admission } })
+        : null;
+      const childBand = resolveChildBand(kidChild);
+      if (childBand) where.age_level = { [Op.in]: visibleLevels(childBand) };
     }
 
     // NERDC curriculum filters (staff only)
@@ -669,9 +680,60 @@ async function createLessonManual(req, res) {
       return res.status(400).json({ success: false, message: 'title, subject, age_level, template, and config_json are required.' });
     }
 
-    const VALID_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split', 'memory-pairs'];
+    const VALID_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split', 'memory-pairs', 'label-diagram', 'stage-sequence', 'game-chain'];
     if (!VALID_TEMPLATES.includes(template)) {
       return res.status(400).json({ success: false, message: `template must be one of: ${VALID_TEMPLATES.join(', ')}` });
+    }
+
+    // Schema + pedagogy validation (label-diagram / stage-sequence are fully
+    // schema-gated on manual save — invalid configs 400 with field detail,
+    // never a silent degrade). Legacy templates keep historical behavior.
+    const ruleResult = validateManualConfig(template, config_json);
+    if (!ruleResult.valid) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid ${template} config: ${ruleResult.errors[0]}`,
+        errors: ruleResult.errors,
+      });
+    }
+    let cfgToStore = config_json;
+    if (typeof cfgToStore === 'string') {
+      try {
+        cfgToStore = JSON.parse(cfgToStore);
+      } catch (e) {
+        /* unreachable — parse errors already returned 400 above */
+      }
+    }
+
+    // Scene cards (optional): canonical v2 shape checks up front (400) and
+    // game_checkpoint gameId resolution (422 fail-closed) BEFORE any writes.
+    if (Array.isArray(scenes) && scenes.length > 0) {
+      const shapeErrors = [];
+      const resolveErrors = [];
+      for (let si = 0; si < scenes.length; si += 1) {
+        const card = scenes[si];
+        for (const e of sceneCardErrors(card)) shapeErrors.push(`scenes[${si}]: ${e}`);
+        if (canonicalSceneType(card) === 'game_checkpoint') {
+          const gid = card && card.gameId;
+          if (gid) {
+            const targetLesson = await db.KidLesson.findByPk(gid);
+            const hasConfig = targetLesson
+              ? await db.KidGameConfig.findOne({ where: { lesson_id: gid } })
+              : null;
+            if (!targetLesson || !hasConfig) {
+              resolveErrors.push(
+                `scenes[${si}]: game_checkpoint gameId "${gid}" must reference a lesson that has a game config`
+              );
+            }
+          }
+        }
+      }
+      if (shapeErrors.length > 0) {
+        return res.status(400).json({ success: false, message: `Invalid scenes: ${shapeErrors[0]}`, errors: shapeErrors });
+      }
+      if (resolveErrors.length > 0) {
+        return res.status(422).json({ success: false, message: resolveErrors[0], errors: resolveErrors });
+      }
     }
 
     const school_id = req.headers['x-school-id'] || req.user.school_id;
@@ -703,7 +765,7 @@ async function createLessonManual(req, res) {
       lesson_id: lesson.id,
       template,
       age_level,
-      config_json,
+      config_json: cfgToStore,
       schema_version: '1.0',
       content_state: 'pending_human_review',
       model_version: 'manual',
@@ -727,7 +789,7 @@ async function createLessonManual(req, res) {
         await db.KidSceneScript.create({
           id: sceneId,
           lesson_id: lesson.id,
-          scene_type: scene.sceneType || 'teach',
+          scene_type: canonicalSceneType(scene),
           script_json: scene,
           schema_version: '1.0',
           content_state: 'pending_human_review',
@@ -1434,9 +1496,34 @@ async function listParentActivities(req, res) {
   }
 }
 
+/** GET /kids/scene-library — staff: approved backgrounds/characters/transitions
+ * for the SceneEditor visual pickers (Phase 3 A5). */
+async function getSceneLibrary(req, res) {
+  try {
+    return res.json({ success: true, data: sceneAssetsSeed.getSceneLibrary() });
+  } catch (err) {
+    console.error('getSceneLibrary error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/** GET /kids/story-templates?template=matching — staff: arc + scene-card
+ * scaffolds + glue hints per game type (Phase 3 C1). */
+async function getStoryTemplates(req, res) {
+  try {
+    const { template } = req.query;
+    return res.json({ success: true, data: sceneAssetsSeed.getStoryTemplates(template) });
+  } catch (err) {
+    console.error('getStoryTemplates error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 module.exports = {
   syncBatch,
   listChildrenForParent,
+  getSceneLibrary,
+  getStoryTemplates,
   getChild,
   createChild,
   createChildForParent,

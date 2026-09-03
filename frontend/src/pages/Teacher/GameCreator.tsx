@@ -20,6 +20,8 @@ import {
   Type,
   Blocks,
   Layers,
+  Tags,
+  TrendingUp,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -91,6 +93,22 @@ const TEMPLATES = [
     color: 'bg-teal-50 border-teal-200 text-teal-700',
     activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-200 text-teal-800',
   },
+  {
+    id: 'label-diagram',
+    labelKey: 'gameCreator.tpl.labelDiagram.label',
+    icon: <Tags className="h-5 w-5" />,
+    descKey: 'gameCreator.tpl.labelDiagram.desc',
+    color: 'bg-pink-50 border-pink-200 text-pink-700',
+    activeColor: 'bg-pink-100 border-pink-500 ring-2 ring-pink-200 text-pink-800',
+  },
+  {
+    id: 'stage-sequence',
+    labelKey: 'gameCreator.tpl.stageSequence.label',
+    icon: <TrendingUp className="h-5 w-5" />,
+    descKey: 'gameCreator.tpl.stageSequence.desc',
+    color: 'bg-cyan-50 border-cyan-200 text-cyan-700',
+    activeColor: 'bg-cyan-100 border-cyan-500 ring-2 ring-cyan-200 text-cyan-800',
+  },
 ] as const;
 
 /* ── JSON Editor Template ──────────────────────────────── */
@@ -106,6 +124,10 @@ function getConfigTemplate(template: string, ageLevel: string): string {
     quiz: { promptMode: 'image', responseMode: 'text' },
     'fill-in-blank': { promptMode: 'text', responseMode: 'text' },
     'puzzle-split': { promptMode: 'image', responseMode: 'image' },
+    // Tap-the-part: prompt names the part (text) → child taps it on the diagram (image)
+    'label-diagram': { promptMode: 'text', responseMode: 'image' },
+    // Steps play as image/analog-clock prompts → child answers closing text checks
+    'stage-sequence': { promptMode: 'image', responseMode: 'text' },
   };
   const modes = defaultModes[template] || { promptMode: 'text', responseMode: 'text' };
 
@@ -236,6 +258,63 @@ function getConfigTemplate(template: string, ageLevel: string): string {
           minAge: 'KG2',
         },
       },
+    },
+    // Tap-the-part on a real diagram (Human Body face). Swap diagram.image for a
+    // real asset; keep hotspot centers over the actual parts and hit radii generous.
+    'label-diagram': {
+      ...base,
+      diagram: {
+        image: 'https://example.com/human-face-diagram.png',
+        alt: 'A child\'s face',
+        background: 'classroom',
+      },
+      hotspots: [
+        { id: 'nose', label: 'Nose', x: 50, y: 46, r: 7, emoji: '👃' },
+        { id: 'left-eye', label: 'Left eye', x: 39, y: 38, r: 6, emoji: '👁️' },
+        { id: 'right-eye', label: 'Right eye', x: 61, y: 38, r: 6, emoji: '👁️' },
+        { id: 'mouth', label: 'Mouth', x: 50, y: 60, r: 7, emoji: '👄' },
+        { id: 'left-ear', label: 'Left ear', x: 22, y: 42, r: 6, emoji: '👂' },
+        { id: 'right-ear', label: 'Right ear', x: 78, y: 42, r: 6, emoji: '👂' },
+        { id: 'hair', label: 'Hair', x: 50, y: 18, r: 10, emoji: '💇' },
+      ],
+      labelBank: ['Nose', 'Left eye', 'Right eye', 'Mouth', 'Left ear', 'Right ear', 'Hair', 'Chin', 'Forehead'],
+      mode: 'mixed',
+      rounds: 7,
+      speechText: 'Tap the part of the face I name! First, where is the nose?',
+    },
+    // Ordered simple→complex steps — plant growth (seed → sprout → seedling →
+    // flower). Steps always play IN ORDER; closing checks prove the sequence
+    // was learned. Swap the label-diagram check's diagram for real art.
+    'stage-sequence': {
+      ...base,
+      topic: 'plant-growth',
+      promptMode: 'image',
+      responseMode: 'text',
+      scenario: 'Watch a seed grow into a flower, one step at a time!',
+      characters: [{ name: 'Maya', emoji: '👩🏾‍🌾', personality: 'kind' }],
+      steps: [
+        { id: 's1', label: 'Seed', kind: 'emoji', emoji: '🌰', narration: 'First, a tiny seed rests in the soil.', durationSec: 5 },
+        { id: 's2', label: 'Sprout', kind: 'emoji', emoji: '🌱', narration: 'Then a small sprout pushes out of the ground.', durationSec: 5 },
+        { id: 's3', label: 'Seedling', kind: 'emoji', emoji: '🪴', narration: 'It grows taller and becomes a seedling.', durationSec: 5 },
+        { id: 's4', label: 'Flower', kind: 'emoji', emoji: '🌻', narration: 'Finally, it blooms into a beautiful flower!', durationSec: 6 },
+      ],
+      assessment: [
+        { id: 'a1', kind: 'text', prompt: 'What comes right after the seed?', options: ['Sprout', 'Flower', 'Leaf'], correctIndex: 0 },
+        { id: 'a2', kind: 'text', prompt: 'What is the last step of the journey?', options: ['Seed', 'Seedling', 'Flower'], correctIndex: 2 },
+        {
+          id: 'a3',
+          kind: 'label-diagram',
+          prompt: 'Tap the flower on the grown plant!',
+          diagram: { image: 'https://example.com/grown-plant.png', alt: 'A grown sunflower plant' },
+          hotspots: [
+            { id: 'flower', label: 'Flower', x: 50, y: 15, r: 10, emoji: '🌻' },
+            { id: 'leaf', label: 'Leaf', x: 35, y: 55, r: 8, emoji: '🍃' },
+            { id: 'stem', label: 'Stem', x: 50, y: 60, r: 6, emoji: '🌿' },
+            { id: 'root', label: 'Root', x: 50, y: 90, r: 8, emoji: '🫘' },
+          ],
+          correctId: 'flower',
+        },
+      ],
     },
   };
 
@@ -379,7 +458,14 @@ export default function GameCreator() {
             else if (item && Array.isArray(item.scenes)) item.scenes.forEach((s: any) => scenesFlat.push(s));
             else if (item && typeof item === 'object') scenesFlat.push(item);
           });
-          const clean = scenesFlat.filter((s: any) => (s?.text ?? s?.narration ?? '').trim() !== '');
+          const clean = scenesFlat.filter((s: any) => {
+            const hasWords = (s?.text ?? s?.narration ?? '').trim() !== '';
+            // Visual-only cards (image/background/characters/checkpoint link) are
+            // meaningful even without narration text — keep them for the story.
+            const hasVisual =
+              !!s?.image || !!s?.background || (Array.isArray(s?.characters) && s.characters.length > 0) || !!s?.gameId;
+            return hasWords || hasVisual;
+          });
           if (clean.length > 0) body.scenes = clean;
         } catch { /* ignore bad scenes */ }
       }
@@ -647,6 +733,7 @@ export default function GameCreator() {
             <SceneEditor
               scenesJson={scenesJson}
               onJsonChange={handleScenesChange}
+              gameTemplate={template}
             />
 
             {scenesError && (

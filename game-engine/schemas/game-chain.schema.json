@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GameChainConfig",
+  "type": "object",
+  "description": "Heterogeneous game-chain — ONE lesson that plays an ORDERED sequence of whole sub-game rounds (e.g. drag-sort → label-diagram → memory-pairs) as a single scored session. Rounds always run in array order (simple → complex, never shuffled). Each round carries its own template + full sub-game config; rounds may not nest game-chain (no recursion) and puzzle-split is excluded (its difficulty-ladder scoring does not fit a linear chain).",
+  "required": [
+    "gameId",
+    "template",
+    "lessonId",
+    "ageLevel",
+    "category",
+    "tier",
+    "item_id",
+    "rounds",
+    "rewards",
+    "successThresholdPct"
+  ],
+  "properties": {
+    "gameId": { "type": "string" },
+    "template": { "const": "game-chain" },
+    "lessonId": { "type": "string" },
+    "ageLevel": {
+      "type": "string",
+      "enum": ["Creche", "Nursery", "KG1", "KG2", "Primary"]
+    },
+    "category": { "type": "string" },
+    "tier": { "type": "integer", "minimum": 0, "maximum": 3 },
+    "item_id": { "type": "string" },
+    "series_id": { "type": "string" },
+    "unit_number": { "type": "integer", "minimum": 1 },
+    "durationTargetSec": { "type": "integer", "minimum": 30, "maximum": 900 },
+    "scenario": { "type": "string" },
+    "hint": { "type": "string" },
+    "feedbackCorrect": { "type": "string" },
+    "feedbackWrong": { "type": "string" },
+    "speechText": { "type": "string" },
+    "characters": {
+      "type": "array",
+      "description": "Recurring host character(s) shown between rounds.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "image": { "type": "string" },
+          "emoji": { "type": "string" },
+          "personality": { "type": "string" }
+        }
+      }
+    },
+    "rounds": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 10,
+      "description": "Ordered heterogeneous rounds — each is a WHOLE sub-game. Renderers MUST play them in array order; the order is the pedagogy.",
+      "items": {
+        "type": "object",
+        "required": ["id", "template", "config"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string", "description": "Short round name shown in the progress strip, e.g. 'Sort the shapes', 'Label the face'" },
+          "template": {
+            "type": "string",
+            "enum": [
+              "matching",
+              "tap-recognition",
+              "drag-sort",
+              "quiz",
+              "fill-in-blank",
+              "memory-pairs",
+              "label-diagram",
+              "stage-sequence"
+            ],
+            "description": "Sub-game template for this round. game-chain (no nesting) and puzzle-split (difficulty-ladder scoring) are excluded."
+          },
+          "config": {
+            "type": "object",
+            "description": "Full sub-game config for `template` (must itself carry template/lessonId/ageLevel/category/tier/item_id + the template's content collections). Validated against that template's rules at save time."
+          }
+        }
+      }
+    },
+    "promptMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio", "context"],
+      "description": "Overall presentation hint; each round keeps its own modes."
+    },
+    "responseMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio"]
+    },
+    "rewards": {
+      "type": "object",
+      "required": ["starsOnComplete", "xp"],
+      "properties": {
+        "starsOnComplete": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "xp": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "successThresholdPct": { "type": "integer", "minimum": 0, "maximum": 100 }
+  }
+}

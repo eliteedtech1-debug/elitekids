@@ -7,9 +7,16 @@
  * collection keyed by its template:
  *   matching → pairs[]   tap-recognition → items[]   drag-sort → items[]
  *   quiz → questions[]   fill-in-blank → sentences[]
+ *   label-diagram → hotspots[] (one round per diagram part)
  *
  * puzzle-split is exempt: its difficulty ladder (difficulties[]) replaces
  * flat rounds in the runtime format consumed by GamePlay.tsx.
+ * stage-sequence is exempt: its learn surface is ordered steps[] (simple →
+ * complex) plus a closing assessment[] — not homogeneous random-play rounds.
+ * Its minimums are enforced by its JSON schema + pedagogy validator instead.
+ * game-chain is exempt: it is a heterogeneous ordered list of whole sub-game
+ * rounds (rounds[]), each validated against its own template — no single
+ * collection key. Enforced by its JSON schema + save-time rules instead.
  */
 
 const MIN_ROUNDS = 5;
@@ -20,9 +27,10 @@ const ROUNDS_KEY_BY_TEMPLATE = {
   'drag-sort': 'items',
   quiz: 'questions',
   'fill-in-blank': 'sentences',
+  'label-diagram': 'hotspots',
 };
 
-const EXEMPT_TEMPLATES = ['puzzle-split'];
+const EXEMPT_TEMPLATES = ['puzzle-split', 'stage-sequence', 'game-chain'];
 
 /** Rows explicitly allowed to violate the invariant — legacy debt, ticketed
  * separately in team-docs/reports/c-preexisting-failures.md. Never add to

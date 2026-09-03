@@ -1,6 +1,6 @@
 # Teacher's Game Maker Guide
 
-*Elite Kids · manual game creation with the admin form (no AI). First written 2026-08-23 from the Phase D content-factory run; updated 2026-09-02 to cover the new visual Easy-mode editor and the scene-script GUI. Companion templates live in `team-docs/templates/`.*
+*Elite Kids · manual game creation with the admin form (no AI). First written 2026-08-23 from the Phase D content-factory run; updated 2026-09-02 (visual Easy-mode editor + scene-script GUI) and 2026-09-03 (9 game types — Label Diagram + Stage Sequence added). Companion templates live in `team-docs/templates/`.*
 
 ## Who this is for
 Teachers and admins who want to build a lesson game **with full control over every question, picture and reward**. You will use the **Create Game Manually** wizard (`/teacher/create-game` → "Create Game Manually"). Nothing here uses the AI generator. You do **not** need to know JSON — every step now has a plug-&-play visual editor, with an optional Advanced tab if you want full control.
@@ -9,7 +9,7 @@ Teachers and admins who want to build a lesson game **with full control over eve
 | Step | Screen | You provide |
 |---|---|---|
 | 1 | Lesson Details | Title, Subject, Age Level (Creche/Nursery/KG1/KG2/Primary), optional NERDC alignment |
-| 2 | Template | One of 7 game types (table below) |
+| 2 | Template | One of 9 game types (table below) |
 | 3 | Config | The game content — a **visual form** per template (Easy mode) or raw JSON (Advanced) |
 | 4 | Scenes (optional) | Intro story / narration shown before the game — built as **scene cards** |
 | 5 | Review & Send | Read the summary, then submit → goes to the approval queue |
@@ -26,8 +26,10 @@ After you submit, an approver publishes it from **Teacher Approvals**. Students 
 | Quiz | multiple choice, 1 or many questions | KG1+ | `questions[]` + `correctId` |
 | Fill in the Blank | complete the sentence/number sequence | KG1+ | `sentences[]` + `wordBank` |
 | Puzzle Split | jigsaw with easy/hard levels | KG1+ | `difficulties.*.pieces` (never leave empty!) |
+| Label Diagram | tap the part of a real picture when its name is said — body, tree, car | Nursery+ | `hotspots` on a `diagram.image` (5+ parts) |
+| Stage Sequence | watch an ordered set of step pictures go simple → harder (clock times, plant growth, life stages), then answer checks | Nursery+ | `steps[]` in order + `assessment[]` |
 
-**Scene scripts** are not a 7th card — they are Step 4 on any lesson. You build them as **scene cards** in Easy mode (each card = one line of narration the student hears before play). Under the hood they are saved as one wrapper object `{ "scenes": [ {"id":1,"text":"...","type":"teach"}, ... ] }`. Scene types: `intro`, `teach`, `reinforce`, `match`. They are optional — leave them empty to skip.
+**Scene scripts** are not a game type — they are Step 4 on any lesson. You build them as **scene cards** in Easy mode (each card = one line the student sees/hears before or after play). Under the hood they are saved as one wrapper object `{ "scenes": [ ... ] }`. Scene types: `intro`, `teach`, `reinforce`, `recap`, and `game checkpoint` (a checkpoint drops the student into a real game mid-story, then continues the scenes). They are optional — leave them empty to skip.
 
 ## 🎬 Turning a learning objective into a story game
 
@@ -75,6 +77,32 @@ Then in **Step 3 (Config)**, make the Matching pairs literally the fruit↔numbe
 
 ### Step 5 — Test it before you send it
 Use the new **Test Play** button on the step-5 review screen (and **Preview** on any lesson card or approval). You should be able to narrate the intro, play through, and hear the recap — exactly like a student, with **no progress saved**. If the story and the gameplay don't line up, edit the scenes or the config and test again before submitting.
+
+## 🧩 One game, one topic (the series rule)
+
+**A game teaches ONE topic — never two.** If your objective says *"recognize coins AND tell the time"*, that is two topics trying to squeeze into one game. A child this age learns **one idea at a time** — mixing two topics makes each one half-taught and the game feel scattered. One topic per game, always.
+
+**The one-topic check (before you submit):**
+1. Read your lesson title and objective out loud.
+2. If they join two ideas — **"Money and Time"**, "Colors and Shapes", "Count and Write" — that is a two-topic game. Split it.
+3. One game = one verb + one noun: "Count objects 1–5", "Read o'clock times", "Recognize coins", "Label the parts of the human body".
+
+**Big topics become a SERIES** — a set of ordered units, each unit covering **ONE topic**, each unit built as its own lesson(s). Units build on the previous one, and the **final unit can be a story that connects them all** — that is where two topics *may* meet, inside a narrative, never inside a single round of questions.
+
+**Worked example — the "Money & Time" series** (instead of one mixed "Money and Time" game):
+
+| Unit | ONE topic per unit | Example game |
+|---|---|---|
+| 1 · Basic Time & Watch | Read o'clock times (hour hand, 1–12) | Stage Sequence: watch the hour hand move 1:00 → 2:00 → 3:00 (real analog clock), then tap the 3 o'clock clock |
+| 2 · Money — Coins | Recognize coins (₦1, ₦2, ₦5, ₦10) | Matching: coin picture ↔ value |
+| 3 · Intermediate Time & Watch | Half past, quarter past, quarter to (:15 :30 :45) | Stage Sequence: order clock faces 3:00 → 3:15 → 3:30 → 3:45, then read each time |
+| 4 · Money — Naira Notes | Recognize notes (₦20 → ₦1000) | Drag & Sort: order notes by value |
+| 5 · Advanced Watch | Minutes to the hour ("10 to 4"), digital ↔ analog | Stage Sequence with analog-clock checks ("What time is 10 minutes to 4?") |
+| 6 · Final story unit | **Connects** the series: saving money over time | Story game: "Adaeze saves ₦100 every hour…" |
+
+**The final unit is the payoff.** After the separate units, one story game may connect them: *"Adaeze saves ₦100 every hour. She saves for 3 hours — how much has she saved?"* The child reads the clock (3 hours on the story clock) to answer the money question (₦100 × 3). The story makes the two topics feel like one big idea — without ever mixing two topics inside a single game's questions.
+
+Name each unit like the topic it teaches ("Basic Time & Watch", "Money — Coins"), keep them in learning order, and write each unit's story/scenes around only that unit's topic. See the guide section **Turning a learning objective into a story game** above for the story steps.
 
 ## Filling in the forms (Step 3 Config & Step 4 Scenes)
 Both content steps now open in **Easy mode** by default — no JSON required.

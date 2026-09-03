@@ -64,6 +64,20 @@ export const GAME_INTERACTIONS: Record<string, GameTypeInteractions> = {
     promptModes: ['image'],
     responseModes: ['image'],
   },
+  // Tap-the-part on a real diagram. Prompt names a part (label text / recorded
+  // audio / picture cue) → child responds by tapping the part (image zone) or
+  // picking the matching label chip in part-to-label rounds.
+  'label-diagram': {
+    promptModes: ['text', 'image', 'audio'],
+    responseModes: ['image', 'text'],
+  },
+  // Ordered simple→complex step graphics (clock, plant growth, life stages).
+  // The step graphic is the prompt (image/analog-clock) → child answers the
+  // closing checks in text chips (or taps a diagram part in embedded checks).
+  'stage-sequence': {
+    promptModes: ['image', 'audio', 'text'],
+    responseModes: ['text', 'image'],
+  },
 };
 
 /* ── Validation ─────────────────────────────────────────── */

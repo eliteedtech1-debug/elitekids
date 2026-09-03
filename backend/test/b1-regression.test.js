@@ -408,6 +408,7 @@ describe('B1: game config round-count >= 5 invariant', () => {
       'drag-sort': 'items',
       quiz: 'questions',
       'fill-in-blank': 'sentences',
+      'label-diagram': 'hotspots',
     });
   });
 

@@ -1,31 +1,92 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SceneScript",
+  "title": "SceneScriptV2",
   "type": "object",
-  "required": ["sceneId", "lessonId", "background", "narrationText", "durationSec"],
+  "description": "Canonical v2 scene card (TECH-SPEC-STORY-GAMES-100PCT §2.1). One card per stored kids_scene_scripts row. Canonical fields use `type`/`text`/`id`; legacy AI-generated cards used `sceneType`/`sceneId`/`narrationText` — tolerated as aliases and normalized by the frontend normalizer. Storage stays verbatim (pass-through).",
   "properties": {
-    "sceneId": { "type": "string" },
-    "lessonId": { "type": "string" },
-    "sceneType": { "enum": ["teach", "reinforce", "game_checkpoint"], "default": "teach" },
-    "background": { "type": "string", "description": "key into the approved background library, e.g. farm-daytime" },
+    "id": {
+      "type": ["integer", "string"],
+      "description": "Canonical card id/ordinal (optional — rows get their own uuid)"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["intro", "teach", "reinforce", "recap", "game_checkpoint"],
+      "description": "Canonical scene type"
+    },
+    "sceneType": {
+      "type": "string",
+      "enum": ["intro", "teach", "reinforce", "recap", "game_checkpoint"],
+      "description": "Legacy alias for `type`"
+    },
+    "sceneId": {
+      "type": "string",
+      "description": "Legacy alias for `id`"
+    },
+    "lessonId": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string",
+      "description": "Canonical card text"
+    },
+    "narrationText": {
+      "type": "string",
+      "description": "Legacy alias for `text`"
+    },
+    "image": {
+      "type": "string",
+      "description": "Scene image URL/asset key (real art; emoji fallback chain applies client-side)"
+    },
+    "background": {
+      "type": "string",
+      "description": "Key into the approved background library, e.g. farm-daytime"
+    },
     "characters": {
       "type": "array",
-      "minItems": 0,
       "maxItems": 4,
       "items": {
         "type": "object",
-        "required": ["rigId", "animation", "position"],
         "properties": {
-          "rigId": { "type": "string", "description": "key into the approved character rig library, e.g. buddy-the-fox" },
-          "animation": { "type": "string" },
-          "position": { "enum": ["left", "center", "right"] }
+          "name": { "type": "string" },
+          "emoji": { "type": "string", "description": "Emoji fallback when no image/rig art" },
+          "image": { "type": ["string", "null"] },
+          "rigId": { "type": "string", "description": "Key into the approved character rig library, e.g. buddy-the-fox" },
+          "animation": { "type": "string", "default": "idle" },
+          "position": { "type": "string", "enum": ["left", "center", "right"], "default": "center" }
         }
       }
     },
-    "narrationText": { "type": "string" },
-    "narrationAudio": { "type": "string" },
-    "durationSec": { "type": "integer", "minimum": 3, "maximum": 60 },
-    "subtitles": { "type": "boolean", "default": true },
-    "gameId": { "type": "string", "description": "required when sceneType = game_checkpoint — references a published game config" }
+    "narrationAudio": {
+      "type": ["string", "null"],
+      "description": "Pre-recorded narration; when absent the client speaks `text` via TTS"
+    },
+    "durationSec": {
+      "type": "integer",
+      "minimum": 3,
+      "maximum": 60,
+      "description": "Auto-advance seconds (pause on tap)"
+    },
+    "transition": {
+      "type": "string",
+      "enum": ["fade", "slide", "none"],
+      "default": "fade"
+    },
+    "subtitles": {
+      "type": "boolean",
+      "default": true
+    },
+    "gameId": {
+      "type": "string",
+      "description": "Required when type/sceneType = game_checkpoint — the lesson id of the embedded game (a lesson that has a game config)"
+    }
+  },
+  "if": {
+    "anyOf": [
+      { "properties": { "type": { "const": "game_checkpoint" } }, "required": ["type"] },
+      { "properties": { "sceneType": { "const": "game_checkpoint" } }, "required": ["sceneType"] }
+    ]
+  },
+  "then": {
+    "required": ["gameId"]
   }
 }

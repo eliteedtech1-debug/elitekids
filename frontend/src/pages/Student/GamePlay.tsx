@@ -31,6 +31,11 @@ import { useA11yStore } from '@/lib/utils/a11y-store';
 import SpeechSettings from '@/components/SpeechSettings';
 import SpeechInput from '@/components/SpeechInput';
 import CachedImg from '@/components/CachedImg';
+import LabelDiagramGame from '@/components/LabelDiagram';
+import StageSequenceGame from '@/components/StageSequence';
+import SceneRenderer from '@/components/SceneRenderer';
+import { flattenScenes, isVisualStory, estimateDurationSec } from '@/lib/utils/scenes';
+import type { SceneLibrary, NormalizedScene } from '@/lib/utils/scenes';
 // NOTE: children never see payment UI — no SubscriptionUpsell here anymore.
 import StickerButton from '@/components/StickerButton';
 import { getFeedbackClasses, getTimerColor, FOCUS_RING_GAME, motionClass } from '@/lib/utils/accessibility';
@@ -3455,10 +3460,60 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
     if (config.template === 'memory-pairs') return Math.floor((config.items?.length || 0) / 2);
     if (config.template === 'fill-in-blank') return config.blanks?.length || 0;
     if (config.template === 'puzzle-split') return config.pieces?.length || 0;
+    if (config.template === 'label-diagram') return (config as any).hotspots?.length || 0;
+    if (config.template === 'stage-sequence') return (config as any).assessment?.length || 1;
     return 0;
   }, [config]);
 
   const durationSec = config?.durationSec || 60;
+
+  // ── Illustrated story (scene v2) state ───────────────────────────────
+  const [sceneLibrary, setSceneLibrary] = useState<SceneLibrary>({});
+  // Approved backgrounds/characters for visual cards (defaults ship in the
+  // scenes util when the endpoint is unavailable/offline).
+  useEffect(() => {
+    apiClient
+      .get(ENDPOINTS.STORY.SCENE_LIBRARY)
+      .then((res) => {
+        const data = res.data?.data || {};
+        if (data && typeof data === 'object') setSceneLibrary(data);
+      })
+      .catch(() => {}); // defaults cover offline / permission gaps
+  }, []);
+
+  // Flatten wrapper scenes into one ordered card list + detect visual stories.
+  const storyCards: NormalizedScene[] = useMemo(
+    () => flattenScenes(scenes as unknown as any[]),
+    [scenes],
+  );
+  const v2Story = useMemo(() => isVisualStory(storyCards), [storyCards]);
+  const v2Active = phase === 'intro' && storyCards.length > 0 && v2Story;
+  const currentCard: NormalizedScene | null = v2Active ? storyCards[sceneIdx] ?? null : null;
+
+  // Advance the v2 story pager (or start the game after the last card).
+  const storyNext = useCallback(() => {
+    if (sceneIdx + 1 < storyCards.length) {
+      setSceneIdx((i) => i + 1);
+    } else {
+      setPhase('play');
+      setTimerKey((k) => k + 1);
+      setTimerRunning(mode === 'test');
+    }
+  }, [sceneIdx, storyCards.length, mode]);
+
+  // game_checkpoint → start this lesson's own game, or open the referenced
+  // lesson's game (preview semantics in review mode, real play otherwise).
+  const launchCheckpoint = useCallback(
+    (card: NormalizedScene) => {
+      if (card.gameId && card.gameId !== lessonId) {
+        navigate(`/play/${encodeURIComponent(card.gameId)}${isPreview ? '?preview=1' : ''}`);
+        return;
+      }
+      storyNext();
+    },
+    [lessonId, isPreview, navigate, storyNext],
+  );
+
 
   // E2: offline sync service — init once; keep queued count for banner
   useEffect(() => {
@@ -3962,6 +4017,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   // If scene was advanced by click handler, it already spoke — skip to avoid double-speak.
   useEffect(() => {
     if (phase !== 'intro' || !soundOn) return;
+    if (v2Active) return; // visual cards speak through their own effect
     if (introAdvancedByClick.current) {
       introAdvancedByClick.current = false; // consumed
       return;
@@ -3972,7 +4028,40 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
       setSceneSpeaking(true);
       speakScene(texts).finally(() => setSceneSpeaking(false));
     }
-  }, [phase, sceneIdx, scenes, soundOn]);
+  }, [phase, sceneIdx, scenes, soundOn, v2Active]);
+
+  // V2 story: narrate the current card (narrationAudio else TTS).
+  useEffect(() => {
+    if (!v2Active || !currentCard || !soundOn) return;
+    if (introAdvancedByClick.current) {
+      introAdvancedByClick.current = false;
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      setSceneSpeaking(true);
+      const card = currentCard;
+      if (card.narrationAudio) {
+        await speakOrPlay(card.narrationAudio, card.text || '');
+      } else if (card.text) {
+        await speakScene(card.text);
+      }
+      if (!cancelled) setSceneSpeaking(false);
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [v2Active, sceneIdx, currentCard, soundOn]);
+
+  // V2 story: auto-advance after the card's duration (tap pauses/resumes via
+  // the card's tap-to-advance; checkpoint + last cards wait for the button).
+  useEffect(() => {
+    if (!v2Active || !currentCard) return;
+    if (currentCard.type === 'game_checkpoint') return;
+    if (sceneIdx + 1 >= storyCards.length) return;
+    const ms = estimateDurationSec(currentCard) * 1000;
+    const timer = setTimeout(storyNext, ms);
+    return () => clearTimeout(timer);
+  }, [v2Active, sceneIdx, currentCard, storyCards.length, storyNext]);
 
   /* ── Loading ── */
   if (loading) {
@@ -4052,6 +4141,94 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
     const wrapper = scenes[sceneIdx];
     const sceneTexts: SceneText[] = wrapper?.scenes || [];
     const isLastScene = sceneIdx + 1 >= scenes.length;
+    const v2Mode = v2Active;
+    const card = v2Mode ? currentCard : null;
+
+    /* Illustrated v2 story pager — one visual card per page */
+    if (v2Mode && card) {
+      const isCheckpoint = card.type === 'game_checkpoint';
+      const isFinal = sceneIdx + 1 >= storyCards.length;
+      const checkpointNote = isCheckpoint
+        ? card.gameId && card.gameId !== lessonId
+          ? t('game.story.checkpointOther')
+          : t('game.story.checkpointNow')
+        : '';
+      return (
+        <div className="flex min-h-screen flex-col bg-gradient-to-b from-[#E7EEF6] to-white overflow-hidden">
+          <header className="flex items-center justify-between px-4 py-3 animate-game-slide-down">
+            <button onClick={() => navigate('/student')} className="rounded-lg p-1.5 hover:bg-white/50 transition-all hover:scale-110 active:scale-95">
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </button>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-semibold text-gray-600">{t('game.storyTime')} 📖</h1>
+              <span className="rounded-full bg-[#0F4D92]/10 px-2 py-0.5 text-[10px] font-bold text-[#0F4D92]">
+                {sceneIdx + 1}/{storyCards.length}
+              </span>
+            </div>
+            <button onClick={() => setSoundOn(!soundOn)} className="rounded-lg p-1.5 hover:bg-white/50 transition-all hover:scale-110 active:scale-95">
+              {soundOn ? <Volume2 className="h-5 w-5 text-[#0F4D92]" /> : <VolumeX className="h-5 w-5 text-gray-400" />}
+            </button>
+          </header>
+
+          <div className="flex flex-1 flex-col items-center justify-center px-4 py-4">
+            <div className="w-full max-w-md">
+              <SceneRenderer
+                scene={card}
+                library={sceneLibrary}
+                index={sceneIdx}
+                total={storyCards.length}
+                speaking={sceneSpeaking}
+                checkpointNote={checkpointNote}
+                onAdvance={() => {
+                  if (!isCheckpoint && soundOn) playTap();
+                  if (!isCheckpoint) storyNext();
+                }}
+              />
+
+              {/* Checkpoint action — start the embedded game */}
+              {isCheckpoint && (
+                <button
+                  onClick={() => {
+                    if (soundOn) playTap();
+                    launchCheckpoint(card);
+                  }}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4 text-lg font-extrabold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95"
+                >
+                  <Gamepad2 className="h-6 w-6" /> {t('game.letsPlay')} 🎮
+                </button>
+              )}
+
+              {/* Non-checkpoint footer */}
+              {!isCheckpoint && (
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <button
+                    onClick={() => { if (soundOn) playTap(); storyNext(); }}
+                    className={`rounded-xl px-8 py-3 text-base font-semibold text-white shadow-lg transition-all hover:scale-105 active:scale-95 ${
+                      isFinal
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                        : 'bg-[#0F4D92] hover:bg-[#0D3F7A]'
+                    }`}
+                  >
+                    {isFinal ? (
+                      <span className="flex items-center gap-2">
+                        <Gamepad2 className="h-5 w-5" /> {t('game.letsPlay')} 🎮
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        {t('common.next')} <span className="animate-game-bounce inline-block">→</span>
+                      </span>
+                    )}
+                  </button>
+                  <button onClick={handleSkipIntro} className="text-sm text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors">
+                    {t('game.skipStory')}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="flex min-h-screen flex-col bg-gradient-to-b from-[#E7EEF6] to-white overflow-hidden">
@@ -4431,6 +4608,12 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           )}
           {config.template === 'puzzle-split' && (
             <PuzzleGame config={config} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} onDifficultyChange={setPuzzleDifficulty} />
+          )}
+          {config.template === 'label-diagram' && (
+            <LabelDiagramGame config={config as any} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
+          )}
+          {config.template === 'stage-sequence' && (
+            <StageSequenceGame config={config as any} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
           )}
         </div>
       </div>

@@ -15,7 +15,7 @@ async function fix() {
     database: process.env.CONTENT_DB_NAME || 'elite_content',
   });
 
-  const NEW_ENUM = "'matching','tap-recognition','drag-sort','quiz','fill-in-blank','puzzle-split'";
+  const NEW_ENUM = "'matching','tap-recognition','drag-sort','quiz','fill-in-blank','puzzle-split','memory-pairs','label-diagram','stage-sequence','game-chain'";
 
   // Check current column type
   const [cols] = await conn.query(
@@ -33,13 +33,16 @@ async function fix() {
   const currentType = cols[0].COLUMN_TYPE;
   console.log(`Current template ENUM: ${currentType}`);
 
-  if (currentType.includes('fill-in-blank')) {
-    console.log('✅ Already includes fill-in-blank and puzzle-split — nothing to do');
+  // Guard against the full target set (not an intermediate milestone like
+  // fill-in-blank alone) — otherwise the script no-ops when some values are
+  // present but label-diagram / stage-sequence are still missing.
+  const missing = ['label-diagram', 'stage-sequence', 'game-chain'].filter((v) => !currentType.includes(v));
+  if (!missing.length) {
+    console.log('✅ Already includes all 10 template values — nothing to do');
     await conn.end();
     return;
   }
-
-  console.log('🔧 ALTERing template ENUM to include all 6 values...');
+  console.log(`🔧 Missing: ${missing.join(', ')} — ALTERing template ENUM to include all 10 values...`);
   await conn.query(
     `ALTER TABLE kids_game_configs MODIFY COLUMN template ENUM(${NEW_ENUM}) NOT NULL`
   );

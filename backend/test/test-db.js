@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS kids_lessons (
 CREATE TABLE IF NOT EXISTS kids_game_configs (
   id VARCHAR(50) PRIMARY KEY,
   lesson_id VARCHAR(50) NOT NULL,
-  template ENUM('matching','tap-recognition','drag-sort','quiz','fill-in-blank','puzzle-split') NOT NULL,
+  template ENUM('matching','tap-recognition','drag-sort','quiz','fill-in-blank','puzzle-split','memory-pairs','label-diagram','stage-sequence','game-chain') NOT NULL,
   age_level VARCHAR(20) NOT NULL,
   item_id VARCHAR(50) NULL,
   tier INT NULL,
@@ -179,6 +179,22 @@ CREATE TABLE IF NOT EXISTS kids_game_configs (
   KEY idx_kids_game_configs_item_id (item_id),
   KEY idx_kids_game_configs_tier (tier),
   KEY idx_kids_game_configs_category (category)
+);
+
+CREATE TABLE IF NOT EXISTS kids_learning_goals (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  child_admission_no VARCHAR(50) NOT NULL,
+  goal_type ENUM('weekly') NOT NULL DEFAULT 'weekly',
+  target_count INT NOT NULL DEFAULT 1,
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  set_by ENUM('child','teacher','auto') NOT NULL DEFAULT 'auto',
+  status ENUM('active','done','expired') NOT NULL DEFAULT 'active',
+  createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_kids_learning_goals_period (child_admission_no, goal_type, period_start),
+  KEY kids_learning_goals_child (child_admission_no)
 );
 
 CREATE TABLE IF NOT EXISTS kids_mode_locks (

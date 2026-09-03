@@ -13,6 +13,9 @@ const MULTIMODAL_DEFAULTS = {
   quiz:              { promptMode: 'image', responseMode: 'text' },
   'fill-in-blank':   { promptMode: 'text',  responseMode: 'text' },
   'puzzle-split':    { promptMode: 'image', responseMode: 'image' },
+  'label-diagram':   { promptMode: 'text',  responseMode: 'image' },
+  'stage-sequence':  { promptMode: 'image', responseMode: 'text' },
+  'game-chain':      { promptMode: 'image', responseMode: 'text' },
 };
 
 /**

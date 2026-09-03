@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LabelDiagramGameConfig",
+  "type": "object",
+  "required": [
+    "gameId",
+    "template",
+    "lessonId",
+    "ageLevel",
+    "category",
+    "tier",
+    "item_id",
+    "diagram",
+    "hotspots",
+    "labelBank",
+    "mode",
+    "rewards",
+    "successThresholdPct"
+  ],
+  "properties": {
+    "gameId": {
+      "type": "string"
+    },
+    "template": {
+      "const": "label-diagram"
+    },
+    "lessonId": {
+      "type": "string"
+    },
+    "ageLevel": {
+      "type": "string",
+      "enum": [
+        "Creche",
+        "Nursery",
+        "KG1",
+        "KG2",
+        "Primary"
+      ]
+    },
+    "category": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "item_id": {
+      "type": "string"
+    },
+    "series_id": {
+      "type": "string"
+    },
+    "unit_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "durationTargetSec": {
+      "type": "integer",
+      "minimum": 15,
+      "maximum": 300
+    },
+    "promptMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio", "context"],
+      "description": "How the target-part prompt is presented (default text)"
+    },
+    "responseMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio"],
+      "description": "How the child responds (default image: tapping the part)"
+    },
+    "characters": {
+      "type": "array",
+      "description": "Recurring child-friendly characters. Image > Emoji > Text.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
+          "emoji": { "type": "string", "description": "Character emoji fallback" },
+          "personality": { "type": "string" }
+        }
+      }
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Short story/scenario wrapping the game (shown to child)"
+    },
+    "hint": {
+      "type": "string"
+    },
+    "feedbackCorrect": {
+      "type": "string"
+    },
+    "feedbackWrong": {
+      "type": "string"
+    },
+    "speechText": {
+      "type": "string",
+      "description": "Exact text to read aloud via TTS"
+    },
+    "diagram": {
+      "type": "object",
+      "required": ["image"],
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Real diagram art URL/asset key (B2 media pipeline) — never a bare emoji"
+        },
+        "alt": {
+          "type": "string"
+        },
+        "background": {
+          "type": "string",
+          "description": "Scene background id (e.g. 'classroom')"
+        }
+      }
+    },
+    "hotspots": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 20,
+      "description": "Each hotspot is one tappable part of the diagram, positioned by PERCENT of the diagram bounds. One round per hotspot.",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "x", "y", "r"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "Name of the part (spoken aloud + shown in the label banner)"
+          },
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Part center X as percent of diagram width"
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Part center Y as percent of diagram height"
+          },
+          "r": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Hit-zone radius as percent of diagram width (generous for nursery tapTargetPx)"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Emoji reinforcement badge / offline fallback"
+          }
+        }
+      }
+    },
+    "labelBank": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "string"
+      },
+      "description": "All part labels + distractors, used for part-to-label chip options"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["label-to-part", "part-to-label", "mixed"]
+    },
+    "rounds": {
+      "type": "integer",
+      "minimum": 5,
+      "description": "Play rounds; equals the number of hotspots"
+    },
+    "inputMode": {
+      "type": "string",
+      "enum": ["tap"]
+    },
+    "rewards": {
+      "type": "object",
+      "required": ["starsOnComplete", "xp"],
+      "properties": {
+        "starsOnComplete": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "xp": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "successThresholdPct": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  }
+}

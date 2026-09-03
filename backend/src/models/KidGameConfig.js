@@ -11,7 +11,19 @@ module.exports = (sequelize, DataTypes) => {
       id: { type: DataTypes.STRING(50), primaryKey: true },
       lesson_id: { type: DataTypes.STRING(50), allowNull: false },
       template: {
-        type: DataTypes.ENUM('matching', 'tap-recognition', 'drag-sort', 'quiz'),
+        type: DataTypes.ENUM(
+          // Append-only (C2): order matters for MySQL ENUM — never reorder.
+          'matching',
+          'tap-recognition',
+          'drag-sort',
+          'quiz',
+          'fill-in-blank',
+          'puzzle-split',
+          'memory-pairs',
+          'label-diagram',
+          'stage-sequence',
+          'game-chain'
+        ),
         allowNull: false,
       },
       age_level: { type: DataTypes.STRING(20), allowNull: false },

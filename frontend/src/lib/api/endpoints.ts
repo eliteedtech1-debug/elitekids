@@ -126,6 +126,13 @@ export const ENDPOINTS = {
     SUBSCRIBE: '/kids/push/subscribe',
   },
 
+  // Learning path + weekly goals (TECH-SPEC-LEARNING-PATH §2.2/§2.3)
+  LEARNING_PATH: (studentId: string) => `/kids/learning-path?student_id=${encodeURIComponent(studentId)}`,
+  GOALS: {
+    GET: (admissionNo: string) => `/kids/goals/${encodeURIComponent(admissionNo)}`,
+    POST: (admissionNo: string) => `/kids/goals/${encodeURIComponent(admissionNo)}`,
+  },
+
   // E3f: Class Arena competitions
   ARENA: {
     ACTIVE: '/kids/arena/active',
@@ -184,6 +191,14 @@ export const ENDPOINTS = {
     SAVE_OPENSOURCE: '/media/save-opensource',
     SAVE_BATCH: '/media/save-opensource-batch',
     OPENSOURCE_ASSETS: '/media/opensource-assets',
+  },
+
+  // Illustrated story scenes (Phase 3): approved backgrounds/characters +
+  // per-game-type story scaffolds.
+  STORY: {
+    SCENE_LIBRARY: '/kids/scene-library',
+    TEMPLATES: (template?: string) =>
+      `/kids/story-templates${template ? `?template=${encodeURIComponent(template)}` : ''}`,
   },
 
   // E5 Phase 0: Adaptive Difficulty

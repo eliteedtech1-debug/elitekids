@@ -414,6 +414,29 @@
     'game.previewMode': 'Preview — no progress saved',
     'game.backToTeacher': '← Back to Teacher',
 
+    // ── Label Diagram (tap-the-part games) ───────────────────────────────────
+    'game.labelDiagram.noDiagram': 'No diagram picture was set for this game.',
+    'game.labelDiagram.noHotspots': 'No tappable parts were set for this diagram.',
+    'game.labelDiagram.tapThePart': 'Tap the {part}!',
+    'game.labelDiagram.chooseLabel': 'Which name is right?',
+    'game.labelDiagram.round': 'Part {current} of {total}',
+
+    // ── Stage Sequence (ordered simple→complex step graphics) ───────────────
+    'game.stageSequence.noSteps': 'No steps were set for this sequence.',
+    'game.stageSequence.watch': 'Watch it grow — step by step, simple to big!',
+    'game.stageSequence.step': 'Step {current} of {total}',
+    'game.stageSequence.startChecks': 'Show what I learned',
+    'game.stageSequence.check': 'Question {current} of {total}',
+    'game.stageSequence.checksIntro': 'Now show what you learned!',
+    'game.stageSequence.tapHint': 'Tap a step to hear it again — it moves to the next step by itself',
+    'game.stageSequence.nice': 'Nice!',
+    'game.stageSequence.brokenCheck': 'This question is missing its answers.',
+
+    // ── Story scenes (visual layer) ────────────────────────────────────────
+    'game.story.checkpointTag': 'Play time!',
+    'game.story.checkpointNow': "It's play time — show what you learned!",
+    'game.story.checkpointOther': 'Time to play a game, then come back to the story!',
+
 
     // ── Teacher: Lessons ───────────────────────────────────────────────────
     'teacher.lessons.title': 'Lessons',
@@ -575,7 +598,20 @@
   'gameCreator.invalidJson': '⚠ Invalid JSON: {error}',
   'gameCreator.sceneScripts': 'Scene Scripts (optional)',
   'gameCreator.scenesHint': 'Add scene scripts for animated narration (teach, story, recap scenes). Leave empty to skip. Must be a JSON array of scene objects.',
-  'gameSceneEditor.addScene': 'Add scene',
+  'sceneEditor.storyOutline': 'Story outline',
+  'sceneEditor.outlineBar': '✨ No story yet? Start from a ready-made arc',
+  'sceneEditor.outlineHint': 'Pick an outline for your game type, then personalise the words inside {curly} placeholders.',
+  'sceneEditor.outlineApplied': 'Outline applied — personalise the words!',
+  'sceneEditor.outlineDefault': 'Classic arc',
+  'sceneEditor.loadingOutlines': 'Loading outlines…',
+  'sceneEditor.transition': 'Transition',
+  'sceneEditor.durationSec': 'Auto-advance (s)',
+  'sceneEditor.imageUrl': 'Scene image',
+  'sceneEditor.background': 'Background',
+  'sceneEditor.characters': 'Characters (max 4)',
+  'sceneEditor.linkGame': 'Game lesson id *',    'gameSceneEditor.addScene': 'Add scene',
+  'gameSceneEditor.type.recap': 'Recap',
+  'gameSceneEditor.type.game_checkpoint': 'Game checkpoint',
   'gameSceneEditor.text': 'Narration text',
   'gameSceneEditor.textPlaceholder': 'What the narrator says on this scene…',
   'gameSceneEditor.typeLabel': 'Scene type',
@@ -619,6 +655,10 @@
   'gameCreator.tpl.fillBlank.desc': 'Sentence with missing words. Child picks from word bank.',
   'gameCreator.tpl.puzzleSplit.label': 'Puzzle Split',
   'gameCreator.tpl.puzzleSplit.desc': 'Image jigsaw with easy/medium/hard difficulty levels.',
+  'gameCreator.tpl.labelDiagram.label': 'Label Diagram',
+  'gameCreator.tpl.labelDiagram.desc': 'Tap the part of a real diagram when it is named — face, body, tree, car. Big parts first, then smaller.',
+  'gameCreator.tpl.stageSequence.label': 'Stage Sequence',
+  'gameCreator.tpl.stageSequence.desc': 'Step graphics that grow in order, simple to complex — clock times, plant growth, life stages. Never shuffled.',
 
   // ── Teacher: Live Class Audio ───────────────────────────────────────────
   'teacher.live.title': 'Live Class Audio',
@@ -802,6 +842,40 @@
   'student.tab.food': 'Food',
   'student.tab.festival': 'Festival',
   'student.tab.leaderboard': 'Trophy Board',
+  'student.tab.path': 'Learning Path',
+
+  // ── Student: Learning Path (replaces flat All-Games grid) ─────────────
+  'student.path.relation.passedBelow': '✅ Passed level',
+  'student.path.relation.spillover': '↪ Level below',
+  'student.path.relation.current': '🎯 Your level',
+  'student.path.state.passed': 'Passed — play again anytime',
+  'student.path.state.practiceDone': 'Practice done — pass the Test to finish this level',
+  'student.path.state.none': 'Not started yet',
+  'student.path.action.replay': 'Play again',
+  'student.path.action.test': 'Pass the Test',
+  'student.path.action.practice': 'Practice',
+  'student.path.unitShort': 'Unit {n}',
+  'student.path.untitledUnit': 'Unit {n}',
+  'student.path.youAreHere': '📍 You are here',
+  'student.path.lockedReason': 'Finish the previous level: play Practice AND pass the Test first.',
+  'student.path.empty': 'Your learning path is still growing 🌱',
+  'student.path.emptyBody': 'Your teacher is building your adventure — check back soon!',
+  'student.path.offlineBody': "You're offline — your path will appear when you are back online.",
+  'student.path.bandStart': '🎯 Your level starts here',
+  'student.path.finished': 'Path complete — you did it! 🎉',
+
+  // ── Student: Weekly goal card ──────────────────────────────────────────
+  'student.goal.title': 'This week’s goal',
+  'student.goal.childNote': 'Finish your target games to grow your garden 🌱',
+  'student.goal.teacherNote': 'Your teacher set this goal for your class',
+  'student.goal.doneLabel': 'Done',
+  'student.goal.todoLabel': 'To go',
+  'student.goal.set': 'Set my goal',
+  'student.goal.reached': 'Goal reached — you did it! 🎉',
+  'student.goal.choose': 'How many games will you finish this week?',
+  'student.goal.teacherHint': 'Your teacher chose this — you can only raise it.',
+  'student.goal.saveError': 'Couldn’t save your goal — try again.',
+  'student.goal.targetGames': 'Goal: {count} games this week',
 
   // ── Student: Live Bar ───────────────────────────────────────────────────
   'student.liveBar.teacherSpeaking': 'LIVE — Teacher is speaking to your class!',

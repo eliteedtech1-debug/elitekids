@@ -304,6 +304,46 @@ class OfflineContentManager {
     return entry.progress;
   }
 
+  /** Save the child's learning-path payload for offline rendering. */
+  async saveLearningPath(admissionNo: string, path: unknown): Promise<boolean> {
+    if (!admissionNo || !path) return false;
+    return offlineDB.put(STORES.gameConfigs, `path-${admissionNo}`, {
+      path,
+      cachedAt: Date.now(),
+    });
+  }
+
+  /** Load a cached learning path (24h freshness). */
+  async loadLearningPath(admissionNo: string): Promise<unknown | null> {
+    const entry = await offlineDB.get<{ path: unknown; cachedAt: number }>(
+      STORES.gameConfigs,
+      `path-${admissionNo}`
+    );
+    if (!entry?.path) return null;
+    if (Date.now() - entry.cachedAt > CACHE_TTL_MS) return null;
+    return entry.path;
+  }
+
+  /** Save the child's weekly-goal snapshot for offline rendering. */
+  async saveGoal(admissionNo: string, goal: unknown): Promise<boolean> {
+    if (!admissionNo || !goal) return false;
+    return offlineDB.put(STORES.gameConfigs, `goal-${admissionNo}`, {
+      goal,
+      cachedAt: Date.now(),
+    });
+  }
+
+  /** Load a cached weekly goal (24h freshness). */
+  async loadGoal(admissionNo: string): Promise<unknown | null> {
+    const entry = await offlineDB.get<{ goal: unknown; cachedAt: number }>(
+      STORES.gameConfigs,
+      `goal-${admissionNo}`
+    );
+    if (!entry?.goal) return null;
+    if (Date.now() - entry.cachedAt > CACHE_TTL_MS) return null;
+    return entry.goal;
+  }
+
   /**
    * Clear all cached content (factory reset).
    */

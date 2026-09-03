@@ -1,0 +1,302 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StageSequenceGameConfig",
+  "type": "object",
+  "description": "Category of games that learn through an ORDERED series/queue of step graphics — always simple → complex, never random. Covers clock progression, lifecycles (human, animal), plant growth, money steps, and most staged learning.",
+  "required": [
+    "gameId",
+    "template",
+    "lessonId",
+    "ageLevel",
+    "category",
+    "tier",
+    "item_id",
+    "steps",
+    "assessment",
+    "rewards",
+    "successThresholdPct"
+  ],
+  "properties": {
+    "gameId": {
+      "type": "string"
+    },
+    "template": {
+      "const": "stage-sequence"
+    },
+    "lessonId": {
+      "type": "string"
+    },
+    "ageLevel": {
+      "type": "string",
+      "enum": [
+        "Creche",
+        "Nursery",
+        "KG1",
+        "KG2",
+        "Primary"
+      ]
+    },
+    "category": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "item_id": {
+      "type": "string"
+    },
+    "series_id": {
+      "type": "string"
+    },
+    "unit_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "topic": {
+      "type": "string",
+      "description": "Domain of the progression, e.g. 'clock', 'lifecycle-human', 'lifecycle-plant', 'plant-growth', 'money', 'animal-growth'"
+    },
+    "durationTargetSec": {
+      "type": "integer",
+      "minimum": 15,
+      "maximum": 600
+    },
+    "promptMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio", "context"],
+      "description": "How each step is presented (default image: the step graphic)"
+    },
+    "responseMode": {
+      "type": "string",
+      "enum": ["text", "image", "audio"],
+      "description": "How the child responds (default text: tapping the correct closing answer)"
+    },
+    "characters": {
+      "type": "array",
+      "description": "Recurring child-friendly characters. Image > Emoji > Text.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
+          "emoji": { "type": "string", "description": "Character emoji fallback" },
+          "personality": { "type": "string" }
+        }
+      }
+    },
+    "scenario": {
+      "type": "string"
+    },
+    "hint": {
+      "type": "string"
+    },
+    "feedbackCorrect": {
+      "type": "string"
+    },
+    "feedbackWrong": {
+      "type": "string"
+    },
+    "speechText": {
+      "type": "string"
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 30,
+      "description": "The ordered queue — step graphics from SIMPLE to COMPLEX. Renderers MUST play them in array order; order is the pedagogy.",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "kind"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "Short stage name, e.g. 'Quarter past three', 'Seedling', 'Adult'"
+          },
+          "narration": {
+            "type": "string",
+            "description": "Text read aloud via TTS for this step"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["image", "analog-clock", "emoji"]
+          },
+          "image": {
+            "type": "string",
+            "description": "Step graphic (real art / B2 media key). Required when kind=image."
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^([1-9]|1[0-2]):[0-5][0-9]$",
+            "description": "Analog time to render via AnalogClock SVG. Required when kind=analog-clock (e.g. 1:00, 3:15, 12:00)."
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Emoji fallback graphic. Required when kind=emoji."
+          },
+          "durationSec": {
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 60,
+            "description": "Auto-advance seconds for this step (defaults to engine default)"
+          }
+        },
+        "oneOf": [
+          {
+            "properties": { "kind": { "const": "image" } },
+            "required": ["kind", "image"]
+          },
+          {
+            "properties": { "kind": { "const": "analog-clock" } },
+            "required": ["kind", "time"]
+          },
+          {
+            "properties": { "kind": { "const": "emoji" } },
+            "required": ["kind", "emoji"]
+          }
+        ]
+      }
+    },
+    "assessment": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "description": "Closing check questions proving the sequence was learned (simple → complex order). kinds: text/analog-clock/image = chip choice (options + correctIndex); label-diagram = tap-the-part challenge on a real diagram (combines label-diagram with stage-sequence, e.g. plant growth sequence ends with 'tap the parts of the grown plant').",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Question text, e.g. 'What comes after the seedling?' / 'What time is it?' / 'Tap the leaf!'"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["text", "analog-clock", "image", "label-diagram"],
+            "default": "text",
+            "description": "analog-clock renders an AnalogClock; label-diagram renders a diagram with tappable hotspot parts"
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^([1-9]|1[0-2]):[0-5][0-9]$",
+            "description": "Required when kind=analog-clock"
+          },
+          "image": {
+            "type": "string",
+            "description": "Required when kind=image"
+          },
+          "diagram": {
+            "type": "object",
+            "required": ["image"],
+            "properties": {
+              "image": {
+                "type": "string",
+                "description": "Diagram art URL/asset key (real art, never bare emoji)"
+              },
+              "alt": {
+                "type": "string"
+              },
+              "background": {
+                "type": "string"
+              }
+            },
+            "description": "Required when kind=label-diagram"
+          },
+          "hotspots": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "required": ["id", "label", "x", "y", "r"],
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" },
+                "x": { "type": "number", "minimum": 0, "maximum": 100 },
+                "y": { "type": "number", "minimum": 0, "maximum": 100 },
+                "r": { "type": "number", "minimum": 1, "maximum": 50 },
+                "emoji": { "type": "string" }
+              }
+            },
+            "description": "Tap zones (percent coords). Required when kind=label-diagram."
+          },
+          "correctId": {
+            "type": "string",
+            "description": "hotspot id the child must tap. Required when kind=label-diagram."
+          },
+          "hint": {
+            "type": "string"
+          },
+          "speechText": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+              "type": "string"
+            },
+            "description": "Choice chips. Required for kinds text/analog-clock/image."
+          },
+          "correctIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Index of the correct chip. Required for kinds text/analog-clock/image."
+          }
+        },
+        "if": {
+          "properties": { "kind": { "const": "label-diagram" } }
+        },
+        "then": {
+          "required": ["diagram", "hotspots", "correctId"]
+        },
+        "else": {
+          "required": ["options", "correctIndex"],
+          "if": {
+            "properties": { "kind": { "const": "analog-clock" } }
+          },
+          "then": {
+            "required": ["time"]
+          },
+          "else": {
+            "if": {
+              "properties": { "kind": { "const": "image" } }
+            },
+            "then": {
+              "required": ["image"]
+            }
+          }
+        }
+      }
+    },
+    "rewards": {
+      "type": "object",
+      "required": ["starsOnComplete", "xp"],
+      "properties": {
+        "starsOnComplete": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "xp": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "successThresholdPct": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  }
+}

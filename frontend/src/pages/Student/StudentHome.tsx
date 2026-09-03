@@ -5,6 +5,7 @@ import {
   Loader2,
   LogOut,
   RefreshCw,
+  Route,
   Star,
   Zap,
   BookOpen,
@@ -41,6 +42,15 @@ import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/strea
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
 import { offlineContent } from '@/lib/offline/content';
 import { t, tN } from '@/lib/i18n';
+import LearningPath from '@/components/LearningPath';
+import GoalCard from '@/components/GoalCard';
+import {
+  classToAgeLevel,
+  filterInBand,
+  type GameMode,
+  type LearningPathData,
+  type WeeklyGoal,
+} from '@/lib/utils/learningPath';
 
 /* ── Types ────────────────────────────────────────────────────── */
 
@@ -78,20 +88,21 @@ interface Tab {
   key: string;
   labelKey: string;
   icon: React.ReactNode;
+  /** 'path' renders the LearningPath dashboard; 'grid' tabs list lessons. */
+  view: 'path' | 'grid' | 'special';
   filter: (l: LessonCard) => boolean;
-  special?: boolean;
 }
 
 const TABS: Tab[] = [
-  { key: 'all', labelKey: 'student.tab.all', icon: <Gamepad2 className="h-4 w-4" />, filter: () => true },
-  { key: 'numbers', labelKey: 'student.tab.numbers', icon: <Hash className="h-4 w-4" />, filter: (l) => /count|number|math|drag-sort/i.test(l.subject + l.title) },
-  { key: 'letters', labelKey: 'student.tab.letters', icon: <BookOpen className="h-4 w-4" />, filter: (l) => /abc|letter|english|phon/i.test(l.subject + l.title) },
-  { key: 'colors', labelKey: 'student.tab.colors', icon: <Palette className="h-4 w-4" />, filter: (l) => /color|art|creati/i.test(l.subject + l.title) },
-  { key: 'shapes', labelKey: 'student.tab.shapes', icon: <Shapes className="h-4 w-4" />, filter: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
-  { key: 'animals', labelKey: 'student.tab.animals', icon: <PawPrint className="h-4 w-4" />, filter: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
-  { key: 'food', labelKey: 'student.tab.food', icon: <Apple className="h-4 w-4" />, filter: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
-  { key: 'festival', labelKey: 'student.tab.festival', icon: <Swords className="h-4 w-4" />, filter: () => true, special: true },
-  { key: 'leaderboard', labelKey: 'student.tab.leaderboard', icon: <Trophy className="h-4 w-4" />, filter: () => true, special: true },
+  { key: 'path', labelKey: 'student.tab.path', icon: <Route className="h-4 w-4" />, view: 'path', filter: () => false },
+  { key: 'numbers', labelKey: 'student.tab.numbers', icon: <Hash className="h-4 w-4" />, view: 'grid', filter: (l) => /count|number|math|drag-sort/i.test(l.subject + l.title) },
+  { key: 'letters', labelKey: 'student.tab.letters', icon: <BookOpen className="h-4 w-4" />, view: 'grid', filter: (l) => /abc|letter|english|phon/i.test(l.subject + l.title) },
+  { key: 'colors', labelKey: 'student.tab.colors', icon: <Palette className="h-4 w-4" />, view: 'grid', filter: (l) => /color|art|creati/i.test(l.subject + l.title) },
+  { key: 'shapes', labelKey: 'student.tab.shapes', icon: <Shapes className="h-4 w-4" />, view: 'grid', filter: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
+  { key: 'animals', labelKey: 'student.tab.animals', icon: <PawPrint className="h-4 w-4" />, view: 'grid', filter: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
+  { key: 'food', labelKey: 'student.tab.food', icon: <Apple className="h-4 w-4" />, view: 'grid', filter: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
+  { key: 'festival', labelKey: 'student.tab.festival', icon: <Swords className="h-4 w-4" />, view: 'special', filter: () => true },
+  { key: 'leaderboard', labelKey: 'student.tab.leaderboard', icon: <Trophy className="h-4 w-4" />, view: 'special', filter: () => true },
 ];
 
 /* ── Age-level badge colors (from accessibility palette) ── */
@@ -100,65 +111,6 @@ function getAgeColor(ageLevel: string, colorblind: boolean): string {
   const entry = AGE_LEVEL_COLORS[ageLevel];
   if (!entry) return 'bg-gray-100 text-gray-600';
   return colorblind ? entry.colorblind : entry.standard;
-}
-
-/** Map a student's class_name to the lesson age_level category. */
-function classToAgeLevel(className: string | null | undefined): string | null {
-  if (!className) return null;
-  const raw = className.trim();
-  const normalized = raw
-    .toLowerCase()
-    .replace(/cls\d+/g, '')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!normalized) return null;
-
-  if (/creche|pre.?nursery|pre.?school/.test(normalized)) return 'Creche';
-  if (/nursery|nurs/.test(normalized)) return 'Nursery';
-  if (/\bkg1\b|kindergarten.?1|\bkg.?1\b/.test(normalized)) return 'KG1';
-  if (/\bkg2\b|kindergarten.?2|\bkg.?2\b/.test(normalized)) return 'KG2';
-  if (/\bkg3\b|kindergarten.?3|\bkg.?3\b/.test(normalized)) return 'Primary';
-
-  const basicMatch = normalized.match(/\bbasic\s*(\d+)/);
-  if (basicMatch) {
-    const num = parseInt(basicMatch[1]);
-    if (num <= 1) return 'KG1';
-    if (num <= 2) return 'KG2';
-    return 'Primary';
-  }
-
-  if (/\bjss\s*\d|\bjunior\s*sec|\bjunior\b/.test(normalized)) return 'Primary';
-  if (/\bsss\s*\d|\bsenior\s*sec|\bsenior\b/.test(normalized)) return 'Primary';
-
-  if (/hadana|hifz|huffaz|halkat/.test(normalized)) return 'Primary';
-  if (/islamiyya|islamic|madrasa|madrasah|tarbiyah/.test(normalized)) return 'Primary';
-  if (/quran|koran|tajweed/.test(normalized)) return 'Primary';
-
-  const levelMatch = normalized.match(/\b(?:level|class|grade|form|std|standard|year|stage)\s*(\d+)/);
-  if (levelMatch) {
-    const num = parseInt(levelMatch[1]);
-    if (num <= 1) return 'Creche';
-    if (num <= 2) return 'Nursery';
-    if (num <= 3) return 'KG1';
-    if (num <= 4) return 'KG2';
-    return 'Primary';
-  }
-
-  const bareNum = normalized.match(/(\d+)\s*$/);
-  if (bareNum) {
-    const num = parseInt(bareNum[1]);
-    if (num <= 1) return 'KG1';
-    if (num <= 2) return 'KG2';
-    return 'Primary';
-  }
-
-  if (/primar|basic|element|junior/.test(normalized)) return 'Primary';
-  if (/nurs|toddler|baby|infant/.test(normalized)) return 'Nursery';
-  if (/pre/.test(normalized)) return 'Creche';
-
-  return null;
 }
 
 /* ── Floating decoration for game feel ─────────────────────── */
@@ -187,7 +139,8 @@ export default function StudentHome() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('path');
+  const [pathData, setPathData] = useState<LearningPathData | null>(null);
   const [showBossRaid, setShowBossRaid] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [companion, setCompanion] = useState<any>(null);
@@ -247,6 +200,23 @@ export default function StudentHome() {
             setProgress(cachedProgress as ProgressData);
           } else if (!offlineHydrated) {
             throw progressErr;
+          }
+        }
+
+        // Learning path + embedded weekly goal (server band-caps, locks and
+        // orders spill-over first). Falls back to the cached snapshot offline.
+        const pathRes = await apiClient
+          .get(ENDPOINTS.LEARNING_PATH(String(admissionNo)))
+          .catch(() => null);
+        if (pathRes?.data?.data) {
+          setPathData(pathRes.data.data);
+          offlineContent.saveLearningPath(String(admissionNo), pathRes.data.data).catch(() => {});
+        } else {
+          const cachedPath = await offlineContent.loadLearningPath(String(admissionNo)).catch(() => null);
+          if (cachedPath) {
+            setPathData(cachedPath as LearningPathData);
+            setOfflineMode(true);
+            offlineHydrated = true;
           }
         }
 
@@ -311,36 +281,27 @@ export default function StudentHome() {
     navigate('/login');
   }, [navigate]);
 
-  const filteredLessons = useMemo(() => {
-    const studentAgeLevel = classToAgeLevel(student?.class_name);
+  const studentBand = useMemo(() => classToAgeLevel(student?.class_name), [student?.class_name]);
 
-    const AGE_HIERARCHY = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'];
-    const getAdjacentLevels = (level: string): string[] => {
-      const idx = AGE_HIERARCHY.indexOf(level);
-      if (idx === -1) return AGE_HIERARCHY;
-      const adjacent = [AGE_HIERARCHY[idx]];
-      if (idx > 0) adjacent.push(AGE_HIERARCHY[idx - 1]);
-      if (idx < AGE_HIERARCHY.length - 1) adjacent.push(AGE_HIERARCHY[idx + 1]);
-      return adjacent;
-    };
+  // Subject tabs list ONLY lessons at-or-below the child's band — a hard
+  // ceiling, no exact → adjacent → ALL fallback (the live list is already
+  // band-capped server-side; this keeps the offline catalog honest too).
+  const bandLessons = useMemo(() => filterInBand(lessons, studentBand), [lessons, studentBand]);
+  const gridLessons = useMemo(() => {
+    const tab = TABS.find((x) => x.key === activeTab);
+    return tab && tab.view === 'grid' ? bandLessons.filter(tab.filter) : bandLessons;
+  }, [bandLessons, activeTab]);
 
-    let classFiltered: typeof lessons;
-    if (studentAgeLevel) {
-      const exact = lessons.filter((l) => l.age_level === studentAgeLevel);
-      if (exact.length > 0) {
-        classFiltered = exact;
-      } else {
-        const adjacent = getAdjacentLevels(studentAgeLevel);
-        classFiltered = lessons.filter((l) => adjacent.includes(l.age_level));
-        if (classFiltered.length === 0) classFiltered = lessons;
-      }
-    } else {
-      classFiltered = lessons;
-    }
+  /** Open a lesson from the path in the mode its state calls for. */
+  const openLesson = useCallback((lessonId: string, mode: GameMode) => {
+    playTap();
+    navigate(`/student/game/${lessonId}?mode=${mode}`);
+  }, [navigate]);
 
-    const tab = TABS.find((t) => t.key === activeTab);
-    return tab ? classFiltered.filter(tab.filter) : classFiltered;
-  }, [lessons, activeTab, student?.class_name]);
+  /** Keep the path payload's embedded goal in sync after a child sets it. */
+  const handleGoalUpdated = useCallback((goal: WeeklyGoal) => {
+    setPathData((prev) => (prev ? { ...prev, goal } : prev));
+  }, []);
 
   const displayName = student?.student_name || student?.name || student?.admission_no || t('student.home.defaultName');
   const summary = progress || { total_xp: 0, total_stars: 0, games_completed: 0, game_stats: {} } as ProgressData;
@@ -480,11 +441,13 @@ export default function StudentHome() {
           </div>
         ) : (
           <>
-            {/* Tabs — game-style pill navigation */}
+            {/* Tabs — game-style pill navigation (Learning Path is the default) */}
             <div className="mb-5 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {TABS.map((tab, idx) => {
-                const count = lessons.filter(tab.filter).length;
-                if (tab.key !== 'all' && count === 0) return null;
+                // Subject pills hide when the child has no in-band lessons there;
+                // path/festival/trophy pills always show.
+                const count = tab.view === 'grid' ? bandLessons.filter(tab.filter).length : 0;
+                if (tab.view === 'grid' && count === 0) return null;
                 return (
                   <button
                     key={tab.key}
@@ -497,9 +460,11 @@ export default function StudentHome() {
                   >
                     {tab.icon}
                     {t(tab.labelKey)}
-                    <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === tab.key ? 'bg-white/20' : 'bg-gray-100'}`}>
-                      {count}
-                    </span>
+                    {tab.view === 'grid' && (
+                      <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === tab.key ? 'bg-white/20' : 'bg-gray-100'}`}>
+                        {count}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -509,13 +474,45 @@ export default function StudentHome() {
               <StudentFestival onGoPlay={() => navigate('/student')} />
             ) : activeTab === 'leaderboard' ? (
               <StudentLeaderboardPanel />
+            ) : activeTab === 'path' ? (
+              <>
+                {/* Path header + refresh */}
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-gray-800">{t('student.tab.path')}</h2>
+                  <button
+                    onClick={loadData}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-white/80 backdrop-blur-sm border border-[#0F4D92]/15 px-3 py-1.5 text-sm font-medium text-[#0F4D92] transition hover:bg-[#0F4D92]/5 hover:shadow-md disabled:opacity-50 active:scale-95"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+
+                {/* Weekly goal banner */}
+                <div className="mb-4">
+                  <GoalCard
+                    admissionNo={String(student?.admission_no || student?.id || '')}
+                    goal={pathData?.goal || null}
+                    loading={loading}
+                    onUpdated={handleGoalUpdated}
+                  />
+                </div>
+
+                {/* The journey — server-ordered, band-capped, locked-gated */}
+                <LearningPath
+                  data={pathData}
+                  loading={loading}
+                  offline={offlineMode}
+                  onOpenLesson={openLesson}
+                />
+              </>
             ) : (
             <>
             {/* Section header */}
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800">
-                {TABS.find((t) => t.key === activeTab) ? t(TABS.find((t) => t.key === activeTab)!.labelKey) : t('student.tab.all')}
-                <span className="ml-2 text-sm font-normal text-gray-400">({filteredLessons.length})</span>
+                {t(TABS.find((tb) => tb.key === activeTab)!.labelKey)}
+                <span className="ml-2 text-sm font-normal text-gray-400">({gridLessons.length})</span>
               </h2>
               <button
                 onClick={loadData}
@@ -526,8 +523,8 @@ export default function StudentHome() {
               </button>
             </div>
 
-            {/* Game cards grid */}
-            {filteredLessons.length === 0 ? (
+            {/* Game cards grid (subject browse — in-band only) */}
+            {gridLessons.length === 0 ? (
               <div className="relative overflow-hidden rounded-3xl border-2 border-dashed border-[#0F4D92]/20 bg-white/80 backdrop-blur-xl p-10 text-center shadow-lg">
                 <FloatingDeco className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-[#0F4D92]/15 to-[#0d9488]/15" />
                 <Gamepad2 className="mx-auto mb-3 h-10 w-10 text-[#0F4D92]/40" />
@@ -542,7 +539,7 @@ export default function StudentHome() {
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredLessons.map((lesson, cardIdx) => {
+                {gridLessons.map((lesson, cardIdx) => {
                   const ageColor = getAgeColor(lesson.age_level, colorblindMode);
                   const stat = gameStats[lesson.id];
                   const played = stat?.times_played || 0;

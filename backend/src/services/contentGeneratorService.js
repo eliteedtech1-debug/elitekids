@@ -101,7 +101,8 @@ CRITICAL RULES:
 - starsOnComplete: always 3; xp: 10 + (itemCount * 5)
 - durationTargetSec: Creche/Nursery=30, KG1=45, KG2=60, Primary=90
 
-Available templates: matching, tap-recognition, drag-sort, quiz, fill-in-blank, memory-pairs
+Available templates: matching, tap-recognition, drag-sort, quiz, fill-in-blank, memory-pairs, puzzle-split, label-diagram, stage-sequence, game-chain
+(game-chain is a teacher-built template — an ordered list of whole sub-game rounds — and is NOT auto-generated.)
 For fill-in-blank: create a sentence with ___ blanks, provide blanks array [{id, answer}] and wordBank (correct words + distractors).`;
 }
 
@@ -446,13 +447,65 @@ Each item in assets.items must have: id, image, matches (partner's id)
 Output a JSON object with exactly these keys: gameId, template ("memory-pairs"), lessonId, ageLevel, durationTargetSec, characters, scenario, hint, feedbackCorrect, feedbackWrong, speechText, assets (with background key and items array where every item has id/image/matches), rewards (starsOnComplete:3, xp:N), successThresholdPct.`;
 }
 
+function labelDiagramPrompt(lesson, ageLevel) {
+  const hay = `${lesson.title} ${lesson.subject} ${lesson.lesson_text || ''}`.toLowerCase();
+  const relevant = /\b(body|human|face|parts?|plant|tree|flower|leaf|root|stem|car|vehicle|wheel|appliance|diagram|science)\b/.test(hay);
+  if (!relevant) throw new Error(`skip: lesson not suitable for label-diagram (${lesson.title})`);
+  return `Generate a LABEL-DIAGRAM game config JSON for this lesson — the child taps parts ON a real diagram image.
+
+Lesson: "${lesson.title}"
+Subject: ${lesson.subject}
+Age Level: ${ageLevel}
+${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
+
+═══ OUTPUT FORMAT (valid JSON only) ═══
+- gameId, template: "label-diagram", lessonId, ageLevel, category, tier (1 for Nursery/KG, 2 for Primary), item_id
+- diagram: { image: "media/{lessonId}/diagram.webp" (relative asset key — the asset pipeline renders real art later), alt, background }
+- hotspots: array of >=5 parts. Each: { id, label, x, y, r, emoji } where x/y are the part's center as PERCENT of the diagram (0-100) and r is a generous hit radius in percent — parts must not overlap.
+- labelBank: the correct labels PLUS >=2 distractor labels (for part-to-label mode chips)
+- mode: "label-to-part" for Creche/Nursery/KG1, "mixed" for KG2, "part-to-label" for Primary
+- rounds: equal to the number of hotspots
+- inputMode: "tap", promptMode: "text", responseMode: "image"
+- rewards: { starsOnComplete: 3, xp }, successThresholdPct (Creche/Nursery 50, KG1 60, KG2 70, Primary 75)
+- Optional: characters, scenario, hint, feedbackCorrect, feedbackWrong, speechText.
+Output ONLY the JSON object — no markdown, no explanation.`;
+}
+
+function stageSequencePrompt(lesson, ageLevel) {
+  const hay = `${lesson.title} ${lesson.subject} ${lesson.lesson_text || ''}`.toLowerCase();
+  const relevant = /\b(time|clock|watch|hour|minute|quarter|o'clock|money|coin|naira|kobo|life cycle|lifecycle|grow|growth|seed|plant|tree|flower|baby|infant|child|adult|old age|stage|sequence|numeracy|maths?|science)\b/.test(hay);
+  if (!relevant) throw new Error(`skip: lesson not suitable for stage-sequence (${lesson.title})`);
+  return `Generate a STAGE-SEQUENCE game config JSON for this lesson — the child watches an ORDERED queue of step graphics from SIMPLE to COMPLEX (never random), then answers closing check questions.
+
+Lesson: "${lesson.title}"
+Subject: ${lesson.subject}
+Age Level: ${ageLevel}
+${lesson.lesson_text ? `Lesson Content: ${lesson.lesson_text}` : ''}
+
+Examples of valid progressions: clock 1:00 -> 2:00 -> 3:00 -> 6:00 -> 9:00 -> 12:00 -> 3:15 -> 3:30 -> 3:45; plant seed -> sprout -> seedling -> flower -> fruit -> harvest; human baby -> toddler -> child -> teenager -> adult -> elderly.
+
+═══ OUTPUT FORMAT (valid JSON only) ═══
+- gameId, template: "stage-sequence", lessonId, ageLevel, category, tier, item_id, topic (e.g. "clock", "lifecycle", "plant-growth")
+- steps: ordered array of >=3 (5-12 for clock/money work) frames. Each: { id, label, narration (what TTS reads aloud), kind: "image" | "analog-clock" | "emoji", image: "media/{lessonId}/step-01.webp" when kind=image, time: "3:15" when kind=analog-clock (hour 1-12, minutes 0/15/30/45), emoji when kind=emoji }
+  Steps MUST go simple to complex and MUST NOT be shuffled.
+- assessment: array of >=3 closing check questions. Each: { id, prompt (default "What comes next?" / clock: "What time is it?"), kind: "text" | "analog-clock", time when kind=analog-clock, options: 4 strings (1 correct + 3 distractors), correctIndex }
+- promptMode: "image", responseMode: "text"
+- rewards: { starsOnComplete: 3, xp }, successThresholdPct (Creche/Nursery 50, KG1 60, KG2 70, Primary 75)
+- Optional: characters, scenario, hint, feedbackCorrect, feedbackWrong, speechText.
+Output ONLY the JSON object — no markdown, no explanation.`;
+}
+
 const TEMPLATE_PROMPT_BUILDERS = {
   matching: matchingPrompt,
+  'label-diagram': labelDiagramPrompt,
+  'stage-sequence': stageSequencePrompt,
   'tap-recognition': tapPrompt,
   'drag-sort': dragSortPrompt,
   quiz: quizPrompt,
   'fill-in-blank': fillBlankPrompt,
   'memory-pairs': memoryPairsPrompt,
+  // game-chain deliberately NOT in this map: it is teacher-built (ordered
+  // heterogeneous rounds); auto-generating nested configs risks malformed JSON.
 };
 
 // ── AI call with structured JSON output ──────────────────────────────────────
@@ -484,7 +537,7 @@ async function callGemini(systemPrompt, userPrompt) {
 
 // ── Game Config generation ───────────────────────────────────────────────────
 async function generateGameConfig({ lesson, school_id }) {
-  const templates = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'memory-pairs', 'puzzle-split'];
+  const templates = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'memory-pairs', 'puzzle-split', 'label-diagram', 'stage-sequence'];
   const model_provider = 'gemini';
   const model_version = getModelName();
 
@@ -514,10 +567,10 @@ async function generateGameConfig({ lesson, school_id }) {
 
         // Cross-modal defaults: enforce pedagogically correct prompt/response modes
         if (!raw.promptMode) {
-          raw.promptMode = { 'tap-recognition': 'image', quiz: 'image', matching: 'text', 'memory-pairs': 'text', 'drag-sort': 'text', 'fill-in-blank': 'text' }[template] || 'text';
+          raw.promptMode = { 'tap-recognition': 'image', quiz: 'image', matching: 'text', 'memory-pairs': 'text', 'drag-sort': 'text', 'fill-in-blank': 'text', 'label-diagram': 'text', 'stage-sequence': 'image' }[template] || 'text';
         }
         if (!raw.responseMode) {
-          raw.responseMode = { 'tap-recognition': 'text', quiz: 'text', matching: 'image', 'memory-pairs': 'image', 'drag-sort': 'image', 'fill-in-blank': 'text' }[template] || 'text';
+          raw.responseMode = { 'tap-recognition': 'text', quiz: 'text', matching: 'image', 'memory-pairs': 'image', 'drag-sort': 'image', 'fill-in-blank': 'text', 'label-diagram': 'image', 'stage-sequence': 'text' }[template] || 'text';
         }
 
         const config = validateConfig(template, raw);
@@ -631,7 +684,7 @@ async function persistSceneScript({ lesson_id, scenes, model_provider, model_ver
     await db.KidSceneScript.create({
       id,
       lesson_id,
-      scene_type: scene.sceneType || 'teach',
+      scene_type: scene.type || scene.sceneType || 'teach',
       script_json: scene,
       schema_version: '1.0',
       content_state: 'pending_human_review',
