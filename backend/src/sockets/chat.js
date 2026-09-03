@@ -89,7 +89,7 @@ function attach(server) {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
       socket.user = decoded;
-      socket.allowedChildren = await resolveAllowedChildren(decoded, require('../models'));
+      socket.allowedChildren = await resolveAllowedChildren(decoded, () => require('../models'));
       next();
     } catch (err) {
       next(new Error('Invalid or expired token'));

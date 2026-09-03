@@ -109,6 +109,14 @@ const TEMPLATES = [
     color: 'bg-cyan-50 border-cyan-200 text-cyan-700',
     activeColor: 'bg-cyan-100 border-cyan-500 ring-2 ring-cyan-200 text-cyan-800',
   },
+  {
+    id: 'game-chain',
+    labelKey: 'gameCreator.tpl.gameChain.label',
+    icon: <TrendingUp className="h-5 w-5" />,
+    descKey: 'gameCreator.tpl.gameChain.desc',
+    color: 'bg-orange-50 border-orange-200 text-orange-700',
+    activeColor: 'bg-orange-100 border-orange-500 ring-2 ring-orange-200 text-orange-800',
+  },
 ] as const;
 
 /* ── JSON Editor Template ──────────────────────────────── */
@@ -128,6 +136,8 @@ function getConfigTemplate(template: string, ageLevel: string): string {
     'label-diagram': { promptMode: 'text', responseMode: 'image' },
     // Steps play as image/analog-clock prompts → child answers closing text checks
     'stage-sequence': { promptMode: 'image', responseMode: 'text' },
+    // Ordered whole sub-game rounds (simple → complex, never shuffled)
+    'game-chain': { promptMode: 'text', responseMode: 'text' },
   };
   const modes = defaultModes[template] || { promptMode: 'text', responseMode: 'text' };
 
@@ -313,6 +323,70 @@ function getConfigTemplate(template: string, ageLevel: string): string {
             { id: 'root', label: 'Root', x: 50, y: 90, r: 8, emoji: '🫘' },
           ],
           correctId: 'flower',
+        },
+      ],
+    },
+    // Ordered WHOLE sub-game rounds (simple → complex, never shuffled). Each
+    // round is a full sub-game config; the chain scores the whole session.
+    // Swap example.com assets for real art before publishing.
+    'game-chain': {
+      ...base,
+      scenario: 'Help Maya sort and label — one round, then the next, simple to big!',
+      characters: [{ name: 'Maya', emoji: '👩🏾\u200d🌾', personality: 'kind' }],
+      rounds: [
+        {
+          id: 'r1',
+          label: 'Sort the shapes',
+          template: 'drag-sort',
+          config: {
+            template: 'drag-sort',
+            lessonId: 'LESSON_ID_WILL_BE_SET',
+            ageLevel,
+            category: 'general',
+            tier: 0,
+            item_id: `item-${Date.now()}-r1`,
+            promptMode: 'text',
+            responseMode: 'image',
+            assets: {
+              background: 'https://example.com/bg.png',
+              buckets: [
+                { id: 'b1', label: 'Circles', image: 'https://example.com/circle-icon.png' },
+                { id: 'b2', label: 'Squares', image: 'https://example.com/square-icon.png' },
+              ],
+              items: [
+                { id: 'i1', image: 'https://example.com/circle-red.png', bucketId: 'b1' },
+                { id: 'i2', image: 'https://example.com/square-blue.png', bucketId: 'b2' },
+                { id: 'i3', image: 'https://example.com/circle-green.png', bucketId: 'b1' },
+                { id: 'i4', image: 'https://example.com/square-yellow.png', bucketId: 'b2' },
+              ],
+            },
+          },
+        },
+        {
+          id: 'r2',
+          label: 'Label the face',
+          template: 'label-diagram',
+          config: {
+            template: 'label-diagram',
+            lessonId: 'LESSON_ID_WILL_BE_SET',
+            ageLevel,
+            category: 'general',
+            tier: 0,
+            item_id: `item-${Date.now()}-r2`,
+            promptMode: 'text',
+            responseMode: 'image',
+            diagram: { image: 'https://example.com/human-face-diagram.png', alt: "A child's face", background: 'classroom' },
+            hotspots: [
+              { id: 'nose', label: 'Nose', x: 50, y: 46, r: 7, emoji: '👃' },
+              { id: 'left-eye', label: 'Left eye', x: 39, y: 38, r: 6, emoji: '👁️' },
+              { id: 'right-eye', label: 'Right eye', x: 61, y: 38, r: 6, emoji: '👁️' },
+              { id: 'mouth', label: 'Mouth', x: 50, y: 60, r: 7, emoji: '👄' },
+            ],
+            labelBank: ['Nose', 'Left eye', 'Right eye', 'Mouth', 'Chin', 'Ear'],
+            mode: 'mixed',
+            rounds: 4,
+            speechText: 'Tap the part of the face I name! First, where is the nose?',
+          },
         },
       ],
     },

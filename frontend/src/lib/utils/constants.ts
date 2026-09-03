@@ -52,4 +52,5 @@ export const GAME_TEMPLATES = [
   'puzzle-split',
   'label-diagram',
   'stage-sequence',
+  'game-chain',
 ] as const;

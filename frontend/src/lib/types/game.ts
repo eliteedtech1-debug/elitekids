@@ -78,6 +78,12 @@ export const GAME_INTERACTIONS: Record<string, GameTypeInteractions> = {
     promptModes: ['image', 'audio', 'text'],
     responseModes: ['text', 'image'],
   },
+  // Ordered chain of whole sub-game rounds (each round keeps its own modes).
+  // The chain is the pedagogy: rounds play simple → complex, never shuffled.
+  'game-chain': {
+    promptModes: ['text', 'image', 'audio', 'context'],
+    responseModes: ['text', 'image', 'audio'],
+  },
 };
 
 /* ── Validation ─────────────────────────────────────────── */

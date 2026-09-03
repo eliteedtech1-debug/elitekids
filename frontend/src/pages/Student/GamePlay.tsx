@@ -3363,6 +3363,154 @@ function PuzzleGame({
   );
 }
 
+/* ── Game Chain Game ─────────────────────────────────────────── */
+
+/**
+ * GameChainGame — ONE lesson that plays an ORDERED sequence of whole
+ * sub-game rounds (e.g. drag-sort → label-diagram → memory-pairs) as a single
+ * scored session. Rounds run in array order (simple → complex, never
+ * shuffled); each round is a full sub-game rendered by its own component.
+ * Score accumulates across rounds; the parent's onComplete fires once with
+ * the chain total when the LAST round finishes.
+ */
+function GameChainGame({
+  config, onComplete, soundOn, mode, onAnswer,
+}: {
+  config: any;
+  onComplete: (score: number) => void;
+  soundOn: boolean;
+  mode: GameMode;
+  onAnswer?: (r: AnswerResult) => void;
+}) {
+  const rounds = useMemo(
+    () => (Array.isArray(config?.rounds) ? config.rounds.filter((r: any) => r && r.id && r.template && r.config) : []),
+    [config],
+  );
+  const [roundIdx, setRoundIdx] = useState(0);
+  const [roundDone, setRoundDone] = useState(false);
+  const totalRef = useRef(0);
+  const round = rounds[roundIdx];
+
+  const isTest = mode === 'test';
+  const isLearning = mode === 'learning';
+
+  // TTS the scenario once at chain start.
+  const introSpoken = useRef(false);
+  useEffect(() => {
+    if (introSpoken.current || !soundOn) return;
+    introSpoken.current = true;
+    const text = config?.speechText || config?.scenario || '';
+    const timer = setTimeout(() => speak(text).catch(() => {}), 200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Advance after a round completes; fire parent onComplete on the last round.
+  const handleRoundComplete = useCallback(
+    (roundScore: number) => {
+      totalRef.current += roundScore;
+      if (roundIdx + 1 >= rounds.length) {
+        if (soundOn && !isLearning) playComplete();
+        onComplete(totalRef.current);
+      } else {
+        setRoundDone(true);
+        setTimeout(() => {
+          setRoundIdx((i) => i + 1);
+          setRoundDone(false);
+        }, 900);
+      }
+    },
+    [roundIdx, rounds.length, soundOn, isLearning, onComplete],
+  );
+
+  // Forward sub-game answers, tagging the round so the result breakdown stays unique.
+  const handleRoundAnswer = useCallback(
+    (r: AnswerResult) => {
+      onAnswer?.({
+        ...r,
+        question_id: r.question_id ? `${round?.id || 'round'}:${r.question_id}` : round?.id,
+        lesson_id: r.lesson_id || config?.lessonId,
+      });
+    },
+    [onAnswer, round, config?.lessonId],
+  );
+
+  if (rounds.length === 0) {
+    return (
+      <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-6 text-center">
+        <p className="text-sm font-medium text-amber-800">{t('game.gameChain.noRounds')}</p>
+        <button type="button" onClick={() => onComplete(0)} className="mt-3 rounded-xl bg-[#0F4D92] px-4 py-2 text-sm font-semibold text-white">{t('common.done')}</button>
+      </div>
+    );
+  }
+
+  const roundProps = {
+    soundOn,
+    mode,
+    onComplete: handleRoundComplete,
+    onAnswer: handleRoundAnswer,
+  };
+
+  const renderRound = (r: any) => {
+    const cfg = { ...(r.config || {}), template: r.template, lessonId: r.config?.lessonId || config?.lessonId };
+    switch (r.template) {
+      case 'matching': return <MatchingGame config={cfg} {...roundProps} />;
+      case 'tap-recognition': return <TapGame config={cfg} {...roundProps} />;
+      case 'drag-sort': return <DragSortGame config={cfg} {...roundProps} />;
+      case 'quiz': return <QuizGame config={cfg} {...roundProps} />;
+      case 'fill-in-blank': return <FillBlankGame config={cfg} {...roundProps} />;
+      case 'memory-pairs': return <MemoryPairsGame config={cfg} {...roundProps} />;
+      // puzzle-split is excluded from chains by the schema (difficulty-ladder
+      // scoring does not fit a linear chain) — falls through to unsupported.
+      case 'label-diagram': return <LabelDiagramGame config={cfg as any} {...roundProps} />;
+      case 'stage-sequence': return <StageSequenceGame config={cfg as any} {...roundProps} />;
+      default: return (
+        <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-6 text-center">
+          <p className="text-sm font-medium text-amber-800">{t('game.gameChain.unsupportedRound', { template: r.template })}</p>
+          <button type="button" onClick={() => handleRoundComplete(0)} className="mt-3 rounded-xl bg-[#0F4D92] px-4 py-2 text-sm font-semibold text-white">{t('common.next')} →</button>
+        </div>
+      );
+    }
+  };
+
+  return (
+    <div className="space-y-4 select-none">
+      {/* Round progress strip — IN ORDER, never shuffled */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="rounded-full bg-[#0F4D92]/10 px-2.5 py-1 text-[11px] font-bold text-[#0F4D92]">
+          {t('game.gameChain.round', { current: roundIdx + 1, total: rounds.length })}
+        </span>
+        <div className="flex items-center gap-1.5">
+          {rounds.map((r: any, i: number) => (
+            <div
+              key={r.id}
+              title={r.label || r.template}
+              className={`h-2.5 w-2.5 rounded-full transition-all ${i < roundIdx ? 'bg-green-400' : i === roundIdx ? 'bg-[#0F4D92] animate-game-glow-pulse w-4' : 'bg-gray-200'}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Round label banner */}
+      {round?.label && (
+        <p className="rounded-xl bg-purple-50 border border-purple-200 px-4 py-2 text-center text-sm font-medium text-purple-600">
+          {round.label}
+        </p>
+      )}
+
+      {roundDone && roundIdx + 1 < rounds.length && (
+        <p className="animate-game-pop text-center text-sm font-bold text-green-600">{t('game.gameChain.roundComplete')} 🎉</p>
+      )}
+
+      {round && (
+        <div key={round.id} className="animate-game-slide-up">
+          {renderRound(round)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Main GamePlay Page ────────────────────────────────────── */
 
 export default function GamePlay({ initialConfig }: { initialConfig?: { config: any; scenes?: SceneText[] } }) {
@@ -3462,6 +3610,24 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
     if (config.template === 'puzzle-split') return config.pieces?.length || 0;
     if (config.template === 'label-diagram') return (config as any).hotspots?.length || 0;
     if (config.template === 'stage-sequence') return (config as any).assessment?.length || 1;
+    if (config.template === 'game-chain') {
+      const rounds = (config as any).rounds || [];
+      return rounds.reduce((sum: number, r: any) => {
+        const c = r?.config || {};
+        switch (r?.template) {
+          case 'matching': return sum + (c.pairs?.length || 0);
+          case 'tap-recognition': return sum + (c.items?.length || 0);
+          case 'drag-sort': return sum + (c.items?.length || 0);
+          case 'quiz': return sum + (c.questions?.length || (c.options?.length ? 1 : 0));
+          case 'fill-in-blank': return sum + (c.blanks?.length || c.sentences?.length || 0);
+          case 'memory-pairs': return sum + Math.floor((c.items?.length || 0) / 2);
+          case 'puzzle-split': return sum + (c.pieces?.length || 0);
+          case 'label-diagram': return sum + (c.hotspots?.length || 0);
+          case 'stage-sequence': return sum + (c.assessment?.length || 1);
+          default: return sum;
+        }
+      }, 0);
+    }
     return 0;
   }, [config]);
 
@@ -4614,6 +4780,9 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           )}
           {config.template === 'stage-sequence' && (
             <StageSequenceGame config={config as any} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
+          )}
+          {config.template === 'game-chain' && (
+            <GameChainGame config={config as any} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
           )}
         </div>
       </div>

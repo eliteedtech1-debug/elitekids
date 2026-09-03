@@ -432,6 +432,12 @@
     'game.stageSequence.nice': 'Nice!',
     'game.stageSequence.brokenCheck': 'This question is missing its answers.',
 
+    // ── Game chain (ordered whole sub-game rounds) ────────────────────────
+    'game.gameChain.round': 'Round {current} of {total}',
+    'game.gameChain.roundComplete': 'Round done',
+    'game.gameChain.noRounds': 'This chain has no rounds yet.',
+    'game.gameChain.unsupportedRound': 'This round ({template}) is not playable yet.',
+
     // ── Story scenes (visual layer) ────────────────────────────────────────
     'game.story.checkpointTag': 'Play time!',
     'game.story.checkpointNow': "It's play time — show what you learned!",
@@ -659,6 +665,8 @@
   'gameCreator.tpl.labelDiagram.desc': 'Tap the part of a real diagram when it is named — face, body, tree, car. Big parts first, then smaller.',
   'gameCreator.tpl.stageSequence.label': 'Stage Sequence',
   'gameCreator.tpl.stageSequence.desc': 'Step graphics that grow in order, simple to complex — clock times, plant growth, life stages. Never shuffled.',
+  'gameCreator.tpl.gameChain.label': 'Game Chain',
+  'gameCreator.tpl.gameChain.desc': 'One lesson that plays a chain of whole mini-games in order, simple to complex — sort, label, match, quiz. Never shuffled.',
 
   // ── Teacher: Live Class Audio ───────────────────────────────────────────
   'teacher.live.title': 'Live Class Audio',
