@@ -557,7 +557,11 @@ export default function StudentHome() {
           <FloatingDeco className="-right-6 -top-6 h-20 w-20 bg-gradient-to-br from-orange-400/20 to-amber-400/20" />
           <FloatingDeco className="-left-4 -bottom-4 h-16 w-16 bg-gradient-to-br from-[#0F4D92]/15 to-indigo-400/15" />
           <div className="relative text-center animate-game-zoom-in stagger-0 group">
-            <div className="flex items-center justify-center gap-1 text-2xl font-black bg-gradient-to-br from-orange-500 to-red-500 bg-clip-text text-transparent">
+            <div
+              className={`flex items-center justify-center gap-1 text-2xl font-black bg-gradient-to-br from-orange-500 to-red-500 bg-clip-text text-transparent ${
+                streak.currentStreak > 0 ? 'animate-game-pulse' : ''
+              }`}
+            >
               <span className="group-hover:animate-bounce">{getStreakEmoji(streak.currentStreak)}</span>
               {streak.currentStreak}
             </div>
@@ -571,15 +575,29 @@ export default function StudentHome() {
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('student.home.starsEarned')}</p>
           </div>
           <div className="relative text-center animate-game-zoom-in stagger-2 group">
-            <div className="flex items-center justify-center gap-1 text-2xl font-black bg-gradient-to-br from-blue-500 to-indigo-500 bg-clip-text text-transparent">
-              <Zap className="h-5 w-5 text-blue-500 group-hover:animate-bounce" />
+            <div
+              className={`flex items-center justify-center gap-1 text-2xl font-black bg-clip-text text-transparent ${
+                summary.total_xp > 0
+                  ? 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                  : 'bg-gradient-to-br from-blue-300 to-indigo-300'
+              }`}
+            >
+              {summary.total_xp > 0 ? (
+                <Zap className="h-5 w-5 text-blue-500 group-hover:animate-bounce" />
+              ) : (
+                <span className="text-base">💤</span>
+              )}
               {summary.total_xp}
             </div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('student.home.xpPoints')}</p>
           </div>
           <div className="relative text-center animate-game-zoom-in stagger-3 group">
             <div className="flex items-center justify-center gap-1 text-2xl font-black bg-gradient-to-br from-purple-500 to-pink-500 bg-clip-text text-transparent">
-              <Gamepad2 className="h-5 w-5 text-purple-500 group-hover:animate-bounce" />
+              {summary.games_completed > 0 ? (
+                <Gamepad2 className="h-5 w-5 text-purple-500 group-hover:animate-bounce" />
+              ) : (
+                <span className="text-base">🎮</span>
+              )}
               {summary.games_completed}
             </div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('student.home.gamesPlayed')}</p>
