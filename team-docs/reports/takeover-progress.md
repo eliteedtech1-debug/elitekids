@@ -44,6 +44,15 @@
 ## SCHOOL-LOOKUP UX (user request, 2026-09-03 PM #4) — mobile chip styling
 - Resolved-school chip restyled responsive: Change-school button moved onto the school-name line (keeps global 48px tap-target), status line spans the full text column, tighter mobile padding/sizes, status copy shortened to 'School found' (single line). Browser-measured on live: chip height STABLE 89px at 360/320/280 viewports (was 126px at 320), text column 158px at 320 (was 53px), zero horizontal overflow. Commits ba37b7a + b84f88e, deployed (dist 17:29).
 
+## G4 + G5 CLOSURE (2026-09-03, Buffy)
+- G4 DONE — FE `types/adaptive.ts` LEVELS aligned to backend economyService 14-entry table (added L4 Seeker/350, L6 Sage/800, L8 Adept/1800, L9 Virtuoso/2500; cumulative_xp already matched). BONUS FIX: `levelFromXp` cap-guard bug — old `xp >= next.xp_required → isMax` showed Grandmaster for every kid ≥500 XP (cliff would move to ≥350 with 14 rows); now isMax only past the final threshold. Covered by adaptive.test.ts (6 tests incl. backend-parity contract).
+- G5 DONE — equipped garden decorations now render: `lib/game/garden.ts` (DECOR_META for garden_flower_bed/flower_bed/fountain/gazebo + sanitizeDecorations over the type-keyed equipped map) + GardenScene accepts `equippedDecorations` prop (compact strip with divider + full-view decoration tray, i18n garden.decorations en/ha) + StudentHome passes equippedItems through. garden.test.ts 5 tests.
+- BONUS FIX (pre-existing, found via i18n integrity test): `common.gotIt` used by WelcomeSpotlight.tsx (commit 29ba50a) missing from en.ts/en.json/ha.json → added ('Let's go!' / 'To, mu ci gaba!'). Clean-tree vitest run confirmed the failure pre-dates this session.
+- GATES: tsc clean, vitest 117/117 (was 106), npm run build OK. Backend untouched.
+
+## VALIDATION DISPATCH (2026-09-03, Buffy)
+- Validated ngeg-2027-overview-and-gap-plan-request.md against origin/main eb7efe5 → verdict SUBSTANTIALLY ACCURATE, G1 STALE (closed by 7234975, v1 engines verifiably deleted; ReviewZone v2-only; GamePlay on ADE_V2.PROFILE). Gates re-run live: Q1 sweep 94/94, tsc clean, vitest 106/106, full suite 476P/2F reproduced (garden C-DEBT-01/02 flake in-suite only), build OK. Full verdict + updated G1–G8 bridge plan persisted to team-docs/reports/q1-bridge-validation-buffy.md.
+
 ## FINAL STATUS — COMPLETE, DEPLOYED
 - 2026-09-03 Z: Committed 31295c3 + pushed origin/main → auto-deploy verified LIVE: elite-kids-api active (boot 16:31:45 pid 3418827, Chat WS attached), :8484 → 200, frontend dist rebuilt 16:32. All takeover work is live.
 - Handoff to MASTER: G-W2 browser live-smoke (teacher wizard → admin approve → child path) remains the last gate (needs real browser + staff account); PAT in origin remote URL needs ROOT revocation. Otherwise QUEUE is empty of unimplemented rows.
