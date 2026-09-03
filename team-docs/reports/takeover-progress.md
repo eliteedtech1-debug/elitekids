@@ -69,3 +69,7 @@
 - Q22/Q23 runbook prep (root steps only)
 - Login-flow browser E2E (chromium present at /snap/bin/chromium)
 - VPS git stash resolution
+## STREAK FIX RECOVERY + COPY ENHANCEMENT (2026-09-03 night, Buffy)
+- Session-restore `git reset` had ORPHANED 073c18d (streak economy-route fix) before push; teammate's e99f699 (StreakReminder banner) landed without it. Recovered via cherry-pick → bd7f3d8; applied cleanly on top of e99f699.
+- Backend on new code: full suite 476P/2F (garden C-DEBT-01/02 baseline only). FE gates on combined tree: tsc clean, vitest 117/117, build OK.
+- ENHANCED the streak-reminder emotional copy (user ask: dry "we miss you / come back stronger" lines) — all 7 moods rewritten kid-warm/proud in en.ts + en.json + ha.json, component EN fallbacks synced (StreakReminder.tsx). Highlights: broken = "Yay — you're back! We saved your spot 💛" (shame-free), onFire adds "We're so proud of you", legend "show everyone how it's done". JSON validated.

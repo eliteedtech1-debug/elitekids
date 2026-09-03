@@ -83,7 +83,7 @@ function pickContent(
       ctaKey: 'student.streakReminder.neverStarted.cta',
       defaultTitle: 'Ready to plant your first day? 🌱',
       defaultBody:
-        'Every champion starts with a single tap. Play one game today to grow your streak — and unlock a Seed Starter sticker!',
+        "Your very first day is just one game away! Play today, meet your new buddy, and grow your first seed into something amazing. We'll be cheering for you!",
       defaultCta: 'Plant my first day',
     };
   }
@@ -101,13 +101,13 @@ function pickContent(
       titleKey: hasFreeze ? 'student.streakReminder.brokenFreeze.title' : 'student.streakReminder.broken.title',
       bodyKey: hasFreeze ? 'student.streakReminder.brokenFreeze.body' : 'student.streakReminder.broken.body',
       ctaKey: hasFreeze ? 'student.streakReminder.brokenFreeze.cta' : 'student.streakReminder.broken.cta',
-      defaultTitle: hasFreeze ? 'No worries — your freeze saved you ❄️' : 'We missed you! Come back stronger 💛',
+      defaultTitle: hasFreeze ? 'Phew! Your freeze shield saved your streak ❄️' : "Yay — you're back! We saved your spot 💛",
       defaultBody: hasFreeze
-        ? `Your streak freeze kicked in. You're still at ${current} day${
+        ? `Your freeze shielded your streak — you're still at ${current} day${
             current === 1 ? '' : 's'
-          } — play today to keep climbing!`
-        : `Your ${current}-day streak ended, but your ${longest}-day best is still waiting. A fresh start is one game away!`,
-      defaultCta: 'Start fresh today',
+          }! Play today and warm that flame right back up.`
+        : `Resting is okay — even champions rest. Your ${longest}-day record is still cheering for you, and one little game today puts you right back on the path!`,
+      defaultCta: hasFreeze ? 'Play and keep it going' : "Let's play one game",
     };
   }
 
@@ -121,10 +121,10 @@ function pickContent(
       titleKey: 'student.streakReminder.inDanger.title',
       bodyKey: 'student.streakReminder.inDanger.body',
       ctaKey: 'student.streakReminder.inDanger.cta',
-      defaultTitle: `${current} days strong! Don't let it slip 🔥`,
+      defaultTitle: `${current}-day streak — let's keep it glowing! 🔥`,
       defaultBody:
-        'One quick game today keeps your streak alive and your XP multiplier rolling. You\'ve got this!',
-      defaultCta: 'Play one game now',
+        'Just one quick game today keeps your streak alive — and your XP bonus rolling. I know you can do it!',
+      defaultCta: 'Save my streak',
     };
   }
 
@@ -141,7 +141,7 @@ function pickContent(
       ctaKey: 'student.streakReminder.legend.cta',
       defaultTitle: `${current}-day legend! 🌈`,
       defaultBody:
-        'You\'re in the top tier of EliteKids. One more game today keeps the legend alive and the XP multiplier at 3×!',
+        `Wow — ${current} days! You're one of EliteKids' true legends. Play today to keep your 3× XP magic glowing and show everyone how it's done!`,
       defaultCta: 'Keep the legend going',
     };
   }
@@ -155,8 +155,8 @@ function pickContent(
       titleKey: 'student.streakReminder.onFire.title',
       bodyKey: 'student.streakReminder.onFire.body',
       ctaKey: 'student.streakReminder.onFire.cta',
-      defaultTitle: `You\'re on fire! ${current} days in a row 🔥`,
-      defaultBody: 'Your XP multiplier is boosted. Tap in for a quick game and keep the flame alive!',
+      defaultTitle: `${current} days in a row — you're on fire! 🔥`,
+      defaultBody: "We're so proud of you for coming back every day! Play a quick game today and earn bonus XP while your flame burns bright.",
       defaultCta: 'Keep the flame burning',
     };
   }
@@ -170,9 +170,9 @@ function pickContent(
       titleKey: 'student.streakReminder.comeback.title',
       bodyKey: 'student.streakReminder.comeback.body',
       ctaKey: 'student.streakReminder.comeback.cta',
-      defaultTitle: `Day ${current} — nice work! 🌟`,
+      defaultTitle: `Day ${current} — look at you go! 🌟`,
       defaultBody:
-        "You're building a real habit. One more game today and you'll be halfway to a Super Star sticker!",
+        "You're building something amazing, one day at a time. Play again today and that Super Star sticker moves closer!",
       defaultCta: 'Add to my streak',
     };
   }
