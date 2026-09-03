@@ -3,13 +3,14 @@
 **Date:** 2026-09-03
 **Author:** worker (kilo session) — overview compiled from `NGEd-game-2027-ROADMAP.md`, `SRS-Q1-NGEd-game.md`, and progress reports
 **Audience:** team that will pull + validate this report
+**Superseded by:** `team-docs/reports/q1-coverage-refresh.md` (Q1=97% post-session; G1–G5 closed). This file kept for the original overview + cross-quarter gap context; read the coverage-refresh for the live Q1 gap board.
 
 ---
 
 ## Status Summary
 
-- **Overall program (Q1–Q4 2027): ~23% complete** (1 of 4 quarters substantially built)
-- **Q1 "The Brain": ~92% complete, DEPLOYED LIVE on :8484**
+- **Overall program (Q1–Q4 2027): ~24% complete** (Q1 essentially done; Q2–Q4 untouched)
+- **Q1 "The Brain": ~97% complete, DEPLOYED LIVE on :8484** (was ~92% at original overview)
 - **Q2/Q3/Q4: 0% — not started**
 
 ---
@@ -18,8 +19,8 @@
 
 | Phase | Theme | Status | % Done |
 |---|---|---|---|
-| **Q1 2027** | "The Brain" — ADE + SRE + Economy | **DEPLOYED LIVE** | **~92%** |
-| Q2 2027 | "The Voice" — Speech + Drawing + Portfolio | Not started | 0% |
+| **Q1 2027** | "The Brain" — ADE + SRE + Economy | **DEPLOYED LIVE** | **~97%** |
+| Q2 2027 | "The Voice" — Speech + Drawing + Portfolio | Not started (other team now starting) | 0% |
 | Q3 2027 | "The Village" — Collaboration + Parent/Teacher AI | Not started | 0% |
 | Q4 2027 | "The Future" — Marketplace + Offline 2.0 + Analytics | Not started | 0% |
 
@@ -63,18 +64,20 @@
 
 ---
 
-## Q1 Gaps Discovered (need bridging to reach 100%)
+## Q1 Gaps Discovered — CLOSURE STATUS (post-session, see q1-coverage-refresh.md for current state)
 
-| # | Gap | Owner Lane | Effort | Notes |
+| # | Gap | Owner Lane | Effort | Status |
 |---|---|---|---|---|
-| G1 | **Phase 4 v1 engine removal** (kidsAdaptive.js + kidsSpacedRep.js) | L1-BE | M | Deferred — v1 is still routed and load-bearing (GamePlay adaptiveProfile badge, v1 UPDATE, ReviewZone v1 fallback). Requires v2 parity proof + v1 route unregistration + migration. |
-| G2 | **Legacy streak localStorage migration** | L2-FE | XS | NO-OP verdict in takeover: single key `elitekids-streak` since initial commit, backend is source of truth, localStorage = offline cache only. MASTER may overrule. |
-| G3 | **A17 contract test gap-fill** | L1-BE | S | Already done this session — caught 8 missing frontend error_code mappings, all fixed. **CLOSED**. |
-| G4 | **LEVELS table discrepancy** | L2-FE | XS | Frontend `types/adaptive.ts` LEVELS = 10 entries (1,2,3,5,7,10,15,20,25,30); backend `LEVELS` = 14 entries. Non-blocking but should be reconciled. |
-| G5 | **Garden decoration rendering** | L2-FE | S | `GardenScene` compact doesn't accept props — equipped garden items not yet rendered. Shop purchase persists; render path missing. |
-| G6 | **G-W2 real-browser live-smoke** (teacher wizard → admin approve → child path) | L3-QA | M | Needs real browser + staff account. Chromium present at /snap/bin/chromium on VPS. Pending human QA. |
-| G7 | **Elite EduTech logo artwork** for `badge_url` | L2-FE | XS | Currently using brand mark `/logo.svg`. Real artwork URL needed to swap. |
-| G8 | **PAT exposure in origin remote URL** | ROOT | XS | `ghp_` token embedded in `.git/config` origin URL. Needs ROOT revocation. |
+| G1 | **Phase 4 v1 engine removal** (kidsAdaptive.js + kidsSpacedRep.js) | L1-BE | M | ✅ **CLOSED** — `7234975` (other team confirmed in takeover validation) |
+| G2 | **Legacy streak localStorage migration** | L2-FE | XS | ✅ **CLOSED as NO-OP** — single key `elitekids-streak` since initial commit, backend is source of truth, localStorage = offline cache only |
+| G3 | **A17 contract test gap-fill** | L1-BE | S | ✅ **CLOSED** — caught 8 missing frontend error_code mappings, all fixed |
+| G4 | **LEVELS table discrepancy** | L2-FE | XS | ✅ **CLOSED** — `0487f33` (14-entry parity + `levelFromXp` max-level bug fixed) |
+| G5 | **Garden decoration rendering** | L2-FE | S | ✅ **CLOSED** — `0487f33` (equipped decorations render in GardenScene; StudentHome wires it) |
+| G6 | **G-W2 real-browser live-smoke** (teacher wizard → admin approve → child path) | L3-QA | M | ◐ **Informally covered** — playwright verified goal/scenes/streak on live; formal staff-account sign-off pending (human QA only) |
+| G7 | **Elite EduTech logo artwork** for `badge_url` | L2-FE | XS | ⬜ **BLOCKED** on asset owner — no artwork file exists in repo; needs MASTER to provide URL |
+| G8 | **PAT exposure in origin remote URL** | ROOT | XS | ⬜ **OPEN** — `ghp_` token in `.git/config` origin URL; needs ROOT revocation |
+
+**Q1 worker-lane: 100% closed (G1–G5).** Remaining (G6/G7/G8) are explicitly out of worker scope (human QA, asset dependency, ROOT action).
 
 ---
 
