@@ -65,6 +65,7 @@ import { createCombo, recordCorrect as comboCorrect, recordIncorrect as comboInc
 import type { ComboState } from '@/lib/game/combo';
 import { awardPowerUps, getAvailable, usePowerUp } from '@/lib/game/power-ups';
 import { launchConfetti } from '@/lib/game/victory';
+import { qualityForAnswers, pickNextRecs, reasonEmoji, humanizeSkill } from '@/lib/game/review';
 import apiClientBoss from '@/lib/api/client';
 import type { PromptMode, ResponseMode } from '@/lib/types/game';
 import { getPromptDisplay, getResponseDisplay } from '@/lib/types/game';
@@ -2633,12 +2634,6 @@ type NextRec = {
   mastery_probability: number;
 };
 
-const reasonEmoji = (reason: string) =>
-  reason === 'needs_practice' ? '🎯' : reason === 'strengthen' ? '💪' : '✨';
-
-const humanizeSkill = (skill: string) =>
-  skill.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-
 function ResultBreakdown({
   answers,
   score,
@@ -3591,7 +3586,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   const { colorblindMode, toggleColorblind } = useA11yStore();
 
   // Adaptive difficulty state
-  const [adaptiveProfile, setAdaptiveProfile] = useState<{ difficulty: number; accuracy_7d: number; streak_days: number } | null>(null);
+  const [adaptiveProfile, setAdaptiveProfile] = useState<{ difficulty: number; mastery_pct: number; streak_days: number } | null>(null);
   const adaptiveFetched = useRef(false);
 
   // Q1 Phase 2 (SRS §12.2): ADE v2 next-item selection — weakest skills first.
@@ -3880,23 +3875,23 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
       .catch(() => {}); // No lock — child can choose freely
   }, [lessonId, admissionNo, className]);
 
-  // Adaptive difficulty: fetch profile on mount
+  // Adaptive difficulty: fetch the ADE v2 (BKT) profile on mount. v1 removed
+  // (Phase 4 cleanup) — v2 tracks per-lesson mastery via the same lesson_id.
   useEffect(() => {
     if (!lessonId || !admissionNo || isPreview || adaptiveFetched.current) return;
     adaptiveFetched.current = true;
-    // Use lessonId as topic (simple mapping — can be refined with subject metadata later)
-    apiClient.get(ENDPOINTS.ADAPTIVE.PROFILE, {
-      params: { subject: 'general', topic: lessonId },
-    }).then((res) => {
-      const profile = res.data?.data;
-      if (profile?.difficulty) {
-        setAdaptiveProfile({
-          difficulty: profile.difficulty,
-          accuracy_7d: profile.accuracy_7d || 0,
-          streak_days: profile.streak_days || 0,
-        });
-      }
-    }).catch(() => {}); // No profile yet — use defaults
+    apiClient.get(ENDPOINTS.ADE_V2.PROFILE(lessonId))
+      .then((res) => {
+        const profile = res.data?.data;
+        if (profile?.difficulty) {
+          setAdaptiveProfile({
+            difficulty: profile.difficulty,
+            mastery_pct: Math.round((profile.mastery_probability || 0) * 100),
+            streak_days: profile.streak_days || 0,
+          });
+        }
+      })
+      .catch(() => {}); // No profile yet — use defaults
   }, [lessonId, admissionNo]);
 
   // ── Natural progression: suggest learning mode for newly unlocked units ──
@@ -4042,19 +4037,6 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           }
         }
 
-        // Adaptive difficulty update: inform backend of results
-        if (admissionNo && mode !== 'learning') {
-          const correctCount = answers.filter((a) => a.correct).length;
-          const totalTime = answers.reduce((sum, a) => sum + (a.response_time_ms || 0), 0);
-          apiClient.post(ENDPOINTS.ADAPTIVE.UPDATE, {
-            subject: 'general',
-            topic: lessonId,
-            score: finalScore,
-            response_time_ms: totalTime > 0 ? totalTime : undefined,
-            correct: correctCount > answers.length / 2,
-          }).catch(() => {}); // Best-effort — don't block game flow
-        }
-
         // Q1 NGEd — ADE v2 (BKT) update + engagement economy earn. Best-effort,
         // fire-and-forget; both are non-blocking and must never interrupt play.
         if (admissionNo && mode !== 'learning') {
@@ -4078,9 +4060,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           // Q1 Phase 2: SRE v2 grading loop — a review-sourced practice session
           // grades its SM-2+ card on completion (quality 0-5 from accuracy; <3 = fail).
           if (isReviewSession && reviewItemId && mode === 'practice') {
-            const correctCount = answers.filter((a) => a.correct).length;
-            const pct = answers.length > 0 ? correctCount / answers.length : 0;
-            const quality = pct >= 0.9 ? 5 : pct >= 0.7 ? 4 : pct >= 0.5 ? 3 : pct >= 0.3 ? 2 : 1;
+            const quality = qualityForAnswers(answers);
             try {
               await apiClient.post(ENDPOINTS.REVIEWS_V2.COMPLETE, {
                 skill_key: reviewSkillKey || undefined,
@@ -4095,9 +4075,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           try {
             const nextRes = await apiClient.get(ENDPOINTS.ADE_V2.NEXT_ITEM(undefined, 3));
             const items: any[] = nextRes.data?.data?.items || [];
-            const recs = items
-              .filter((it) => it && it.lesson_id && it.lesson_id !== lessonId)
-              .slice(0, 3);
+            const recs = pickNextRecs(items, lessonId);
             setNextRecs(recs.length > 0 ? recs : null);
           } catch { setNextRecs(null); }
         }
@@ -4752,7 +4730,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
         </button>
         <SpeechSettings />
         {adaptiveProfile && (
-          <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] sm:text-xs font-bold text-blue-600" title={`Difficulty: ${adaptiveProfile.difficulty}/5 | Accuracy: ${Math.round(adaptiveProfile.accuracy_7d || 0)}%`}>
+          <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] sm:text-xs font-bold text-blue-600" title={`Difficulty: ${adaptiveProfile.difficulty}/5 | Mastery: ${adaptiveProfile.mastery_pct}% | Streak: ${adaptiveProfile.streak_days}d`}>
             L{adaptiveProfile.difficulty}
           </span>
         )}

@@ -41,13 +41,13 @@ export default function ReviewZone() {
 
   const loadData = useCallback(async () => {
     try {
-      // Q1: prefer the v2 (SM-2+) spaced repetition endpoints; fall back to v1.
-      let reviewsData: any[] | null = null;
-      let statsData: any = null;
+      // Q1: SRE v2 (SM-2+) endpoints only — v1 (Ebbinghaus) removed (Phase 4).
       const [v2Today, v2Stats] = await Promise.all([
         apiClient.get(ENDPOINTS.REVIEWS_V2.TODAY).catch(() => ({ data: { data: null } })),
         apiClient.get(ENDPOINTS.REVIEWS_V2.STATS).catch(() => ({ data: { data: null } })),
       ]);
+      let reviewsData: any[] = [];
+      let statsData: any = null;
       if (v2Today.data?.data) {
         const v2 = v2Today.data.data;
         // Map v2 review items into the existing render contract.
@@ -70,17 +70,8 @@ export default function ReviewZone() {
           };
         }
       }
-      if (!reviewsData) {
-        // Fallback to v1
-        const [v1Due, v1Stats] = await Promise.all([
-          apiClient.get(ENDPOINTS.REVIEWS.DUE).catch(() => ({ data: { data: [] } })),
-          apiClient.get(ENDPOINTS.REVIEWS.STATS).catch(() => ({ data: { data: null } })),
-        ]);
-        reviewsData = v1Due.data?.data || [];
-        statsData = v1Stats.data?.data || null;
-      }
-      setReviews(reviewsData || []);
-      setStats(statsData || null);
+      setReviews(reviewsData);
+      setStats(statsData);
     } catch {
       // ignore
     } finally {

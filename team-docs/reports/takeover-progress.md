@@ -28,7 +28,9 @@
 - 2026-09-03 Z: LOOSE ENDS — (1) VPS git stash: `git stash list` EMPTY → the live-local-* flagshipKidsSeed stash was already resolved during the ce05be6 stash-conflict merge; closed. (2) Login-flow E2E: unified-login.test.js 11/11 PASS + ParentDashboard now code-verified to send {phone, password} (no pin) — API-level verified; full browser smoke remains a MASTER G-W2 step. (3) PAT exposure: ghp_ token still embedded in origin remote URL (.git/config) — flagged for ROOT revocation per ROOT-ACTIONS-REQUIRED.md.
 - 2026-09-03 Z: FINAL GATES GREEN — backend full suite 476P/2F (2 = garden-companion C-DEBT-01/02 documented baseline only), Q1 sweep 77/77, q1-e2e 17/17, unified-login 11/11, frontend tsc clean, vitest 98/98, npm run build OK. One build error found+fixed during gate (ha.json missing trailing comma from i18n insert).
 
-## FINAL STATUS — ALL PENDING WORK TAKEN OVER (awaiting user go for commit+push → auto-deploy)
+## FINAL STATUS — COMPLETE, DEPLOYED
+- 2026-09-03 Z: Committed 31295c3 + pushed origin/main → auto-deploy verified LIVE: elite-kids-api active (boot 16:31:45 pid 3418827, Chat WS attached), :8484 → 200, frontend dist rebuilt 16:32. All takeover work is live.
+- Handoff to MASTER: G-W2 browser live-smoke (teacher wizard → admin approve → child path) remains the last gate (needs real browser + staff account); PAT in origin remote URL needs ROOT revocation. Otherwise QUEUE is empty of unimplemented rows.
 - Q1 gap 1: ADE v2 next-item selection in GamePlay (SRS §12.2 Phase 2) — biggest remaining Q1 feature
 - Q1 gap 2: SRE v2 as full review grading loop
 - Q1 gap 3: shop equipped-state applied to rendering

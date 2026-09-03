@@ -209,20 +209,8 @@ export const ENDPOINTS = {
     AUDIO: (id: string) => `/kids/voice-notes/${id}/audio`,
   },
 
-
-  ADAPTIVE: {
-    PROFILE: '/kids/adaptive/profile',
-    UPDATE: '/kids/adaptive/update',
-    RECOMMENDED: '/kids/adaptive/recommended',
-    DUE_REVIEWS: '/kids/adaptive/due-reviews',
-  },
-
-  // E5 Phase 0: Spaced Repetition
-  REVIEWS: {
-    DUE: '/kids/reviews/due',
-    COMPLETE: '/kids/reviews/complete',
-    STATS: '/kids/reviews/stats',
-  },
+  // v1 ADAPTIVE + REVIEWS endpoints removed (Q1 Phase 4 cleanup) — FE uses
+  // ADE_V2 (BKT) and REVIEWS_V2 (SM-2+). See takeover-progress.md.
 
   // Revision (reinforcement-based)
   REVISION: {

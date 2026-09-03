@@ -180,30 +180,31 @@ async function getNudges(req, res) {
       reason: item.total_failed >= 3 ? 'needs_practice' : 'reinforce',
     }));
 
-    // Also check spaced repetition due reviews
+    // Also check spaced repetition due reviews — SRE v2 (SM-2+) schedule.
+    // v1 kids_adaptive_profiles table retired with the v1 engines (Phase 4).
     const [spacedDue] = await dbm().content.query(
-      `SELECT subject, topic, accuracy_7d, next_review_at
-       FROM kids_adaptive_profiles
+      `SELECT skill_key, item_id, next_review_at, last_quality
+       FROM kids_review_schedule_v2
        WHERE child_admission_no=:adm
          AND next_review_at <= NOW()
          AND next_review_at IS NOT NULL
-         AND accuracy_7d < 80
        ORDER BY next_review_at ASC
        LIMIT 5`,
       { replacements: { adm: admission } },
     ).catch(() => [[]]);
 
     for (const item of (Array.isArray(spacedDue) ? spacedDue : [])) {
+      const skill = String(item.skill_key || item.item_id || 'general');
       // Don't duplicate if already in failed items
-      if (!nudges.find((n) => n.subject === item.subject && n.topic === item.topic)) {
+      if (!nudges.find((n) => n.subject === skill && n.topic === skill)) {
         nudges.push({
-          lesson_id: null,
-          subject: item.subject,
-          topic: item.topic,
+          lesson_id: item.item_id || null,
+          subject: skill,
+          topic: skill,
           failed_count: 0,
           days_since: 0,
           reason: 'review_due',
-          accuracy: item.accuracy_7d,
+          accuracy: item.last_quality != null ? Number(item.last_quality) * 20 : 0,
         });
       }
     }
@@ -346,10 +347,10 @@ async function getRevisionStatus(req, res) {
     const fRows = Array.isArray(failedCount) ? failedCount : [];
     const failedItems = fRows[0]?.cnt || 0;
 
-    // Count nudges (topics due for review)
+    // Count nudges (topics due for review) — SRE v2 schedule
     const [nudgeCount] = await dbm().content.query(
-      `SELECT COUNT(*) AS cnt FROM kids_adaptive_profiles
-       WHERE child_admission_no=:adm AND next_review_at <= NOW() AND next_review_at IS NOT NULL AND accuracy_7d < 80`,
+      `SELECT COUNT(*) AS cnt FROM kids_review_schedule_v2
+       WHERE child_admission_no=:adm AND next_review_at <= NOW() AND next_review_at IS NOT NULL`,
       { replacements: { adm: admission } },
     ).catch(() => [[{ cnt: 0 }]]);
     const nRows = Array.isArray(nudgeCount) ? nudgeCount : [];

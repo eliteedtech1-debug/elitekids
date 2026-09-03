@@ -97,8 +97,8 @@ const { createCompetition, listCompetitions, endCompetition, getActive } = requi
 // E5+E6 Phase 0: Competition engine + Boss battles + Adaptive
 const { setCompetitionGames, getCompetitionGames, getDashboard, markStarted, trackProgress } = require('../controllers/kidsCompetition');
 const { createRaid, getRaidDashboard, getActiveRaid, submitDamage, listRaids, setRaidGames, GUARDIANS } = require('../controllers/kidsBoss');
-const { updateProfile: updateAdaptiveProfile, getProfile: getAdaptiveProfile, updateProfileEndpoint, getDueReviews: getAdaptiveDueReviews, getRecommended } = require('../controllers/kidsAdaptive');
-const { getDueReviews: getSpacedDueReviews, markReviewComplete, getReviewStats } = require('../controllers/kidsSpacedRep');
+// v1 ADE (kidsAdaptive) + SRE (kidsSpacedRep) controllers removed (Q1 Phase 4
+// cleanup) — ADE_V2 (BKT) + SRE_V2 (SM-2+) are the only engines.
 // ── Q1 2027: NGEd-game — ADE v2 / SRE v2 / Economy / Shop ──
 const adeV2 = require('../controllers/kidsAdaptiveV2');
 const sreV2 = require('../controllers/kidsSpacedRepV2');
@@ -281,17 +281,6 @@ module.exports = (app) => {
   app.get('/kids/boss/guardians', auth, (req, res) => {
     res.json({ success: true, data: GUARDIANS });
   });
-
-  // ── E5 Phase 0: Adaptive Difficulty ────────────────────────────────────
-  app.get('/kids/adaptive/profile', auth, getAdaptiveProfile);
-  app.post('/kids/adaptive/update', auth, updateProfileEndpoint);
-  app.get('/kids/adaptive/recommended', auth, getRecommended);
-  app.get('/kids/adaptive/due-reviews', auth, getAdaptiveDueReviews);
-
-  // ── E5 Phase 0: Spaced Repetition ─────────────────────────────────────
-  app.get('/kids/reviews/due', auth, getSpacedDueReviews);
-  app.post('/kids/reviews/complete', auth, markReviewComplete);
-  app.get('/kids/reviews/stats', auth, getReviewStats);
 
   // ── Q1 2027: NGEd-game — ADE v2 (BKT) ───────────────────────────────
   app.post('/kids/adaptive/v2/update', auth, adeV2.updateProfile);
