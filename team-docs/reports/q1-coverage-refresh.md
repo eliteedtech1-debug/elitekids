@@ -7,9 +7,9 @@
 
 ## Headline
 
-- **Overall program (Q1–Q4 2027): ~24%** (Q1 essentially done; Q2–Q4 untouched)
+- **Overall program (Q1–Q4 2027): ~25%** (~17.5 of 71 roadmap weeks; Q1 essentially done, Q2 speech lane in progress)
 - **Q1 2027 "The Brain": ~97% — DEPLOYED LIVE** on :8484 (was ~92% at the original overview)
-- **Q2/Q3/Q4: 0% — not started** (effort per roadmap: 21 + 15 + 20 weeks)
+- **Q2 2027 "The Voice": ~10–15% — speech lane (Q2-A/B/F) started** (slices 1–2 on main: `c4d3749` + `8989ebc`, live-verified `2838e59`); drawing (Q2-C/D/G) + portfolio (Q2-E) at 0%. Q3 + Q4: 0% (effort per roadmap: 21 + 15 + 20 weeks)
 
 ## Q1 gap board — moved this session
 
@@ -36,13 +36,19 @@ Bonus fixes shipped beyond the gap board: goal-submit scrim swallow (`3c4b2ba`),
 ## Unchanged cross-cutting coverage
 
 - **Architecture:** single Express monolith; 0/7 target services; DB pool still 4
-- **Tables:** **4/16** Q2+ tables done (kids_adaptive_state, kids_economy, kids_shop_items, kids_purchases); kids_speech_logs etc. not started
+- **Tables:** **5/16** Q2+ tables done (kids_adaptive_state, kids_economy, kids_shop_items, kids_purchases + **kids_speech_logs** — inline CREATE in `kidsSpeech.js:21`); drawing/portfolio/collab tables not started
 - **NERDC content:** ~30% vs 95% target
 - **Performance targets:** unmeasured · **Monetization tiers:** unbuilt
 
 ## Q2 kickoff (per user order, this session)
 
 Sequence per roadmap: **speech (Q2-A/B/F) → drawing (Q2-C/D/G) → portfolio (Q2-E)**. Dependencies on Q1 all satisfied: economy XP hooks live (and streak recording now genuinely persists), ADE per-lesson BKT in place for the portfolio skill map, SRE card scheduling as the template for speech/drawing items.
+
+**Q2 speech slices 1–2 LANDED after this board was written** (see `q2-speech-slice2-live-verified.md`, live-verified on prod):
+- `c4d3749` — slice 1: `speechAnalyzer.js` (wordSimilarity scoring + feedback bands), `POST /kids/speech/assess` + `GET /kids/speech/progress`, `kids_speech_logs` table, `q2-speech.test.js` 11/11.
+- `8989ebc` — slice 2: `SpeechGame` component (Web Speech mic `en-NG` + typed fallback), `/student/speech` practice page, StudentHome 🎤 entry, `speech-letter/word/sentence` template registration (teacher-created speech games), 15 speech i18n keys EN + HA. Whisper API fallback wired but disabled unless `SPEECH_WHISPER_KEY` set.
+
+Remaining speech lane: speech-story/count templates, Pronunciation Coach, ReadingTracker, in-engine 5-template assessment loop — then drawing (§2.6) + portfolio (§2.7).
 
 ---
 *Next worker: update the gap table above as G6/G7/G8 close.*

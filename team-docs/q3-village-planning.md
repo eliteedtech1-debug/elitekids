@@ -10,8 +10,8 @@
 
 ## 0. Where We Are Today (pre-Q3)
 
-- **Q1 2027 "The Brain"** is ~97% complete and deployed live (see `q1-handoff.md`, `q1-coverage-refresh.md`).
-- **Q2 2027 "The Voice"** (speech + drawing + portfolio) is being handled by the other team (per user order 2026-09-03).
+- **Q1 2027 "The Brain"** is ~97% complete and deployed live (see `team-docs/reports/q1-handoff.md`, `team-docs/reports/q1-coverage-refresh.md`).
+- **Q2 2027 "The Voice"** (speech + drawing + portfolio) is being handled by the other team (per user order 2026-09-03 — **MASTER-reported; no user-order note exists in team-docs**; Q2 speech slices are on main: 8989ebc, 2838e59).
 - **Q3 2027 "The Village"** (this plan) is 0% — no code, no DDL, no endpoints, no UI.
 - **Q4 2027 "The Future"** (marketplace + offline 2.0 + analytics) is 0%.
 
@@ -40,11 +40,13 @@
 
 | Metric | Current | Target | Source |
 |--------|---------|--------|--------|
-| Class quest participation rate | 0% | 60% | §1 baseline |
-| Parent weekly check-in rate | ~5% | 40% | §1 |
-| Teacher time on platform | 12 min/wk | 25 min/wk | §1 |
-| Peer-teaching events / child / month | 0 | 4 | new |
-| Insights actioned by parents / wk | 0 | 30% | new |
+| Class quest participation rate | 0% | 60% | plan-set target (NOT in roadmap §1) |
+| Parent weekly check-in rate | ~5% | 40% | roadmap §1 Success Metrics (line 70) |
+| Teacher time on platform | 12 min/wk | 25 min/wk | roadmap §1 Success Metrics (line 69) |
+| Peer-teaching events / child / month | 0 | 4 | plan-set target |
+| Insights actioned by parents / wk | 0 | 30% | plan-set target |
+
+> **Note (validated 2026-09-03):** "Current" baselines are **roadmap-derived, not verified against live data** — the only verifiable live signal is `team-docs/reports/q1-coverage-refresh.md` (Q1 ~97% deployed; Q2+ tables 4/16). Teacher-time (12→25 min/wk) and parent check-in (5%→40%) match roadmap §1 lines 69–70. Class-quest 60%, peer-teaching 4/mo, and insights-actioned 30% do **not** appear in the roadmap — they are targets set in this plan. Measure true baselines once the W1-2 collab backend lands.
 
 ---
 
@@ -74,7 +76,7 @@
 
 | ID | Task | Deps | File |
 |----|------|------|------|
-| C1 | `kids_teams` DDL + Sequelize model | nothing | `backend/database/q3-collab-migration.js`, `backend/src/models/KidTeam.js` |
+| C1 | `kids_teams` DDL + Sequelize model | nothing | `backend/database/q3-collab-parent-teacher-migration.js`, `backend/src/models/KidTeam.js` |
 | C2 | `kids_peer_teaching` DDL + model | nothing | new |
 | C3 | `kids_class_quests` DDL + model | nothing | new |
 | C4 | `kids_team_members` DDL + model | C1 | new |
@@ -209,7 +211,7 @@
 
 ## 4. Database Schema Additions (Q3)
 
-**6 new tables** (per `q1-coverage-refresh.md` table tracker — currently 4/16 Q2+ tables done, 0 Q3 tables):
+**9 new tables** (per `team-docs/reports/q1-coverage-refresh.md` table tracker — currently 4/16 Q2+ tables done, 0 Q3 tables):
 
 ```
 kids_teams                 (C1) — team definition (id, class_id, name, created_by, created_at)
@@ -223,7 +225,7 @@ kids_teacher_insights      (T1) — class-level insights (rollup of P3)
 kids_content_suggestions   (T2) — content gap + auto-assign records
 ```
 
-**9 new tables** in Q3 → cross-quarter tracker goes from 4/16 (25%) → 13/16 (81%) after Q3.
+**Tracker impact:** 4/16 (25%) → 13/16 (81%) after Q3.
 
 ---
 
@@ -236,11 +238,11 @@ kids_content_suggestions   (T2) — content gap + auto-assign records
 - Reuse existing `auth` middleware + `admissionAllowed` pattern from `kidsGoals.js`.
 
 ### 5.2 WebSocket Auth
-- Reuse E4's `/kids/chat` socket pattern (lazy-arrow `dbm()` per `q22-q23-ops-verified.md`).
+- Reuse E4's `/kids/chat` socket pattern (lazy-arrow `dbm()` per `team-docs/reports/q22-q23-ops-verified.md`; socket file: `backend/src/sockets/chat.js`, registered in `backend/src/index.js:94`).
 - WS room keys: `class:<class_id>`, `team:<team_id>`, `quest:<quest_id>`.
 
 ### 5.3 i18n
-- New keys go into `frontend/src/lib/i18n/en.ts` + `en.json` + `ha.json` (pattern from Q1).
+- New keys go into `frontend/src/lib/i18n/en.ts` + `frontend/src/lib/i18n/locales/en.json` + `frontend/src/lib/i18n/locales/ha.json` (pattern from Q1).
 - All new copy is child-safe + warm (tone set by Q1 streak-reminder copy pass — `34df723`).
 
 ### 5.4 Performance
@@ -321,7 +323,7 @@ kids_content_suggestions   (T2) — content gap + auto-assign records
 - 4 backend services (teamFormation, classQuestScoring, insightGenerator, teacherAssistant)
 - 3 backend controllers (kidsCollaboration, kidsParentIntelligence, kidsTeacher)
 - 1 backend socket (sockets/collaboration.js)
-- 1 backend migration script (q3-collab-parent-teacher-migration.js)
+- 1 backend migration script (q3-collab-parent-teacher-migration.js — same file as C1; covers all 9 Q3 tables)
 - 4 backend test files (q3-collab, q3-parent, q3-teacher, q3-integration)
 - 12 frontend components (TeamChallenge, PeerTeachingBoard, ClassQuest, CollaborationBadge, InsightCard, ActionItem, WeeklyDigest, ComparisonChart, ParentNudge, TeacherInsightsPanel, StudentAlertCard, ContentSuggestion, AutoAssignDialog)
 - 1 frontend hook (useCollaborationSocket)

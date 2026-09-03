@@ -9,9 +9,10 @@
 
 ## Status Summary
 
-- **Overall program (Q1–Q4 2027): ~24% complete** (Q1 essentially done; Q2–Q4 untouched)
+- **Overall program (Q1–Q4 2027): ~25% complete** (~17.5 of 71 roadmap weeks; Q1 essentially done, Q2 speech lane in progress)
 - **Q1 "The Brain": ~97% complete, DEPLOYED LIVE on :8484** (was ~92% at original overview)
-- **Q2/Q3/Q4: 0% — not started**
+- **Q2 "The Voice": ~10–15% — speech lane (Q2-A/B/F) started** (slices 1–2 on main: `c4d3749` + `8989ebc`, live-verified `2838e59`); drawing + portfolio untouched
+- **Q3/Q4: 0% — not started**
 
 ---
 
@@ -20,7 +21,7 @@
 | Phase | Theme | Status | % Done |
 |---|---|---|---|
 | **Q1 2027** | "The Brain" — ADE + SRE + Economy | **DEPLOYED LIVE** | **~97%** |
-| Q2 2027 | "The Voice" — Speech + Drawing + Portfolio | Not started (other team now starting) | 0% |
+| Q2 2027 | "The Voice" — Speech + Drawing + Portfolio | Speech lane IN PROGRESS (slices 1–2: analyzer + assess endpoint + `kids_speech_logs` `c4d3749`; SpeechGame + `/student/speech` + 3 templates `8989ebc`) | ~10–15% |
 | Q3 2027 | "The Village" — Collaboration + Parent/Teacher AI | Not started | 0% |
 | Q4 2027 | "The Future" — Marketplace + Offline 2.0 + Analytics | Not started | 0% |
 
@@ -85,15 +86,15 @@
 
 | # | Item | Spec | Status |
 |---|---|---|---|
-| Q2-A | Speech recognition service (Whisper API + Web Speech API) | §2.5 | 0% |
-| Q2-B | Voice games (speech-letter/word/sentence/story/count) — 5 templates | §2.5 | 0% |
+| Q2-A | Speech recognition service (Whisper API + Web Speech API) | §2.5 | ~45% — Web Speech capture + `speechAnalyzer.js` (word-similarity + feedback bands) + `POST /kids/speech/assess` + `GET /kids/speech/progress` + `kids_speech_logs` table live (`c4d3749`); Whisper server fallback wired but disabled unless `SPEECH_WHISPER_KEY` set |
+| Q2-B | Voice games (speech-letter/word/sentence/story/count) — 5 templates | §2.5 | ~30% — `speech-letter/word/sentence` registered end-to-end (teacher-creatable w/ expected_text prompts) + SpeechGame practice client (`8989ebc`); story/count pending |
 | Q2-C | Drawing recognition engine (TensorFlow.js + QuickDraw) | §2.6 | 0% |
 | Q2-D | Drawing games (draw-recognition/tracing/writing/pattern/creative) — 5 templates | §2.6 | 0% |
 | Q2-E | Learning Portfolio (skill map + evidence + export) | §2.7 | 0% |
-| Q2-F | Pronunciation Coach, ReadingTracker, SpeechGame FE components | §2.5 | 0% |
+| Q2-F | Pronunciation Coach, ReadingTracker, SpeechGame FE components | §2.5 | ~30% — SpeechGame ✓ (`8989ebc`, + typed fallback for low-end devices); Pronunciation Coach + ReadingTracker pending |
 | Q2-G | DrawingCanvas, TracingGuide, DrawingFeedback FE components | §2.6 | 0% |
 
-**Effort (per roadmap): 21 weeks total** (8 speech + 8 drawing + 5 portfolio)
+**Effort (per roadmap): 21 weeks total** (8 speech + 8 drawing + 5 portfolio). Status refreshed 2026-09-03 after Q2 speech slices 1–2 (`c4d3749`, `8989ebc`) — see `q2-speech-slice2-live-verified.md`; Q2 speech lane ≈ 3 of 8 speech weeks in.
 
 ---
 
@@ -124,9 +125,9 @@
 ## Architecture Evolution Gaps (cross-cutting)
 
 - **Monolith → Modular split:** Roadmap §3.1 — currently still single Express app, no API gateway, no separate AI/Marketplace/Sync services
-- **New services not built:** Adaptive Engine (in-proc), Speech, Drawing, Insight, Analytics (Python ML), Marketplace, Sync — all roadmap §3.2 targets missing
+- **New services not built:** Adaptive Engine (in-proc ✓), Speech (**in-proc partial ✓** — `kidsSpeech.js` + `speechAnalyzer.js` live), Drawing, Insight, Analytics (Python ML), Marketplace, Sync — rest still roadmap §3.2 targets missing
 - **DB connection pool:** Still 4 connections; roadmap target is 6 (+marketplace, +analytics)
-- **16 new tables** planned (kids_adaptive_state ✓, kids_economy ✓, kids_shop_items ✓, kids_purchases ✓, kids_speech_logs ✗, kids_drawing_logs ✗, kids_portfolios ✗, kids_teams ✗, kids_peer_teaching ✗, kids_class_quests ✗, kids_insights ✗, kids_marketplace_* ✗, kids_predictions ✗, kids_content_effectiveness ✗) — **4/16 done (25%)**
+- **16 new tables** planned (kids_adaptive_state ✓, kids_economy ✓, kids_shop_items ✓, kids_purchases ✓, kids_speech_logs ✓ — inline CREATE in `kidsSpeech.js:21`, kids_drawing_logs ✗, kids_portfolios ✗, kids_teams ✗, kids_peer_teaching ✗, kids_class_quests ✗, kids_insights ✗, kids_marketplace_* ✗, kids_predictions ✗, kids_content_effectiveness ✗) — **5/16 done (~31%)**
 
 ---
 
@@ -154,7 +155,7 @@ Per roadmap §4.1, 2026 coverage ~30%; 2027 target 95%:
 - API <100ms p95 — **not measured**
 - Game load <2s — **not measured**
 - Offline sync <30s — **partial only** (current offline = 25% maturity)
-- Speech <500ms — N/A (not built)
+- Speech <500ms — partial (Web Speech single-shot capture live; Whisper fallback not exercised — disabled w/o `SPEECH_WHISPER_KEY`)
 - Drawing <1s — N/A (not built)
 - 10K concurrent users — **not load-tested** (current scale: ~200 DAU)
 

@@ -445,7 +445,9 @@ export default function StudentHome() {
   const gameStats = progress?.game_stats || {};
 
   return (
-    <div className="min-h-screen relative">
+    // overflow-x-clip: no page-level horizontal scroll on mobile (decorative
+    // blobs and tight header rows must never push the layout wider).
+    <div className="min-h-screen relative overflow-x-clip">
       <KidPageBackground />
       {/* Onboarding Tour (first-time only) */}
       {showOnboarding && (
@@ -479,27 +481,27 @@ export default function StudentHome() {
       )}
 
       {/* Header — game-style glassmorphism with gradient */}
-      <header className={`relative border-b border-white/20 bg-gradient-to-r backdrop-blur-xl ${headerTheme || 'from-[#0F4D92]/90 via-[#0F4D92]/85 to-[#0d9488]/90'}`}>
+      <header className={`relative overflow-hidden border-b border-white/20 bg-gradient-to-r backdrop-blur-xl ${headerTheme || 'from-[#0F4D92]/90 via-[#0F4D92]/85 to-[#0d9488]/90'}`}>
         <FloatingDeco className="absolute -right-10 -top-10 h-32 w-32 bg-gradient-to-br from-[#0d9488] to-emerald-400" />
         <FloatingDeco className="absolute -left-8 -bottom-8 h-24 w-24 bg-gradient-to-br from-[#C90016] to-red-400" />
-        <div className="relative mx-auto flex max-w-5xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-4">
-          <div className="flex items-center gap-3 sm:gap-4">
+        <div className="relative mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <div className="relative">
               <img src="/logo.svg" alt={t('login.brand')} className="h-12 w-12 rounded-2xl object-contain shadow-xl shadow-black/20 ring-2 ring-white/30" />
               <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 border-2 border-white shadow-sm animate-pulse" />
             </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-extrabold leading-tight text-white drop-shadow-md animate-game-slide-left">{t('login.brand')}</h1>
-              <p className="text-[11px] sm:text-xs text-white/70 font-medium">{t('student.home.hello', { name: displayName })}</p>
+            <div className="min-w-0">
+              <h1 className="truncate text-base sm:text-lg font-extrabold leading-tight text-white drop-shadow-md animate-game-slide-left">{t('login.brand')}</h1>
+              <p className="truncate text-[11px] sm:text-xs text-white/70 font-medium">{t('student.home.hello', { name: displayName })}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <ReviewDueBadge dueCount={reviewDue} onClick={scrollToReviewZone} />
             <button
               onClick={() => { playTap(); navigate('/student/speech'); }}
               aria-label={t('student.home.speak')}
               title={t('student.home.speakDesc')}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-2.5 py-2 sm:px-3 text-sm font-medium text-white transition hover:bg-white/25 hover:shadow-md active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-2 py-2 sm:px-3 text-sm font-medium text-white transition hover:bg-white/25 hover:shadow-md active:scale-95"
             >
               <Mic className="h-5 w-5" />
               <span className="hidden sm:inline">{t('student.home.speak')}</span>
@@ -508,7 +510,7 @@ export default function StudentHome() {
               onClick={() => { playTap(); setShowShop(true); }}
               aria-label={t('student.home.shop')}
               title={t('student.home.shopDesc')}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-2.5 py-2 sm:px-3 text-sm font-medium text-white transition hover:bg-white/25 hover:shadow-md active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-2 py-2 sm:px-3 text-sm font-medium text-white transition hover:bg-white/25 hover:shadow-md active:scale-95"
             >
               <ShoppingBag className="h-5 w-5" />
               <span className="hidden sm:inline">{t('student.home.shop')}</span>
@@ -518,7 +520,7 @@ export default function StudentHome() {
             <SpeechSettings />
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-2.5 py-2 sm:px-3 text-sm font-medium text-white transition hover:bg-white/25 hover:shadow-md active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-2 py-2 sm:px-3 text-sm font-medium text-white transition hover:bg-white/25 hover:shadow-md active:scale-95"
             >
               <LogOut className="h-5 w-5" /> <span className="hidden sm:inline">{t('dashboard.signOut')}</span>
             </button>

@@ -216,7 +216,7 @@ export default function ReviewZone() {
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <div className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#0d9488] to-emerald-500 px-4 py-2.5 text-[11px] font-bold text-white shadow-lg shadow-[#0d9488]/30 group-hover:shadow-[#0d9488]/40 group-hover:scale-105 transition-all">
                   <Clock className="h-3.5 w-3.5" />
                   {t('reviewZone.dueNow')}

@@ -34,6 +34,7 @@ import CachedImg from '@/components/CachedImg';
 import LabelDiagramGame from '@/components/LabelDiagram';
 import StageSequenceGame from '@/components/StageSequence';
 import SceneRenderer from '@/components/SceneRenderer';
+import SpeechGame from '@/components/SpeechGame';
 import { flattenScenes, isVisualStory, estimateDurationSec } from '@/lib/utils/scenes';
 import type { SceneLibrary, NormalizedScene } from '@/lib/utils/scenes';
 // NOTE: children never see payment UI — no SubscriptionUpsell here anymore.
@@ -126,7 +127,7 @@ interface GameConfig {
   ageLevel?: string;
   prompt?: string;
   pairs?: { a: string; b: string; audio?: string; image?: string }[];
-  items?: { id?: string; hex?: string; color?: string; num?: number; label?: string; image?: string; emoji?: string; sound?: string; audio?: string; context?: string; matches?: string }[];
+  items?: { id?: string; hex?: string; color?: string; num?: number; label?: string; image?: string; emoji?: string; sound?: string; audio?: string; context?: string; matches?: string; expected_text?: string; mode?: string }[];
   objects?: { id: string; label: string; image?: string }[];
   correctId?: string;
   question?: string;
@@ -3521,6 +3522,90 @@ function GameChainGame({
   );
 }
 
+/* ── Speech Game (Q2 voice-first templates, slice 3) ───────── */
+// Teacher-created speech lessons store items:[{ id, expected_text, mode }] (see
+// GameCreator templates). SpeechGame scores each attempt via POST /kids/speech/assess;
+// this adapter bridges its score/pass events into the engine's onAnswer/onComplete
+// contract so speech lessons grade exactly like every other template (stars/XP,
+// test submit, SRE review sessions, failed-item recording all just work).
+const SPEECH_MODES = ['letter', 'word', 'sentence'] as const;
+type SpeechItemMode = (typeof SPEECH_MODES)[number];
+
+function speechModeFromTemplate(template: string): SpeechItemMode {
+  if (template === 'speech-letter') return 'letter';
+  if (template === 'speech-sentence') return 'sentence';
+  return 'word';
+}
+
+function SpeechLessonGame({
+  config,
+  onComplete,
+  onAnswer,
+}: {
+  config: GameConfig;
+  onComplete: (score: number) => void;
+  onAnswer?: (r: AnswerResult) => void;
+}) {
+  const items = useMemo(
+    () =>
+      (config.items || [])
+        .filter((it) => typeof it.expected_text === 'string' && it.expected_text.trim().length > 0)
+        .map((it, i) => ({
+          id: String(it.id || `sp${i + 1}`),
+          expected_text: it.expected_text as string,
+          mode: SPEECH_MODES.includes(it.mode as SpeechItemMode)
+            ? (it.mode as SpeechItemMode)
+            : speechModeFromTemplate(config.template),
+        })),
+    [config.items, config.template],
+  );
+
+  const handleAttempt = useCallback(
+    (r: { passed?: boolean; transcript?: string; expected_text?: string; question_id?: string }) => {
+      onAnswer?.({
+        correct: Boolean(r?.passed),
+        expected: r?.expected_text || '',
+        given: r?.transcript || '',
+        question_id: r?.question_id,
+        lesson_id: config.lessonId,
+      });
+    },
+    [onAnswer, config.lessonId],
+  );
+
+  // 10 pts per passed item — same pacing as the other templates.
+  const handleComplete = useCallback(
+    (passedCount: number) => onComplete((Number(passedCount) || 0) * 10),
+    [onComplete],
+  );
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-6 text-center">
+        <p className="text-sm font-medium text-amber-800">
+          {t('game.speech.noItems', { defaultValue: 'This speech game has no words to say yet.' })}
+        </p>
+        <button
+          type="button"
+          onClick={() => onComplete(0)}
+          className="mt-3 rounded-xl bg-[#0F4D92] px-4 py-2 text-sm font-semibold text-white"
+        >
+          {t('common.done')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <SpeechGame
+      items={items}
+      embedded
+      onAttempt={handleAttempt}
+      onComplete={handleComplete}
+    />
+  );
+}
+
 /* ── Main GamePlay Page ────────────────────────────────────── */
 
 export default function GamePlay({ initialConfig }: { initialConfig?: { config: any; scenes?: SceneText[] } }) {
@@ -3629,6 +3714,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
     if (config.template === 'puzzle-split') return config.pieces?.length || 0;
     if (config.template === 'label-diagram') return (config as any).hotspots?.length || 0;
     if (config.template === 'stage-sequence') return (config as any).assessment?.length || 1;
+    if (config.template?.startsWith('speech-')) return (config.items || []).filter((it) => typeof it.expected_text === 'string' && it.expected_text.trim().length > 0).length || 0;
     if (config.template === 'game-chain') {
       const rounds = (config as any).rounds || [];
       return rounds.reduce((sum: number, r: any) => {
@@ -4860,6 +4946,9 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           )}
           {config.template === 'game-chain' && (
             <GameChainGame config={config as any} onComplete={handleGameComplete} soundOn={soundOn} mode={mode} onAnswer={handleAnswer} />
+          )}
+          {config.template?.startsWith('speech-') && (
+            <SpeechLessonGame config={config} onComplete={handleGameComplete} onAnswer={handleAnswer} />
           )}
         </div>
       </div>

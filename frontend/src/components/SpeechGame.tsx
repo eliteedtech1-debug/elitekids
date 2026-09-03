@@ -32,10 +32,21 @@ interface AssessResult {
   fluency: number;
 }
 
+/** Attempt payload — adds the transcript/expected text the engine needs for
+ * result review + SRE grading (SpeechGame only knows the score otherwise). */
+export interface SpeechAttemptResult extends AssessResult {
+  transcript: string;
+  expected_text: string;
+  question_id?: string;
+}
+
 interface SpeechGameProps {
   items: SpeechItem[];
+  /** True when hosted inside GamePlay (Q2 slice 3): the host owns chrome +
+   * phase flow, so finishing must NOT toast/navigate away. Default false. */
+  embedded?: boolean;
   /** Called with each attempt's score so parents can award stars/XP. */
-  onAttempt?: (r: AssessResult) => void;
+  onAttempt?: (r: SpeechAttemptResult) => void;
   onComplete?: (passedCount: number) => void;
 }
 
@@ -63,7 +74,7 @@ function getRecognition(): SpeechRecognitionLike | null {
   return rec;
 }
 
-export default function SpeechGame({ items, onAttempt, onComplete }: SpeechGameProps) {
+export default function SpeechGame({ items, onAttempt, onComplete, embedded = false }: SpeechGameProps) {
   const navigate = useNavigate();
   const [idx, setIdx] = useState(0);
   const [listening, setListening] = useState(false);
@@ -119,7 +130,12 @@ export default function SpeechGame({ items, onAttempt, onComplete }: SpeechGameP
         };
         setResult(r);
         if (r.passed) setPassedCount((p) => p + 1);
-        onAttempt?.(r);
+        onAttempt?.({
+          ...r,
+          transcript: text,
+          expected_text: item.expected_text,
+          question_id: item.id,
+        });
       } catch {
         toast.error(t('speech.saveError', { defaultValue: 'Could not check your answer — check your connection. 💛' }));
       } finally {
@@ -180,10 +196,12 @@ export default function SpeechGame({ items, onAttempt, onComplete }: SpeechGameP
       setIdx(idx + 1);
     } else {
       onComplete?.(passedCount);
-      toast.success(t('speech.done', { defaultValue: 'Voice practice finished — amazing work! 🌟' }));
-      navigate('/student');
+      if (!embedded) {
+        toast.success(t('speech.done', { defaultValue: 'Voice practice finished — amazing work! 🌟' }));
+        navigate('/student');
+      }
     }
-  }, [idx, items.length, passedCount, onComplete, navigate]);
+  }, [idx, items.length, passedCount, onComplete, navigate, embedded]);
 
   if (!item) return null;
 

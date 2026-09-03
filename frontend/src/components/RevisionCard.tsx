@@ -193,8 +193,8 @@ export default function RevisionCard() {
             <span className="text-sm font-bold text-[#0F4D92]">{t('revisionCard.loadingWeekly')}</span>
           </div>
         ) : (
-          <div className="relative flex items-center justify-between">
-            <div>
+          <div className="relative flex w-full items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5 mb-1.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#0F4D92] to-indigo-500 shadow-md shadow-[#0F4D92]/30">
                   <Sparkles className="h-4 w-4 text-white drop-shadow" />
@@ -203,7 +203,7 @@ export default function RevisionCard() {
               </div>
               <p className="text-[11px] text-gray-500 font-medium">{t('revisionCard.weeklyDesc')}</p>
             </div>
-            <div className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#0F4D92] to-[#0d9488] px-5 py-2.5 text-[11px] font-bold text-white shadow-lg shadow-[#0F4D92]/30 group-hover:shadow-[#0F4D92]/40 group-hover:scale-105 transition-all">
+            <div className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#0F4D92] to-[#0d9488] px-5 py-2.5 text-[11px] font-bold text-white shadow-lg shadow-[#0F4D92]/30 group-hover:shadow-[#0F4D92]/40 group-hover:scale-105 transition-all">
               <Zap className="h-3.5 w-3.5" />
               {t('revisionCard.start')}
               <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />

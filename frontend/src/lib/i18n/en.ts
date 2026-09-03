@@ -957,6 +957,7 @@
   'speech.nextOne': 'Next one!',
   'speech.finish': 'All done!',
   'speech.done': 'Voice practice finished \u2014 amazing work! \ud83c\udf1f',
+  'game.speech.noItems': 'This speech game has no words to say yet.',
 
   // ── Student: Live Bar ───────────────────────────────────────────────────
   'student.liveBar.teacherSpeaking': 'LIVE — Teacher is speaking to your class!',
