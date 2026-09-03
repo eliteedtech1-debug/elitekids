@@ -891,6 +891,12 @@
   'student.goal.teacherHint': 'Your teacher chose this — you can only raise it.',
   'student.goal.saveError': 'Couldn’t save your goal — try again.',
   'student.goal.targetGames': 'Goal: {count} games this week',
+  'student.goal.saved': 'Goal saved! Go play! 🎯',
+
+  // ── Student: Welcome spotlight (post-login hint) ─────────────────────────
+  'student.welcome.title': "Welcome back! Let's set today's goal 🎯",
+  'student.welcome.body':
+    'Tap the Set button to pick how many games you want to finish this week. Your garden grows as you reach your target!',
 
   // ── Student: Live Bar ───────────────────────────────────────────────────
   'student.liveBar.teacherSpeaking': 'LIVE — Teacher is speaking to your class!',

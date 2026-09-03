@@ -31,6 +31,7 @@ import A11ySettings from '@/components/A11ySettings';
 import SpeechSettings from '@/components/SpeechSettings';
 import AppSwitcher from '@/components/AppSwitcher';
 import OnboardingTour from '@/components/OnboardingTour';
+import WelcomeSpotlight from '@/components/WelcomeSpotlight';
 import CompanionSelect, { CompanionBubble } from '@/components/CompanionSelect';
 import GardenScene from '@/components/GardenScene';
 import KidPageBackground from '@/components/KidPageBackground';
@@ -148,6 +149,7 @@ export default function StudentHome() {
   const [pathData, setPathData] = useState<LearningPathData | null>(null);
   const [showBossRaid, setShowBossRaid] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showWelcomeSpotlight, setShowWelcomeSpotlight] = useState(false);
   const [companion, setCompanion] = useState<any>(null);
   const [showCompanionSelect, setShowCompanionSelect] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
@@ -179,6 +181,36 @@ export default function StudentHome() {
       setStudent(decoded);
 
       const admissionNo = decoded?.admission_no || decoded?.id;
+
+      // Welcome tour: gate on server-side onboarding status independently of
+      // catalog/offline state so first-time students always see the tour right
+      // after login (the tour was previously only triggered if the catalog
+      // fetch hydrated fresh, which skipped it for any cache hit).
+      if (admissionNo) {
+        const onbRes = await apiClient
+          .get(ENDPOINTS.ONBOARDING.STATUS(admissionNo))
+          .catch(() => ({ data: { data: { completed: false } } }));
+        const completed = Boolean(onbRes.data?.data?.completed);
+        if (!completed) {
+          setShowOnboarding(true);
+        } else {
+          // Returning user — show the welcome spotlight that highlights the
+          // goal + learning path so the weekly-goal setup is unmissable.
+          const welcomeSeen = sessionStorage.getItem('welcome-spotlight-seen');
+          if (!welcomeSeen) {
+            setShowWelcomeSpotlight(true);
+            sessionStorage.setItem('welcome-spotlight-seen', '1');
+          }
+          const compRes = await apiClient
+            .get(ENDPOINTS.COMPANION.GET(admissionNo))
+            .catch(() => ({ data: { data: null } }));
+          if (compRes.data?.data) {
+            setCompanion(compRes.data.data);
+          } else {
+            setShowCompanionSelect(true);
+          }
+        }
+      }
 
       const lessonsRes = await apiClient
         .get(ENDPOINTS.LESSONS.LIST, { params: { content_state: 'published' } })
@@ -266,17 +298,8 @@ export default function StudentHome() {
         }
 
         if (!offlineHydrated) {
-          const onbRes = await apiClient.get(ENDPOINTS.ONBOARDING.STATUS(admissionNo)).catch(() => ({ data: { data: { completed: false } } }));
-          if (!onbRes.data?.data?.completed) {
-            setShowOnboarding(true);
-          }
-
-          const compRes = await apiClient.get(ENDPOINTS.COMPANION.GET(admissionNo)).catch(() => ({ data: { data: null } }));
-          if (compRes.data?.data) {
-            setCompanion(compRes.data.data);
-          } else if (onbRes.data?.data?.completed) {
-            setShowCompanionSelect(true);
-          }
+          // (onboarding + companion already handled above, independently of
+          // catalog/offline hydration state, so the tour fires reliably.)
         }
       }
     } catch (err: any) {
@@ -400,7 +423,17 @@ export default function StudentHome() {
         <OnboardingTour onComplete={() => {
           setShowOnboarding(false);
           if (!companion) setShowCompanionSelect(true);
+          else {
+            // Tour done — show the spotlight once so the weekly-goal setup
+            // is unmissable on the very first session after onboarding.
+            sessionStorage.removeItem('welcome-spotlight-seen');
+            setShowWelcomeSpotlight(true);
+          }
         }} />
+      )}
+      {/* Returning-student welcome spotlight (post-login hint at the goal) */}
+      {showWelcomeSpotlight && !showOnboarding && (
+        <WelcomeSpotlight onClose={() => setShowWelcomeSpotlight(false)} />
       )}
       {/* Companion Select (first-time choosing) */}
       {showCompanionSelect && (
@@ -595,23 +628,26 @@ export default function StudentHome() {
                   </button>
                 </div>
 
-                {/* Weekly goal banner */}
-                <div className="mb-4">
+                {/* Weekly goal banner — anchor for the post-login welcome spotlight */}
+                <div id="welcome-goal-card" className="mb-4">
                   <GoalCard
                     admissionNo={String(student?.admission_no || student?.id || '')}
                     goal={pathData?.goal || null}
                     loading={loading}
                     onUpdated={handleGoalUpdated}
+                    autoOpenPicker={showWelcomeSpotlight}
                   />
                 </div>
 
                 {/* The journey — server-ordered, band-capped, locked-gated */}
-                <LearningPath
-                  data={pathData}
-                  loading={loading}
-                  offline={offlineMode}
-                  onOpenLesson={openLesson}
-                />
+                <div id="welcome-learning-path">
+                  <LearningPath
+                    data={pathData}
+                    loading={loading}
+                    offline={offlineMode}
+                    onOpenLesson={openLesson}
+                  />
+                </div>
               </>
             ) : (
             <>

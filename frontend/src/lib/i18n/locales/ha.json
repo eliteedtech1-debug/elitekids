@@ -1190,5 +1190,8 @@
   "student.goal.teacherHint": "Malamin ka ya zaɓi wannan — za ka iya ƙarawa kawai.",
   "student.goal.saveError": "An kasa ajiye burinka — sake gwadawa.",
   "student.goal.targetGames": "Buri: wasanni {count} a wannan makon",
+  "student.goal.saved": "An ajiye buri! Ka fara wasa! 🎯",
+  "student.welcome.title": "Barka da dawowa! Mu saita burin yau 🎯",
+  "student.welcome.body": "Danna maɓallin Saita don zaɓar wasanni nawa kake son kammala a wannan makon. Lambun ka yana girma yayin da ka kai burin!",
   "sceneEditor.linkGame": "ID darasin wasa *"
 }

@@ -7,9 +7,9 @@
  * goals are shown with a note; the backend protects teacher targets from being
  * lowered by a child.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Target } from 'lucide-react';
+import { AlertCircle, RotateCcw, Target } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t } from '@/lib/i18n';
@@ -22,28 +22,55 @@ interface GoalCardProps {
   loading?: boolean;
   /** Parent keeps the goal in sync (learning-path payload embeds it too). */
   onUpdated: (goal: WeeklyGoal) => void;
+  /** Open the picker automatically (used by the post-login welcome spotlight). */
+  autoOpenPicker?: boolean;
 }
 
-export default function GoalCard({ admissionNo, goal, loading, onUpdated }: GoalCardProps) {
+export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOpenPicker }: GoalCardProps) {
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  // Auto-open the picker when the welcome spotlight asks for it AND the
+  // current goal is still the lazy default (auto-init, never set by the
+  // child or teacher) so the first post-login interaction lands on the
+  // goal setup.
+  useEffect(() => {
+    if (autoOpenPicker && goal && (goal.set_by === 'auto' || !goal.set_by) && goal.done === 0) {
+      setPicking(true);
+    }
+  }, [autoOpenPicker, goal]);
 
   const setTarget = async (target: number) => {
-    if (!admissionNo) return;
+    if (!admissionNo) {
+      const msg = t('student.goal.saveError', { defaultValue: 'Could not save your goal. Please reload and try again.' });
+      toast.error(msg);
+      setLastError(msg);
+      return;
+    }
     playTap();
     setSaving(true);
+    setLastError(null);
     try {
       const res = await apiClient.post(ENDPOINTS.GOALS.POST(admissionNo), {
         target_count: target,
         set_by: 'child',
       });
       const data = res.data?.data;
-      if (data) onUpdated(data);
-      setPicking(false);
+      if (data) {
+        onUpdated(data);
+        setPicking(false);
+        toast.success(t('student.goal.saved', { defaultValue: 'Goal saved! Go play! 🎯' }));
+      } else {
+        throw new Error('No goal data in response');
+      }
     } catch (err: any) {
-      const msg = err?.response?.data?.message;
-      toast.error(msg || t('student.goal.saveError'));
-      setPicking(false);
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        t('student.goal.saveError', { defaultValue: 'Could not save your goal. Please try again.' });
+      toast.error(msg);
+      setLastError(msg);
     } finally {
       setSaving(false);
     }
@@ -129,9 +156,10 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated }: Goal
               return (
                 <button
                   key={n}
+                  type="button"
                   onClick={() => setTarget(n)}
                   disabled={saving}
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black transition-all active:scale-90 disabled:opacity-50 ${
+                  className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-black transition-all active:scale-90 disabled:opacity-50 ${
                     active
                       ? 'bg-gradient-to-br from-[#0F4D92] to-[#0d9488] text-white shadow-md shadow-[#0F4D92]/25'
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:shadow-sm'
@@ -145,6 +173,26 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated }: Goal
           </div>
           {goal?.set_by === 'teacher' && (
             <p className="mt-2 text-[11px] font-medium text-amber-600">👩‍🏫 {t('student.goal.teacherHint')}</p>
+          )}
+          {/* Inline error + retry so save failures are visible, not just a fading toast. */}
+          {lastError && (
+            <div className="mt-2 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2 text-[11px] text-red-700">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold">{lastError}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLastError(null);
+                    setPicking(true);
+                  }}
+                  className="mt-1 inline-flex items-center gap-1 rounded-lg bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 hover:bg-red-200"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  {t('common.retry', { defaultValue: 'Try again' })}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
