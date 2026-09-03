@@ -902,6 +902,37 @@
   'student.welcome.firstBody':
     "Pick your first lesson below to start earning XP. A weekly goal will unlock after your first game!",
 
+  // ── Student: Daily streak reminder (emotional nudge) ────────────────────
+  'student.streakReminder.tonight': 'Tonight',
+  'student.streakReminder.neverStarted.title': 'Ready to plant your first day? 🌱',
+  'student.streakReminder.neverStarted.body':
+    'Every champion starts with a single tap. Play one game today to grow your streak — and unlock a Seed Starter sticker!',
+  'student.streakReminder.neverStarted.cta': 'Plant my first day',
+  'student.streakReminder.broken.title': 'We missed you! Come back stronger 💛',
+  'student.streakReminder.broken.body':
+    "Your {current}-day streak ended, but your {longest}-day best is still waiting. A fresh start is one game away!",
+  'student.streakReminder.broken.cta': 'Start fresh today',
+  'student.streakReminder.brokenFreeze.title': 'No worries — your freeze saved you ❄️',
+  'student.streakReminder.brokenFreeze.body':
+    "Your streak freeze kicked in. You're still at {current} day{s} — play today to keep climbing!",
+  'student.streakReminder.brokenFreeze.cta': 'Save my streak',
+  'student.streakReminder.inDanger.title': "{current} days strong! Don't let it slip 🔥",
+  'student.streakReminder.inDanger.body':
+    "One quick game today keeps your streak alive and your XP multiplier rolling. You've got this!",
+  'student.streakReminder.inDanger.cta': 'Play one game now',
+  'student.streakReminder.onFire.title': "You're on fire! {current} days in a row 🔥",
+  'student.streakReminder.onFire.body':
+    'Your XP multiplier is boosted. Tap in for a quick game and keep the flame alive!',
+  'student.streakReminder.onFire.cta': 'Keep the flame burning',
+  'student.streakReminder.legend.title': '{current}-day legend! 🌈',
+  'student.streakReminder.legend.body':
+    "You're in the top tier of EliteKids. One more game today keeps the legend alive and the XP multiplier at 3×!",
+  'student.streakReminder.legend.cta': 'Keep the legend going',
+  'student.streakReminder.comeback.title': 'Day {current} — nice work! 🌟',
+  'student.streakReminder.comeback.body':
+    "You're building a real habit. One more game today and you'll be halfway to a Super Star sticker!",
+  'student.streakReminder.comeback.cta': 'Add to my streak',
+
   // ── Student: Live Bar ───────────────────────────────────────────────────
   'student.liveBar.teacherSpeaking': 'LIVE — Teacher is speaking to your class!',
   'student.liveBar.youSpeaking': '🔴 You are speaking — tap when done',

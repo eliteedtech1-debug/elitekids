@@ -44,6 +44,7 @@ import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
 import XPBar from '@/components/XPBar';
 import StreakCounter from '@/components/StreakCounter';
+import StreakReminder, { hasPlayedToday } from '@/components/StreakReminder';
 import Shop, { SKIN_META, THEME_HEADER } from '@/components/Shop';
 import ReviewDueBadge from '@/components/ReviewDueBadge';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
@@ -517,6 +518,34 @@ export default function StudentHome() {
             <CompanionBubble companion={companion} context="returning" skin={skin} />
           </div>
         )}
+
+        {/* Daily streak reminder — emotional nudge for kids who haven't
+            played today. Returning students get mood-specific copy
+            (in-danger / on-fire / legend); new students get a friendly
+            "plant your first day" invite. Suppressed once they play. */}
+        <StreakReminder
+          state={{
+            currentStreak: streak.currentStreak,
+            longestStreak: streak.longestStreak,
+            lastPlayDate: streak.lastPlayDate,
+            totalDaysPlayed: streak.totalDaysPlayed,
+            milestones: streak.milestones,
+          }}
+          freezeCount={economy?.streak?.freeze_count ?? 0}
+          playedToday={hasPlayedToday({
+            currentStreak: streak.currentStreak,
+            longestStreak: streak.longestStreak,
+            lastPlayDate: streak.lastPlayDate,
+            totalDaysPlayed: streak.totalDaysPlayed,
+            milestones: streak.milestones,
+          })}
+          isFirstSession={!isReturningStudent}
+          firstLessonId={
+            pathData?.path?.[0]?.units?.[0]?.lessons?.[0]?.lesson_id
+              ? String(pathData.path[0].units[0].lessons[0].lesson_id)
+              : null
+          }
+        />
 
         {/* Garden preview */}
         <div className="mb-4">
