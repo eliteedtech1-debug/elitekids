@@ -18,6 +18,7 @@ import {
   Trophy,
   RotateCcw,
   Swords,
+  Sparkles,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -194,12 +195,23 @@ export default function StudentHome() {
         if (!completed) {
           setShowOnboarding(true);
         } else {
-          // Returning user — show the welcome spotlight that highlights the
-          // goal + learning path so the weekly-goal setup is unmissable.
-          const welcomeSeen = sessionStorage.getItem('welcome-spotlight-seen');
-          if (!welcomeSeen) {
-            setShowWelcomeSpotlight(true);
-            sessionStorage.setItem('welcome-spotlight-seen', '1');
+          // Returning-and-already-played user only — the weekly-goal
+          // spotlight is meaningless for a brand-new student who hasn't
+          // completed a game yet. New students go straight to the path.
+          const progRes = await apiClient
+            .get(ENDPOINTS.PROGRESS.CHILD(admissionNo))
+            .catch(() => null);
+          const prog = progRes?.data?.data || {};
+          const isReturning =
+            Number(prog?.games_completed || 0) > 0 ||
+            Number(prog?.total_stars || 0) > 0 ||
+            Number(prog?.total_xp || 0) > 0;
+          if (isReturning) {
+            const welcomeSeen = sessionStorage.getItem('welcome-spotlight-seen');
+            if (!welcomeSeen) {
+              setShowWelcomeSpotlight(true);
+              sessionStorage.setItem('welcome-spotlight-seen', '1');
+            }
           }
           const compRes = await apiClient
             .get(ENDPOINTS.COMPANION.GET(admissionNo))
@@ -351,6 +363,16 @@ export default function StudentHome() {
 
   const studentBand = useMemo(() => classToAgeLevel(student?.class_name), [student?.class_name]);
 
+  // A "returning" student has at least one completed game or any prior
+  // progress row. New students see the OnboardingTour + CompanionSelect +
+  // LearningPath only — no weekly goal until they've actually played.
+  const isReturningStudent = useMemo(() => {
+    const completed = Number(progress?.games_completed || 0);
+    const stars = Number(progress?.total_stars || 0);
+    const xp = Number(progress?.total_xp || 0);
+    return completed > 0 || stars > 0 || xp > 0;
+  }, [progress?.games_completed, progress?.total_stars, progress?.total_xp]);
+
   // Subject tabs list ONLY lessons at-or-below the child's band — a hard
   // ceiling, no exact → adjacent → ALL fallback (the live list is already
   // band-capped server-side; this keeps the offline catalog honest too).
@@ -423,12 +445,9 @@ export default function StudentHome() {
         <OnboardingTour onComplete={() => {
           setShowOnboarding(false);
           if (!companion) setShowCompanionSelect(true);
-          else {
-            // Tour done — show the spotlight once so the weekly-goal setup
-            // is unmissable on the very first session after onboarding.
-            sessionStorage.removeItem('welcome-spotlight-seen');
-            setShowWelcomeSpotlight(true);
-          }
+          // No welcome spotlight for first-time students — the goal/spotlight
+          // is a returning-student affordance. They see the path immediately
+          // and the spotlight will fire on the next login if they play.
         }} />
       )}
       {/* Returning-student welcome spotlight (post-login hint at the goal) */}
@@ -628,16 +647,37 @@ export default function StudentHome() {
                   </button>
                 </div>
 
-                {/* Weekly goal banner — anchor for the post-login welcome spotlight */}
-                <div id="welcome-goal-card" className="mb-4">
-                  <GoalCard
-                    admissionNo={String(student?.admission_no || student?.id || '')}
-                    goal={pathData?.goal || null}
-                    loading={loading}
-                    onUpdated={handleGoalUpdated}
-                    autoOpenPicker={showWelcomeSpotlight}
-                  />
-                </div>
+                {/* Weekly goal banner — RETURNING students only (≥1 game
+                    played). New students see a friendly "let's start your
+                    first lesson" hint card instead so the path is the very
+                    first thing they interact with. */}
+                {isReturningStudent ? (
+                  <div id="welcome-goal-card" className="mb-4">
+                    <GoalCard
+                      admissionNo={String(student?.admission_no || student?.id || '')}
+                      goal={pathData?.goal || null}
+                      loading={loading}
+                      onUpdated={handleGoalUpdated}
+                      autoOpenPicker={showWelcomeSpotlight}
+                    />
+                  </div>
+                ) : (
+                  <div className="mb-4 flex items-center gap-3 rounded-3xl border border-[#0F4D92]/15 bg-white/80 p-4 shadow-lg backdrop-blur-xl animate-game-slide-up">
+                    <span className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0F4D92] to-[#0d9488] text-white shadow-md">
+                      <Sparkles className="h-6 w-6" />
+                    </span>
+                    <div className="flex-1">
+                      <p className="text-sm font-extrabold text-gray-800">
+                        {t('student.welcome.firstTitle', { defaultValue: 'Welcome to EliteKids! 🌟' })}
+                      </p>
+                      <p className="text-xs font-medium text-gray-500">
+                        {t('student.welcome.firstBody', {
+                          defaultValue: "Pick your first lesson below to start earning XP. A weekly goal will unlock after your first game!",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* The journey — server-ordered, band-capped, locked-gated */}
                 <div id="welcome-learning-path">
