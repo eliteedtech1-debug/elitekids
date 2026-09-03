@@ -10,6 +10,7 @@
   export const en: Record<string, string> = {
     // ── Common ──────────────────────────────────────────────────────────────
     'common.loading': 'Loading…',
+    'common.gotIt': "Let's go!",
     'common.retry': 'Retry',
     'common.cancel': 'Cancel',
     'common.save': 'Save',
@@ -1075,6 +1076,7 @@
 
   // ── Student: Garden ────────────────────────────────────────────────────
   'garden.title': 'My Garden',
+  'garden.decorations': '{count} decorations',
   'garden.plants': '{count} plants',
   'garden.empty': 'Play games to grow your garden! 🌱',
 

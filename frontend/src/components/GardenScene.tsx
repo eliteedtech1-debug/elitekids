@@ -3,6 +3,7 @@ import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { t } from '@/lib/i18n';
+import { DECOR_META, sanitizeDecorations, type EquippedDecoration } from '@/lib/game/garden';
 
 /* ── Garden element types and visuals ─────────────────────────── */
 
@@ -67,9 +68,17 @@ function FloatingDeco({ className }: { className?: string }) {
 
 /* ── Main Garden Scene ────────────────────────────────────────── */
 
-export default function GardenScene({ compact = false }: { compact?: boolean }) {
+export default function GardenScene({
+  compact = false,
+  equippedDecorations,
+}: {
+  compact?: boolean;
+  equippedDecorations?: Record<string, EquippedDecoration>;
+}) {
   const [elements, setElements] = useState<GardenElement[]>([]);
   const [loading, setLoading] = useState(true);
+  // Q1 G5: equipped shop decorations (garden_flower_bed / fountain / gazebo).
+  const decorations = sanitizeDecorations(equippedDecorations);
 
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
@@ -106,6 +115,20 @@ export default function GardenScene({ compact = false }: { compact?: boolean }) 
             <span key={i} className="text-xs drop-shadow-sm">{STAGE_EMOJIS[el.type]?.[el.stage] || '🌱'}</span>
           ))}
           {elements.length > 3 && <span className="text-[9px] font-bold text-green-600">+{elements.length - 3}</span>}
+          {decorations.length > 0 && (
+            <>
+              <span className="mx-0.5 h-3 w-px bg-green-300/60" aria-hidden="true" />
+              {decorations.map((id) => (
+                <span
+                  key={id}
+                  title={String(equippedDecorations?.[id]?.name || id)}
+                  className={`${DECOR_META[id].sizeClass} leading-none drop-shadow-sm`}
+                >
+                  {DECOR_META[id].emoji}
+                </span>
+              ))}
+            </>
+          )}
         </div>
       </div>
     );
@@ -125,6 +148,23 @@ export default function GardenScene({ compact = false }: { compact?: boolean }) 
           {t('garden.plants', { count: elements.length })}
         </span>
       </div>
+      {decorations.length > 0 && (
+        <div className="relative mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-white/40 px-3 py-2 border border-green-200/40">
+          {decorations.map((id, i) => (
+            <span
+              key={id}
+              title={String(equippedDecorations?.[id]?.name || id)}
+              className={`${DECOR_META[id].sizeClass} drop-shadow-sm animate-game-float`}
+              style={{ animationDelay: `${Math.min(i * 0.2, 1)}s` }}
+            >
+              {DECOR_META[id].emoji}
+            </span>
+          ))}
+          <span className="text-[9px] font-bold uppercase tracking-wide text-green-700/60">
+            {t('garden.decorations', { count: decorations.length })}
+          </span>
+        </div>
+      )}
       <div className="relative grid grid-cols-4 sm:grid-cols-6 gap-3">
         {elements.map((el, i) => (
           <GardenPlant key={el.item_id} element={el} index={i} />

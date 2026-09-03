@@ -215,12 +215,19 @@ export const STREAK_MULTIPLIERS = [
   { min_days: 30, multiplier: 3.0, label: '3× Legend Bonus!' },
 ] as const;
 
+// Mirrors backend/src/services/economyService.js LEVELS (single source of truth
+// for XP thresholds — G4 reconciliation). `unlocks` is display-only metadata the
+// backend does not track (consumed by LevelUpOverlay copy).
 export const LEVELS: LevelDefinition[] = [
   { level: 1, xp_required: 0, cumulative_xp: 0, title: 'Beginner', unlocks: ['Basic companion (Fox)'] },
   { level: 2, xp_required: 50, cumulative_xp: 50, title: 'Explorer', unlocks: ['Garden hat'] },
   { level: 3, xp_required: 150, cumulative_xp: 200, title: 'Adventurer', unlocks: ['Second companion (Owl)'] },
+  { level: 4, xp_required: 350, cumulative_xp: 550, title: 'Seeker', unlocks: ['Streak freeze'] },
   { level: 5, xp_required: 500, cumulative_xp: 1050, title: 'Scholar', unlocks: ['Theme: Ocean'] },
+  { level: 6, xp_required: 800, cumulative_xp: 1850, title: 'Sage', unlocks: ['Extra hint per game'] },
   { level: 7, xp_required: 1200, cumulative_xp: 3050, title: 'Expert', unlocks: ['Third companion (Bunny)'] },
+  { level: 8, xp_required: 1800, cumulative_xp: 4850, title: 'Adept', unlocks: ['Garden decoration slot'] },
+  { level: 9, xp_required: 2500, cumulative_xp: 7350, title: 'Virtuoso', unlocks: ['Bronze badge frame'] },
   { level: 10, xp_required: 5000, cumulative_xp: 12350, title: 'Master', unlocks: ['Theme: Space'] },
   { level: 15, xp_required: 15000, cumulative_xp: 47350, title: 'Champion', unlocks: ['Fourth companion (Bear)'] },
   { level: 20, xp_required: 35000, cumulative_xp: 122350, title: 'Legend', unlocks: ['Theme: Forest'] },

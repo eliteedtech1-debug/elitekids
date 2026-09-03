@@ -501,7 +501,7 @@ export default function StudentHome() {
 
         {/* Garden preview */}
         <div className="mb-4">
-          <GardenScene compact />
+          <GardenScene compact equippedDecorations={equippedItems} />
         </div>
 
         {/* Progress summary + streak — game-style gradient cards with glassmorphism */}

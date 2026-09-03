@@ -2,42 +2,39 @@ import {
   LEVELS,
   MASTERY_THRESHOLDS,
   STREAK_MULTIPLIERS,
+  type LevelDefinition,
   type MasteryState,
 } from '@/lib/types/adaptive';
 
 // Given total XP, resolve the current level definition.
-// Falls back to the highest defined level above the cap.
+// LEVELS is ascending; the highest row whose xp_required <= xp wins.
+// isMax only at the final threshold (xp >= LEVELS[last].xp_required).
 export function levelFromXp(xp: number): { level: number; title: string; currXp: number; nextXp: number; progress: number; isMax: boolean } {
   let current = LEVELS[0];
-  let next = LEVELS[1] || null;
+  let next: LevelDefinition | null = null;
   for (let i = 0; i < LEVELS.length; i++) {
-    if (xp >= LEVELS[i].xp_required || LEVELS[i].level <= current.level) {
-      if (LEVELS[i].cumulative_xp <= xp) {
-        current = LEVELS[i];
-        next = LEVELS[i + 1] || null;
-      }
+    if (xp >= LEVELS[i].xp_required) {
+      current = LEVELS[i];
+      next = LEVELS[i + 1] || null;
     }
   }
-  if (!next || xp >= next.xp_required) {
-    const highest = LEVELS[LEVELS.length - 1];
+  if (!next) {
     return {
-      level: highest.level,
-      title: highest.title,
-      currXp: highest.xp_required,
-      nextXp: highest.xp_required,
+      level: current.level,
+      title: current.title,
+      currXp: current.xp_required,
+      nextXp: current.xp_required,
       progress: 1,
       isMax: true,
     };
   }
-  const span = current.cumulative_xp !== next.cumulative_xp
-    ? next.cumulative_xp - current.cumulative_xp
-    : 1;
-  const progress = Math.max(0, Math.min(1, (xp - current.cumulative_xp) / span));
+  const span = Math.max(1, next.xp_required - current.xp_required);
+  const progress = Math.max(0, Math.min(1, (xp - current.xp_required) / span));
   return {
     level: current.level,
     title: current.title,
-    currXp: current.cumulative_xp,
-    nextXp: next.cumulative_xp,
+    currXp: current.xp_required,
+    nextXp: next.xp_required,
     progress,
     isMax: false,
   };
