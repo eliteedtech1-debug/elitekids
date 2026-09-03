@@ -92,46 +92,27 @@ function recordPlayDayLocal(): StreakState {
 // ── Public API ──────────────────────────────────────────────────────────
 
 /**
- * Get streak state. Tries backend first, falls back to localStorage.
- */
-export async function getStreak(childAdmissionNo?: string): Promise<StreakState> {
-  try {
-    const url = childAdmissionNo
-      ? `${ENDPOINTS.STREAK.GET}?child_admission_no=${encodeURIComponent(childAdmissionNo)}`
-      : ENDPOINTS.STREAK.GET;
-    const res = await apiClient.get(url);
-    const data = res.data?.data;
-    if (data) {
-      const state: StreakState = {
-        currentStreak: data.currentStreak || 0,
-        longestStreak: data.longestStreak || 0,
-        lastPlayDate: data.lastPlayDate || '',
-        totalDaysPlayed: data.totalDaysPlayed || 0,
-        milestones: data.milestones || [],
-      };
-      saveStreakLocal(state); // cache for offline
-      return state;
-    }
-  } catch {}
-  return getStreakLocal();
-}
-
-/**
- * Record a play day. Tries backend first, falls back to localStorage.
+ * Record a play day. Hits the REAL backend route (economy streak record —
+ * admission comes from the JWT; streaks previously never persisted server-side
+ * because this posted to a removed /kids/streak/record endpoint and silently
+ * fell back to localStorage). Merges the economy response into the cached
+ * StreakState; falls back to localStorage-only recording when offline/error.
  */
 export async function recordPlayDay(childAdmissionNo?: string): Promise<StreakState> {
   try {
-    const res = await apiClient.post(ENDPOINTS.STREAK.RECORD, {
-      child_admission_no: childAdmissionNo || '',
+    const res = await apiClient.post(ENDPOINTS.ECONOMY.STREAK_RECORD, {
+      child_admission_no: childAdmissionNo || '', // ignored by backend (JWT-derived) — kept for compat
     });
     const data = res.data?.data;
-    if (data) {
+    if (data && typeof data.streak === 'number') {
+      const prev = getStreakLocal();
+      const today = todayKey();
       const state: StreakState = {
-        currentStreak: data.currentStreak || 0,
-        longestStreak: data.longestStreak || 0,
-        lastPlayDate: data.lastPlayDate || '',
-        totalDaysPlayed: data.totalDaysPlayed || 0,
-        milestones: data.milestones || [],
+        currentStreak: data.streak,
+        longestStreak: Math.max(prev.longestStreak, data.streak),
+        lastPlayDate: today,
+        totalDaysPlayed: prev.lastPlayDate === today ? prev.totalDaysPlayed : prev.totalDaysPlayed + 1,
+        milestones: prev.milestones,
       };
       saveStreakLocal(state);
       return state;

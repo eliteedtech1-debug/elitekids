@@ -299,10 +299,4 @@ export const ENDPOINTS = {
     STATS: '/kids/match-history/stats',
   },
 
-  // Phase 4: Daily Streak
-  STREAK: {
-    GET: '/kids/streak',
-    RECORD: '/kids/streak/record',
-  },
-
 } as const;
