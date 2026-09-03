@@ -190,13 +190,11 @@ async function completeReview(req, res) {
     let cardId = null;
     if (!card) {
       const init = { ...createSm2Card(), next_review_at: new Date() };
-      const insId = crypto.randomUUID();
       await content.query(
-        `INSERT INTO kids_review_schedule_v2 (id, child_admission_no, skill_key, item_id, ease, interval_days, repetitions, last_quality, next_review_at)
-         VALUES (:id, :adm, :sk, :iid, :ease, :intv, :rep, :q, :nr)`,
+        `INSERT INTO kids_review_schedule_v2 (child_admission_no, skill_key, item_id, ease, interval_days, repetitions, last_quality, next_review_at)
+         VALUES (:adm, :sk, :iid, :ease, :intv, :rep, :q, :nr)`,
         {
           replacements: {
-            id: insId,
             adm,
             sk: skill_key || 'general.general',
             iid: item_id,

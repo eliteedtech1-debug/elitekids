@@ -207,9 +207,9 @@ async function buyItem(req, res) {
         { replacements: { b: newBalance, adm, old: balance } }
       );
       await content.query(
-        `INSERT INTO kids_shop_purchases (id, child_admission_no, item_id, cost)
-         VALUES (:id, :adm, :iid, :cost)`,
-        { replacements: { id: crypto.randomUUID(), adm, iid: item_id, cost } }
+        `INSERT INTO kids_shop_purchases (child_admission_no, item_id, cost)
+         VALUES (:adm, :iid, :cost)`,
+        { replacements: { adm, iid: item_id, cost } }
       );
     } catch (e) {
       return res.status(500).json({ success: false, code: 'ECO_PURCHASE_FAILED', message: 'Purchase failed, please retry' });
@@ -218,11 +218,10 @@ async function buyItem(req, res) {
     // Record transaction
     try {
       await content.query(
-        `INSERT INTO kids_economy_transactions (id, child_admission_no, action, amount, base_amount, context)
-         VALUES (:id, :adm, 'shop_purchase', :neg, :neg, :ctx)`,
+        `INSERT INTO kids_economy_transactions (child_admission_no, action, amount, base_amount, context)
+         VALUES (:adm, 'shop_purchase', :neg, :neg, :ctx)`,
         {
           replacements: {
-            id: crypto.randomUUID(),
             adm,
             neg: -cost,
             ctx: JSON.stringify({ item_id, item_name: item.name }),

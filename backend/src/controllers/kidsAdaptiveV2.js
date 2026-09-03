@@ -89,9 +89,9 @@ async function getStateOrCreate(content, adm, schoolId, skillKey) {
   let state = await getState(content, adm, skillKey);
   if (!state) {
     await content.query(
-      `INSERT INTO kids_adaptive_state_v2 (id, child_admission_no, school_id, skill_key)
-       VALUES (:id, :adm, :sid, :sk)`,
-      { replacements: { id: crypto.randomUUID(), adm, sid: schoolId, sk: skillKey } }
+      `INSERT INTO kids_adaptive_state_v2 (child_admission_no, school_id, skill_key)
+       VALUES (:adm, :sid, :sk)`,
+      { replacements: { adm, sid: schoolId, sk: skillKey } }
     );
     state = await getState(content, adm, skillKey);
   }

@@ -88,8 +88,8 @@ async function getEconomy(content, adm, schoolId) {
 
   if (!econ) {
     await content.query(
-      `INSERT INTO kids_economy (id, child_admission_no, school_id) VALUES (:id, :adm, :sid)`,
-      { replacements: { id: crypto.randomUUID(), adm, sid: schoolId || 'general' } }
+      `INSERT INTO kids_economy (child_admission_no, school_id) VALUES (:adm, :sid)`,
+      { replacements: { adm, sid: schoolId || 'general' } }
     );
     const [rows2] = await content.query(
       `SELECT * FROM kids_economy WHERE child_admission_no = :adm LIMIT 1`,
@@ -193,11 +193,10 @@ async function earnXP(req, res) {
 
     // Record transaction
     await content.query(
-      `INSERT INTO kids_economy_transactions (id, child_admission_no, action, amount, base_amount, perfect_bonus, streak_bonus, multiplier, context)
-       VALUES (:id, :adm, :action, :amount, :base, :pb, :sb, :mult, :ctx)`,
+      `INSERT INTO kids_economy_transactions (child_admission_no, action, amount, base_amount, perfect_bonus, streak_bonus, multiplier, context)
+       VALUES (:adm, :action, :amount, :base, :pb, :sb, :mult, :ctx)`,
       {
         replacements: {
-          id: crypto.randomUUID(),
           adm,
           action,
           amount: xpData.xp_earned,
@@ -362,11 +361,10 @@ async function updateReviewXP(child_admission_no, school_id) {
   );
 
   await content.query(
-    `INSERT INTO kids_economy_transactions (id, child_admission_no, action, amount, base_amount, perfect_bonus, streak_bonus, multiplier)
-     VALUES (:id, :adm, 'review_complete', :amount, :base, 0, :sb, :mult)`,
+    `INSERT INTO kids_economy_transactions (child_admission_no, action, amount, base_amount, perfect_bonus, streak_bonus, multiplier)
+     VALUES (:adm, 'review_complete', :amount, :base, 0, :sb, :mult)`,
     {
       replacements: {
-        id: crypto.randomUUID(),
         adm: child_admission_no,
         amount: xpData.xp_earned,
         base: xpData.base_amount,
@@ -433,11 +431,10 @@ async function updateEconomyAfterGame({ child_admission_no, school_id, correct, 
 
   // Transaction
   await content.query(
-    `INSERT INTO kids_economy_transactions (id, child_admission_no, action, amount, base_amount, perfect_bonus, streak_bonus, multiplier, context)
-     VALUES (:id, :adm, 'game_complete', :amount, :base, :pb, :sb, :mult, :ctx)`,
+    `INSERT INTO kids_economy_transactions (child_admission_no, action, amount, base_amount, perfect_bonus, streak_bonus, multiplier, context)
+     VALUES (:adm, 'game_complete', :amount, :base, :pb, :sb, :mult, :ctx)`,
     {
       replacements: {
-        id: crypto.randomUUID(),
         adm: child_admission_no,
         amount: xpData.xp_earned,
         base: xpData.base_amount,
