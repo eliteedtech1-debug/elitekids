@@ -77,3 +77,10 @@
 - Session-restore `git reset` had ORPHANED 073c18d (streak economy-route fix) before push; teammate's e99f699 (StreakReminder banner) landed without it. Recovered via cherry-pick → bd7f3d8; applied cleanly on top of e99f699.
 - Backend on new code: full suite 476P/2F (garden C-DEBT-01/02 baseline only). FE gates on combined tree: tsc clean, vitest 117/117, build OK.
 - ENHANCED the streak-reminder emotional copy (user ask: dry "we miss you / come back stronger" lines) — all 7 moods rewritten kid-warm/proud in en.ts + en.json + ha.json, component EN fallbacks synced (StreakReminder.tsx). Highlights: broken = "Yay — you're back! We saved your spot 💛" (shame-free), onFire adds "We're so proud of you", legend "show everyone how it's done". JSON validated.
+
+## Q2 SLICE 2 — SPEECHGAME CLIENT LIVE-VERIFIED (2026-09-03 night, Buffy) → 8989ebc
+- SpeechGame.tsx (Web Speech en-NG mic capture → transcript POSTed to /kids/speech/assess; typed fallback per roadmap low-end-device risk) + /student/speech route + SpeechPractice packs page + StudentHome header Speak button + 15 speech.* i18n keys (EN/HA).
+- Speech templates registered end-to-end: VALID_TEMPLATES (kids.js) + fix-template-enum.js + GameCreator cards (speech-letter/word/sentence with expected_text prompts).
+- BUG caught by live E2E only: kidsSpeech.js lazy require '../src/models' → 500 on prod (unit tests never hit DB path). Fixed to '../models', redeployed, re-verified.
+- LIVE PROOF (Demo2 real session, 390×844): POST assess → 200 {overall:100, band:"amazing"}; result card + zero console errors; kids_speech_logs 0→1 row in elite_content.
+- Gates: backend 487P/2F (garden baseline only; kids-routes full-run flake passes isolated), tsc clean, vitest 117/117, build OK. Report: reports/q2-speech-slice2-live-verified.md. NOTE: targeted run-tests.sh needs --forceExit; TEST_DB creds map from DB_USERNAME/DB_PASSWORD (test DB = live name + _test).
