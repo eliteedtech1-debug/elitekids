@@ -161,21 +161,49 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    if ((!short_name || short_name === 'localhost') && !form.school_id) {
-      setError(t('login.invalidShortName'));
-      setLoading(false);
-      return;
+    // Resolve the school by typed short name at submit time. loadSchool only
+    // runs on blur, so a fast tap on Sign In can race ahead of the async
+    // lookup and leave school_id empty — resolve it here (idempotent if the
+    // blur lookup already landed).
+    let schoolId = form.school_id;
+    if ((!short_name || short_name === 'localhost') && !schoolId) {
+      const sn = shortNameInput.trim();
+      if (!sn) {
+        setError(t('login.invalidShortName'));
+        setLoading(false);
+        return;
+      }
+      try {
+        const lookup = await apiClient.get(ENDPOINTS.SCHOOL.GET_DETAILS, {
+          params: { query_type: 'select-by-short-name', short_name: sn },
+        });
+        const s = lookup.data?.data?.[0];
+        if (lookup.data?.success && s) {
+          setSchool(s);
+          schoolId = s.school_id;
+          setForm((p) => ({ ...p, school_id: s.school_id }));
+        } else {
+          setSchoolError(lookup.data?.message || t('login.noSchoolFound'));
+        }
+      } catch {
+        setSchoolError(t('login.serverUnreachable'));
+      }
+      if (!schoolId) {
+        setError(t('login.invalidShortName'));
+        setLoading(false);
+        return;
+      }
     }
     try {
       const res = await apiClient.post(ENDPOINTS.AUTH.LOGIN(mode), {
         username: form.email,
         password: form.password,
-        school_id: form.school_id,
+        school_id: schoolId,
       });
       const data = res.data;
       if (data?.success && data.token) {
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token.replace(/^Bearer\s+/i, ''));
-        localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, data.school_id || form.school_id);
+        localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, data.school_id || schoolId);
         const userType = data.user?.user_type || data.user_type || '';
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: userType }));
         toast.success(t('login.loginSuccess'));
