@@ -4,7 +4,7 @@
 
 ## Status: RECONCILED + COMPLETE — committed + pushed
 
-## RECONCILIATION (2026-09-03) — response envelope contract
+## RECONCILIATION (2026-09-03) — response envelope contract + UUID fix
 Other team flagged that v2 work was "ignored" and added Q1 error codes to `backend/src/services/responseHelper.js` (SRS §10.2). Root cause found and FIXED:
 - **Mismatch:** my Q1 controllers emitted errors as `{ success, code, message }` but the codebase-wide + frontend contract (`frontend/src/lib/api/mapApiError.ts`) reads `error_code`. The team's `responseHelper` (ERROR_CODES) expected `error_code`.
 - **Fix:**
@@ -14,9 +14,16 @@ Other team flagged that v2 work was "ignored" and added Q1 error codes to `backe
   4. Added Q1 error keys to `frontend/src/lib/i18n/en.ts` and Q1 entries to `frontend/src/lib/api/mapApiError.ts` ERROR_MAP so the frontend localizes them.
 - Verified: 4 controllers parse; frontend tsc clean (exit 0); q1 backend suites 52/52 passing.
 
+## RECONCILIATION round 2 — ADOPTED their UUID fix (d40241a) + NEW find
+- Their `d40241a` correctly stopped inserting `crypto.randomUUID()` into `BIGINT AUTO_INCREMENT` id columns (was 500ing GET /kids/economy/balance). ACCEPTED, rebased cleanly (no git conflict, different lines).
+- NEW find on my end: my ADE controller also inserted into `kids_game_item_responses` with a UUID into its BIGINT id AND phantom columns (`quality/skill_key/mastery_before/mastery_after/updatedAt`) that don't exist on that table. **Removed the whole block** (was non-fatal but could never succeed).
+- Final state: 0 `randomUUID` + 0 bare `code:` across all 4 Q1 controllers; all parse; 52/52 tests; frontend tsc exit 0.
+- Full cross-team report: `team-docs/reports/q1-reconciliation-report.md`.
+
 ## Milestone commit
 - First push: `dc9c1dd` Q1 implementation (27 files, 3887 insertions) — A/B/C/tests tracks.
 - Follow-up docs: `acf8dc5`.
+- Reconciliation (error_code): rebased `7b650b5` (was `06f0b72`) on top of their `9b679aa`.
 
 ## Timeline
 - **2026-09-03** — Started Q1 implementation (resumed from prior session state).

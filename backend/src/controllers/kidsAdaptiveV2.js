@@ -219,32 +219,6 @@ async function updateProfile(req, res) {
       }
     );
 
-    // Record item response (if client didn't already)
-    try {
-      await content.query(
-        `INSERT INTO kids_game_item_responses (id, student_id, item_id, tier, distractor_count, response_time_ms, mode, correct, quality, skill_key, mastery_before, mastery_after, createdAt, updatedAt)
-         VALUES (:id, :adm, :iid, :tier, :dc, :rt, :mode, :correct, :q, :sk, :mb, :ma, NOW(), NOW())`,
-        {
-          replacements: {
-            id: crypto.randomUUID(),
-            adm,
-            iid: item_id,
-            tier: 0,
-            dc: distractor_count || 0,
-            rt: response_time_ms || 0,
-            mode: mode || 'learning',
-            correct,
-            q: effectiveQuality,
-            sk: skill_key,
-            mb: masteryBefore,
-            ma: masteryAfter,
-          },
-        }
-      );
-    } catch (e) {
-      // Table may not have new columns yet — non-fatal
-    }
-
     // XP via economy (game-level, not per-item)
     let xpData = null;
     try {
