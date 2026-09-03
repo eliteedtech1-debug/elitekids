@@ -66,3 +66,6 @@ controller/route/FE/schema touched — cannot collide with phaseG2/ops waves):
 - Result: q1 suites 77/77 passing (was 54).
 
 
+
+## IDLE:hands-off 2026-09-03
+IDLE:blocked-reason — awaiting other-team push to origin/main to trigger a real browser/E2E test. All dispatchable work merged & pushed (b81e89c, 8638561). See handsoff-idle-status.md.
