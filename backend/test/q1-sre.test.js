@@ -103,6 +103,14 @@ describe('Due / overdue', () => {
     const card = { next_review_at: new Date(Date.now() + 86400000) };
     expect(daysOverdue(card)).toBe(0);
   });
+
+  test('daysOverdue returns 0 when next_review_at is missing', () => {
+    expect(daysOverdue({})).toBe(0);
+  });
+
+  test('isDue treats a missing next_review_at as due', () => {
+    expect(isDue({})).toBe(true);
+  });
 });
 
 describe('Interval description + queue', () => {
@@ -117,5 +125,23 @@ describe('Interval description + queue', () => {
     const newContent = [{ item_id: 'x' }, { item_id: 'y' }];
     const q = buildReviewQueue(due, newContent, 4);
     expect(q.length).toBe(4);
+  });
+
+  test('buildReviewQueue never exceeds the requested queue size', () => {
+    const due = [{ item_id: 'a' }, { item_id: 'b' }, { item_id: 'c' }];
+    const newContent = [{ item_id: 'x' }, { item_id: 'y' }, { item_id: 'z' }];
+    expect(buildReviewQueue(due, newContent, 2).length).toBeLessThanOrEqual(2);
+  });
+
+  test('buildReviewQueue handles empty inputs gracefully', () => {
+    expect(buildReviewQueue([], [], 5)).toEqual([]);
+    expect(buildReviewQueue([], [], 0)).toEqual([]);
+  });
+
+  test('describeInterval covers each display bucket', () => {
+    expect(describeInterval(2)).toBe('2 days');      // < 7
+    expect(describeInterval(14)).toBe('2 weeks');    // < 30
+    expect(describeInterval(60)).toBe('2 months');   // < 365
+    expect(describeInterval(400)).toBe('1 year+');   // >= 365
   });
 });

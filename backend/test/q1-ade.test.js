@@ -71,6 +71,16 @@ describe('Elo rating', () => {
     const underdog = eloUpdate(500, 1500, true);
     expect(fav - 1500).toBeLessThan(underdog - 500);
   });
+
+  test('rating clamps to the configured min/max bounds', () => {
+    // Repeatedly reward an extreme mismatch; must stay within ELO_MIN..ELO_MAX
+    let elo = 3000;
+    for (let i = 0; i < 50; i++) elo = eloUpdate(elo, 100, true);
+    expect(elo).toBeLessThanOrEqual(3000);
+    elo = 100;
+    for (let i = 0; i < 50; i++) elo = eloUpdate(elo, 3000, false);
+    expect(elo).toBeGreaterThanOrEqual(100);
+  });
 });
 
 describe('Difficulty calculation', () => {
@@ -112,6 +122,14 @@ describe('Struggle detection', () => {
     expect(r.severity).toBe('high');
   });
 
+  test('single signal yields low severity, two signals medium', () => {
+    expect(detectStruggle({ consecutive_wrong: 3 }, {}).severity).toBe('low');
+    // consecutive wrong (signal 1) + clear slowing-down (signal 2)
+    expect(
+      detectStruggle({ consecutive_wrong: 3, last_5_response_times: [100, 100, 2000, 2000, 2000] }, {}).severity
+    ).toBe('medium');
+  });
+
   test('healthy performance does not signal struggle', () => {
     const r = detectStruggle(
       { consecutive_wrong: 0, last_5_response_times: [1000, 900, 950, 1000, 1200] },
@@ -136,6 +154,12 @@ describe('Mastery state mapping', () => {
     expect(meta.fillPercent).toBe(90);
     expect(MASTERY_THRESHOLDS.MASTERED).toBe(0.85);
   });
+
+  test('getMasteryMeta fill stays within a sane display cap', () => {
+    // Valid 0..1 probabilities never exceed 100% on the rendered bar
+    expect(getMasteryMeta(0.999).fillPercent).toBeLessThanOrEqual(100);
+    expect(getMasteryMeta(0).fillPercent).toBe(0);
+  });
 });
 
 describe('Skill key + quality', () => {
@@ -157,5 +181,14 @@ describe('ZPD', () => {
     expect(z.lower).toBeGreaterThanOrEqual(0);
     expect(z.upper).toBeLessThanOrEqual(1);
     expect(z.lower).toBeLessThanOrEqual(z.upper);
+  });
+
+  test('bounds hold for extreme mastery values', () => {
+    for (const p of [0, 0.05, 0.95, 1]) {
+      const z = calculateZPD(p);
+      expect(z.lower).toBeGreaterThanOrEqual(0);
+      expect(z.upper).toBeLessThanOrEqual(1);
+      expect(z.lower).toBeLessThanOrEqual(z.upper);
+    }
   });
 });

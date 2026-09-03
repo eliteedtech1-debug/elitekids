@@ -54,3 +54,15 @@ editing any of these, pause and coordinate via MASTER:
 - Rebased cleanly onto other team's `0fc403d` (docs-only) — no git conflicts.
 - Only touched: StudentHome.tsx, GamePlay.tsx, ReviewZone.tsx, mapApiError.ts, en.ts + new test/report files. Game-chain FE work preserved verbatim.
 
+## Post-D QA sweep (2026-09-03) — pure backend/test, zero conflict
+Added edge-case unit coverage to the Q1 service libs (backend/test/* only; no
+controller/route/FE/schema touched — cannot collide with phaseG2/ops waves):
+- NEW `q1-shop.test.js` (service had NO tests): catalog integrity, category
+  coverage, unique ids, validatePurchase (owns/insufficient/exact), balance.
+- q1-ade.test.js: Elo clamp bounds, single/two-signal severity, ZPD extreme
+  mastery bounds, mastery-meta display cap.
+- q1-sre.test.js: missing next_review_at handling, queue size cap + empty
+  inputs, all describeInterval buckets.
+- Result: q1 suites 77/77 passing (was 54).
+
+
