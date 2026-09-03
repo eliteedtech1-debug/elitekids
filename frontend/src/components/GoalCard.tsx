@@ -115,9 +115,21 @@ export default function GoalCard({ admissionNo, goal, loading, onUpdated, autoOp
             {reached ? '🎉' : <Target className="h-6 w-6" />}
           </span>
           <div>
-            <p className="text-sm font-extrabold text-gray-800">{t('student.goal.title')}</p>
+            <p className="text-sm font-extrabold text-gray-800">
+              {goal?.set_by === 'auto' && done === 0 ? (
+                <span className="inline-flex items-center gap-1">
+                  <span>🌱</span> {t('student.goal.title')}
+                </span>
+              ) : (
+                t('student.goal.title')
+              )}
+            </p>
             <p className="text-xs font-medium text-gray-500">
-              {goal?.set_by === 'teacher' ? t('student.goal.teacherNote') : t('student.goal.childNote')}
+              {goal?.set_by === 'teacher'
+                ? t('student.goal.teacherNote')
+                : goal?.set_by === 'auto' && done === 0
+                ? t('student.goal.childNote')
+                : t('student.goal.childNote')}
             </p>
           </div>
         </div>

@@ -27,6 +27,7 @@ export default function XPBar({ xpTotal, streakDays = 0, compact = false }: XPBa
   }
 
   const pct = Math.round(info.progress * 100);
+  const isFresh = xpTotal === 0;
 
   return (
     <div className="w-full rounded-2xl bg-white/5 p-3">
@@ -37,20 +38,30 @@ export default function XPBar({ xpTotal, streakDays = 0, compact = false }: XPBa
             Level {info.level} · {info.title}
           </span>
         </div>
-        <span className="text-xs text-white/50">{xpTotal.toLocaleString()} XP</span>
+        <span className="text-xs text-white/50">
+          {isFresh ? '🌱 Tap a lesson to start' : `${xpTotal.toLocaleString()} XP`}
+        </span>
       </div>
       <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
         <div
           className={`h-full rounded-full transition-all duration-500 ${
-            info.isMax
+            isFresh
+              ? 'bg-gradient-to-r from-emerald-400/60 to-teal-400/60 animate-pulse'
+              : info.isMax
               ? 'bg-gradient-to-r from-yellow-400 to-amber-500'
               : 'bg-gradient-to-r from-yellow-400 to-orange-400'
           }`}
-          style={{ width: `${pct}%` }}
+          style={{ width: `${Math.max(pct, isFresh ? 8 : 4)}%` }}
         />
       </div>
       <div className="mt-1 flex items-center justify-between text-xs text-white/50">
-        <span>{info.isMax ? 'Max level' : `${pct}% to next`}</span>
+        <span>
+          {isFresh
+            ? 'Earn XP by finishing games'
+            : info.isMax
+            ? 'Max level'
+            : `${pct}% to next`}
+        </span>
         {streakDays > 0 && (
           <span className="flex items-center gap-0.5 text-orange-400">
             <Flame className="h-3.5 w-3.5" /> {streakDays} day streak

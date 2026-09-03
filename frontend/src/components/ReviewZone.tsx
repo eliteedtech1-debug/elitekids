@@ -194,6 +194,10 @@ export default function ReviewZone() {
           </div>
           <p className="relative text-lg font-extrabold text-gray-800">{t('reviewZone.empty')}</p>
           <p className="relative mt-1 text-sm text-gray-500">{t('reviewZone.emptyHint')}</p>
+          <p className="relative mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#0d9488]/10 px-3 py-1 text-[11px] font-bold text-[#0d9488]">
+            <span>💡</span>
+            Reviews appear when you answer questions. Practice strengthens memory!
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
