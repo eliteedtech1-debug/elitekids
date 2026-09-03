@@ -409,12 +409,16 @@ async function getNextItems(req, res) {
     await ensureSchema();
     const { content } = dbm();
 
-    // Weakest skills (lowest mastery), optionally filtered by subject
+    // Weakest skills (lowest mastery), optionally filtered by subject.
+    // Legacy sentinel skills ('general'/'default'/'explore') are placeholders
+    // written by older clients — they map to no real lesson, so exclude them
+    // from recommendations (they would otherwise rank first forever).
     const subjectFilter = subject ? ` AND skill_key LIKE :suffix` : '';
     const [rows] = await content.query(
       `SELECT skill_key, mastery_probability, current_difficulty, last_practiced_at, consecutive_wrong
        FROM kids_adaptive_state_v2
        WHERE child_admission_no = :adm${subjectFilter}
+         AND skill_key NOT IN ('general', 'default', 'explore')
        ORDER BY mastery_probability ASC
        LIMIT :cnt`,
       {
@@ -434,15 +438,17 @@ async function getNextItems(req, res) {
       consecutive_wrong: Number(r.consecutive_wrong || 0),
     }));
 
-    // Recommend weakest skills first; if none, suggest default
+    // Recommend weakest skills first; if none, suggest default. lesson_id maps
+    // back to the lesson the child should play next (FE navigates to /play/:id).
     const items = skills.length > 0
       ? skills.map(s => ({
           skill_key: s.skill_key,
+          lesson_id: s.skill_key,
           difficulty: s.difficulty,
           reason: s.consecutive_wrong >= 3 ? 'needs_practice' : s.mastery_probability < 0.5 ? 'needs_practice' : 'strengthen',
           mastery_probability: s.mastery_probability,
         }))
-      : [{ skill_key: `${subject ? subject + '.' : ''}general`, difficulty: 3, reason: 'new_skill', mastery_probability: 0 }];
+      : [{ skill_key: `${subject ? subject + '.' : ''}general`, lesson_id: null, difficulty: 3, reason: 'new_skill', mastery_probability: 0 }];
 
     return res.json({
       success: true,

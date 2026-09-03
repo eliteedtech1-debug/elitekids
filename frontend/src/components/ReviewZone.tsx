@@ -100,7 +100,15 @@ export default function ReviewZone() {
 
   const handleStartReview = (review: DueReview) => {
     playTap();
-    navigate(`/student/game/${review.lesson_id}?mode=practice`);
+    // SRE v2 grading loop: tag the session as a review so GamePlay grades the
+    // SM-2+ card (POST /kids/reviews/v2/complete) when the game completes.
+    const q = new URLSearchParams({
+      mode: 'practice',
+      review: '1',
+      skill: review.subject || '',
+      item: review.lesson_id || '',
+    });
+    navigate(`/student/game/${review.lesson_id}?${q.toString()}`);
   };
 
   if (!loaded) {

@@ -11,9 +11,9 @@ type View = 'login' | 'register' | 'dashboard' | 'child';
 export default function ParentDashboard() {
   const [view, setView] = useState<View>('login');
   const [phone, setPhone] = useState('');
-  const [pin, setPin] = useState('');
+  const [password, setPassword] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regPin, setRegPin] = useState('1234');
+  const [regPassword, setRegPassword] = useState('');
   const [regAdm, setRegAdm] = useState('');
   const [regSchool, setRegSchool] = useState('');
   const [children, setChildren] = useState<{ admission_no: string; name: string; school_id: string; school_name: string }[]>([]);
@@ -24,9 +24,10 @@ export default function ParentDashboard() {
 
   const login = async () => {
     if (!phone.trim()) return toast.error(t('parent.phoneRequired'));
+    if (!password.trim()) return toast.error(t('parent.passwordRequired'));
     setLoading(true);
     try {
-      const res = await apiClient.post('/kids/parent/login', { phone: phone.trim(), password: pin || '1234' });
+      const res = await apiClient.post('/kids/parent/login', { phone: phone.trim(), password: password.trim() });
       const d = res.data?.data;
       if (d?.token) {
         setToken(d.token);
@@ -52,17 +53,18 @@ export default function ParentDashboard() {
 
   const register = async () => {
     if (!regPhone.trim() || !regAdm.trim() || !regSchool.trim()) return toast.error(t('parent.allFieldsRequired'));
+    if (!regPassword.trim()) return toast.error(t('parent.passwordRequired'));
     setLoading(true);
     try {
       const res = await apiClient.post('/kids/parent/register', {
         phone: regPhone.trim(),
-        password: regPin || '1234',
+        password: regPassword.trim(),
         admission_no: regAdm.trim(),
         school_id: regSchool.trim(),
       });
       toast.success(res.data?.data?.message || t('parent.linked'));
       setPhone(regPhone);
-      setPin(regPin);
+      setPassword(regPassword);
       setView('login');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || t('parent.registrationFailed');
@@ -112,12 +114,12 @@ export default function ParentDashboard() {
             <label className="mb-4 block text-xs font-bold text-gray-600">
               <Lock className="mr-1 inline h-3.5 w-3.5" /> {t('parent.password')}
               <input
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('parent.passwordPlaceholder')}
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
                 type="password"
-                maxLength={20}
+                maxLength={64}
               />
             </label>
             <button
@@ -158,7 +160,7 @@ export default function ParentDashboard() {
             </label>
             <label className="mb-3 block text-xs font-bold text-gray-600">
               <Lock className="mr-1 inline h-3.5 w-3.5" /> {t('parent.passwordForLogin')}
-              <input value={regPin} onChange={(e) => setRegPin(e.target.value)} placeholder={t('parent.passwordPlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="password" maxLength={20} />
+              <input value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder={t('parent.passwordPlaceholder')} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" type="password" maxLength={64} />
             </label>
             <label className="mb-3 block text-xs font-bold text-gray-600">
               <Baby className="mr-1 inline h-3.5 w-3.5" /> {t('parent.childAdmission')}

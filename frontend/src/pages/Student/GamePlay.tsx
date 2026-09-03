@@ -2624,6 +2624,21 @@ function WaitingSubmit({
 
 /* ── Result Breakdown ──────────────────────────────────────── */
 
+/** Q1 Phase 2: ADE v2 next-item recommendation (weakest skills first). */
+type NextRec = {
+  skill_key: string;
+  lesson_id: string | null;
+  difficulty: number;
+  reason: string;
+  mastery_probability: number;
+};
+
+const reasonEmoji = (reason: string) =>
+  reason === 'needs_practice' ? '🎯' : reason === 'strengthen' ? '💪' : '✨';
+
+const humanizeSkill = (skill: string) =>
+  skill.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
 function ResultBreakdown({
   answers,
   score,
@@ -3522,6 +3537,11 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   const isPreview = searchParams.get('preview') === '1' || !!initialConfig;
   const urlMode = (searchParams.get('mode') || '').toLowerCase();
   const validUrlMode = (['learning', 'practice', 'test'] as string[]).includes(urlMode) ? urlMode as GameMode : null;
+  // SRE v2 review session: set by ReviewZone → GamePlay grades the SM-2+ card
+  // (POST /kids/reviews/v2/complete) when this game completes.
+  const isReviewSession = searchParams.get('review') === '1';
+  const reviewSkillKey = searchParams.get('skill') || '';
+  const reviewItemId = searchParams.get('item') || lessonId || '';
   // E6: Boss raid URL params
   const urlBossMode = searchParams.get('boss_mode');
   const urlRaidId = searchParams.get('raid_id');
@@ -3573,6 +3593,10 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   // Adaptive difficulty state
   const [adaptiveProfile, setAdaptiveProfile] = useState<{ difficulty: number; accuracy_7d: number; streak_days: number } | null>(null);
   const adaptiveFetched = useRef(false);
+
+  // Q1 Phase 2 (SRS §12.2): ADE v2 next-item selection — weakest skills first.
+  // Populated after each game completes; the result screen renders the panel.
+  const [nextRecs, setNextRecs] = useState<NextRec[] | null>(null);
 
   // Mode lock state (Teacher > Parent > Child hierarchy)
   const [modeLock, setModeLock] = useState<{ locked_mode: string; locked_by_role: string; locked_by_name?: string; class_code?: string } | null>(null);
@@ -4038,7 +4062,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           try {
             await apiClient.post(ENDPOINTS.ADE_V2.UPDATE, {
               item_id: lessonId,
-              skill_key: 'general',
+              skill_key: lessonId || 'general',
               correct: correctCount > answers.length / 2,
               response_time_ms: answers.reduce((s, a) => s + (a.response_time_ms || 0), 0) || undefined,
             });
@@ -4050,6 +4074,32 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
               context: { score: finalScore, lesson_id: lessonId },
             });
           } catch { /* best-effort */ }
+
+          // Q1 Phase 2: SRE v2 grading loop — a review-sourced practice session
+          // grades its SM-2+ card on completion (quality 0-5 from accuracy; <3 = fail).
+          if (isReviewSession && reviewItemId && mode === 'practice') {
+            const correctCount = answers.filter((a) => a.correct).length;
+            const pct = answers.length > 0 ? correctCount / answers.length : 0;
+            const quality = pct >= 0.9 ? 5 : pct >= 0.7 ? 4 : pct >= 0.5 ? 3 : pct >= 0.3 ? 2 : 1;
+            try {
+              await apiClient.post(ENDPOINTS.REVIEWS_V2.COMPLETE, {
+                skill_key: reviewSkillKey || undefined,
+                item_id: reviewItemId,
+                quality,
+              });
+            } catch { /* best-effort */ }
+          }
+
+          // Q1 Phase 2: ADE v2 next-item — recommend the child's weakest skills
+          // for the result screen (skip the lesson just played). Best-effort.
+          try {
+            const nextRes = await apiClient.get(ENDPOINTS.ADE_V2.NEXT_ITEM(undefined, 3));
+            const items: any[] = nextRes.data?.data?.items || [];
+            const recs = items
+              .filter((it) => it && it.lesson_id && it.lesson_id !== lessonId)
+              .slice(0, 3);
+            setNextRecs(recs.length > 0 ? recs : null);
+          } catch { setNextRecs(null); }
         }
       } finally {
         setSubmitting(false);
@@ -4603,14 +4653,42 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   /* ── Result Phase ── */
   if (phase === 'result') {
     return (
-      <ResultBreakdown
-        answers={answers}
-        score={score}
-        totalPossible={totalPossible}
-        mode={mode}
-        onRestart={handleRestart}
-        onBack={() => navigate('/student')}
-      />
+      <>
+        <ResultBreakdown
+          answers={answers}
+          score={score}
+          totalPossible={totalPossible}
+          mode={mode}
+          onRestart={handleRestart}
+          onBack={() => navigate('/student')}
+        />
+        {/* Q1 Phase 2: ADE v2 next-item recommendations (weakest skills first) */}
+        {nextRecs && nextRecs.length > 0 && (
+          <div className="w-full bg-[#E7EEF6] px-6 pb-10 -mt-10">
+            <div className="mx-auto w-full max-w-md rounded-2xl bg-white p-4 shadow-md animate-game-slide-up">
+              <h3 className="mb-3 text-sm font-bold text-[#0F4D92]">{t('game.playNext')}</h3>
+              <div className="space-y-2">
+                {nextRecs.map((rec) => (
+                  <button
+                    key={rec.lesson_id || rec.skill_key}
+                    onClick={() => {
+                      playTap();
+                      if (rec.lesson_id) navigate(`/play/${encodeURIComponent(rec.lesson_id)}${isPreview ? '?preview=1' : ''}`);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-left transition-all hover:bg-blue-100/80 active:scale-[0.98]"
+                  >
+                    <span className="text-xl">{reasonEmoji(rec.reason)}</span>
+                    <span className="flex-1 text-sm font-semibold text-gray-700 capitalize">
+                      {humanizeSkill(rec.skill_key)}
+                    </span>
+                    <span className="text-xs font-bold text-[#0F4D92]">{t('game.playNextButton')} →</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 

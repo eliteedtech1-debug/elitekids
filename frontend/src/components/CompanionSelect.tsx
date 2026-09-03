@@ -49,10 +49,13 @@ export function CompanionBubble({
   companion,
   context = 'returning',
   onDismiss,
+  skin = null,
 }: {
   companion: CompanionData | null;
   context?: 'returning' | 'before_game' | 'after_correct' | 'after_wrong' | 'break_time';
   onDismiss?: () => void;
+  /** Equipped shop skin (companion_skin) → ring badge + name override. */
+  skin?: { name: string; emoji: string; ringClass: string } | null;
 }) {
   const [dismissed, setDismissed] = useState(false);
   const spokenRef = useRef(false);
@@ -91,9 +94,16 @@ export function CompanionBubble({
         }
       }}
     >
-      <span className="text-3xl animate-game-float" aria-hidden="true">{info.emoji}</span>
+      <span
+        aria-hidden="true"
+        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-3xl animate-game-float ${
+          skin ? `${skin.ringClass} ring-4 ring-offset-2 shadow-md` : ''
+        }`}
+      >
+        {skin?.emoji || info.emoji}
+      </span>
       <div className="flex-1">
-        <p className="text-xs font-bold text-amber-700">{info.name}</p>
+        <p className="text-xs font-bold text-amber-700">{skin?.name || info.name}</p>
         <p className="text-sm text-gray-600">{greeting}</p>
       </div>
       <span className="text-xs text-gray-600">{t('companion.tapToClose')}</span>

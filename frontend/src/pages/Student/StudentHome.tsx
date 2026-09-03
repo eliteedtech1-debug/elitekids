@@ -42,7 +42,7 @@ import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
 import XPBar from '@/components/XPBar';
 import StreakCounter from '@/components/StreakCounter';
-import Shop from '@/components/Shop';
+import Shop, { SKIN_META, THEME_HEADER } from '@/components/Shop';
 import ReviewDueBadge from '@/components/ReviewDueBadge';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
 import { offlineContent } from '@/lib/offline/content';
@@ -153,6 +153,8 @@ export default function StudentHome() {
   const [offlineMode, setOfflineMode] = useState(false);
   const [streak, setStreak] = useState(() => getStreakLocal());
   const [showShop, setShowShop] = useState(false);
+  // Q1: equipped shop items (keyed by item_type) — applied to rendering below.
+  const [equippedItems, setEquippedItems] = useState<Record<string, any>>({});
   const [reviewDue, setReviewDue] = useState(0);
   const [economy, setEconomy] = useState<{
     xp_total: number;
@@ -355,6 +357,37 @@ export default function StudentHome() {
     setEconomy((prev) => (prev ? { ...prev, xp_total: newBalance } : prev));
   }, []);
 
+  // Q1: equipped state applied to rendering — refetch when the shop closes
+  // (equip happens inside the modal) and on mount.
+  const loadEquippedItems = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get(ENDPOINTS.ECONOMY.SHOP);
+      const cats: any[] = data?.data?.categories || [];
+      const map: Record<string, any> = {};
+      cats.forEach((c: any) =>
+        (c.items || []).forEach((it: any) => {
+          if (it.equipped) map[it.type || it.item_type] = it;
+        }),
+      );
+      setEquippedItems(map);
+    } catch { /* non-fatal — default look */ }
+  }, []);
+
+  useEffect(() => {
+    loadEquippedItems();
+  }, [loadEquippedItems, showShop]);
+
+  // Companion skin + theme derived from equipped items.
+  const equippedSkin = equippedItems['companion_skin'];
+  const skin = equippedSkin
+    ? {
+        name: equippedSkin.name,
+        ...(SKIN_META[equippedSkin.id] || { emoji: '🦊', ringClass: 'ring-amber-300 bg-amber-50' }),
+      }
+    : null;
+  const equippedTheme = equippedItems['theme'];
+  const headerTheme = equippedTheme ? THEME_HEADER[equippedTheme.id] || null : null;
+
   const displayName = student?.student_name || student?.name || student?.admission_no || t('student.home.defaultName');
   const summary = progress || { total_xp: 0, total_stars: 0, games_completed: 0, game_stats: {} } as ProgressData;
   const gameStats = progress?.game_stats || {};
@@ -384,7 +417,7 @@ export default function StudentHome() {
       )}
 
       {/* Header — game-style glassmorphism with gradient */}
-      <header className="relative border-b border-white/20 bg-gradient-to-r from-[#0F4D92]/90 via-[#0F4D92]/85 to-[#0d9488]/90 backdrop-blur-xl">
+      <header className={`relative border-b border-white/20 bg-gradient-to-r backdrop-blur-xl ${headerTheme || 'from-[#0F4D92]/90 via-[#0F4D92]/85 to-[#0d9488]/90'}`}>
         <FloatingDeco className="absolute -right-10 -top-10 h-32 w-32 bg-gradient-to-br from-[#0d9488] to-emerald-400" />
         <FloatingDeco className="absolute -left-8 -bottom-8 h-24 w-24 bg-gradient-to-br from-[#C90016] to-red-400" />
         <div className="relative mx-auto flex max-w-5xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-4">
@@ -429,7 +462,7 @@ export default function StudentHome() {
         {/* Companion greeting */}
         {companion && !showOnboarding && !showCompanionSelect && (
           <div className="mb-4">
-            <CompanionBubble companion={companion} context="returning" />
+            <CompanionBubble companion={companion} context="returning" skin={skin} />
           </div>
         )}
 

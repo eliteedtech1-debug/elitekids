@@ -11,6 +11,20 @@ interface ShopProps {
   onBalanceChange?: (newBalance: number) => void;
 }
 
+/** Equipped companion skins → emoji + ring styling (image assets not shipped yet). */
+export const SKIN_META: Record<string, { emoji: string; ringClass: string }> = {
+  skin_blue_fox: { emoji: '🦊', ringClass: 'ring-blue-300 bg-blue-50' },
+  skin_golden_owl: { emoji: '🦉', ringClass: 'ring-amber-300 bg-amber-50' },
+  skin_rainbow_bunny: { emoji: '🐰', ringClass: 'ring-fuchsia-300 bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100' },
+};
+
+/** Equipped themes → header gradient classes applied on StudentHome. */
+export const THEME_HEADER: Record<string, string> = {
+  theme_ocean: 'from-sky-600/90 via-blue-600/85 to-cyan-500/90',
+  theme_space: 'from-indigo-700/90 via-violet-700/85 to-purple-600/90',
+  theme_forest: 'from-emerald-700/90 via-green-600/85 to-teal-600/90',
+};
+
 export default function Shop({ open, onClose, onBalanceChange }: ShopProps) {
   const [categories, setCategories] = useState<ShopCategory[]>([]);
   const [balance, setBalance] = useState(0);
