@@ -3,7 +3,7 @@
  * Q1 Migration: Create economy tables (kids_economy, transactions, shop, milestones)
  * Run: node backend/database/q1-economy-migration.js [--dry-run]
  */
-const dbm = require('../src/models');
+const dbm = () => require('../src/models');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 

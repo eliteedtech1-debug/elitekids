@@ -825,6 +825,8 @@
   'student.home.loadFailed': 'Unable to load your games.',
   'student.home.defaultName': 'Student',
   'student.home.hello': 'Hello, {name}!',
+  'student.home.shop': 'Shop',
+  'student.home.shopDesc': 'Spend your XP in the Companion Shop',
   'student.home.dayStreak': 'Day Streak',
   'student.home.starsEarned': 'Stars Earned',
   'student.home.xpPoints': 'XP Points',

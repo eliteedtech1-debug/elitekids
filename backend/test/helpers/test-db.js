@@ -388,6 +388,11 @@ CREATE TABLE IF NOT EXISTS kids_game_item_responses (
   response_time_ms INT NOT NULL,
   mode ENUM('learning','practice','test') NOT NULL,
   correct TINYINT(1) NOT NULL,
+  -- Q1 §6.2 columns (q1-alter-tables.js) — per-tap ADE logging
+  quality TINYINT NULL,
+  skill_key VARCHAR(100) NULL,
+  mastery_before DECIMAL(5,4) NULL,
+  mastery_after DECIMAL(5,4) NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY kids_game_item_responses_student (student_id),

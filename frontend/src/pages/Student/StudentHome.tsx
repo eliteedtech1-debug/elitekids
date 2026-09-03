@@ -5,6 +5,7 @@ import {
   Loader2,
   LogOut,
   RefreshCw,
+  ShoppingBag,
   Route,
   Star,
   Zap,
@@ -41,6 +42,8 @@ import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
 import XPBar from '@/components/XPBar';
 import StreakCounter from '@/components/StreakCounter';
+import Shop from '@/components/Shop';
+import ReviewDueBadge from '@/components/ReviewDueBadge';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
 import { offlineContent } from '@/lib/offline/content';
 import { t, tN } from '@/lib/i18n';
@@ -149,6 +152,8 @@ export default function StudentHome() {
   const [showCompanionSelect, setShowCompanionSelect] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
   const [streak, setStreak] = useState(() => getStreakLocal());
+  const [showShop, setShowShop] = useState(false);
+  const [reviewDue, setReviewDue] = useState(0);
   const [economy, setEconomy] = useState<{
     xp_total: number;
     level: number;
@@ -233,6 +238,12 @@ export default function StudentHome() {
               });
             }
           })
+          .catch(() => {});
+
+        // Q1 reviews v2: due-count for the ReviewDueBadge (scrolls to ReviewZone)
+        apiClient
+          .get(ENDPOINTS.REVIEWS_V2.TODAY)
+          .then((r) => setReviewDue(Number(r.data?.data?.due_count) || 0))
           .catch(() => {});
 
         // Learning path + embedded weekly goal (server band-caps, locks and
@@ -335,6 +346,15 @@ export default function StudentHome() {
     setPathData((prev) => (prev ? { ...prev, goal } : prev));
   }, []);
 
+  const scrollToReviewZone = useCallback(() => {
+    playTap();
+    document.getElementById('review-zone')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const handleShopBalance = useCallback((newBalance: number) => {
+    setEconomy((prev) => (prev ? { ...prev, xp_total: newBalance } : prev));
+  }, []);
+
   const displayName = student?.student_name || student?.name || student?.admission_no || t('student.home.defaultName');
   const summary = progress || { total_xp: 0, total_stars: 0, games_completed: 0, game_stats: {} } as ProgressData;
   const gameStats = progress?.game_stats || {};
@@ -379,6 +399,16 @@ export default function StudentHome() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3">
+            <ReviewDueBadge dueCount={reviewDue} onClick={scrollToReviewZone} />
+            <button
+              onClick={() => { playTap(); setShowShop(true); }}
+              aria-label={t('student.home.shop')}
+              title={t('student.home.shopDesc')}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-2.5 py-2 sm:px-3 text-sm font-medium text-white transition hover:bg-white/25 hover:shadow-md active:scale-95"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              <span className="hidden sm:inline">{t('student.home.shop')}</span>
+            </button>
             <AppSwitcher />
             <A11ySettings />
             <SpeechSettings />
@@ -467,8 +497,8 @@ export default function StudentHome() {
           <RevisionCard />
         </div>
 
-        {/* Review Zone (spaced repetition) */}
-        <div className="mb-5">
+        {/* Review Zone (spaced repetition) — ReviewDueBadge scrolls here */}
+        <div id="review-zone" className="mb-5 scroll-mt-4">
           <ReviewZone />
         </div>
 
@@ -715,6 +745,9 @@ export default function StudentHome() {
           </>
         )}
       </main>
+
+      {/* Q1 Companion Shop modal — spend XP earned in games/reviews */}
+      <Shop open={showShop} onClose={() => setShowShop(false)} onBalanceChange={handleShopBalance} />
     </div>
   );
 }

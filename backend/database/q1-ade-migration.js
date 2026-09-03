@@ -3,7 +3,7 @@
  * Q1 Migration: Create ADE v2 table (kids_adaptive_state_v2)
  * Run: node backend/database/q1-ade-migration.js [--dry-run]
  */
-const dbm = require('../src/models');
+const dbm = () => require('../src/models');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 

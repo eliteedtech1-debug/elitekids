@@ -901,6 +901,8 @@
   "student.home.defaultName": "Ɗalibi",
   "student.home.gamesPlayed": "Wasannin da aka buga",
   "student.home.hello": "Sannu, {name}!",
+  "student.home.shop": "Shago",
+  "student.home.shopDesc": "Kashe XP naka a Shagon Abokin Karatun",
   "student.home.learn": "📺 Koyi",
   "student.home.loadFailed": "Ba za a iya lodi wasannin ku ba.",
   "student.home.loading": "Ana lodi wasanni...",

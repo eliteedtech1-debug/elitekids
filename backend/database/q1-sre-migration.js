@@ -3,7 +3,7 @@
  * Q1 Migration: Create SRE v2 table (kids_review_schedule_v2)
  * Run: node backend/database/q1-sre-migration.js [--dry-run]
  */
-const dbm = require('../src/models');
+const dbm = () => require('../src/models');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 

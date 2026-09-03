@@ -3,7 +3,7 @@
  * Q1 Migration: Add columns to existing tables (safe, additive)
  * Run: node backend/database/q1-alter-tables.js [--dry-run]
  */
-const dbm = require('../src/models');
+const dbm = () => require('../src/models');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 

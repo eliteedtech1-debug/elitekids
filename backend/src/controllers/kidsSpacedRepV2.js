@@ -186,11 +186,12 @@ async function completeReview(req, res) {
       card = (Array.isArray(rows) ? rows : [])[0] || null;
     }
 
-    // Create card if not exists
+    // Create card if not exists. The id column is BIGINT AUTO_INCREMENT —
+    // never pass a UUID here; Sequelize returns the insertId as `results`.
     let cardId = null;
     if (!card) {
       const init = { ...createSm2Card(), next_review_at: new Date() };
-      await content.query(
+      const [insResult] = await content.query(
         `INSERT INTO kids_review_schedule_v2 (child_admission_no, skill_key, item_id, ease, interval_days, repetitions, last_quality, next_review_at)
          VALUES (:adm, :sk, :iid, :ease, :intv, :rep, :q, :nr)`,
         {
@@ -206,7 +207,7 @@ async function completeReview(req, res) {
           },
         }
       );
-      cardId = insId;
+      cardId = insResult;
       card = { ease: init.ease, interval_days: init.interval_days, repetitions: init.repetitions };
     } else {
       cardId = card.id;

@@ -149,8 +149,10 @@ async function updateProfile(req, res) {
     const totalAttempts = Number(state.total_attempts || 0) + 1;
     const correctAttempts = Number(state.correct_attempts || 0) + (correct ? 1 : 0);
 
-    // Response time buffer (last 5)
-    const prevTimes = state.last_5_response_times ? JSON.parse(state.last_5_response_times) : [];
+    // Response time buffer (last 5). The JSON column may already be parsed
+    // by the driver (array) or still a string — handle both.
+    const rawTimes = state.last_5_response_times;
+    const prevTimes = Array.isArray(rawTimes) ? rawTimes : rawTimes ? JSON.parse(rawTimes) : [];
     const times = [...prevTimes, response_time_ms || 0].slice(-5);
     const avgResponseMs = Math.round(times.reduce((a, b) => a + b, 0) / times.length) || 0;
 
@@ -218,6 +220,34 @@ async function updateProfile(req, res) {
         },
       }
     );
+
+    // Per-tap item-response logging (SRS §6.2) — enabled once the
+    // q1-alter-tables migration added quality/skill_key/mastery_* columns.
+    // Full column set, id is BIGINT AUTO_INCREMENT — never pass a UUID.
+    try {
+      await content.query(
+        `INSERT INTO kids_game_item_responses
+           (student_id, item_id, tier, distractor_count, response_time_ms, mode, correct, quality, skill_key, mastery_before, mastery_after)
+         VALUES (:adm, :iid, :tier, :dist, :rt, :mode, :correct, :q, :sk, :mb, :ma)`,
+        {
+          replacements: {
+            adm,
+            iid: item_id,
+            tier: 0,
+            dist: distractor_count || 0,
+            rt: response_time_ms || 0,
+            mode: mode || 'practice',
+            correct: correct ? 1 : 0,
+            q: effectiveQuality,
+            sk: skill_key,
+            mb: masteryBefore,
+            ma: masteryAfter,
+          },
+        }
+      );
+    } catch (e) {
+      // Logging must never block play — non-fatal
+    }
 
     // XP via economy (game-level, not per-item)
     let xpData = null;
