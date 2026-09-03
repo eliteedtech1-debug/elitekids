@@ -95,3 +95,22 @@ Enforcing globally would require content remediation — ticket for master.
 ### C-DRIFT-03 · Legacy hermetic fixtures violate ≥5 invariant by design (GAME-1, GAME-1-T1, GAME-1-T2 carry 2 pairs each)
 Explicitly exempted via `LEGACY_EXEMPT_IDS` in `test/helpers/game-config-invariant.js`. Do not extend the list;
 new published configs must comply (locked by b1-regression.test.js).
+
+---
+
+## 2026-09-02 — NEW HEAD failures (87e077b) surfaced after conflict resolution; ALL FIXED below
+
+Full-suite at HEAD was 13F/344P/357T across 4 suites. Root causes were hermetic
+fixture drift (C-F4 family) from the security commits `40ed8dd`/`7788b38`
+(ownership guard assumed prod schema) + stale flagship-alias assertions after
+`067006d` (SCH-KIDS → SCH-ELITE). After fixes: **2F/355P/357T — residual =
+C-DEBT-01/02 only** (deterministic garden-companion, product-decided, ticket-only).
+
+| # | Root cause | Fix (test-only / hermetic fixture) |
+|---|------------|-------------------------------------|
+| C-F10 | `requireChildOwnership` path 3 (`parents p JOIN students s ON s.parent_id = p.parent_id`, added in `7788b38`) 500'd: hermetic `parents` DDL lacked prod column `parent_id` (prod: varchar(50) NOT NULL) → 4 b1-regression mode-lock parent tests failed. Also made `listChildrenForParent`'s EliteSMS merge return empty. | `test/helpers/test-db.js`: add `parent_id VARCHAR(50) NULL` to parents DDL + seed U2/U6 with shared par_code `'U2'` (household model, matches `students.parent_id='U2'` fixture). Consequence: GET /kids/children now correctly returns U2's 4 children (CHILD-A + NUR-002/005/006 shared rows) → updated children.test.js "lists only linked children" 1→4 with root-cause comment. |
+| C-F11 | `linkChildForParent`/`createChild`/`listChildrenForParent` SELECT `COALESCE(class_code, current_class) AS class_code, class_name`; hermetic `students` DDL lacked prod columns `current_class`/`class_name` (prod: varchar(50) NULL) → SQL threw, `.catch(() => [])` swallowed it → 404 "Student not found" for every children-link/createChild call. | `test/helpers/test-db.js`: add `current_class VARCHAR(50) NULL, class_name VARCHAR(50) NULL` to students DDL. children.test.js link suite + createChild now 10/10 PASS. |
+| C-F12 | `getSeries` (kidsSeries.js) SELECTs `cp.nerdc_code/nerdc_strand/nerdc_sub_strand`; hermetic `kids_curriculum_points` DDL lacked them (prod: varchar(64)/varchar(128)/varchar(128) NULL) → 500 (caught, curriculum_points silently `[]`). | `test/helpers/test-db.js`: add the 3 nerdc columns to kids_curriculum_points DDL. |
+| C-F13 | school.test.js + b1-regression "short_name=kids" assertions expected SCH-KIDS; `067006d` renamed flagship to SCH-ELITE and the `kids` alias maps to it (row short_name `elite`). Subscription.test.js was already repointed in `067006d`; these two files were missed. | Test-only: expect `SCH-ELITE` / `short_name 'elite'` in the two alias tests. SCH-KIDS stays a real non-flagship school_setup row used by school_id lookups + multi-school selection tests (untouched). |
+
+No prod code changed; all fixes are hermetic fixture DDL/seeds + test expectations.

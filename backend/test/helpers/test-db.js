@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS parents (
   user_id VARCHAR(50) PRIMARY KEY,
+  parent_id VARCHAR(50) NULL,
   phone VARCHAR(20) NULL,
   school_id VARCHAR(20) NULL,
   password VARCHAR(255) NULL,
@@ -62,6 +63,8 @@ CREATE TABLE IF NOT EXISTS students (
   parent_id VARCHAR(50) NULL,
   guardian_id VARCHAR(50) NULL,
   class_code VARCHAR(50) NULL,
+  current_class VARCHAR(50) NULL,
+  class_name VARCHAR(50) NULL,
   password VARCHAR(255) NULL,
   user_type VARCHAR(50) NULL DEFAULT 'Student',
   status VARCHAR(20) NULL DEFAULT 'Active',
@@ -328,6 +331,9 @@ CREATE TABLE IF NOT EXISTS kids_curriculum_points (
   age_band VARCHAR(20) NOT NULL,
   learning_objective TEXT NOT NULL,
   category VARCHAR(50) NOT NULL,
+  nerdc_code VARCHAR(64) NULL,
+  nerdc_strand VARCHAR(128) NULL,
+  nerdc_sub_strand VARCHAR(128) NULL,
   mapped_item_ids JSON NOT NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -558,9 +564,9 @@ async function ensureTestDb() {
 
     // Parent link (login via parents table using email from users + phone)
     await conn.query(
-      `INSERT INTO parents (user_id, phone, school_id, password) VALUES
-       ('U2', '08012345678', 'SCH-TEST', ?),
-       ('U6', '08099999999', 'SCH-TEST', ?)`,
+      `INSERT INTO parents (user_id, parent_id, phone, school_id, password) VALUES
+       ('U2', 'U2', '08012345678', 'SCH-TEST', ?),
+       ('U6', 'U2', '08099999999', 'SCH-TEST', ?)`,
       [h('Parent@123'), h('Other@123')]
     );
 

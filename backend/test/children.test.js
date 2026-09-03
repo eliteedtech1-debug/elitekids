@@ -60,8 +60,12 @@ describe('GET /kids/children', () => {
       .set('authorization', await parentToken());
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0].admission_no).toBe('NUR-001');
+    // U2 owns NUR-001 via a kids_children profile plus NUR-002/NUR-005/NUR-006
+    // via the EliteSMS students.parent_id link (parents.parent_id = 'U2').
+    expect(res.body.data).toHaveLength(4);
+    expect(res.body.data.map((c) => c.admission_no)).toEqual(
+      expect.arrayContaining(['NUR-001', 'NUR-002', 'NUR-005', 'NUR-006'])
+    );
     expect(res.body.data[0].parent_user_id).toBe('U2');
   });
 });

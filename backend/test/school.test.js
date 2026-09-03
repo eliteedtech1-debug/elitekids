@@ -39,7 +39,7 @@ describe('GET /schools/get-details', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data[0].school_id).toBe('SCH-KIDS');
+    expect(res.body.data[0].school_id).toBe('SCH-ELITE');
   });
 
   it('is case-insensitive for short_name', async () => {

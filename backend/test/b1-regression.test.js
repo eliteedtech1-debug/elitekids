@@ -138,7 +138,7 @@ describe('B1: auth + series flow', () => {
 // ─── 2. get-details contract shape ──────────────────────────────────────────
 
 describe('B1: GET /schools/get-details contract shape', () => {
-  it('resolves short_name=kids to SCH-KIDS as {success:true,data:[school]}', async () => {
+  it('resolves short_name=kids to the flagship SCH-ELITE as {success:true,data:[school]}', async () => {
     const res = await request(app)
       .get('/schools/get-details')
       .query({ query_type: 'select-by-short-name', short_name: 'kids' });
@@ -149,8 +149,8 @@ describe('B1: GET /schools/get-details contract shape', () => {
     expect(res.body.data).toHaveLength(1);
 
     const school = res.body.data[0];
-    expect(school.school_id).toBe('SCH-KIDS');
-    expect(school.short_name).toBe('kids');
+    expect(school.school_id).toBe('SCH-ELITE');
+    expect(school.short_name).toBe('elite');
     expect(school.kids_stand_alone).toBe(1);
     expect(school.status).toBe('Active');
   });
