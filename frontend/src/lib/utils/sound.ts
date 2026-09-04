@@ -219,7 +219,11 @@ export function speak(text: string, _lang?: string, overrideRate?: number): Prom
     if (overrideRate !== undefined) rate = overrideRate;
 
     // FB-16: never voice emoji glyph names
-    const spokenText = stripEmojiForSpeech(text);
+    const noEmoji = stripEmojiForSpeech(text);
+    // PHONIX: phonics notation → spoken sounds ("/sh/" → "shh", "s h" →
+    // "sss hhh") BEFORE synthesis. Ordinary sentences pass through
+    // unchanged — see team-docs/PHONIX-SPEECH-ENGINE.md.
+    const spokenText = phonixToSpeech(noEmoji);
     if (!spokenText) { resolve(); return; }
     const utterance = new SpeechSynthesisUtterance(spokenText);
     // TTS always speaks English — only UI text labels follow i18n locale.
@@ -323,35 +327,18 @@ export async function speakFeedback(isCorrect: boolean): Promise<void> {
   }
 }
 
-// ── Phonics sound map ────────────────────────────────────────
-// TTS engines read single letters by their alphabet name ("ess", "aitch").
-// Jolly Phonics teaches the SOUND, not the name. This map converts
-// phonics graphemes to a TTS-friendly spoken representation.
+// ── Phonics (PHONIX engine) ──────────────────────────────────
+// Implementation lives in phonix.ts (pure + unit-tested); the phoneme
+// transform is applied inside speak() so EVERY call site — prompts like
+// "Tap /sh/", split graphemes "s h", labels — hears sounds, not letter
+// names. These re-exports keep the historical API for existing callers.
 // Usage: toPhonicsSound("sh") → "shh"  |  toPhonicsSound("s") → "sss"
-export const PHONICS_SOUND_MAP: Record<string, string> = {
-  // Group 1
-  s: 'sss', a: 'aah', t: 'tuh', i: 'ih', p: 'puh', n: 'nnn',
-  // Group 2
-  c: 'cuh', k: 'kuh', e: 'eh', h: 'huh', r: 'rrr', m: 'mmm', d: 'duh',
-  // Group 3
-  g: 'guh', o: 'oh', u: 'uh', l: 'lll', f: 'fff', b: 'buh',
-  // Group 4
-  ai: 'ay', j: 'juh', oa: 'oh', ie: 'eye', ee: 'ee', or: 'or',
-  // Group 5
-  z: 'zzz', w: 'wuh', ng: 'nng', v: 'vvv', oo: 'ooh',
-  // Group 6
-  y: 'yuh', x: 'ks', ch: 'chuh', sh: 'shh', th: 'thh',
-  // Group 7
-  qu: 'kwuh', ou: 'ow', oi: 'oy', ue: 'yoo', er: 'ur', ar: 'ar',
-};
+import { PHONEME_MAP as PHONICS_SOUND_MAP, toPhoneme, phonixToSpeech } from './phonix';
 
-/**
- * Convert a Jolly Phonics grapheme to its TTS-spoken sound.
- * Falls back to the original grapheme if no mapping exists.
- */
+export { PHONICS_SOUND_MAP, phonixToSpeech };
+
 export function toPhonicsSound(grapheme: string): string {
-  const key = (grapheme || '').trim().toLowerCase();
-  return PHONICS_SOUND_MAP[key] ?? grapheme;
+  return toPhoneme(grapheme);
 }
 
 /**
