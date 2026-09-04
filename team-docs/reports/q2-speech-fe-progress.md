@@ -111,3 +111,6 @@ opencode lane per ZERO-IDLE (briefs/q2-opencode-lowdep.md: Q25 → Q26).
 build OK; backend 499/2 baseline). Empty-state classification + NEVER-EMPTY
 spec done. Queue fully dispatched. ALL uncommitted work (fc919ae + this
 session) pushed in one commit per MASTER order — see git log.
+- 2026-09-04 00:2x: pushed c74d9ae (40 files) to origin/main — deploy
+  auto-runs (backend tests + frontend build) via self-hosted runner.
+  IDLE: lane exhausted; next per ZERO-IDLE would be new QUEUE row.
