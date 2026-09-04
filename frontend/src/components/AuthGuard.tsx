@@ -10,7 +10,11 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   const location = useLocation();
   let token = '';
   try {
-    token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
+    // Check for any valid token (role-specific or shared)
+    token = localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN)
+      || localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN)
+      || localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
+      || '';
   } catch {
     /* storage unavailable — treat as logged out */
   }

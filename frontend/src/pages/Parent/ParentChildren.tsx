@@ -5,7 +5,6 @@ import {
   Baby,
   BookOpen,
   Gamepad2,
-  Link2,
   Loader2,
   LogOut,
   Plus,
@@ -120,13 +119,12 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 
 export default function ParentChildren() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'children' | 'activities' | 'manage' | 'live'>('children');
+  const [tab, setTab] = useState<'children' | 'activities' | 'live'>('children');
   const [children, setChildren] = useState<Child[]>([]);
   const [activities, setActivities] = useState<ChildActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [linkAdmission, setLinkAdmission] = useState('');
-  const [linking, setLinking] = useState(false);
+
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ full_name: '', age_level: 'Creche', admission_no: '', password: '' });
   const [creating, setCreating] = useState(false);
@@ -179,24 +177,7 @@ export default function ParentChildren() {
     loadActivities();
   }, [loadChildren, loadActivities]);
 
-  const handleLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const admission_no = linkAdmission.trim();
-    if (!admission_no) return;
-    setLinking(true);
-    try {
-      const res = await apiClient.post(ENDPOINTS.CHILDREN.LINK, { admission_no });
-      toast.success(res.data?.message || t('parent.childLinked'));
-      setLinkAdmission('');
-      setTab('children');
-      await loadChildren();
-      await loadActivities();
-    } catch (err: any) {
-      toast.error(err?.message || t('parent.linkFailed'));
-    } finally {
-      setLinking(false);
-    }
-  };
+
 
   const handleCreateChild = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -238,6 +219,8 @@ export default function ParentChildren() {
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.PARENT_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.STUDENT_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.SCHOOL_ID);
     localStorage.removeItem(STORAGE_KEYS.BRANCH_ID);
     localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCH);
@@ -316,9 +299,7 @@ export default function ParentChildren() {
           <TabBtn active={tab === 'activities'} onClick={() => setTab('activities')}>
             <BookOpen className="mr-1 inline h-4 w-4" /> {t('parent.tabActivities')}
           </TabBtn>
-          <TabBtn active={tab === 'manage'} onClick={() => setTab('manage')}>
-            <Plus className="mr-1 inline h-4 w-4" /> {t('parent.tabLinkAdd')}
-          </TabBtn>
+
           <TabBtn active={tab === 'live'} onClick={() => setTab('live')}>
             <Radio className="mr-1 inline h-4 w-4" /> {t('parent.tabLive')}
           </TabBtn>
@@ -561,41 +542,7 @@ export default function ParentChildren() {
               </div>
             )}
 
-            {/* ── Link / Add Tab ── */}
-            {tab === 'manage' && (
-              <div className="space-y-4">
-                {/* Link a child */}
-                <div className="rounded-2xl border border-[#0F4D92]/10 bg-white p-5 shadow-sm">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#0F4D92]/10 text-[#0F4D92]">
-                      <Link2 className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{t('parent.linkChild')}</h3>
-                      <p className="text-xs text-gray-500">{t('parent.linkChildHint')}</p>
-                    </div>
-                  </div>
-                  <form onSubmit={handleLink} className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      name="admission_no"
-                      value={linkAdmission}
-                      onChange={(e) => setLinkAdmission(e.target.value)}
-                      placeholder={t('parent.admissionPlaceholder')}
-                      required
-                      className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      disabled={linking || !linkAdmission.trim()}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0F4D92] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0b3d76] disabled:opacity-50"
-                    >
-                      {linking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-                      {linking ? t('parent.linking') : t('parent.linkChildBtn')}
-                    </button>
-                  </form>
-                </div>
-              </div>
-            )}
+
 
             {/* ── Live Tab ── */}
             {tab === 'live' && (

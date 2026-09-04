@@ -94,7 +94,17 @@ export default function Login() {
         const data = res.data as any;
         if (data?.ok && (data?.user_id || data?.user)) {
           const user: any = data.user || { id: data.user_id, school_id: data.school_id, user_type: data.user_type || '' };
-          if (data.token) localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token);
+          if (data.token) {
+            const cleanToken = data.token.replace(/^Bearer\s+/i, '');
+            const userType = (user.user_type || '').toLowerCase();
+            // Store in role-specific key so parent + student can coexist
+            if (userType === 'student') {
+              localStorage.setItem(STORAGE_KEYS.STUDENT_TOKEN, cleanToken);
+            } else if (userType === 'parent') {
+              localStorage.setItem(STORAGE_KEYS.PARENT_TOKEN, cleanToken);
+            }
+            localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, cleanToken);
+          }
           localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
           if (user.school_id) localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, user.school_id);
           if (user.branch_id) localStorage.setItem(STORAGE_KEYS.BRANCH_ID, user.branch_id);
@@ -207,9 +217,16 @@ export default function Login() {
       });
       const data = res.data;
       if (data?.success && data.token) {
-        localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token.replace(/^Bearer\s+/i, ''));
-        localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, data.school_id || schoolId);
+        const cleanToken = data.token.replace(/^Bearer\s+/i, '');
         const userType = data.user?.user_type || data.user_type || '';
+        // Store in role-specific key so parent + student can coexist in same browser
+        if (/student/i.test(userType)) {
+          localStorage.setItem(STORAGE_KEYS.STUDENT_TOKEN, cleanToken);
+        } else if (/parent/i.test(userType)) {
+          localStorage.setItem(STORAGE_KEYS.PARENT_TOKEN, cleanToken);
+        }
+        localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, cleanToken);
+        localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, data.school_id || schoolId);
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: userType }));
         toast.success(t('login.loginSuccess'));
         if (/student/i.test(userType)) navigate('/student');

@@ -49,7 +49,8 @@ export function useParentPresence() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    // Use parent-specific token so parent + student can coexist in same browser
+    const token = localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN) || localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
     if (!token) return;
 
     const decoded = decodeToken(token);

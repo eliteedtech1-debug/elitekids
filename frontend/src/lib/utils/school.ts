@@ -101,7 +101,17 @@ export const getCurrentUser = (): any => {
 export const createAuthHeaders = (customHeaders: Record<string, string> = {}): Record<string, string> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...customHeaders };
   try {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    // Read from role-specific key first, fallback to shared key
+    const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
+    const userType = (userData.user_type || '').toLowerCase();
+    let token: string | null = null;
+    if (userType === 'student') {
+      token = localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN);
+    } else if (userType === 'parent') {
+      token = localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN);
+    }
+    if (!token) token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+
     // Backends (elite-api / elite-cbt-api / this app) all use
     // passport-jwt's fromAuthHeaderAsBearerToken(), which REQUIRES the
     // "Bearer " scheme — the stored token has no prefix, so add it here.

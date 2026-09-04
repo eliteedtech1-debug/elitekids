@@ -35,6 +35,8 @@ apiClient.interceptors.response.use(
   (error: AxiosError<ApiError>) => {
     if (error.response?.status === 401) {
       localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.PARENT_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.STUDENT_TOKEN);
       localStorage.removeItem(STORAGE_KEYS.SCHOOL_ID);
       localStorage.removeItem(STORAGE_KEYS.BRANCH_ID);
       localStorage.removeItem(STORAGE_KEYS.SELECTED_BRANCH);

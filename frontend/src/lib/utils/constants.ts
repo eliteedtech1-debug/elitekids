@@ -7,8 +7,12 @@ export const API_CONFIG = {
 
 // Storage Keys — must match the ecosystem (@@auth_token etc.) so a shared
 // session works across elite-core / elite-cbt / elite-kids.
+// Parent and student use SEPARATE keys so both can be logged in simultaneously
+// (needed for realtime presence: parent dashboard + student tablet in same browser).
 export const STORAGE_KEYS = {
   AUTH_TOKEN: '@@auth_token',
+  PARENT_TOKEN: '@@parent_token',
+  STUDENT_TOKEN: '@@student_token',
   SCHOOL_ID: 'school_id',
   BRANCH_ID: 'branch_id',
   SELECTED_BRANCH: 'selected_branch',

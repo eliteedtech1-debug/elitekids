@@ -58,7 +58,9 @@ export default function ParentDashboard() {
         // Persist to the shared ecosystem storage so the AppSwitcher (and other
         // Elite-suite apps via the secure handoff flow) recognize this parent session.
         try {
-          localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, d.token.replace(/^Bearer\s+/i, ''));
+          const cleanToken = d.token.replace(/^Bearer\s+/i, '');
+          localStorage.setItem(STORAGE_KEYS.PARENT_TOKEN, cleanToken);
+          localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, cleanToken);
           localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: 'parent', phone: phone.trim() }));
           const sid = d.children?.[0]?.school_id;
           if (sid) localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, sid);

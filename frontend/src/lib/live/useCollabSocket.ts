@@ -54,7 +54,16 @@ export function useCollabSocket({ rooms, onEvent, enabled = true }: UseCollabSoc
   useEffect(() => {
     if (!enabled) return;
 
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
+    // Read from role-specific key first, fallback to shared key
+    const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
+    const userType = (userData.user_type || '').toLowerCase();
+    let token = '';
+    if (userType === 'student') {
+      token = localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN) || '';
+    } else if (userType === 'parent') {
+      token = localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN) || '';
+    }
+    if (!token) token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
     const wsUrl = (API_CONFIG.BASE_URL || '').replace(/^http/, 'ws').replace(/\/api\/?$/, '');
     const socket = io(wsUrl, {
       path: '/kids/teams/ws',

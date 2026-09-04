@@ -27,7 +27,10 @@ function decodeToken(token: string): Record<string, any> | null {
 export function getLiveConnection(): EliteLive | null {
   if (instance) return instance;
 
-  const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+  // Read from role-specific key first, fallback to shared key
+  const token = localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN)
+    || localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN)
+    || localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
   if (!token) return null;
 
   const decoded = decodeToken(token);
