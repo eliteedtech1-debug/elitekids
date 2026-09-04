@@ -9,3 +9,4 @@
 2026-09-04 — RUNTIME: Installed locked backend dev dependencies; flagship parent acceptance passed 5/5, auth/signup/children/onboarding passed 59/59, parental controls passed 10/10, realtime/WebRTC passed 16/16; mode-lock hierarchy exposed one authorization-order defect.
 2026-09-04 — FIX: Mode-lock writes now resolve an existing lock before parent ownership rejection, preserving the explicit equal-rank hierarchy response while still denying foreign-parent writes.
 2026-09-04 — VERIFY: Frontend Vitest passed 226/226 and production typecheck/build passed; corrected mode-lock + flagship parent backend suites passed 30/30 after serial dependency setup.
+2026-09-04 — COMPLETE: Scoped parent/Jest changes committed as 7da4e9c and pushed to origin/main; automatic deployment/acceptance workflow triggered.
