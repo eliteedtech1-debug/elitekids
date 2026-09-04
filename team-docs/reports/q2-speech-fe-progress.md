@@ -118,8 +118,14 @@ session) pushed in one commit per MASTER order — see git log.
 - 2026-09-04 01:1x: session CLOSE (user order — "end of Q3 closing"):
   consolidated LOW-CONFIDENCE HA review → reports/session-close-ha-review-
   2026-09-04.md (~74 keys, generated from live sources; reply format `key:
-  corrected Hausa`). Email to ibagwai9@gmail.com requested — elite-sms mailer
-  attempted but fallback creds STALE (Gmail 534 app-password required); send
-  pending MASTER choice (app password / Resend key / skip). QUEUE.md: Q25–
-  Q29 → DONE; new rows Q30 (HA review) + Q31 (mailer wiring). IDLE: lane
-  exhausted — next per ZERO-IDLE = Q31 (needs .env creds from MASTER/ROOT).
+  corrected Hausa`). QUEUE.md: Q25–Q29 → DONE; new rows Q30 (HA review) +
+  Q31 (mailer wiring).
+- 2026-09-04 01:3x: email DELIVERED — HA review sent to ibagwai9@gmail.com
+  via elite-kids' OWN services/mailer.js (SEND_OK). Key findings:
+  (1) elite-kids backend/.env ALREADY carries all 6 SMTP_* keys (verified
+  non-empty) — mailer was live all along; earlier probe hit the wrong env
+  path (app-root .env vs backend/.env). (2) elite-sms emailConfig.js
+  HARDCODED fallback creds are stale (Gmail 534 app-password required) —
+  elite-sms itself runs on backend/.env creds, not the fallback.
+  QUEUE.md: Q30 → EMAILED; Q31 → QUEUED (reset/welcome flow wiring).
+  IDLE: lane exhausted — next per ZERO-IDLE = Q31 or new QUEUE row.
