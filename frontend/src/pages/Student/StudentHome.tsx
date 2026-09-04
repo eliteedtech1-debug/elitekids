@@ -43,6 +43,7 @@ import KidPageBackground from '@/components/KidPageBackground';
 import StudentLeaderboardPanel from './StudentLeaderboardPanel';
 import StudentFestival from '@/components/StudentFestival';
 import StudentLiveBar from '@/components/StudentLiveBar';
+import StudentQuickNav from '@/components/StudentQuickNav';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
@@ -473,6 +474,30 @@ export default function StudentHome() {
     // blobs and tight header rows must never push the layout wider).
     <div className="min-h-screen relative overflow-x-clip">
       <KidPageBackground />
+      {/* Floating quick-nav FAB — direct child of the page root so its z-index
+          is scoped here, above the header/live-bar contexts below. */}
+      <StudentQuickNav
+        onOpenShop={() => setShowShop(true)}
+        onOpenGames={() => {
+          setActiveTab('path');
+          document.getElementById('welcome-learning-path')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const firstGridTab = TABS.find((tb) => tb.view === 'grid' && bandLessons.filter(tb.filter).length > 0);
+          if (firstGridTab) {
+            setActiveTab(firstGridTab.key);
+            document.getElementById('welcome-learning-path')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+
+          const gridEl = document.getElementById('games-grid-anchor');
+          if (gridEl) {
+            setTimeout(() => gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+            return;
+          }
+          setTimeout(() => {
+            document.getElementById('games-grid-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 80);
+        }}
+        onOpenReview={scrollToReviewZone}
+      />
       {/* Onboarding Tour (first-time only) */}
       {showOnboarding && (
         <OnboardingTour onComplete={() => {
@@ -505,10 +530,21 @@ export default function StudentHome() {
       )}
 
       {/* Header — game-style glassmorphism with gradient */}
-      <header className={`relative overflow-hidden border-b border-white/20 bg-gradient-to-r backdrop-blur-xl ${headerTheme || 'from-[#0F4D92]/90 via-[#0F4D92]/85 to-[#0d9488]/90'}`}>
-        <FloatingDeco className="absolute -right-10 -top-10 h-32 w-32 bg-gradient-to-br from-[#0d9488] to-emerald-400" />
-        <FloatingDeco className="absolute -left-8 -bottom-8 h-24 w-24 bg-gradient-to-br from-[#C90016] to-red-400" />
-        <div className="relative mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-4">
+      {/* STACKING FIX: the header itself used to carry backdrop-blur +
+          overflow-hidden, which made it a stacking context AND the containing
+          block for the fixed dropdown panels (Settings/Speech/Apps). They were
+          therefore painted under later siblings (main z-10, StudentLiveBar
+          z-40) and were unclickable. The header element is now a plain
+          'relative' box; blur + decoration live on an inner pointer-events-none
+          layer, and the content row gets an explicit z-30 so dropdowns escape
+          the header cleanly. */}
+      <header className="relative border-b border-white/20">
+        <div className="pointer-events-none absolute inset-0">
+          <div className={`absolute inset-0 bg-gradient-to-r backdrop-blur-xl ${headerTheme || 'from-[#0F4D92]/90 via-[#0F4D92]/85 to-[#0d9488]/90'}`} />
+          <FloatingDeco className="absolute -right-10 -top-10 h-32 w-32 bg-gradient-to-br from-[#0d9488] to-emerald-400" />
+          <FloatingDeco className="absolute -left-8 -bottom-8 h-24 w-24 bg-gradient-to-br from-[#C90016] to-red-400" />
+        </div>
+        <div className="relative z-30 mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-4">
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <div className="relative">
               <img src="/logo.svg" alt={t('login.brand')} className="h-12 w-12 rounded-2xl object-contain shadow-xl shadow-black/20 ring-2 ring-white/30" />
@@ -855,6 +891,8 @@ export default function StudentHome() {
               </>
             ) : (
             <>
+            {/* Quick-nav scroll anchor for the 'Jump to Games' shortcut */}
+            <div id="games-grid-anchor" className="scroll-mt-4" />
             {/* Section header */}
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800">

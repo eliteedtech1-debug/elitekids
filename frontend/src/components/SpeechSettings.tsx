@@ -4,6 +4,7 @@ import { useSpeechStore, getAvailableVoices, VOICE_PROFILES, type VoiceProfile }
 import { speak } from '@/lib/utils/sound';
 import { haptic } from '@/lib/utils/haptic';
 import { t } from '@/lib/i18n';
+import PopoverPanel from '@/components/PopoverPanel';
 
 /**
  * Speech settings panel — voice profile + speed/pitch sliders + voice picker.
@@ -13,7 +14,7 @@ import { t } from '@/lib/i18n';
 export default function SpeechSettings() {
   const [open, setOpen] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const { rate, voiceName, pitch, voiceProfile, setRate, setVoice, setPitch, setVoiceProfile, reset } = useSpeechStore();
 
   // Load voices (Chrome loads async)
@@ -28,22 +29,7 @@ export default function SpeechSettings() {
     };
   }, [open]);
 
-  // Close on outside click (works for both mouse and touch)
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: Event) => {
-      const target = e.target as Node;
-      if (panelRef.current && !panelRef.current.contains(target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('touchstart', handler);
-    };
-  }, [open]);
+  // (Outside-click + Escape close are handled by PopoverPanel.)
 
   const handlePreview = () => {
     haptic('light');
@@ -53,7 +39,7 @@ export default function SpeechSettings() {
   const speedLabel = rate <= 0.5 ? t('speech.speedVerySlow') : rate <= 0.7 ? t('speech.speedSlow') : rate <= 1.0 ? t('speech.speedNormal') : rate <= 1.3 ? t('speech.speedFast') : t('speech.speedVeryFast');
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative" ref={rootRef}>
       {/* Trigger */}
       <button
         onClick={() => setOpen(!open)}
@@ -64,13 +50,15 @@ export default function SpeechSettings() {
         <Volume2 className="h-5 w-5" />
       </button>
 
-      {/* Panel */}
-      {open && (
-        <>
-        {/* Backdrop — tap to close */}
-        <div className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent sm:static sm:hidden" onClick={() => setOpen(false)} />
-        <div className="fixed inset-x-3 top-14 z-50 mx-auto max-w-[calc(100vw-24px)] sm:absolute sm:right-0 sm:top-full sm:mx-0 sm:mt-2 sm:w-80 sm:max-w-none rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
-          <div className="mb-4 flex items-center justify-between">
+      {/* Panel — portaled to <body>, immune to parent stacking contexts */}
+      <PopoverPanel
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={rootRef}
+        ariaLabel={t('speech.title')}
+        panelClassName="w-80 rounded-2xl p-5 sm:w-80"
+      >
+        <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-800">{t('speech.title')}</h3>
             <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600" aria-label={t('speech.close')}>✕</button>
           </div>
@@ -188,9 +176,7 @@ export default function SpeechSettings() {
               <RotateCcw className="h-3 w-3" /> {t('speech.reset')}
             </button>
           </div>
-        </div>
-        </>
-      )}
+      </PopoverPanel>
     </div>
   );
 }

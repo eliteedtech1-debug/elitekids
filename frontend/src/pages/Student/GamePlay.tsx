@@ -4882,7 +4882,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
       )}
       {/* E2: offline progress banner (shows queue state while offline) */}
       <OfflineBanner hasQueuedProgress={queuedCount > 0} pending={queuedCount} />
-      <header className="flex items-center gap-1.5 border-b border-white/50 bg-white/80 px-2 py-2 sm:gap-2 sm:px-3 sm:py-2.5 backdrop-blur">
+      <header className="relative z-30 flex items-center gap-1.5 border-b border-white/50 bg-white/80 px-2 py-2 sm:gap-2 sm:px-3 sm:py-2.5 backdrop-blur">
         <button onClick={() => (isPreview ? (window.history.length > 1 ? navigate(-1) : navigate('/teacher/lessons')) : navigate('/student'))} className="rounded-lg p-2 sm:p-1.5 hover:bg-gray-100 active:scale-95">
           <ArrowLeft className="h-5 w-5 text-gray-600" />
         </button>

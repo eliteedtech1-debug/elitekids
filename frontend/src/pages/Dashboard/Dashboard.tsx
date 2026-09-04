@@ -173,8 +173,12 @@ export default function Dashboard() {
       ) : (
         <>
           {isStudent && <KidPageBackground />}
-          <header className="border-b border-[#0F4D92]/10 bg-white/80 backdrop-blur-xl">
-            <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+          <header className="relative border-b border-[#0F4D92]/10">
+            {/* Blur lives on an inner layer — the header element itself must not
+                create a stacking context, or the fixed dropdown panels inside
+                (A11ySettings) get trapped under page content. */}
+            <div className="pointer-events-none absolute inset-0 bg-white/80 backdrop-blur-xl" />
+            <div className="relative z-30 mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <img src="/logo.svg" alt={t('dashboard.brand')} className="h-10 w-10 rounded-2xl object-contain shadow-lg shadow-[#0F4D92]/20" />

@@ -14,10 +14,11 @@
  * suite frontends call with the same JWT. Falls back to the EliteFin localStorage
  * caches (elitefin_modules / rbac_menu_cache_*) if the endpoint is unreachable.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { LayoutGrid, Lock, ExternalLink } from 'lucide-react';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import PopoverPanel from '@/components/PopoverPanel';
 
 /** Shared elite-api base — single source of truth for cross-app access. */
 const ELITE_API_URL =
@@ -121,6 +122,7 @@ export default function AppSwitcher() {
   const [access, setAccess] = useState<Access | null>(null);
   const [modalApp, setModalApp] = useState<EliteApp | null>(null);
   const [agree, setAgree] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,7 +249,7 @@ export default function AppSwitcher() {
 
   return (
     <>
-    <div className="relative shrink-0">
+    <div className="relative shrink-0" ref={rootRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -264,14 +266,14 @@ export default function AppSwitcher() {
         )}
       </button>
 
-      {open && (
-        <>
-          {/* Click-away backdrop */}
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div
-            role="menu"
-            className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
-          >
+      {/* Menu — portaled to <body>, immune to parent stacking contexts */}
+      <PopoverPanel
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={rootRef}
+        ariaLabel="Elite Apps"
+        panelClassName="w-72 rounded-xl overflow-hidden p-0 sm:w-72"
+      >
             <div className="border-b border-gray-100 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">
               Elite Apps
             </div>
@@ -318,9 +320,7 @@ export default function AppSwitcher() {
                 </button>
               );
             })}
-          </div>
-        </>
-      )}
+      </PopoverPanel>
     </div>
 
     {/* ── Not-subscribed / restricted modal (consent + Try Demo) ── */}
