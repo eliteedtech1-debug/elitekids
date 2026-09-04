@@ -59,9 +59,12 @@ jobs:
           # Restore local-only edits if they still apply (never blocks the deploy)
           git stash pop 2>/dev/null && echo "local edits restored" || echo "(no local edits to restore — ok)"
 
-          # Deterministic production deps (uses package-lock.json)
+          # Install the locked dev dependencies before the backend acceptance
+          # gate; Jest is required by scripts/run-tests.sh.
           cd backend
-          npm ci --omit=dev --no-audit --no-fund 2>&1 | tail -2 || true
+          npm ci --include=dev --no-audit --no-fund 2>&1 | tail -2
+          bash ../scripts/run-tests.sh --forceExit
+          npm prune --omit=dev --no-audit --no-fund 2>&1 | tail -1
 
           # Restart the live user unit + verify
           systemctl --user restart elite-kids-api

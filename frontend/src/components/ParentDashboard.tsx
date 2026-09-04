@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Lock, UserPlus, LogIn, Baby, Trophy, Star, TrendingUp, Bell, BookOpen } from 'lucide-react';
+import { Phone, Lock, UserPlus, LogIn, Baby, Trophy, Star, TrendingUp, Bell, BookOpen, Calendar, Settings, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/api/client';
 import { t, tN } from '@/lib/i18n';
@@ -13,6 +13,7 @@ import WeeklyDigest from './WeeklyDigest';
 import ComparisonChart from './ComparisonChart';
 import ParentNudge from './ParentNudge';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { activityLevel, LEVEL_CLASS, buildWeekColumns, xpTrendPath, type DayActivity } from '@/lib/utils/activityGrid';
 
 type View = 'login' | 'register' | 'dashboard' | 'child';
 
@@ -39,6 +40,9 @@ export default function ParentDashboard() {
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [insights, setInsights] = useState<any[]>([]);
   const [actionItems, setActionItems] = useState<any[]>([]);
+  const [familyActivity, setFamilyActivity] = useState<FamilyActivityResponse | null>(null);
+  const [familyResults, setFamilyResults] = useState<FamilyResultsResponse | null>(null);
+  const [familyLoading, setFamilyLoading] = useState(false);
 
   const login = async () => {
     if (!phone.trim()) return toast.error(t('parent.phoneRequired'));
@@ -107,6 +111,25 @@ export default function ParentDashboard() {
       setLoading(false);
     }
   };
+
+  // Parent overview: one ownership-scoped request powers the family 365-day grid,
+  // XP trend and bulk results view. It is intentionally read-only.
+  useEffect(() => {
+    if (view !== 'dashboard' || !token) return;
+    let alive = true;
+    setFamilyLoading(true);
+    Promise.all([
+      apiClient.get(ENDPOINTS.PARENT.ACTIVITY(365), { headers: { Authorization: `Bearer ${token}` } }),
+      apiClient.get(ENDPOINTS.PARENT.RESULTS(200), { headers: { Authorization: `Bearer ${token}` } }),
+    ]).then(([activityRes, resultsRes]) => {
+      if (!alive) return;
+      setFamilyActivity(activityRes.data?.data || null);
+      setFamilyResults(resultsRes.data?.data || null);
+    }).catch(() => {
+      if (alive) toast.error('Some family reports could not be loaded.');
+    }).finally(() => alive && setFamilyLoading(false));
+    return () => { alive = false; };
+  }, [view, token]);
 
   // Load the Q2-E portfolio for the selected child (read-only aggregation).
   useEffect(() => {
@@ -296,6 +319,13 @@ export default function ParentDashboard() {
           </div>
           {/* ── Subscription card (flagship parents) — payment lives HERE, never on the child's screen ── */}
           <ParentSubscriptionCard token={token} />
+          <ParentFamilyOverview
+            loading={familyLoading}
+            children={children}
+            activity={familyActivity}
+            results={familyResults}
+            onSelectChild={loadChild}
+          />
           {children.length === 0 ? (
             <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
               <Baby className="mx-auto mb-3 h-12 w-12 text-gray-300" />
@@ -387,6 +417,7 @@ export default function ParentDashboard() {
           )}
           {selectedChild && <WeeklyDigest childId={selectedChild} />}
           {selectedChild && <div className="my-4"><ComparisonChart childId={selectedChild} /></div>}
+          {selectedChild && <ParentControlsPanel childId={selectedChild} token={token} />}
 
           {/* This Week */}
           <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
@@ -476,6 +507,197 @@ export default function ParentDashboard() {
   }
 
   return null;
+}
+
+interface ParentChild {
+  admission_no: string;
+  name: string;
+  school_id: string;
+  school_name: string;
+}
+
+interface FamilyActivityChild {
+  child_admission_no: string;
+  series: DayActivity[];
+  totals: { games: number; xp: number; stars: number; active_days: number; streak_days: number; best_day: DayActivity | null };
+}
+
+interface FamilyActivityResponse {
+  days: number;
+  children: FamilyActivityChild[];
+}
+
+interface FamilyResultsResponse {
+  children: string[];
+  results: Array<{ child_admission_no: string; lesson_id: string; score: number; stars_earned: number; xp: number; mode?: string; completed_at: string }>;
+}
+
+function ParentFamilyOverview({
+  loading,
+  children,
+  activity,
+  results,
+  onSelectChild,
+}: {
+  loading: boolean;
+  children: ParentChild[];
+  activity: FamilyActivityResponse | null;
+  results: FamilyResultsResponse | null;
+  onSelectChild: (admissionNo: string) => void;
+}) {
+  const childById = new Map(children.map((child) => [child.admission_no, child]));
+  if (loading) return <div className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-white p-5 text-xs text-gray-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading family reports…</div>;
+  if (!activity?.children?.length) return null;
+
+  return (
+    <div className="mb-5 space-y-4">
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="flex items-center gap-1.5 text-sm font-extrabold text-gray-800"><Calendar className="h-4 w-4 text-emerald-500" /> Family learning year</h2>
+            <p className="text-[11px] text-gray-400">365 days of activity, XP and streaks</p>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Parent view</span>
+        </div>
+        {activity.children.map((item) => {
+          const child = childById.get(item.child_admission_no);
+          const columns = buildWeekColumns(item.series);
+          const trend = xpTrendPath(item.series, 280, 64);
+          return (
+            <div key={item.child_admission_no} className="mb-4 rounded-xl border border-gray-100 p-3 last:mb-0">
+              <button onClick={() => onSelectChild(item.child_admission_no)} className="mb-2 flex w-full items-center justify-between text-left">
+                <span className="text-xs font-extrabold text-gray-700">{child?.name || item.child_admission_no}</span>
+                <span className="text-[10px] font-bold text-blue-500">Open details →</span>
+              </button>
+              <div className="mb-2 flex items-center gap-3 text-[10px] text-gray-500">
+                <span><b className="text-gray-800">{item.totals.xp}</b> XP</span>
+                <span><b className="text-gray-800">{item.totals.active_days}</b> active days</span>
+                <span><b className="text-gray-800">{item.totals.streak_days}</b> day streak</span>
+              </div>
+              <div className="overflow-x-auto pb-1" aria-label={`${child?.name || item.child_admission_no} 365-day activity grid`}>
+                <div className="flex min-w-[520px] gap-0.5">
+                  {columns.map((column, columnIndex) => (
+                    <div key={columnIndex} className="flex flex-col gap-0.5">
+                      {column.map((day) => (
+                        <span key={day.date} title={`${day.date}: ${day.games} games, ${day.xp} XP`} className={`h-2.5 w-2.5 rounded-[2px] ${LEVEL_CLASS[activityLevel(day.games)]}`} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <svg viewBox="0 0 280 64" className="mt-2 h-16 w-full" role="img" aria-label="Daily XP trend">
+                <polyline points={trend.points} fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {trend.points && <circle cx={trend.lastX} cy={trend.lastY} r="3" fill="#7c3aed" />}
+              </svg>
+            </div>
+          );
+        })}
+      </div>
+      <ParentBulkResults children={children} results={results} onSelectChild={onSelectChild} />
+    </div>
+  );
+}
+
+function ParentBulkResults({ children, results, onSelectChild }: { children: ParentChild[]; results: FamilyResultsResponse | null; onSelectChild: (admissionNo: string) => void }) {
+  if (!results) return null;
+  const names = new Map(children.map((child) => [child.admission_no, child.name]));
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm">
+      <h2 className="mb-1 flex items-center gap-1.5 text-sm font-extrabold text-gray-800"><Trophy className="h-4 w-4 text-amber-500" /> Results across children</h2>
+      <p className="mb-3 text-[11px] text-gray-400">Recent Practice and Test results in one place</p>
+      {!results.results.length ? <p className="text-xs text-gray-400">No completed games yet.</p> : (
+        <div className="space-y-1.5">
+          {results.results.slice(0, 12).map((row, index) => (
+            <button key={`${row.child_admission_no}-${row.completed_at}-${index}`} onClick={() => onSelectChild(row.child_admission_no)} className="flex w-full items-center justify-between rounded-lg border border-gray-50 px-2 py-2 text-left hover:bg-gray-50">
+              <span className="min-w-0 truncate text-[11px] font-bold text-gray-700">{names.get(row.child_admission_no) || row.child_admission_no} · {row.lesson_id}</span>
+              <span className="ml-2 shrink-0 text-[11px] font-extrabold text-blue-600">{row.score}% <span className="font-semibold text-gray-400">{row.mode || 'practice'}</span></span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ParentControlsPanel({ childId, token }: { childId: string; token: string }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [limit, setLimit] = useState('30');
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const [lessonId, setLessonId] = useState('');
+  const [mode, setMode] = useState<'practice' | 'test'>('practice');
+  const [locks, setLocks] = useState<Array<{ lesson_id: string; mode: string; locked_by: string }>>([]);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.get(ENDPOINTS.PARENT.CHILD_CONTROLS(childId), { headers }).then((res) => {
+      if (!alive) return;
+      const data = res.data?.data || {};
+      const controls = data.controls || {};
+      setLimit(String(controls.daily_play_limit_minutes ?? 30));
+      setStart(controls.allowed_time_start || '');
+      setEnd(controls.allowed_time_end || '');
+      setLocks(Array.isArray(data.mode_locks) ? data.mode_locks : []);
+    }).catch(() => {}).finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, [childId, token]);
+
+  const saveControls = async () => {
+    const minutes = Number(limit);
+    if (!Number.isInteger(minutes) || minutes < 0 || minutes > 480) return toast.error('Play limit must be between 0 and 480 minutes.');
+    setSaving(true);
+    try {
+      await apiClient.post(ENDPOINTS.PARENTAL.SET, { student_id: childId, daily_play_limit_minutes: minutes, allowed_time_start: start || null, allowed_time_end: end || null }, { headers });
+      toast.success('Parent controls saved.');
+    } catch (err: any) { toast.error(err?.response?.data?.message || 'Could not save controls.'); }
+    finally { setSaving(false); }
+  };
+
+  const setLock = async () => {
+    if (!lessonId.trim()) return toast.error('Enter a lesson ID to lock.');
+    setSaving(true);
+    try {
+      await apiClient.post(ENDPOINTS.MODE_LOCK.SET, { child_admission_no: childId, lesson_id: lessonId.trim(), locked_mode: mode }, { headers });
+      setLocks((current) => [{ lesson_id: lessonId.trim(), mode, locked_by: 'parent' }, ...current.filter((lock) => lock.lesson_id !== lessonId.trim())]);
+      toast.success(`${mode === 'test' ? 'Test' : 'Practice'} mode locked.`);
+    } catch (err: any) { toast.error(err?.response?.data?.message || 'Could not set mode lock.'); }
+    finally { setSaving(false); }
+  };
+
+  const removeLock = async (lock: { lesson_id: string }) => {
+    setSaving(true);
+    try {
+      await apiClient.delete(ENDPOINTS.MODE_LOCK.REMOVE, { headers, data: { child_admission_no: childId, lesson_id: lock.lesson_id } });
+      setLocks((current) => current.filter((item) => item.lesson_id !== lock.lesson_id));
+    } catch (err: any) { toast.error(err?.response?.data?.message || 'Could not remove mode lock.'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm">
+      <h3 className="mb-1 flex items-center gap-1.5 text-sm font-extrabold text-indigo-900"><Settings className="h-4 w-4" /> Parent controls</h3>
+      <p className="mb-3 text-[11px] text-indigo-700/70">Set a healthy sleep window, daily play time, and Practice/Test mode.</p>
+      {loading ? <div className="flex items-center gap-2 py-3 text-xs text-gray-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading controls…</div> : <>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="text-[10px] font-bold text-gray-600">Minutes/day<input value={limit} onChange={(e) => setLimit(e.target.value)} type="number" min="0" max="480" className="mt-1 w-full rounded-lg border border-indigo-100 bg-white px-2 py-2 text-xs" /></label>
+          <label className="text-[10px] font-bold text-gray-600">Sleep starts<input value={start} onChange={(e) => setStart(e.target.value)} type="time" className="mt-1 w-full rounded-lg border border-indigo-100 bg-white px-2 py-2 text-xs" /></label>
+          <label className="text-[10px] font-bold text-gray-600">Sleep ends<input value={end} onChange={(e) => setEnd(e.target.value)} type="time" className="mt-1 w-full rounded-lg border border-indigo-100 bg-white px-2 py-2 text-xs" /></label>
+        </div>
+        <button onClick={saveControls} disabled={saving} className="mt-3 rounded-xl bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Save sleep & play limits'}</button>
+        <div className="mt-4 border-t border-indigo-100 pt-3">
+          <div className="mb-2 text-[11px] font-extrabold text-indigo-900">Mode lock</div>
+          <div className="flex gap-2">
+            <input value={lessonId} onChange={(e) => setLessonId(e.target.value)} placeholder="Lesson ID" className="min-w-0 flex-1 rounded-lg border border-indigo-100 bg-white px-2 py-2 text-xs" />
+            <select value={mode} onChange={(e) => setMode(e.target.value as 'practice' | 'test')} className="rounded-lg border border-indigo-100 bg-white px-2 py-2 text-xs"><option value="practice">Practice</option><option value="test">Test</option></select>
+            <button onClick={setLock} disabled={saving} className="rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50">Lock</button>
+          </div>
+          {locks.length > 0 && <div className="mt-2 space-y-1">{locks.map((lock) => <div key={lock.lesson_id} className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 text-[10px]"><span className="font-bold text-gray-700">{lock.lesson_id} · {lock.mode}</span><button onClick={() => removeLock(lock)} className="font-bold text-red-500">Unlock</button></div>)}</div>}
+        </div>
+      </>}
+    </div>
+  );
 }
 
 function StatCard({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {

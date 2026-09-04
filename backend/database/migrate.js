@@ -123,6 +123,12 @@ const KIDS_CONTENT_TABLE_LIST = [
 ];
 const KIDS_AI_TABLE_LIST = ['kids_content_generation_audit'];
 
+// Addon-owned columns are reconciled in the CONTENT DB separately from the
+// shared school DB. A NULL hash preserves shared EliteSMS login by default.
+const CONTENT_COLUMN_PLAN = [
+  ['kids_children', 'password_hash', 'VARCHAR(255) NULL DEFAULT NULL'],
+];
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -209,6 +215,19 @@ async function main() {
   const existingContent = new Set(contentTables.map((r) => r.TABLE_NAME));
   const missingContent = KIDS_CONTENT_TABLE_LIST.filter((t) => !existingContent.has(t));
 
+  const [contentColumns] = await content.query(
+    `SELECT TABLE_NAME, COLUMN_NAME
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (:tables)`,
+    { replacements: { tables: CONTENT_COLUMN_PLAN.map(([table]) => table) } }
+  );
+  const existingContentColumns = new Set(
+    contentColumns.map((row) => `${row.TABLE_NAME}.${row.COLUMN_NAME}`)
+  );
+  const addContentColumns = CONTENT_COLUMN_PLAN
+    .filter(([table, column]) => existingContent.has(table) && !existingContentColumns.has(`${table}.${column}`))
+    .map(([table, column, ddl]) => `ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${ddl}`);
+
   let missingAi = [];
   if (aiConnected) {
     const [aiTables] = await ai.query(
@@ -222,15 +241,19 @@ async function main() {
   }
 
   // ---- 5. Report / apply ----------------------------------------------------
-  const summary = { addColumns, dataSteps, missingContent, missingAi };
+  const summary = { addColumns, addContentColumns, dataSteps, missingContent, missingAi };
 
   log('\n── Planned changes ────────────────────────────────────────────────');
-  if (!addColumns.length && !summary.dataSteps.length && !missingContent.length && !missingAi.length) {
+  if (!addColumns.length && !addContentColumns.length && !summary.dataSteps.length && !missingContent.length && !missingAi.length) {
     log('Nothing to do — schema already up to date.');
   } else {
     if (addColumns.length) {
       log(`\n${addColumns.length} ADD COLUMN(s) (main DB):`);
       addColumns.forEach((sql) => log(`  + ${sql};`));
+    }
+    if (addContentColumns.length) {
+      log(`\n${addContentColumns.length} ADD COLUMN(s) (content DB):`);
+      addContentColumns.forEach((sql) => log(`  + ${sql};`));
     }
     if (summary.dataSteps.length) {
       log(`\n${summary.dataSteps.length} data-fix UPDATE(s) (main DB, scoped):`);
@@ -309,11 +332,15 @@ async function main() {
       await sequelize.query(sql);
       log(`  + applied: ${sql}`);
     }
+    for (const sql of addContentColumns) {
+      await content.query(sql);
+      log(`  + applied in content DB: ${sql}`);
+    }
     for (const [, sql] of dataSteps) {
       await sequelize.query(sql);
       log(`  ~ applied: ${sql.split('\n').join(' ')}`);
     }
-    if (missingContent.length || missingAi.length) {
+    if (missingContent.length || addContentColumns.length || missingAi.length) {
       await db.syncKidsTables();
       log(`  + kids tables ensured in '${CFG.contentDb}' + '${CFG.aiDb}'`);
     }

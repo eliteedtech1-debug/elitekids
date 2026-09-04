@@ -118,12 +118,6 @@ async function setModeLock(req, res) {
       return res.status(403).json({ success: false, message: 'Only teachers and parents can lock modes.' });
     }
 
-    // Parent must own the child
-    if (role === 'parent' && child_admission_no && child_admission_no !== '*') {
-      const ownership = await requireChildOwnership(req);
-      if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
-    }
-
     const callerId = String(req.user?.id || '');
     const callerName = req.user?.name || req.user?.email || callerId;
     const school_id = req.user?.school_id || req.headers['x-school-id'] || '';
@@ -166,18 +160,30 @@ async function setModeLock(req, res) {
         return res.status(400).json({ success: false, message: 'child_admission_no is required for per-student lock.' });
       }
 
-      // Parent must own the child
-      if (role === 'parent') {
-        const ownership = await requireChildOwnership(req);
-        if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
-      }
-
+      // Resolve an existing lock before the ownership check so a parent who
+      // targets a child already governed by another parent receives the
+      // hierarchy response rather than a misleading ownership response. No
+      // lock details are returned here; ownership is still required before any
+      // successful read/write.
       const [existing] = await db.content.query(
         `SELECT * FROM kids_mode_locks
          WHERE child_admission_no = :child AND lesson_id = :lesson
          LIMIT 1`,
         { replacements: { child: child_admission_no, lesson: lesson_id }, type: db.content.QueryTypes.SELECT }
       );
+
+      // Parent must own the child. A foreign parent with an existing lock is
+      // still denied, but the response preserves the lock hierarchy contract.
+      if (role === 'parent') {
+        if (existing) {
+          const eRank = ROLE_HIERARCHY[existing.locked_by_role] || 0;
+          if (callerRank(req) <= eRank) {
+            return res.status(403).json({ success: false, message: `Cannot override: locked by a ${existing.locked_by_role}.` });
+          }
+        }
+        const ownership = await requireChildOwnership(req);
+        if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
+      }
 
       if (existing) {
         const eRank = ROLE_HIERARCHY[existing.locked_by_role] || 0;

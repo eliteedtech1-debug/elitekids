@@ -43,6 +43,7 @@ const { getLessonNextUp } = require('../controllers/kidsSeries');
 const { getChildGoal, setChildGoal } = require('../controllers/kidsGoals');
 const { getMyAge, setMyAge } = require('../controllers/kidsAge');
 const { getPlacementQuiz, submitPlacement, getPlacementStatus } = require('../controllers/kidsPlacement');
+const { getMyActivity } = require('../controllers/kidsMeActivity');
 const { domesticateSeries, listDomestications } = require('../controllers/kidsModeLock');
 const {
   getOnboardingStatus,
@@ -231,8 +232,13 @@ module.exports = (app) => {
   app.get('/kids/lessons/:id/next-up', auth, getLessonNextUp);
 
   // ── Interface Onboarding (Doc 16) ───────────────────────────────────
-  app.get('/kids/onboarding/status', auth, getOnboardingStatus);
-  app.post('/kids/onboarding/complete', auth, completeOnboarding);
+  const onboardingChildGuard = (req, res, next) => {
+    const denied = denyForeignChildData(req);
+    if (denied) return res.status(denied.status).json(denied.body);
+    next();
+  };
+  app.get('/kids/onboarding/status', auth, onboardingChildGuard, getOnboardingStatus);
+  app.post('/kids/onboarding/complete', auth, onboardingChildGuard, completeOnboarding);
 
   // ── Age declaration ("How old are you?" tour step) ──────────────
   app.get('/kids/age', auth, getMyAge);
@@ -243,6 +249,9 @@ module.exports = (app) => {
   app.get('/kids/placement/quiz', auth, getPlacementQuiz);
   app.post('/kids/placement/submit', auth, submitPlacement);
   app.get('/kids/placement/status', auth, getPlacementStatus);
+
+  // ── Kid self-report: daily activity series for the GitHub-style grid + XP trend ──
+  app.get('/kids/me/activity', auth, getMyActivity);
 
   // ── Retry / Adaptive Difficulty (Doc 16) ────────────────────────────
   app.post('/kids/retry/test-complete', auth, recordTestComplete);
@@ -353,6 +362,8 @@ module.exports = (app) => {
   app.post('/kids/parent/login', parentCtrl.login);
   app.post('/kids/parent/register', parentCtrl.register);
   app.get('/kids/parent/children', auth, parentCtrl.getChildren);
+  app.get('/kids/parent/children/activity', auth, parentCtrl.getChildrenActivity);
+  app.get('/kids/parent/results', auth, parentCtrl.getParentResults);
   app.get('/kids/parent/child/:adm/progress', auth, parentCtrl.getChildProgress);
   app.get('/kids/parent/child/:adm/achievements', auth, parentCtrl.getChildAchievements);
   app.get('/kids/parent/child/:adm/controls', auth, parentCtrl.getChildControls);

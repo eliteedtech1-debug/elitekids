@@ -52,7 +52,21 @@ module.exports = (passport) => {
             `SELECT * FROM students WHERE admission_no = :admission_no AND school_id = :school_id LIMIT 1`,
             { replacements: { admission_no, school_id }, type: db.Sequelize.QueryTypes.SELECT }
           );
-          return student ? done(null, student) : done(null, false);
+          if (student) return done(null, student);
+
+          // Kids-only profiles may intentionally have no EliteSMS student row.
+          // Their local password is still valid only inside EliteKids, so issue
+          // and validate a normal student-shaped session without mutating the
+          // shared school DB.
+          const [localChild] = await db.content.query(
+            `SELECT id, admission_no, school_id, branch_id, full_name AS student_name,
+                    class_code, status
+             FROM kids_children
+             WHERE admission_no = :admission_no AND school_id = :school_id
+               AND status = 'Active' LIMIT 1`,
+            { replacements: { admission_no, school_id }, type: db.Sequelize.QueryTypes.SELECT }
+          ).catch(() => []);
+          return localChild ? done(null, { ...localChild, user_type: 'Student' }) : done(null, false);
         }
 
         // ── Parent auth ──────────────────────────────────────────────────

@@ -329,6 +329,14 @@ export const ENDPOINTS = {
     CLASS_QUEST_LEADERBOARD: '/kids/class-quest/leaderboard',
   },
 
+  // Parent Dashboard — ownership-scoped activity, results and controls
+  PARENT: {
+    CHILDREN: '/kids/parent/children',
+    ACTIVITY: (days = 365) => `/kids/parent/children/activity?days=${days}`,
+    RESULTS: (limit = 200) => `/kids/parent/results?limit=${limit}`,
+    CHILD_CONTROLS: (childId: string) => `/kids/parent/child/${encodeURIComponent(childId)}/controls`,
+  },
+
   // Q3 2027: Parent Intelligence (§3.2)
   PARENT_INTEL: {
     INSIGHTS: (childId: string) => `/kids/parent/insights/${encodeURIComponent(childId)}`,

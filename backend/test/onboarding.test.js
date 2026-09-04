@@ -21,6 +21,36 @@ async function loginAs(username, password) {
   return res.body.token;
 }
 
+describe('Interface onboarding privacy', () => {
+  it('prevents a student from reading another student\'s onboarding status', async () => {
+    const student = await request(app)
+      .post('/students/login')
+      .send({ username: 'NUR-001', password: 'Nursery@123', school_id: 'SCH-TEST' });
+    expect(student.status).toBe(200);
+
+    const res = await request(app)
+      .get('/kids/onboarding/status?student_id=NUR-002')
+      .set('authorization', student.body.token);
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toMatch(/own data/i);
+  });
+
+  it('prevents a student from completing another student\'s onboarding', async () => {
+    const student = await request(app)
+      .post('/students/login')
+      .send({ username: 'NUR-001', password: 'Nursery@123', school_id: 'SCH-TEST' });
+    expect(student.status).toBe(200);
+
+    const res = await request(app)
+      .post('/kids/onboarding/complete')
+      .set('authorization', student.body.token)
+      .send({ student_id: 'NUR-002' });
+
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('GET /kids/onboarding/status', () => {
   it('returns completed=true for NUR-001 (has fixture)', async () => {
     const token = await loginAs('admin@kids.test', 'Admin@123');
