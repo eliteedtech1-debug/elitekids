@@ -337,6 +337,13 @@ export default function ParentChildren() {
             {/* ── Children Tab ── */}
             {tab === 'children' && (
               <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-600">{t('parent.myChildren')}</h3>
+                  <button onClick={() => { setShowCreate(true); setCreateForm({ full_name: '', age_level: 'Creche', admission_no: '', password: '' }); }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
+                    <Plus className="h-3.5 w-3.5" /> {t('parent.createChildProfile')}
+                  </button>
+                </div>
                 {children.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[#0F4D92]/30 bg-white p-10 text-center">
                     <Baby className="mx-auto mb-3 h-10 w-10 text-[#0F4D92]/40" />
@@ -587,56 +594,6 @@ export default function ParentChildren() {
                     </button>
                   </form>
                 </div>
-
-                {/* Create a new child */}
-                <div className="rounded-2xl border border-[#0F4D92]/10 bg-white p-5 shadow-sm">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                      <Plus className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{t('parent.addChild')}</h3>
-                      <p className="text-xs text-gray-500">{t('parent.addChildHint')}</p>
-                    </div>
-                  </div>
-                  {!showCreate ? (
-                    <button onClick={() => setShowCreate(true)}
-                      className="w-full rounded-xl border-2 border-dashed border-emerald-300 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50">
-                      <Plus className="mr-1 inline h-4 w-4" /> {t('parent.createChildProfile')}
-                    </button>
-                  ) : (
-                    <form onSubmit={handleCreateChild} className="space-y-3">
-                      <input name="full_name" value={createForm.full_name} onChange={(e) => setCreateForm(p => ({ ...p, full_name: e.target.value }))}
-                        placeholder={t('parent.childNamePlaceholder')} required
-                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
-                      <select name="age_level" value={createForm.age_level} onChange={(e) => setCreateForm(p => ({ ...p, age_level: e.target.value }))}
-                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none">
-                        <option value="Creche">{t('parent.ageCreche')}</option>
-                        <option value="Nursery">{t('parent.ageNursery')}</option>
-                        <option value="KG1">{t('parent.ageKG1')}</option>
-                        <option value="KG2">{t('parent.ageKG2')}</option>
-                        <option value="Primary">{t('parent.agePrimary')}</option>
-                      </select>
-                      <input name="admission_no" value={createForm.admission_no} onChange={(e) => setCreateForm(p => ({ ...p, admission_no: e.target.value }))}
-                        placeholder={t('parent.admissionOptional')}
-                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
-                      <input name="password" type="password" value={createForm.password} onChange={(e) => setCreateForm(p => ({ ...p, password: e.target.value }))}
-                        placeholder={t('parent.childPasswordPlaceholder')} required minLength={4}
-                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
-                      <div className="flex gap-2">
-                        <button type="submit" disabled={creating || !createForm.full_name.trim() || !createForm.password}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">
-                          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                          {creating ? t('parent.creating') : t('parent.create')}
-                        </button>
-                        <button type="button" onClick={() => setShowCreate(false)}
-                          className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
-                          {t('common.cancel')}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
               </div>
             )}
 
@@ -657,6 +614,45 @@ export default function ParentChildren() {
           </>
         )}
       </main>
+
+      {/* Create Child Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="mb-1 text-base font-bold text-gray-800">{t('parent.createChildProfile')}</h3>
+            <p className="mb-4 text-xs text-gray-500">{t('parent.addChildHint')}</p>
+            <form onSubmit={handleCreateChild} className="space-y-3">
+              <input name="full_name" value={createForm.full_name} onChange={(e) => setCreateForm(p => ({ ...p, full_name: e.target.value }))}
+                placeholder={t('parent.childNamePlaceholder')} required autoFocus
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none" />
+              <select name="age_level" value={createForm.age_level} onChange={(e) => setCreateForm(p => ({ ...p, age_level: e.target.value }))}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none">
+                <option value="Creche">{t('parent.ageCreche')}</option>
+                <option value="Nursery">{t('parent.ageNursery')}</option>
+                <option value="KG1">{t('parent.ageKG1')}</option>
+                <option value="KG2">{t('parent.ageKG2')}</option>
+                <option value="Primary">{t('parent.agePrimary')}</option>
+              </select>
+              <input name="admission_no" value={createForm.admission_no} onChange={(e) => setCreateForm(p => ({ ...p, admission_no: e.target.value }))}
+                placeholder={t('parent.admissionOptional')}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none" />
+              <input name="password" type="password" value={createForm.password} onChange={(e) => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                placeholder={t('parent.childPasswordPlaceholder')} required minLength={4}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none" />
+              <div className="flex gap-2">
+                <button type="submit" disabled={creating || !createForm.full_name.trim() || !createForm.password}
+                  className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition">
+                  {creating ? t('parent.creating') : t('parent.create')}
+                </button>
+                <button type="button" onClick={() => setShowCreate(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Change Password Modal */}
       {pwChild && (

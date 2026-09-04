@@ -483,13 +483,18 @@ async function createChildForParent(req, res) {
     ).catch(() => []);
 
     if (!existingStudent || existingStudent.length === 0) {
+      const nameParts = String(full_name).trim().split(/\s+/);
+      const firstName = nameParts[0] || full_name;
+      const surname = nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
       await db.sequelize.query(
-        `INSERT INTO students (admission_no, student_name, school_id, branch_id, class_name, password, status, parent_id, user_type)
-         VALUES (:adm, :name, :sid, :bid, :cls, :pwd, 'Active', :pid, 'Student')`,
+        `INSERT INTO students (admission_no, student_name, first_name, surname, school_id, branch_id, class_name, password, status, parent_id, user_type)
+         VALUES (:adm, :name, :fname, :sname, :sid, :bid, :cls, :pwd, 'Active', :pid, 'Student')`,
         {
           replacements: {
             adm: childAdmission,
             name: full_name,
+            fname: firstName,
+            sname: surname,
             sid: school_id,
             bid: branch_id,
             cls: age_level || 'Creche',
