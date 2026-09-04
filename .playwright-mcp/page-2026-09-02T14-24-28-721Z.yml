@@ -1,0 +1,69 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - img "Elite brand" [ref=e10]
+        - generic [ref=e11]: EliteKids
+      - heading "Gamified Learning for Early Education" [level=1] [ref=e12]: GamifiedLearning forEarly Education
+      - paragraph [ref=e13]: Interactive lessons, progress tracking, and fun learning games — all in one place.
+    - generic [ref=e14]:
+      - generic [ref=e15]: AI-Powered Content
+      - generic [ref=e19]: NERDC Curriculum
+      - generic [ref=e22]: Progress Garden
+    - generic [ref=e26]:
+      - paragraph [ref=e28]: Elite Suite
+      - generic [ref=e29]:
+        - paragraph [ref=e30]: Our Apps
+        - link "📱 Elite SMS School Management — Students, Teachers, Attendance" [ref=e31] [cursor=pointer]:
+          - /url: https://elitesms.com.ng
+          - generic [ref=e32]: 📱
+          - generic [ref=e33]:
+            - generic [ref=e34]: Elite SMS
+            - generic [ref=e39]: School Management — Students, Teachers, Attendance
+        - link "💰 EliteFin Finance — Invoices, Payments, Reports" [ref=e40] [cursor=pointer]:
+          - /url: https://elitefin.com.ng
+          - generic [ref=e41]: 💰
+          - generic [ref=e42]:
+            - generic [ref=e43]: EliteFin
+            - generic [ref=e48]: Finance — Invoices, Payments, Reports
+        - link "📝 EliteCBT Testing — Exams & Auto-grading" [ref=e49] [cursor=pointer]:
+          - /url: https://elitecbt.com.ng
+          - generic [ref=e50]: 📝
+          - generic [ref=e51]:
+            - generic [ref=e52]: EliteCBT
+            - generic [ref=e57]: Testing — Exams & Auto-grading
+        - link "👶 EliteKids Learning — Gamified Nursery & Primary" [ref=e58] [cursor=pointer]:
+          - /url: https://elitekids.com.ng
+          - generic [ref=e59]: 👶
+          - generic [ref=e60]:
+            - generic [ref=e61]: EliteKids
+            - generic [ref=e66]: Learning — Gamified Nursery & Primary
+      - paragraph [ref=e68]: Powered by Elite Edu Tech Systems
+  - generic [ref=e69]:
+    - generic [ref=e70]:
+      - img "School Logo" [ref=e73]
+      - heading "Welcome, Elite Kids 👋" [level=2] [ref=e74]
+      - paragraph [ref=e75]: Elite Kids · Nursery Learning Platform
+    - generic [ref=e76]:
+      - button "Teacher / Parent" [ref=e77]
+      - button "Student" [ref=e81]
+    - generic [ref=e87]:
+      - textbox "School Short Name (e.g. Elite)" [ref=e89]
+      - textbox "Email or phone number" [ref=e91]
+      - generic [ref=e92]:
+        - textbox "Password" [ref=e93]
+        - button "Show password" [ref=e94]
+      - generic [ref=e98]:
+        - generic [ref=e99] [cursor=pointer]:
+          - checkbox "Remember me" [ref=e100]
+          - text: Remember me
+        - link "Forgot Password?" [ref=e101] [cursor=pointer]:
+          - /url: "#"
+      - button "Sign In" [ref=e102]
+    - paragraph [ref=e107]:
+      - text: Don't have an account?
+      - button "Create Account" [ref=e108]
+    - generic [ref=e109]:
+      - generic [ref=e110]: Powered by Elite Edu Tech Systems
+      - button "Open Elite Suite links" [ref=e113]:
+        - generic [ref=e119]: Elite Suite

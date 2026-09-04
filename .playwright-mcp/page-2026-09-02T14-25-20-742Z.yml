@@ -1,0 +1,69 @@
+- generic [ref=f1e4]:
+  - generic [ref=f1e5]:
+    - generic [ref=f1e8]:
+      - generic [ref=f1e9]:
+        - img "Elite brand" [ref=f1e10]
+        - generic [ref=f1e11]: EliteKids
+      - heading "Gamified Learning for Early Education" [level=1] [ref=f1e12]: GamifiedLearning forEarly Education
+      - paragraph [ref=f1e13]: Interactive lessons, progress tracking, and fun learning games — all in one place.
+    - generic [ref=f1e14]:
+      - generic [ref=f1e15]: AI-Powered Content
+      - generic [ref=f1e19]: NERDC Curriculum
+      - generic [ref=f1e22]: Progress Garden
+    - generic [ref=f1e26]:
+      - paragraph [ref=f1e28]: Elite Suite
+      - generic [ref=f1e29]:
+        - paragraph [ref=f1e30]: Our Apps
+        - link "📱 Elite SMS School Management — Students, Teachers, Attendance" [ref=f1e31] [cursor=pointer]:
+          - /url: https://elitesms.com.ng
+          - generic [ref=f1e32]: 📱
+          - generic [ref=f1e33]:
+            - generic [ref=f1e34]: Elite SMS
+            - generic [ref=f1e39]: School Management — Students, Teachers, Attendance
+        - link "💰 EliteFin Finance — Invoices, Payments, Reports" [ref=f1e40] [cursor=pointer]:
+          - /url: https://elitefin.com.ng
+          - generic [ref=f1e41]: 💰
+          - generic [ref=f1e42]:
+            - generic [ref=f1e43]: EliteFin
+            - generic [ref=f1e48]: Finance — Invoices, Payments, Reports
+        - link "📝 EliteCBT Testing — Exams & Auto-grading" [ref=f1e49] [cursor=pointer]:
+          - /url: https://elitecbt.com.ng
+          - generic [ref=f1e50]: 📝
+          - generic [ref=f1e51]:
+            - generic [ref=f1e52]: EliteCBT
+            - generic [ref=f1e57]: Testing — Exams & Auto-grading
+        - link "👶 EliteKids Learning — Gamified Nursery & Primary" [ref=f1e58] [cursor=pointer]:
+          - /url: https://elitekids.com.ng
+          - generic [ref=f1e59]: 👶
+          - generic [ref=f1e60]:
+            - generic [ref=f1e61]: EliteKids
+            - generic [ref=f1e66]: Learning — Gamified Nursery & Primary
+      - paragraph [ref=f1e68]: Powered by Elite Edu Tech Systems
+  - generic [ref=f1e69]:
+    - generic [ref=f1e70]:
+      - img "School Logo" [ref=f1e73]
+      - heading "Welcome, Elite Kids 👋" [level=2] [ref=f1e74]
+      - paragraph [ref=f1e75]: Elite Kids · Nursery Learning Platform
+    - generic [ref=f1e76]:
+      - button "Teacher / Parent" [ref=f1e77]
+      - button "Student" [ref=f1e81]
+    - generic [ref=f1e87]:
+      - textbox "School Short Name (e.g. Elite)" [ref=f1e89]
+      - textbox "Email or phone number" [ref=f1e91]
+      - generic [ref=f1e92]:
+        - textbox "Password" [ref=f1e93]
+        - button "Show password" [ref=f1e94]
+      - generic [ref=f1e98]:
+        - generic [ref=f1e99] [cursor=pointer]:
+          - checkbox "Remember me" [ref=f1e100]
+          - text: Remember me
+        - link "Forgot Password?" [ref=f1e101] [cursor=pointer]:
+          - /url: "#"
+      - button "Sign In" [ref=f1e102]
+    - paragraph [ref=f1e107]:
+      - text: Don't have an account?
+      - button "Create Account" [ref=f1e108]
+    - generic [ref=f1e109]:
+      - generic [ref=f1e110]: Powered by Elite Edu Tech Systems
+      - button "Open Elite Suite links" [ref=f1e113]:
+        - generic [ref=f1e119]: Elite Suite
