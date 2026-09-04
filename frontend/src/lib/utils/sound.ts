@@ -185,7 +185,7 @@ export function stripEmojiForSpeech(text: string): string {
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 
 export function speak(text: string, _lang?: string, overrideRate?: number): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise<void>(async (resolve) => {
     if (!text || typeof window === 'undefined' || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
       resolve();
       return;
@@ -225,6 +225,18 @@ export function speak(text: string, _lang?: string, overrideRate?: number): Prom
     // unchanged — see team-docs/PHONIX-SPEECH-ENGINE.md.
     const spokenText = phonixToSpeech(noEmoji);
     if (!spokenText) { resolve(); return; }
+
+    // AUDIO BANK shortcut: a single-sound text ("shh", "sss", "ay" — the
+    // isolated-grapheme drill case) plays the recorded phoneme file for a
+    // REAL sound instead of a TTS respelling. Multi-word sentences and
+    // ordinary words keep TTS (phonemeSlug returns null for them).
+    const singleSlug = phonemeSlug(spokenText);
+    if (singleSlug) {
+      void preloadPhonemeBank();
+      const played = await playPhoneme(singleSlug, Math.min(1.2, Math.max(0.7, rate / 0.85)));
+      if (played) { resolve(); return; }
+      // bank miss → fall through to TTS respelling
+    }
     const utterance = new SpeechSynthesisUtterance(spokenText);
     // TTS always speaks English — only UI text labels follow i18n locale.
     utterance.lang = 'en';
@@ -341,6 +353,12 @@ import {
   phonixSegment,
   phonixSegmentToSpeech,
 } from './phonix';
+import {
+  phonemeSlug,
+  playPhoneme,
+  playPhonemeSequence,
+  preloadPhonemeBank,
+} from './phonemeBank';
 
 export { PHONICS_SOUND_MAP, phonixToSpeech, phonixSegment, phonixSegmentToSpeech };
 
@@ -350,13 +368,54 @@ export function toPhonicsSound(grapheme: string): string {
 
 /**
  * Speak a phonics sound correctly — not the alphabet letter name.
- * "s" → speaks "sss", "ch" → speaks "chuh", "sh" → speaks "shh"
+ * "s" → "sss", "ch" → "chuh", "sh" → "shh".
+ *
+ * AUDIO BANK FIRST: plays the recorded phoneme file (real /ʃ/ for "shh")
+ * when available; TTS respelling is the fallback. The preloader runs
+ * fire-and-forget at module init so early drills warm the bank.
  */
 export async function speakPhonicsSound(grapheme: string): Promise<void> {
   const sound = toPhonicsSound(grapheme);
+  const slug = phonemeSlug(sound);
+  if (slug) {
+    void preloadPhonemeBank();
+    const played = await playPhoneme(slug, 0.95);
+    if (played) return;
+  }
   playDance();
   await speak(sound, undefined, 0.72); // slightly slower for phonics clarity
 }
+
+/**
+ * Speak a WHOLE WORD as sequenced phoneme audio ("ship" → shh ih puh) —
+ * recorded bank first, TTS respelling fallback. Returns how it played.
+ */
+export async function speakPhonemeWord(word: string, gapMs = 180): Promise<'bank' | 'tts' | 'none'> {
+  const slugSeq = phonixSegment(word)
+    .split(' ')
+    .map((s) => phonemeSlug(s))
+    .filter(Boolean) as string[];
+  if (slugSeq.length) {
+    void preloadPhonemeBank();
+    const ok = await playPhonemeSequence(slugSeq, gapMs);
+    if (ok) return 'bank';
+  }
+  const segText = phonixSegmentToSpeech(word);
+  if (!segText) return 'none';
+  await speak(segText, undefined, 0.72);
+  return 'tts';
+}
+
+// Re-export the phoneme audio bank API (drill UIs, game call sites).
+export {
+  playPhoneme,
+  playPhonemeSequence,
+  preloadPhonemeBank,
+  isSlugAvailable,
+  setPhonemeOverrides,
+  clearPhonemeOverrides,
+  getPhonemeUrl,
+} from './phonemeBank';
 
 // ── Init: preload voices + keep-alive (Chrome loads them async) ─────
 

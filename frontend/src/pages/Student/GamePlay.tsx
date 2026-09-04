@@ -209,10 +209,11 @@ function isHex(s?: string): boolean {
  * For phonics graphemes (1-2 letters, Letters category), returns the sound not the name. */
 function speakLabel(label?: string, color?: string, emoji?: string, category?: string): string {
   if (label) {
-    // If this looks like a phonics grapheme (1-2 alpha chars) and we're in a Letters game,
-    // convert to the phonics sound so TTS says "sss" not "ess"
+    // If this looks like a phonics grapheme (1-3 alpha chars: digraphs AND
+    // trigraphs like igh/tch) and we're in a Letters game, convert to the
+    // phonics sound so TTS says "sss" not "ess", "eye" not "i-g-h"
     const trimmed = label.trim();
-    if (category === 'Letters' && /^[a-z]{1,2}$/i.test(trimmed)) {
+    if (category === 'Letters' && /^[a-z_]{1,3}$/i.test(trimmed)) {
       return toPhonicsSound(trimmed.toLowerCase());
     }
     return trimmed;
