@@ -205,6 +205,13 @@ async function resumeSessionOffline(
 }
 
 /** Offline-aware API surface. */
+/** Upload queued records through the versioned delta contract when available.
+ * The regular queue still drains individual mutations for backward compatibility.
+ */
+async function syncDelta(items: Record<string, unknown>[]): Promise<any> {
+  return apiClient.post('/kids/sync/delta', { items });
+}
+
 export const offlineApi = {
   get: offlineGet,
   post: <T = any>(url: string, body?: Record<string, unknown>, opts?: OfflineApiOptions) =>
@@ -216,5 +223,6 @@ export const offlineApi = {
   delete: offlineDelete,
   saveSession: saveSessionOffline,
   resumeSession: resumeSessionOffline,
+  syncDelta,
   prefetch: offlineContent,
 };

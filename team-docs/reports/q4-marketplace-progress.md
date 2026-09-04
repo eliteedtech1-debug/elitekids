@@ -1,30 +1,49 @@
-# Q4 "The Future" — Content Marketplace progress (Paystack + Monnify)
+# Q4 "The Future" — Content Marketplace and Analytics progress
 
-Plan refs: `team-docs/NGEd-game-2027-ROADMAP.md` §2.13; risk map `team-docs/q4-conflict-risk-map.md`.
-Started: 2026-09-04. Track: **Marketplace backend (W1-3 slice)** — parallel-safe, zero Q3 overlap.
+Plan refs: `team-docs/NGEd-game-2027-ROADMAP.md` §2.13–§2.15; risk map `team-docs/q4-conflict-risk-map.md`.
+Date: 2026-09-04
 
-## Done (code in working tree, uncommitted)
-- `backend/src/services/monnifyService.js` — Monnify alternative gateway (fail-open, same contract as paystackService): token (OAuth2 basic), init-transaction (CARD), verify, webhook HMAC-SHA512, isConfigured().
-- `backend/src/controllers/kidsMarketplace.js` — dual-gateway marketplace controller:
-  - ensureSchema() creates 3 additive tables in elite_content: kids_marketplace_listings / kids_marketplace_purchases / kids_marketplace_reviews.
-  - listListings / getListing / createListing / updateListing / deleteListing / initiatePurchase / verifyPurchase / purchaseWebhook (Paystack) / monnifyWebhook / addReview / seedMarketplace.
-  - initiatePurchase accepts `gateway` (paystack|monnify, default paystack); free listings bypass payment; paid go to chosen gateway's checkout/verify.
-- `backend/src/routes/kids.js` — marketplace route group under auth/requireStaff + 2 webhooks (Paystack + Monnify).
-- `backend/test/marketplace.test.js` — service fail-open + controller API-surface tests (pure, no DB).
+## Coding status
 
-## Verified
-- node --check clean on kidsMarketplace.js, monnifyService.js, kids.js, marketplace.test.js.
-- Controller + both gateway services load via node require; exported API surface confirmed.
-- Full jest suite BLOCKED here: `test/global-setup.js` unconditionally seeds the test DB and MySQL root access is denied in this env (same blocker as Q3). Run marketplace.test.js on a host with test-DB creds.
+Q4 NGEd-Game coding is **100% complete for the bounded Q39–Q43 scope implemented in this pass**:
 
-## Not yet done (this slice)
-- Marketplace FRONTEND (ListingCard/ListingDetail/Marketplace page) — queued (Q40).
-- Payout / revenue-share 70-30 rule + payout table — deferred, needs MASTER spec (human-last, per risk map).
+- **Q39 — Marketplace backend:** existing dual-gateway marketplace routes, models, controllers, and gateway adapters remain in place. Revenue-share/payout policy is intentionally not automated until product and finance review.
+- **Q40 — Marketplace frontend:** added teacher marketplace browsing, listing detail, purchase/checkout initiation, reviews, and publisher dashboard with publish action; wired routes, navigation, and API constants.
+- **Q41 — Predictive analytics backend:** added an explainable rule-based v1 service (not represented as trained ML), `KidPrediction`, schema creation, class-scoped prediction/early-warning/population/content-effectiveness endpoints, and class-access checks.
+- **Q42 — Offline-First 2.0 isolated slice:** added versioned `/kids/sync/delta` and `/kids/sync/schema` contracts, idempotent delta handling, and the existing offline client’s visible `OfflineProgress` surface. The broad all-game offline rewrite remains intentionally deferred.
+- **Q43 — Analytics frontend:** added prediction, early-warning, population, and content-effectiveness panels and embedded them in teacher analytics; bounded offline status is visible to staff.
 
-## Notes
-- MONNIFY_SECRET_KEY / MONNIFY_PUBLIC_KEY / MONNIFY_CONTRACT_CODE to be added to backend/.env when Monnify creds are provisioned (service fail-open until then).
-- Used raw-SQL ensureSchema pattern (same as kidsSubscription) rather than Sequelize models — consistent with the existing commercial kids_* tables; no model registry change needed.
-- No commits, no pushes (per hands-off/publish-later protocol).
+## Automated evidence
 
-## Conflicts with freebuff (Q3)
-None — all-new kids_marketplace_* files/tables; no shared file with Q3 tracks.
+- Frontend i18n and Q3 realtime regression suites: **48/48 passed**.
+- Frontend TypeScript check and production build: **passed**.
+- Backend Q4 source syntax checks: **passed**.
+- Predictive helper smoke checks: **passed**.
+- English and Hausa locale JSON parsing plus duplicate-key audit: **passed**.
+- `git diff --check`: **passed**.
+- Backend Jest execution is an environment limitation in this checkout: the Jest executable/test database is unavailable, so no backend Jest result is claimed as passing.
+
+## Security and product boundaries
+
+- Marketplace publisher drafts are scoped to the authenticated publisher.
+- Predictive analytics is class-scoped and guarded by server-side class access; it exposes signals and explanations, not diagnoses or automated decisions.
+- Student/team/class access remains server-authorized; client-supplied IDs are not accepted as proof of membership.
+- No payout or revenue-share behavior is enabled without human policy approval.
+
+## Human validation and final iteration loop
+
+Code completion is not production approval. The final Q4 closure must include supervised walkthroughs with:
+
+1. a learner using marketplace-owned content and an offline reconnect/sync scenario;
+2. a teacher browsing, publishing, purchasing/initiating checkout, reviewing analytics, and interpreting an early warning;
+3. a parent checking the learner-facing impact and understandable messaging; and
+4. a safety/privacy reviewer checking class isolation, payment boundaries, explainability, and child-appropriate language.
+
+Each observation is recorded as P0–P3. P0/P1 findings block release, are fixed, and trigger a repeat walkthrough plus automated checks. P2/P3 findings become an iteration backlog with an owner and acceptance date. Final sign-off, payment-policy approval, live smoke, and production approval remain **pending** until those people complete the loop.
+
+## Checkpoints
+
+- 2026-09-04T04:30Z | START — audited Q4 files and confirmed Q40/Q41 backend+frontend gaps; Q42 client library already exists; server contracts missing; Q43 shared analytics integration pending.
+- 2026-09-04T05:47Z | CODE COMPLETE — implemented Q40–Q43 bounded scope; added missing English/Hausa UI keys; frontend 48/48 focused tests, typecheck/build, backend syntax, predictive smoke, locale parsing, and diff checks passed. Backend Jest remains blocked by unavailable Jest/test DB.
+- 2026-09-04T05:49Z | CLOSURE READY — queue/report updated; all Q4 coding claims are separated from human validation, payment-policy approval, broad offline deferrals, and production approval. No deployment or push performed in this continuation.
+- 2026-09-04T05:50Z | PUSH AUTHORIZED — user requested the complete current working tree be committed and pushed to the configured remote; automated gates and scope boundaries are recorded above.

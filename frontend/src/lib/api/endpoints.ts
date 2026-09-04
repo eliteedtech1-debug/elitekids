@@ -329,6 +329,29 @@ export const ENDPOINTS = {
     OPT_IN: '/kids/parent/opt-in',
   },
 
+  // Q4 2027: Content Marketplace (§2.13)
+  MARKETPLACE: {
+    LISTINGS: '/kids/marketplace/listings',
+    LISTING: (id: string) => `/kids/marketplace/listings/${encodeURIComponent(id)}`,
+    INITIATE: '/kids/marketplace/initiate',
+    VERIFY: '/kids/marketplace/purchase/verify',
+    REVIEW: '/kids/marketplace/review',
+  },
+
+  // Q4 2027: Analytics Intelligence (§2.15)
+  PREDICTIVE: {
+    PREDICTIONS: (childId: string, classId: string) => `/kids/analytics/predictions/${encodeURIComponent(childId)}?class_id=${encodeURIComponent(classId)}`,
+    EARLY_WARNINGS: (classId: string) => `/kids/analytics/early-warnings?class_id=${encodeURIComponent(classId)}`,
+    POPULATION: (classId: string) => `/kids/analytics/population?class_id=${encodeURIComponent(classId)}`,
+    CONTENT_EFFECTIVENESS: (classId: string) => `/kids/analytics/content-effectiveness?class_id=${encodeURIComponent(classId)}`,
+  },
+
+  // Q4 2027: Offline-first delta sync (§2.14)
+  SYNC: {
+    DELTA: '/kids/sync/delta',
+    SCHEMA: '/kids/sync/schema',
+  },
+
   // Q3 2027: Teacher AI Assistant (§3.3)
   TEACHER_AI: {
     INSIGHTS: '/kids/teacher/insights',

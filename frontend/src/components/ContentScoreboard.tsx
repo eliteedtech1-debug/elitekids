@@ -1,0 +1,6 @@
+import { BarChart3 } from 'lucide-react';
+
+interface ContentScore { lesson_id: string; title: string; attempts: number; unique_students: number; average_score_pct: number; completion_rate_pct: number; effectiveness: number; }
+export default function ContentScoreboard({ rows }: { rows: ContentScore[] }) {
+  return <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><h2 className="mb-3 flex items-center gap-2 font-extrabold text-gray-800"><BarChart3 className="h-5 w-5 text-teal-600" /> Content effectiveness</h2>{rows.length === 0 ? <p className="py-5 text-center text-sm text-gray-400">No content signals for this class yet.</p> : <div className="space-y-2">{rows.map((row) => <div key={row.lesson_id} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-gray-800">{row.title}</p><p className="text-[11px] text-gray-500">{row.attempts} attempts · {row.unique_students} learners · {row.completion_rate_pct}% passing</p></div><div className="text-right"><p className="text-sm font-extrabold text-[#0F4D92]">{row.average_score_pct}%</p><p className="text-[10px] text-gray-400">effectiveness {Math.round(row.effectiveness * 100)}%</p></div></div>)}</div>}</section>;
+}

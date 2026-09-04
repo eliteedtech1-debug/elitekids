@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, ShieldCheck, LayoutDashboard, LogOut, GraduationCap, Image, Wand2, BarChart3 } from 'lucide-react';
+import { BookOpen, ShieldCheck, LayoutDashboard, LogOut, GraduationCap, Image, Wand2, BarChart3, Store, Brain } from 'lucide-react';
 import { useCallback } from 'react';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { t } from '@/lib/i18n';
@@ -12,6 +12,8 @@ const NAV_ITEMS = [
   { to: '/teacher/create-game', labelKey: 'adminNav.create', icon: Wand2 },
   { to: '/teacher/approvals', labelKey: 'adminNav.reviews', icon: ShieldCheck },
   { to: '/teacher/analytics', labelKey: 'adminNav.analytics', icon: BarChart3 },
+  { to: '/teacher/marketplace', labelKey: 'adminNav.marketplace', icon: Store },
+  { to: '/admin/platform-analytics', labelKey: 'adminNav.platformAnalytics', icon: Brain },
   { to: '/admin/assets', labelKey: 'adminNav.assets', icon: Image },
 ];
 

@@ -1087,6 +1087,21 @@ async function syncBatch(req, res) {
   }
 }
 
+/** POST /kids/sync/delta — additive versioned alias for offline delta uploads.
+ * The payload uses the same idempotent progress items as /kids/sync/batch.
+ */
+async function syncDelta(req, res) {
+  if (!Array.isArray(req.body && req.body.items)) {
+    return res.status(400).json({ success: false, message: 'items[] required.' });
+  }
+  const originalJson = res.json.bind(res);
+  res.json = (body) => originalJson({
+    ...body,
+    sync: { schema_version: 1, server_time: new Date().toISOString() },
+  });
+  return syncBatch(req, res);
+}
+
 /** POST /kids/progress/game-complete — idempotent progress record. */
 async function recordGameComplete(req, res) {
   try {
@@ -1520,6 +1535,7 @@ async function getStoryTemplates(req, res) {
 
 module.exports = {
   syncBatch,
+  syncDelta,
   listChildrenForParent,
   getSceneLibrary,
   getStoryTemplates,

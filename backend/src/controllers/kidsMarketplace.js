@@ -105,6 +105,13 @@ async function listListings(req, res) {
     if (is_free === '1' || is_free === 'true') where.push('l.is_free = 1');
     if (is_free === '0' || is_free === 'false') where.push('l.is_free = 0');
     if (search) { where.push('(l.title LIKE :q OR l.description LIKE :q OR l.category LIKE :q)'); params.q = `%${search}%`; }
+    // Drafts/archived listings are private publisher workspaces; published
+    // listings remain discoverable across the marketplace.
+    if (status !== 'published') {
+      const publisher = buyerScopeOf(req.user);
+      where.push('l.publisher_id = :publisher_id');
+      params.publisher_id = publisher.id;
+    }
 
     const orderBy =
       sort === 'oldest' ? 'l.created_at ASC'
@@ -228,7 +235,7 @@ async function updateListing(req, res) {
   }
 }
 
-/** DELETE /kids/marketplace/listings/:id — archive own listing. */
+/** PATCH /kids/marketplace/listings/:id — update own listing. */
 async function deleteListing(req, res) {
   try {
     await ensureSchema();

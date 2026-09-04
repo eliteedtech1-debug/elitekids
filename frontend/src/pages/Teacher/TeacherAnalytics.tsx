@@ -17,6 +17,10 @@ import TeacherInsightsPanel from '@/components/TeacherInsightsPanel';
 import StudentAlertCard from '@/components/StudentAlertCard';
 import ContentSuggestion from '@/components/ContentSuggestion';
 import AutoAssignDialog from '@/components/AutoAssignDialog';
+import EarlyWarningPanel from '@/components/EarlyWarningPanel';
+import PopulationInsights from '@/components/PopulationInsights';
+import ContentScoreboard from '@/components/ContentScoreboard';
+import OfflineProgress from '@/components/OfflineProgress';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -117,6 +121,9 @@ export default function TeacherAnalytics() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showAutoAssign, setShowAutoAssign] = useState(false);
   const [autoAssignIntents, setAutoAssignIntents] = useState<any[]>([]);
+  const [predictiveWarnings, setPredictiveWarnings] = useState<any[]>([]);
+  const [populationInsights, setPopulationInsights] = useState<any | null>(null);
+  const [contentEffectiveness, setContentEffectiveness] = useState<any[]>([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -152,14 +159,23 @@ export default function TeacherAnalytics() {
     Promise.all([
       apiClient.get(`${ENDPOINTS.TEACHER_AI.INSIGHTS}?class_id=${encodeURIComponent(classId)}`),
       apiClient.get(`${ENDPOINTS.TEACHER_AI.SUGGESTIONS}?class_id=${encodeURIComponent(classId)}`),
-    ]).then(([insightRes, suggestionRes]) => {
+      apiClient.get(ENDPOINTS.PREDICTIVE.EARLY_WARNINGS(classId)),
+      apiClient.get(ENDPOINTS.PREDICTIVE.POPULATION(classId)),
+      apiClient.get(ENDPOINTS.PREDICTIVE.CONTENT_EFFECTIVENESS(classId)),
+    ]).then(([insightRes, suggestionRes, warningRes, populationRes, contentRes]) => {
       if (!alive) return;
       setTeacherInsights(insightRes.data?.data || []);
       setSuggestions(suggestionRes.data?.data || []);
+      setPredictiveWarnings(warningRes.data?.data || []);
+      setPopulationInsights(populationRes.data?.data || null);
+      setContentEffectiveness(contentRes.data?.data || []);
     }).catch(() => {
       if (!alive) return;
       setTeacherInsights([]);
       setSuggestions([]);
+      setPredictiveWarnings([]);
+      setPopulationInsights(null);
+      setContentEffectiveness([]);
     });
     return () => { alive = false; };
   }, [classes]);
@@ -209,7 +225,9 @@ export default function TeacherAnalytics() {
             <Loader2 className="h-5 w-5 animate-spin" /> {t('teacher.analytics.loading')}
           </div>
         ) : (
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <>
+            <div className="mb-4 flex justify-end"><OfflineProgress compact /></div>
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
             {/* ── Overview Tab ── */}
             {tab === 'overview' && (
               <div className="space-y-4">
@@ -410,8 +428,11 @@ export default function TeacherAnalytics() {
 
             {/* ── AI Insights Tab ── */}
             {tab === 'insights' && (
-              <div>
+              <div className="space-y-4">
                 <TeacherInsightsPanel classId={classes[0]?.class_code || ''} />
+                <PopulationInsights data={populationInsights} />
+                <EarlyWarningPanel warnings={predictiveWarnings} />
+                <ContentScoreboard rows={contentEffectiveness} />
               </div>
             )}
 
@@ -442,7 +463,8 @@ export default function TeacherAnalytics() {
                 )}
               </div>
             )}
-          </div>
+            </div>
+          </>
         )}
       </main>
     </div>

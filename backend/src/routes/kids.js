@@ -18,6 +18,7 @@ const {
   listGenerationJobs,
   recordGameComplete,
   syncBatch,
+  syncDelta,
   childProgress,
   decideApproval,
   approveLesson,
@@ -119,6 +120,7 @@ const { voiceNoteUploadMW, createVoiceNote, listVoiceNotes, listMyVoiceNotes, st
 const collabCtrl = require('../controllers/kidsCollaboration');
 const parentIntelCtrl = require('../controllers/kidsParentIntelligence');
 const teacherCtrl = require('../controllers/kidsTeacher');
+const predictiveCtrl = require('../controllers/kidsPredictiveAnalytics');
 
 module.exports = (app) => {
   // ── Parent read-only activity feed ──────────────────────────────────────
@@ -189,6 +191,11 @@ module.exports = (app) => {
   }, recordGameComplete);
   // E2: offline queue drain — batch progress posts
   app.post('/kids/sync/batch', auth, syncBatch);
+  app.post('/kids/sync/delta', auth, syncDelta);
+  app.get('/kids/sync/schema', auth, (req, res) => res.json({
+    success: true,
+    data: { version: 1, generated_at: new Date().toISOString(), stores: ['lessons', 'gameConfigs', 'sessionState', 'syncQueue'] },
+  }));
   // Query-param route for admission numbers with slashes
   app.get('/kids/progress/child', auth, (req, res, next) => {
     const denied = denyForeignChildData(req);
@@ -368,6 +375,11 @@ module.exports = (app) => {
   app.get('/kids/analytics/struggling', auth, requireStaff, analyticsCtrl.getStrugglingStudents);
   app.get('/kids/analytics/games', auth, requireStaff, analyticsCtrl.getGameEngagement);
   app.get('/kids/analytics/leaderboard', auth, requireStaff, analyticsCtrl.getTopPerformers);
+  // ── Q4 2027: Analytics Intelligence (explainable v1) ───────────────────
+  app.get('/kids/analytics/predictions/:childId', auth, requireStaff, predictiveCtrl.getPredictions);
+  app.get('/kids/analytics/early-warnings', auth, requireStaff, predictiveCtrl.getEarlyWarnings);
+  app.get('/kids/analytics/population', auth, requireStaff, predictiveCtrl.getPopulation);
+  app.get('/kids/analytics/content-effectiveness', auth, requireStaff, predictiveCtrl.getContentEffectiveness);
 
   // ── Flagship `elite` + subscriptions (spec C) ───────────────────────────
   app.get('/kids/subscription/plans', subCtrl.listPlans);              // public

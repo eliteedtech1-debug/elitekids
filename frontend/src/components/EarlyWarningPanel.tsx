@@ -1,0 +1,7 @@
+import { AlertTriangle, Loader2 } from 'lucide-react';
+import type { ChildPrediction } from './PredictionCard';
+
+export default function EarlyWarningPanel({ warnings, loading = false }: { warnings: ChildPrediction[]; loading?: boolean }) {
+  if (loading) return <div className="flex items-center gap-2 py-8 text-sm text-gray-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading early warnings…</div>;
+  return <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-500" /><div><h2 className="font-extrabold text-gray-800">Early warnings</h2><p className="text-xs text-gray-500">Signals for review, not diagnoses.</p></div></div>{warnings.length === 0 ? <p className="py-5 text-center text-sm text-gray-400">No elevated risk signals for this class.</p> : <div className="space-y-2">{warnings.map((warning) => <div key={warning.child_admission_no} className="flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/50 p-3"><div className="min-w-0 flex-1"><p className="text-sm font-bold text-gray-800">{warning.child_admission_no}</p><p className="text-xs text-gray-600">{warning.dropout_risk?.reasons?.join(' · ') || 'Review recent engagement.'}</p></div><span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-amber-700">{Math.round((warning.dropout_risk?.score || 0) * 100)}%</span></div>)}</div>}</section>;
+}

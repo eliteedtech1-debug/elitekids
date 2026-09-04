@@ -34,6 +34,8 @@ const GameCreator = lazy(() => import('@/pages/Teacher/GameCreator'));
 const TeacherVoiceNotes = lazy(() => import('@/pages/Teacher/TeacherVoiceNotes'));
 const ParentLive = lazy(() => import('@/pages/Parent/ParentLive'));
 const AssetLibrary = lazy(() => import('@/pages/Admin/AssetLibrary'));
+const Marketplace = lazy(() => import('@/pages/Teacher/Marketplace'));
+const PlatformAnalytics = lazy(() => import('@/pages/Admin/PlatformAnalytics'));
 
 /** Minimal loading fallback so lazy chunks don't flash a blank screen. */
 function RouteFallback() {
@@ -225,6 +227,22 @@ export default function App() {
         element={
           <AuthGuard>
             <LazyRoute element={<TeacherAnalytics />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/marketplace"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<Marketplace />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/admin/platform-analytics"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<PlatformAnalytics />} />
           </AuthGuard>
         }
       />

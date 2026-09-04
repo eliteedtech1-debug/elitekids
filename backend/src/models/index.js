@@ -72,6 +72,8 @@ const KIDS_CONTENT_TABLES = [
   'kids_action_items',
   'kids_teacher_insights',
   'kids_content_suggestions',
+  // Q4 2027: Analytics Intelligence
+  'kids_predictions',
 ];
 
 const KIDS_AI_TABLES = ['kids_content_generation_audit'];
@@ -117,6 +119,8 @@ const KIDS_CONTENT_MODEL_FILES = [
   'KidActionItem.js',
   'KidTeacherInsight.js',
   'KidContentSuggestion.js',
+  // Q4 2027: Analytics Intelligence
+  'KidPrediction.js',
 ];
 
 // Model files bound to the AI DB (AI_DB_NAME; elite_bot on the prod server)
@@ -273,6 +277,8 @@ db.syncKidsTables = async () => {
     'kids_action_items',
     'kids_teacher_insights',
     'kids_content_suggestions',
+    // Q4 2027: Analytics Intelligence
+    'kids_predictions',
   ];
   const ordered = SYNC_ORDER
     .map((name) => contentModels.find((m) => m.getTableName() === name))
