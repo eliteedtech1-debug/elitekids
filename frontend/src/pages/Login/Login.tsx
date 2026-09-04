@@ -503,8 +503,8 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Parent signup link */}
-          {mode === 'users' && (
+          {/* Parent signup link — flagship only (short name "elite") */}
+          {mode === 'users' && short_name?.toLowerCase() === 'elite' && (
             <p className="mt-4 text-center text-sm text-gray-500">
               {t('login.noAccount')}{' '}
               <button
@@ -516,8 +516,8 @@ export default function Login() {
             </p>
           )}
 
-          {/* Parent signup form */}
-          {authView === 'signup' && mode === 'users' && (
+          {/* Parent signup form — flagship only */}
+          {authView === 'signup' && mode === 'users' && short_name?.toLowerCase() === 'elite' && (
             <form onSubmit={handleSignup} className="mt-5 space-y-3 rounded-2xl bg-white/50 backdrop-blur-sm p-4 border border-white/50 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
               <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
