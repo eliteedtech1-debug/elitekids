@@ -41,6 +41,9 @@ export const ADMIN_ROLES = ['admin', 'branchadmin', 'superadmin'] as const;
 
 export const AGE_LEVELS = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'] as const;
 
+// Flagship school aliases — must mirror backend FLAGSHIP_ALIASES in flagshipKidsSeed.js
+export const FLAGSHIP_SHORT_NAMES = ['elite', 'kids', 'practice'] as const;
+
 // Game templates (must match game-engine/schemas/*.schema.json)
 export const GAME_TEMPLATES = [
   'matching',

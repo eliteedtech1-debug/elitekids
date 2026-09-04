@@ -8,7 +8,7 @@ import { User, Lock, GraduationCap, Users, Eye, EyeOff, Sparkles, BookOpen, Star
 import { short_name, hasKidsAccess, getSchoolShortName, createAuthHeaders } from '@/lib/utils/school';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import apiClient from '@/lib/api/client';
-import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { STORAGE_KEYS, FLAGSHIP_SHORT_NAMES } from '@/lib/utils/constants';
 import AppSwitcher from '@/components/AppSwitcher';
 import PublicLoginSwitcher from '@/components/PublicLoginSwitcher';
 import LoginAppsPanel from '@/components/LoginAppsPanel';
@@ -503,8 +503,8 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Parent signup link — flagship only (elite/kids/practice) */}
-          {mode === 'users' && ['elite', 'kids', 'practice'].includes(short_name?.toLowerCase() || '') && (
+          {/* Parent signup link — flagship only */}
+          {mode === 'users' && FLAGSHIP_SHORT_NAMES.includes((short_name?.toLowerCase() || '') as typeof FLAGSHIP_SHORT_NAMES[number]) && (
             <p className="mt-4 text-center text-sm text-gray-500">
               {t('login.noAccount')}{' '}
               <button
@@ -517,7 +517,7 @@ export default function Login() {
           )}
 
           {/* Parent signup form — flagship only */}
-          {authView === 'signup' && mode === 'users' && ['elite', 'kids', 'practice'].includes(short_name?.toLowerCase() || '') && (
+          {authView === 'signup' && mode === 'users' && FLAGSHIP_SHORT_NAMES.includes((short_name?.toLowerCase() || '') as typeof FLAGSHIP_SHORT_NAMES[number]) && (
             <form onSubmit={handleSignup} className="mt-5 space-y-3 rounded-2xl bg-white/50 backdrop-blur-sm p-4 border border-white/50 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
               <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
