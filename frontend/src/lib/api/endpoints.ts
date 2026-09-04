@@ -92,6 +92,13 @@ export const ENDPOINTS = {
     SET: '/kids/age',
   },
 
+  // Placement quiz (Q4): measure elder/unmapped children, persist band
+  PLACEMENT: {
+    QUIZ: '/kids/placement/quiz',
+    SUBMIT: '/kids/placement/submit',
+    STATUS: '/kids/placement/status',
+  },
+
   // Retry / Adaptive Difficulty (Doc 16)
   RETRY: {
     TEST_COMPLETE: '/kids/retry/test-complete',

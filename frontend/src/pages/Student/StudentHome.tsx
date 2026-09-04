@@ -44,6 +44,7 @@ import StudentLeaderboardPanel from './StudentLeaderboardPanel';
 import StudentFestival from '@/components/StudentFestival';
 import StudentLiveBar from '@/components/StudentLiveBar';
 import StudentQuickNav from '@/components/StudentQuickNav';
+import PlacementQuiz from '@/components/PlacementQuiz';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
@@ -167,6 +168,8 @@ export default function StudentHome() {
   const [offlineMode, setOfflineMode] = useState(false);
   const [streak, setStreak] = useState(() => getStreakLocal());
   const [showShop, setShowShop] = useState(false);
+  // Q4: placement quiz — offered on empty catalog (elder/unmapped classes).
+  const [showPlacementQuiz, setShowPlacementQuiz] = useState(false);
   // Sequential board: level/streak DETAILS stay collapsed until the kid taps
   // the summary chip (the 4-stat row already shows streak+XP — no dupe text).
   const [showProgressDetail, setShowProgressDetail] = useState(false);
@@ -925,6 +928,17 @@ export default function StudentHome() {
                         })
                       : t('student.home.noGamesBody')}
                 </p>
+                {/* Placement quiz CTA — measure the child, place the child.
+                    Offered whenever a tab looks empty and the platform is
+                    reachable (never offline — the quiz needs the catalog). */}
+                {!offlineMode && (
+                  <button
+                    onClick={() => { playTap(); setShowPlacementQuiz(true); }}
+                    className="mx-auto mt-5 flex items-center gap-2 rounded-xl bg-[#0F4D92] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-[#0D3F7A] active:scale-95"
+                  >
+                    🎯 {t('placement.cta')}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1063,6 +1077,16 @@ export default function StudentHome() {
 
       {/* Q1 Companion Shop modal — spend XP earned in games/reviews */}
       <Shop open={showShop} onClose={() => setShowShop(false)} onBalanceChange={handleShopBalance} />
+
+      {/* Q4 Placement quiz — measure + place elder/unmapped children */}
+      <PlacementQuiz
+        open={showPlacementQuiz}
+        onClose={() => setShowPlacementQuiz(false)}
+        onPlaced={() => {
+          // Placement persisted server-side → refetch catalog + path.
+          void loadData();
+        }}
+      />
     </div>
   );
 }

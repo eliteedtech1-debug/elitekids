@@ -42,6 +42,7 @@ const {
 const { getLessonNextUp } = require('../controllers/kidsSeries');
 const { getChildGoal, setChildGoal } = require('../controllers/kidsGoals');
 const { getMyAge, setMyAge } = require('../controllers/kidsAge');
+const { getPlacementQuiz, submitPlacement, getPlacementStatus } = require('../controllers/kidsPlacement');
 const { domesticateSeries, listDomestications } = require('../controllers/kidsModeLock');
 const {
   getOnboardingStatus,
@@ -236,6 +237,12 @@ module.exports = (app) => {
   // ── Age declaration ("How old are you?" tour step) ──────────────
   app.get('/kids/age', auth, getMyAge);
   app.post('/kids/age', auth, setMyAge);
+
+  // ── Placement quiz (Q4): measure elder/unmapped children and persist a band
+  // placement that outranks class names + tour declarations (ageBand resolver). ──
+  app.get('/kids/placement/quiz', auth, getPlacementQuiz);
+  app.post('/kids/placement/submit', auth, submitPlacement);
+  app.get('/kids/placement/status', auth, getPlacementStatus);
 
   // ── Retry / Adaptive Difficulty (Doc 16) ────────────────────────────
   app.post('/kids/retry/test-complete', auth, recordTestComplete);

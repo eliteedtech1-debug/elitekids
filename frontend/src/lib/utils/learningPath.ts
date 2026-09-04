@@ -60,14 +60,29 @@ export type GameMode = 'learning' | 'practice' | 'test';
 
 /* ── Age-band mapping + in-band ceiling filter ────────────────────── */
 /* Mirrors the server-side resolver (backend/src/services/ageBand.js) so the
-   offline catalog / subject tabs can never widen a child's band. Unknown
-   classes resolve to null = show nothing (narrowest, never widest). */
+   offline catalog / subject tabs can never widen a child's band.
+
+   EQUIVALENCE RANKS (Northern Nigeria — product decision): the five storage
+   labels collapse into four ranks — rank 0 Creche≡Pre-Nursery, rank 1
+   Nursery≡Nursery 1≡KG1, rank 2 KG2≡Nursery 2, rank 3 Primary (incl. elder
+   classes JSS/SSS/islamiyya → remedial/last rank, never an empty dashboard). */
 
 export const AGE_BANDS = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'] as const;
 export type AgeBand = (typeof AGE_BANDS)[number];
 
+/** Equivalence rank per storage label. Two labels can share a rank. */
+export const BAND_RANKS: Record<AgeBand, number> = {
+  Creche: 0,
+  Nursery: 1,
+  KG1: 1,
+  KG2: 2,
+  Primary: 3,
+};
+
+/** Equivalence rank of a band label, or -1 when unknown. */
 export function bandRank(band: string): number {
-  return AGE_BANDS.indexOf(band as AgeBand);
+  const r = BAND_RANKS[band as AgeBand];
+  return Number.isInteger(r) ? r : -1;
 }
 
 /** Map a student's class_name to the lesson age_level category. */
@@ -83,47 +98,53 @@ export function classToAgeLevel(className: string | null | undefined): AgeBand |
 
   if (!normalized) return null;
 
-  if (/creche|pre.?nursery|pre.?school/.test(normalized)) return 'Creche';
-  if (/nursery|nurs/.test(normalized)) return 'Nursery';
-  if (/\bkg1\b|kindergarten.?1|\bkg.?1\b/.test(normalized)) return 'KG1';
-  if (/\bkg2\b|kindergarten.?2|\bkg.?2\b/.test(normalized)) return 'KG2';
-  if (/\bkg3\b|kindergarten.?3|\bkg.?3\b/.test(normalized)) return 'Primary';
+  // Rank 0 — Creche ≡ Pre-Nursery (checked first: contains "nursery").
+  if (/creche|pre ?nursery|pre ?school|day ?care/.test(normalized)) return 'Creche';
+  // Explicit Primary keywords beat trailing numbers ("Primary 2" is Primary).
+  if (/primar|element/.test(normalized)) return 'Primary';
 
   const basicMatch = normalized.match(/\bbasic\s*(\d+)/);
   if (basicMatch) {
     const num = parseInt(basicMatch[1]);
-    if (num <= 1) return 'KG1';
-    if (num <= 2) return 'KG2';
-    return 'Primary';
+    if (num <= 1) return 'Nursery'; // rank 1
+    if (num <= 2) return 'KG2'; // rank 2
+    return 'Primary'; // rank 3
   }
 
-  if (/\bjss\s*\d|\bjunior\s*sec|\bjunior\b/.test(normalized)) return 'Primary';
-  if (/\bsss\s*\d|\bsenior\s*sec|\bsenior\b/.test(normalized)) return 'Primary';
+  // Rank 2 — Nursery 2 ≡ KG2 (numbered forms BEFORE generic keywords).
+  if (/\b(?:nursery|nurs|nu)\s*2\b/.test(normalized)) return 'KG2';
+  if (/\bkg\s*2\b|kindergarten\s*2/.test(normalized)) return 'KG2';
 
-  if (/hadana|hifz|huffaz|halkat/.test(normalized)) return 'Primary';
-  if (/islamiyya|islamic|madrasa|madrasah|tarbiyah/.test(normalized)) return 'Primary';
-  if (/quran|koran|tajweed/.test(normalized)) return 'Primary';
+  // Rank 1 — Nursery 1 ≡ KG1.
+  if (/\b(?:nursery|nurs|nu)\s*1\b/.test(normalized)) return 'Nursery';
+  if (/\bkg\s*1\b|kindergarten\s*1/.test(normalized)) return 'KG1';
 
+  // Generic nursery / kg (no number) → rank 1.
+  if (/nursery|nurs|\bnu\b|toddler|baby|infant/.test(normalized)) return 'Nursery';
+  if (/\bkg\b|kindergarten/.test(normalized)) return 'KG1';
+
+  // Elder classes → LAST rank (remedial/last-rank door, never empty).
+  if (/\bjss\s*\d|\bsss\s*\d|\bss\s*\d|junior|senior|secondary|college|polytechnic|tertiary/.test(normalized)) return 'Primary';
+  if (/hadana|hifz|huffaz|halkat|islamiyya|islamic|madrasa|madrasah|tarbiyah|quran|koran|tajweed/.test(normalized)) return 'Primary';
+
+  // Generic numbered ladder: Class N ≈ rank N (never Creche — Pre-Nursery is
+  // explicit vocabulary only). "Primary N" already matched above.
   const levelMatch = normalized.match(/\b(?:level|class|grade|form|std|standard|year|stage)\s*(\d+)/);
   if (levelMatch) {
     const num = parseInt(levelMatch[1]);
-    if (num <= 1) return 'Creche';
-    if (num <= 2) return 'Nursery';
-    if (num <= 3) return 'KG1';
-    if (num <= 4) return 'KG2';
-    return 'Primary';
+    if (num <= 1) return 'Nursery'; // rank 1
+    if (num <= 2) return 'KG2'; // rank 2
+    return 'Primary'; // rank 3
   }
 
   const bareNum = normalized.match(/(\d+)\s*$/);
   if (bareNum) {
     const num = parseInt(bareNum[1]);
-    if (num <= 1) return 'KG1';
-    if (num <= 2) return 'KG2';
-    return 'Primary';
+    if (num <= 1) return 'Nursery'; // rank 1
+    if (num <= 2) return 'KG2'; // rank 2
+    return 'Primary'; // rank 3
   }
 
-  if (/primar|basic|element|junior/.test(normalized)) return 'Primary';
-  if (/nurs|toddler|baby|infant/.test(normalized)) return 'Nursery';
   if (/pre/.test(normalized)) return 'Creche';
 
   return null;

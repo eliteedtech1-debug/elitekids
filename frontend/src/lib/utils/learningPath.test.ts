@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   classToAgeLevel,
+  bandRank,
   filterInBand,
   flattenUnits,
   currentPositionIndex,
@@ -42,14 +43,21 @@ const unit = (over: Partial<PathUnit> & { unit_id: string }): PathUnit => ({
 });
 
 describe('classToAgeLevel', () => {
-  it('maps common class spellings to bands', () => {
+  it('maps Northern Nigeria class spellings to equivalence ranks', () => {
     expect(classToAgeLevel('Creche 1')).toBe('Creche');
     expect(classToAgeLevel('Pre-Nursery A')).toBe('Creche');
-    expect(classToAgeLevel('Nursery 2')).toBe('Nursery');
-    expect(classToAgeLevel('Year 3')).toBe('KG1');
+    expect(bandRank(classToAgeLevel('Nursery 1') || '')).toBe(1);
+    expect(classToAgeLevel('Nursery 2')).toBe('KG2'); // rank 2
+    expect(bandRank(classToAgeLevel('Year 3') || '')).toBe(3); // 3+ → Primary rank
     expect(classToAgeLevel('KG2 B')).toBe('KG2');
     expect(classToAgeLevel('Year 5')).toBe('Primary');
-    expect(classToAgeLevel('Basic 2')).toBe('KG2');
+    expect(bandRank(classToAgeLevel('Basic 2') || '')).toBe(2);
+  });
+
+  it('places elder classes on the LAST rank (never an empty dashboard)', () => {
+    expect(classToAgeLevel('JSS1')).toBe('Primary');
+    expect(classToAgeLevel('SSS 2')).toBe('Primary');
+    expect(classToAgeLevel('Islamiyya')).toBe('Primary');
   });
 
   it('returns null for unknown/empty classes (never widest)', () => {
@@ -75,6 +83,16 @@ describe('filterInBand', () => {
 
   it('unknown band → empty (no fallback to all)', () => {
     expect(filterInBand(lessons, null)).toEqual([]);
+  });
+
+  it('rank ceiling: Nursery 1 and KG1 are interchangeable (same rank)', () => {
+    const both = [
+      { id: 'n1', age_level: 'Nursery' },
+      { id: 'kg1', age_level: 'KG1' },
+      { id: 'kg2', age_level: 'KG2' },
+    ];
+    expect(filterInBand(both, 'Nursery').map((l) => l.id)).toEqual(['n1', 'kg1']);
+    expect(filterInBand(both, 'KG1').map((l) => l.id)).toEqual(['n1', 'kg1']);
   });
 });
 

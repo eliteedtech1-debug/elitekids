@@ -452,6 +452,10 @@ async function listLessons(req, res) {
     const isStaff = userType.includes('admin') || userType.includes('branchadmin') || userType.includes('teacher') || userType.includes('superadmin');
 
     let where;
+    // Band resolution for non-staff consumers (shared with the never-empty
+    // fallback below — see listLessons band-widening guarantee).
+    let childBand = null;
+    let admission = '';
     if (isStaff) {
       // Staff see all lessons for their school + global lessons
       where = {
@@ -467,13 +471,17 @@ async function listLessons(req, res) {
         is_global: 1,
         content_state: 'published',
       };
-      // G6 hard server-side age ceiling: never return a lesson whose age_level
-      // is above the child's band (old client fell back to ALL — gone now).
-      // Full chain (kids_children → tour declaration → SMS students row) so
-      // SMS-imported nursery kids keep their ceiling too.
-      const admission = String(user.admission_no || user.id || '');
-      const childBand = admission ? await resolveBandForAdmission(admission) : null;
-      if (childBand) where.age_level = { [Op.in]: visibleLevels(childBand) };
+      // G6 hard server-side age ceiling: never return a lesson whose equivalence
+      // rank is above the child's band. Full resolution chain (placement quiz →
+      // kids_children → SMS students row → tour declaration) so SMS-imported
+      // nursery kids keep their ceiling too and elder classes land on the last
+      // rank instead of nowhere.
+      admission = String(user.admission_no || user.id || '');
+      childBand = admission ? await resolveBandForAdmission(admission) : null;
+      if (childBand) {
+        const levels = visibleLevels(childBand);
+        if (levels) where.age_level = { [Op.in]: levels };
+      }
     }
 
     // NERDC curriculum filters (staff only)
@@ -484,7 +492,19 @@ async function listLessons(req, res) {
       if (nerdc_code) where.nerdc_code = { [Op.like]: `%${nerdc_code}%` };
     }
 
-    const lessons = await db.KidLesson.findAll({ where, order: [['is_global', 'DESC'], ['createdAt', 'DESC']] });
+    let lessons = await db.KidLesson.findAll({ where, order: [['is_global', 'DESC'], ['createdAt', 'DESC']] });
+
+    // NEVER-EMPTY guarantee (product rule: no child logs in to a blank
+    // dashboard). When the band ceiling filtered everything out (unmapped
+    // class, mislabeled catalog, …) widen to ALL global published lessons —
+    // the remedial door — instead of returning an empty list.
+    if (!isStaff && lessons.length === 0) {
+      const { age_level: _drop, ...widerWhere } = where;
+      lessons = await db.KidLesson.findAll({ where: widerWhere, order: [['is_global', 'DESC'], ['createdAt', 'DESC']] });
+      if (lessons.length > 0) {
+        console.log(`[listLessons] band fallback: widening empty ${childBand || 'unknown'}-band catalog to ${lessons.length} global lessons for ${admission}`);
+      }
+    }
 
     // Enrich with has_games flag for student-facing view
     if (lessons.length > 0) {

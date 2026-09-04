@@ -3,6 +3,7 @@ require('dotenv').config();
 const app = require('./app');
 const models = require('./models');
 const { ensureFlagshipKidsSchool, ensureFlagshipKidsAdmin } = require('./seeders/flagshipKidsSeed');
+const { ensureGlobalCatalog } = require('./seeders/globalCatalogSeed');
 const DENYLIST_SEED = require('./seeders/denylistSeed');
 
 /**
@@ -116,6 +117,20 @@ ensureSchemaMigrations()
         await models.KidDenylistRule.create({ rule: rule.rule, category: rule.category, active: 1, added_by: 'seed' }).catch(() => {});
       }
       console.log(`🚫 Seeded ${DENYLIST_SEED.length} denylist rules`);
+    }
+    return null;
+  })
+  .then(async () => {
+    // Global catalog floor: every band gets playable published games so no
+    // student (demo schools, SMS-imported elder kids) ever sees an empty
+    // dashboard. Idempotent — safe on every boot.
+    try {
+      const seeded = await ensureGlobalCatalog();
+      if (seeded.createdLessons > 0 || seeded.createdGames > 0) {
+        console.log(`🎮 Global catalog seeded: +${seeded.createdLessons} lessons, +${seeded.createdGames} games (${seeded.total} total)`);
+      }
+    } catch (e) {
+      console.warn('⚠️ Global catalog seed skipped:', e.message);
     }
     return null;
   })

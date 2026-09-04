@@ -2653,6 +2653,9 @@ function ResultBreakdown({
   onNext,
   nextLabel,
   nextNote,
+  onLearn,
+  learnLabel,
+  learnNote,
 }: {
   answers: AnswerResult[];
   score: number;
@@ -2663,6 +2666,10 @@ function ResultBreakdown({
   onNext?: () => void;
   nextLabel?: string;
   nextNote?: string;
+  /** Smart recommendation: Watch-and-Learn CTA (failed test / shaky practice). */
+  onLearn?: () => void;
+  learnLabel?: string;
+  learnNote?: string;
 }) {
   const { colorblindMode } = useA11yStore();
   const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
@@ -2736,6 +2743,24 @@ function ResultBreakdown({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Smart recommendation: Learn mode when the child struggled (Doc 16 —
+            a failed test or >1 wrong in practice routes to Watch-and-Learn,
+            never straight back to Test). */}
+        {onLearn && learnLabel && (
+          <div className="mb-4 w-full rounded-2xl border-2 border-purple-200 bg-purple-50/80 p-4 animate-game-slide-up stagger-4">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-purple-500">
+              <span>💡</span> {t('game.recommended')}
+            </p>
+            <button
+              onClick={() => { playTap(); onLearn(); }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-500 px-5 py-3 text-sm font-bold text-white shadow-md shadow-purple-200 transition-all hover:bg-purple-600 hover:scale-[1.02] active:scale-95"
+            >
+              📺 {learnLabel}
+            </button>
+            {learnNote && <p className="mt-2 text-xs text-purple-400">{learnNote}</p>}
           </div>
         )}
 
@@ -4782,6 +4807,12 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
               🎯 {t('game.goToPractice')}
             </button>
             <button
+              onClick={() => { playTap(); handleModeSelect('learning'); setPhase('play'); }}
+              className="inline-flex items-center gap-2 rounded-xl border-2 border-purple-300 bg-purple-50 px-5 py-3 text-sm font-semibold text-purple-600 hover:bg-purple-100 transition-all active:scale-95"
+            >
+              📺 {t('game.watchAndLearnCta')}
+            </button>
+            <button
               onClick={() => { playTap(); navigate('/student'); }}
               className="inline-flex items-center gap-2 rounded-xl border-2 border-gray-200 px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all"
             >
@@ -4811,12 +4842,20 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
     const nextLesson = nextLessonRef.current;
     const passingTest = testPassed && !!(nextLesson && nextLesson.lesson_id !== lessonId);
     const takingTest = mode === 'practice' && !testPassed;
+    // Smart recommendation (Doc 16): a failed test OR a shaky practice session
+    // (>1 wrong answer) routes the child to Watch-and-Learn — never straight
+    // to another Test. The Test CTA is suppressed while the recommendation
+    // shows so Learn becomes the highlighted next step.
+    const wrongCount = answers.filter((a) => !a.correct).length;
+    const failedTest = mode === 'test' && !testPassed;
+    const shakyPractice = mode === 'practice' && wrongCount > 1;
+    const recommendLearn = failedTest || shakyPractice;
     let nextLabel: string | undefined;
     let nextHandler: (() => void) | undefined;
     if (passingTest) {
       nextLabel = `${t('game.next')}: ${nextLesson!.title}`;
       nextHandler = goToPathNext;
-    } else if (takingTest) {
+    } else if (takingTest && !recommendLearn) {
       nextLabel = `${t('game.modeLabel.test')} →`;
       nextHandler = () => { handleModeSelect('test'); setPhase('play'); };
     } else if (testPassed) {
@@ -4834,6 +4873,9 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           onBack={() => navigate('/student')}
           onNext={nextHandler}
           nextLabel={nextLabel}
+          onLearn={recommendLearn ? () => { handleModeSelect('learning'); setPhase('play'); } : undefined}
+          learnLabel={recommendLearn ? t('game.watchAndLearnCta') : undefined}
+          learnNote={failedTest ? t('game.learnNoteTest') : shakyPractice ? t('game.learnNotePractice') : undefined}
         />
         {/* Q1 Phase 2: ADE v2 next-item recommendations (weakest skills first) */}
         {nextRecs && nextRecs.length > 0 && (
