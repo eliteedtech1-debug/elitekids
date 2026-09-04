@@ -22,6 +22,7 @@ import {
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { getSchoolId, getSchoolShortName, isFlagshipSchool } from '@/lib/utils/school';
 import { t, tN } from '@/lib/i18n';
 import { useParentPresence } from '@/lib/live/useParentPresence';
 
@@ -131,6 +132,7 @@ export default function ParentChildren() {
   const [pwChild, setPwChild] = useState<{ admission_no: string; name: string } | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [changingPw, setChangingPw] = useState(false);
+  const canCreateChild = isFlagshipSchool(getSchoolId(), getSchoolShortName());
 
   // Real-time child online/offline presence via background WebSocket
   const { isOnline } = useParentPresence();
@@ -181,6 +183,7 @@ export default function ParentChildren() {
 
   const handleCreateChild = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateChild) return;
     if (!createForm.full_name.trim()) return;
     setCreating(true);
     try {
@@ -320,10 +323,12 @@ export default function ParentChildren() {
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-600">{t('parent.myChildren')}</h3>
-                  <button onClick={() => { setShowCreate(true); setCreateForm({ full_name: '', age_level: 'Creche', admission_no: '', password: '' }); }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
-                    <Plus className="h-3.5 w-3.5" /> {t('parent.createChildProfile')}
-                  </button>
+                  {canCreateChild && (
+                    <button onClick={() => { setShowCreate(true); setCreateForm({ full_name: '', age_level: 'Creche', admission_no: '', password: '' }); }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
+                      <Plus className="h-3.5 w-3.5" /> {t('parent.createChildProfile')}
+                    </button>
+                  )}
                 </div>
                 {children.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[#0F4D92]/30 bg-white p-10 text-center">
@@ -563,7 +568,7 @@ export default function ParentChildren() {
       </main>
 
       {/* Create Child Modal */}
-      {showCreate && (
+      {showCreate && canCreateChild && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="mb-1 text-base font-bold text-gray-800">{t('parent.createChildProfile')}</h3>

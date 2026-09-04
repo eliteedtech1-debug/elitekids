@@ -2,10 +2,10 @@
 // elite-cbt/src/lib/utils/school.ts (which itself mirrors elite-core Helper.tsx).
 // Subdomain → school short name → school_setup lookup → branding + module gate.
 
-import { STORAGE_KEYS } from './constants';
+import { FLAGSHIP_SCHOOL_IDS, FLAGSHIP_SHORT_NAMES, STORAGE_KEYS } from './constants';
 
 // ── Subdomain detection ─────────────────────────────────────────────────────
-const EXCLUDED_SUBDOMAINS = ['www', 'app', 'api', 'admin', 'portal', 'test', 'staging'];
+const EXCLUDED_SUBDOMAINS = ['www', 'app', 'api', 'admin', 'portal', 'staging'];
 const KNOWN_MULTI_TLDS = ['com.ng', 'co.uk', 'org.ng', 'net.ng', 'edu.ng', 'gov.ng'];
 
 export const getSubdomain = (): string => {
@@ -38,7 +38,7 @@ export const short_name = getSubdomain();
 export const isFlagshipSchool = (schoolId?: string | null, shortName?: string | null): boolean => {
   const id = sanitize(schoolId).toUpperCase();
   const name = sanitize(shortName).toLowerCase();
-  return id === 'SCH-ELITE' || ['elite', 'kids', 'practice'].includes(name);
+  return (FLAGSHIP_SCHOOL_IDS as readonly string[]).includes(id) || (FLAGSHIP_SHORT_NAMES as readonly string[]).includes(name);
 };
 
 // ── Local storage helpers ───────────────────────────────────────────────────
