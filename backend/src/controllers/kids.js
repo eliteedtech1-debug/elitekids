@@ -4,6 +4,7 @@
  */
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
+const { hasClassAccess } = require('../services/routesHelper');
 const { recordAttemptPoints } = require('./kidsLeaderboard');
 const db = require('../models');
 const { generateGameConfig, persistGameConfig, generateSceneScript, persistSceneScript } = require('../services/contentGeneratorService');
@@ -15,6 +16,13 @@ const sceneAssetsSeed = require('../seeders/sceneAssetsSeed');
 // ── Children (parent + teacher) ────────────────────────────────────────────
 
 const AGE_LEVELS = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'];
+
+/** Never expose an EliteKids-local password hash in child-facing API data. */
+function safeChild(child) {
+  const data = child?.toJSON ? child.toJSON() : { ...(child || {}) };
+  delete data.password_hash;
+  return data;
+}
 
 /** Progress summary helper — shared by getChild + childProgress. */
 async function progressSummary(admissionNo) {
@@ -67,7 +75,12 @@ async function childAccessAllowed(req, child) {
   const childSchool = String(child.school_id || '');
   const userSchool = String(req.headers['x-school-id'] || user.school_id || '');
 
-  if (userType.includes('superadmin') || userType.includes('admin') || userType.includes('branchadmin') || userType.includes('teacher')) {
+  if (userType === 'teacher') {
+    const classCode = String(child.class_code || '').trim();
+    if (classCode && await hasClassAccess(user, classCode)) return { ok: true };
+    return { ok: false, status: 403, body: { success: false, message: 'This child is not in one of your assigned classes.' } };
+  }
+  if (userType.includes('superadmin') || userType.includes('admin') || userType.includes('branchadmin')) {
     if (childSchool && userSchool && childSchool !== userSchool) {
       return { ok: false, status: 403, body: { success: false, message: 'Not your school.' } };
     }
@@ -92,12 +105,25 @@ async function childAccessAllowed(req, child) {
 async function listChildrenForParent(req, res) {
   try {
     const user = req.user;
-    const isParent = String(user.user_type || '').toLowerCase() === 'parent';
+    const userType = String(user.user_type || user.role || '').toLowerCase();
+    if (userType === 'teacher') {
+      const allChildren = await db.KidChild.findAll({
+        where: { school_id: req.headers['x-school-id'] || user.school_id },
+        order: [['full_name', 'ASC']],
+      });
+      const assigned = [];
+      for (const child of allChildren) {
+        if (child.class_code && await hasClassAccess(user, child.class_code)) assigned.push(child);
+      }
+      return res.json({ success: true, data: assigned.map(safeChild) });
+    }
+
+    const isParent = userType === 'parent';
 
     if (!isParent) {
       const where = { school_id: req.headers['x-school-id'] || user.school_id };
       const children = await db.KidChild.findAll({ where, order: [['full_name', 'ASC']] });
-      return res.json({ success: true, data: children });
+      return res.json({ success: true, data: children.map(safeChild) });
     }
 
     // 1) Kids-owned profiles (kids_children.parent_user_id = users.id)
@@ -171,7 +197,7 @@ async function listChildrenForParent(req, res) {
     const merged = [...seen.values()].sort((a, b) =>
       String(a.full_name || '').localeCompare(String(b.full_name || ''), undefined, { sensitivity: 'base' })
     );
-    return res.json({ success: true, data: merged });
+    return res.json({ success: true, data: merged.map(safeChild) });
   } catch (err) {
     console.error('listChildrenForParent error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
@@ -191,7 +217,7 @@ async function getChild(req, res) {
     if (!access.ok) return res.status(access.status).json(access.body);
 
     const progress = await progressSummary(admissionNo);
-    return res.json({ success: true, data: { ...child.toJSON(), progress } });
+    return res.json({ success: true, data: { ...safeChild(child), progress } });
   } catch (err) {
     console.error('getChild error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
@@ -209,34 +235,50 @@ async function updateChild(req, res) {
     const access = await childAccessAllowed(req, child);
     if (!access.ok) return res.status(access.status).json(access.body);
 
-    const { full_name, age_level, class_code, avatar_url, status, parent_user_id } = req.body || {};
+    const userType = String(req.user.user_type || req.user.role || '').toLowerCase();
+    if (userType === 'parent') {
+      // Parents may edit only the child's own profile settings. They cannot
+      // reassign ownership, deactivate the account, or alter shared SMS data.
+      if (req.body.full_name !== undefined || req.body.status !== undefined || req.body.parent_user_id !== undefined) {
+        return res.status(403).json({ success: false, message: 'Parents may update only age_level, class_code, avatar, and password.' });
+      }
+    } else if (userType === 'teacher') {
+      return res.status(403).json({ success: false, message: 'Teachers have read-only access to child profiles.' });
+    }
+
+    const { age_level, class_code, avatar_url } = req.body || {};
     const allowed = {};
-    if (full_name !== undefined) allowed.full_name = full_name;
     if (age_level !== undefined) {
       if (!AGE_LEVELS.includes(age_level)) {
         return res.status(400).json({ success: false, message: `age_level must be one of: ${AGE_LEVELS.join(', ')}.` });
       }
       allowed.age_level = age_level;
     }
-    if (class_code !== undefined) allowed.class_code = class_code;
-    if (avatar_url !== undefined) allowed.avatar_url = avatar_url;
-    if (status !== undefined) {
-      if (!['Active', 'Inactive'].includes(status)) {
-        return res.status(400).json({ success: false, message: "status must be 'Active' or 'Inactive'." });
+    if (class_code !== undefined) {
+      if (typeof class_code !== 'string' || class_code.trim().length > 50) {
+        return res.status(400).json({ success: false, message: 'class_code must be a string of 50 characters or fewer.' });
       }
-      allowed.status = status;
+      allowed.class_code = class_code.trim() || null;
     }
-    // Re-linking a child to a different parent is staff-only.
-    const userType = String(req.user.user_type || '').toLowerCase();
-    if (parent_user_id !== undefined && (userType.includes('admin') || userType.includes('branchadmin') || userType.includes('teacher') || userType.includes('superadmin'))) {
-      allowed.parent_user_id = parent_user_id || null;
+    if (avatar_url !== undefined) {
+      if (avatar_url !== null && (typeof avatar_url !== 'string' || avatar_url.length > 500)) {
+        return res.status(400).json({ success: false, message: 'avatar_url must be a string of 500 characters or fewer.' });
+      }
+      allowed.avatar_url = avatar_url || null;
+    }
+    if (req.body.password !== undefined || req.body.new_password !== undefined) {
+      const password = String(req.body.new_password ?? req.body.password ?? '');
+      if (password.length < 6 || password.length > 128) {
+        return res.status(400).json({ success: false, message: 'password must be between 6 and 128 characters.' });
+      }
+      allowed.password_hash = await bcrypt.hash(password, 10);
     }
 
     if (!Object.keys(allowed).length) {
       return res.status(400).json({ success: false, message: 'No updatable fields provided.' });
     }
     await child.update(allowed);
-    return res.json({ success: true, data: child });
+    return res.json({ success: true, data: safeChild(child) });
   } catch (err) {
     console.error('updateChild error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });

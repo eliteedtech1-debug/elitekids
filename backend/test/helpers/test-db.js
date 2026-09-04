@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS kids_children (
   full_name VARCHAR(191) NOT NULL,
   age_level ENUM('Creche','Nursery','KG1','KG2','Primary') NOT NULL DEFAULT 'Nursery',
   class_code VARCHAR(50) NULL,
+  password_hash VARCHAR(255) NULL,
   avatar_url VARCHAR(500) NULL,
   parent_user_id VARCHAR(50) NULL,
   parent_phone VARCHAR(20) NULL,
@@ -612,16 +613,18 @@ async function ensureTestDb() {
        ('U4',  'Super Admin',     'super@kids.test',   'superadmin',  ?, 'superadmin', 'superadmin', NULL, NULL, 'active', 1),
        ('U5A', 'Multi Admin',     'multi@kids.test',   'multi',       ?, 'Admin',      'Admin',      'SCH-TEST', 'BR-TEST', 'active', 1),
        ('U5B', 'Multi Admin',     'multi@kids.test',   'multi',       ?, 'Admin',      'Admin',      'SCH-KIDS', 'BR-KIDS', 'active', 1),
-       ('U6',  'Other Parent',    'other@kids.test',   'other',       ?, 'Parent',     'Parent',     'SCH-TEST', 'BR-TEST', 'active', 1)`,
-      [h('Admin@123'), h('Parent@123'), h('Pass@123'), h('Super@123'), h('Multi@123'), h('Multi@123'), h('Other@123')]
+       ('U6',  'Other Parent',    'other@kids.test',   'other',       ?, 'Parent',     'Parent',     'SCH-TEST', 'BR-TEST', 'active', 1),
+       ('REVIEW-PARENT', 'Review Parent', 'review.parent@kids.test', 'review-parent', ?, 'Parent', 'Parent', 'SCH-TEST', 'BR-TEST', 'active', 1)`,
+      [h('Admin@123'), h('Parent@123'), h('Pass@123'), h('Super@123'), h('Multi@123'), h('Multi@123'), h('Other@123'), h('ReviewParent@123')]
     );
 
     // Parent link (login via parents table using email from users + phone)
     await conn.query(
       `INSERT INTO parents (user_id, parent_id, phone, school_id, password) VALUES
        ('U2', 'U2', '08012345678', 'SCH-TEST', ?),
-       ('U6', 'U2', '08099999999', 'SCH-TEST', ?)`,
-      [h('Parent@123'), h('Other@123')]
+       ('U6', 'U6', '08099999999', 'SCH-TEST', ?),
+       ('REVIEW-PARENT', 'REVIEW-PARENT', '08011112222', 'SCH-TEST', ?)`,
+      [h('Parent@123'), h('Other@123'), h('ReviewParent@123')]
     );
 
     // Students — tablet login + parent-ownership fixtures for child linking.
@@ -641,10 +644,19 @@ async function ensureTestDb() {
       `INSERT INTO kids_children (id, admission_no, school_id, branch_id, full_name, age_level, class_code, parent_user_id, parent_phone, status) VALUES
        ('CHILD-A', 'NUR-001', 'SCH-TEST', 'BR-TEST', 'Ada Obi',    'Nursery', 'NUR-A', 'U2', '08012345678', 'Active'),
        ('CHILD-B', 'NUR-002', 'SCH-TEST', 'BR-TEST', 'Bola Yusuf', 'KG1',     'NUR-A', NULL, NULL,          'Active'),
-       ('CHILD-C', 'NUR-005', 'SCH-TEST', 'BR-TEST', 'Emeka Obi',  'Nursery', 'NUR-A', NULL, NULL,          'Active')`
+       ('CHILD-C', 'NUR-005', 'SCH-TEST', 'BR-TEST', 'Emeka Obi',  'Nursery', 'NUR-A', NULL, NULL,          'Active'),
+       ('REVIEW-CHILD-1', 'REVIEW-001', 'SCH-TEST', 'BR-TEST', 'Review Child One', 'Nursery', 'REVIEW-A', 'REVIEW-PARENT', '08011112222', 'Active'),
+       ('REVIEW-CHILD-2', 'REVIEW-002', 'SCH-TEST', 'BR-TEST', 'Review Child Two', 'KG1', 'REVIEW-A', 'REVIEW-PARENT', '08011112222', 'Active'),
+       ('REVIEW-CHILD-3', 'REVIEW-003', 'SCH-TEST', 'BR-TEST', 'Review Child Three', 'KG2', 'REVIEW-B', 'REVIEW-PARENT', '08011112222', 'Active')`
     );
 
-    // Lessons — published + generated (the child-facing gate checks content_state).
+    // Dedicated review fixture: three children linked to one synthetic parent.
+    const reviewChildPassword = h('ReviewChild@123');
+    await conn.query(
+      `UPDATE kids_children SET password_hash = ? WHERE admission_no IN ('REVIEW-001', 'REVIEW-002', 'REVIEW-003')`,
+      [reviewChildPassword]
+    );
+
     await conn.query(
       `INSERT INTO kids_lessons (id, school_id, branch_id, title, subject, age_level, created_by, content_state, lesson_type, published_at) VALUES
        ('LESSON-1', 'SCH-TEST', 'BR-TEST', 'Colors Lesson',  'Art',   'Nursery', 'U1', 'published', 'game', NOW()),

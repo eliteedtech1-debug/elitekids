@@ -50,8 +50,10 @@ describe('GET /kids/children', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveLength(3);
-    expect(res.body.data.map((c) => c.admission_no)).toEqual(expect.arrayContaining(['NUR-001', 'NUR-002', 'NUR-005']));
+    expect(res.body.data).toHaveLength(6);
+    expect(res.body.data.map((c) => c.admission_no)).toEqual(expect.arrayContaining([
+      'NUR-001', 'NUR-002', 'NUR-005', 'REVIEW-001', 'REVIEW-002', 'REVIEW-003',
+    ]));
   });
 
   it('lists only linked children for a parent', async () => {

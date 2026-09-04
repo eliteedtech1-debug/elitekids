@@ -10,6 +10,50 @@ const bcrypt = require('bcryptjs');
 const dbm = () => require('../models');
 const { flagshipShortNameFromHost } = require('../seeders/flagshipKidsSeed');
 
+function normalizeParentPhone(value) {
+  return String(value || '').replace(/\\s+/g, '').replace(/^0/, '+234');
+}
+
+function toIsoDay(value) {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value || '').slice(0, 10);
+}
+
+function denseActivity(rows, days) {
+  const byDay = new Map((Array.isArray(rows) ? rows : []).map((row) => [
+    toIsoDay(row.date || row.d),
+    {
+      games: Number(row.games) || 0,
+      xp: Number(row.xp) || 0,
+      stars: Number(row.stars) || 0,
+      average_score: Number(row.average_score) || 0,
+    },
+  ]));
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  const start = new Date(end);
+  start.setDate(start.getDate() - (days - 1));
+  const series = [];
+  for (let cursor = start; cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+    const date = cursor.toISOString().slice(0, 10);
+    series.push({ date, ...(byDay.get(date) || { games: 0, xp: 0, stars: 0, average_score: 0 }) });
+  }
+  let streak = 0;
+  for (let i = series.length - 1; i >= 0; i -= 1) {
+    if (series[i].games > 0) streak += 1;
+    else if (i === series.length - 1) continue; // a zero-activity today does not break yesterday's streak
+    else break;
+  }
+  const totals = series.reduce((acc, day) => ({
+    games: acc.games + day.games,
+    xp: acc.xp + day.xp,
+    stars: acc.stars + day.stars,
+    active_days: acc.active_days + (day.games > 0 ? 1 : 0),
+  }), { games: 0, xp: 0, stars: 0, active_days: 0 });
+  const best = series.filter((day) => day.games > 0).sort((a, b) => b.games - a.games || b.xp - a.xp)[0] || null;
+  return { days, series, totals: { ...totals, streak_days: streak, best_day: best } };
+}
+
 let _schemaReady = false;
 async function ensureSchema() {
   if (_schemaReady) return;
@@ -50,11 +94,14 @@ async function ensureSchema() {
 async function ownsChild(u, adm) {
   const phone = String(u?.phone || '');
   const uid = String(u?.id || u?.user_id || '');
+  const school = String(u?.school_id || '');
   const childAdm = String(adm || '').trim();
   if ((!phone && !uid) || !childAdm) return false;
   const [links] = await dbm().content.query(
-    `SELECT id FROM kids_parent_links WHERE parent_phone = :phone AND child_admission_no = :adm LIMIT 1`,
-    { replacements: { phone, adm: childAdm } },
+    `SELECT id FROM kids_parent_links
+     WHERE parent_phone = :phone AND child_admission_no = :adm
+       AND (:school = '' OR school_id = :school) LIMIT 1`,
+    { replacements: { phone, adm: childAdm, school } },
   ).catch(() => [[], []]);
   if (Array.isArray(links) && links.length > 0) return true;
   try {
@@ -73,10 +120,21 @@ async function ownsChild(u, adm) {
     const rows = await dbm().sequelize.query(
       `SELECT admission_no FROM students
        WHERE admission_no = :adm AND status = 'Active'
+         AND (:school = '' OR school_id = :school)
          AND (parent_id IN (:codes) OR guardian_id IN (:codes)) LIMIT 1`,
-      { replacements: { adm: childAdm, codes: codeList }, type: dbm().sequelize.QueryTypes.SELECT },
+      { replacements: { adm: childAdm, codes: codeList, school }, type: dbm().sequelize.QueryTypes.SELECT },
     );
-    return Array.isArray(rows) && rows.length > 0;
+    if (Array.isArray(rows) && rows.length > 0) return true;
+    // Some shared-school fixtures identify the parent directly by users.id
+    // instead of exposing parents.parent_id. Keep that compatible fallback.
+    const directRows = await dbm().sequelize.query(
+      `SELECT admission_no FROM students
+       WHERE admission_no = :adm AND status = 'Active'
+         AND (:school = '' OR school_id = :school)
+         AND (parent_id = :uid OR guardian_id = :uid) LIMIT 1`,
+      { replacements: { adm: childAdm, uid, school }, type: dbm().sequelize.QueryTypes.SELECT },
+    );
+    return Array.isArray(directRows) && directRows.length > 0;
   } catch (e) { /* shared parents/students may be missing the parent_id column */ }
   return false;
 }
@@ -167,13 +225,61 @@ async function login(req, res) {
       return res.status(500).json({ success: false, message: 'JWT_SECRET_KEY is not configured.' });
     }
     const jwt = require('jsonwebtoken');
+    const parentUser = { id: acct.id, phone: cleanPhone || identifier };
+    const childIds = await getParentChildIds(parentUser);
+    const childRows = [];
+    try {
+      const [kids] = await dbm().content.query(
+        `SELECT admission_no, full_name, school_id
+         FROM kids_children WHERE admission_no IN (:children) AND status = 'Active'`,
+        { replacements: { children: childIds } },
+      );
+      for (const child of Array.isArray(kids) ? kids : []) childRows.push({
+        admission_no: child.admission_no,
+        name: child.full_name || child.admission_no,
+        school_id: child.school_id || resolvedSchoolId,
+        school_name: child.school_id || resolvedSchoolId,
+      });
+    } catch (_) { /* child detail enrichment is additive */ }
+    const childrenByAdmission = new Map(childRows.map((child) => [String(child.admission_no), child]));
+    // A shared EliteSMS child may not have a Kids profile yet. Enrich the
+    // login response from the read-only shared students table so flagship
+    // parents can see every linked child immediately after signing in.
+    if (childIds.length) {
+      try {
+        const sharedKids = await dbm().sequelize.query(
+          `SELECT admission_no, student_name, school_id
+           FROM students WHERE admission_no IN (:children) AND status = 'Active'`,
+          { replacements: { children: childIds }, type: dbm().sequelize.QueryTypes.SELECT },
+        );
+        for (const child of Array.isArray(sharedKids) ? sharedKids : []) {
+          const admissionNo = String(child.admission_no || '').trim();
+          if (admissionNo && !childrenByAdmission.has(admissionNo)) childrenByAdmission.set(admissionNo, {
+            admission_no: admissionNo,
+            name: child.student_name || admissionNo,
+            school_id: child.school_id || resolvedSchoolId,
+            school_name: child.school_id || resolvedSchoolId,
+          });
+        }
+      } catch (_) { /* shared-school enrichment is additive */ }
+    }
+    for (const link of linkRows) {
+      const admissionNo = String(link.child_admission_no || '').trim();
+      if (admissionNo && !childrenByAdmission.has(admissionNo)) childrenByAdmission.set(admissionNo, {
+        admission_no: admissionNo,
+        name: link.child_name || admissionNo,
+        school_id: link.school_id || resolvedSchoolId,
+        school_name: link.school_id || resolvedSchoolId,
+      });
+    }
+    const children = [...childrenByAdmission.values()];
     const token = jwt.sign(
       {
         id: acct.id,
         user_type: 'parent',
         phone: cleanPhone || identifier,
         school_id: resolvedSchoolId,
-        children: linkRows.map(r => r.child_admission_no).filter(Boolean),
+        children: children.map((child) => child.admission_no),
       },
       process.env.JWT_SECRET_KEY,
       { expiresIn: '7d' }
@@ -184,12 +290,7 @@ async function login(req, res) {
       data: {
         token,
         parent_phone: cleanPhone || identifier,
-        children: linkRows.map(r => ({
-          admission_no: r.child_admission_no,
-          name: r.child_name || r.child_admission_no || '',
-          school_id: r.school_id,
-          school_name: r.school_id || '',
-        })),
+        children,
       },
     });
   } catch (err) {
@@ -230,6 +331,12 @@ async function register(req, res) {
     if (!credRow || !(isMaster || (credRow.password && bcryptReg.compareSync(pass, credRow.password)))) {
       return res.status(401).json({ success: false, message: 'No matching EliteSMS parent account or wrong password.' });
     }
+    // Linking is ownership-sensitive: proving the parent password is not
+    // enough to attach an arbitrary admission number. The shared students
+    // relationship (or an existing Kids link) must identify this child.
+    if (!(await ownsChild({ id: credRow.id, phone: cleanPhone, school_id: sid }, adm))) {
+      return res.status(403).json({ success: false, message: 'This child is not linked to your account.' });
+    }
     await dbm().content.query(
       `INSERT INTO kids_parent_links (id, parent_phone, parent_pin, child_admission_no, child_name, school_id, verified) VALUES (UUID(), :phone, '', :adm, '', :sid, 1) ON DUPLICATE KEY UPDATE school_id = VALUES(school_id), verified = 1`,
       { replacements: { phone: cleanPhone, adm, sid } }
@@ -243,6 +350,112 @@ async function register(req, res) {
 }
 
 // ─── GET /kids/parent/children — list linked children ────────────────────────
+async function getParentChildIds(user) {
+  const phone = String(user?.phone || '');
+  const uid = String(user?.id || user?.user_id || '');
+  const ids = new Set();
+  try {
+    const [links] = await dbm().content.query(
+      `SELECT child_admission_no FROM kids_parent_links
+       WHERE parent_phone = :phone AND verified = 1`,
+      { replacements: { phone } },
+    );
+    for (const row of Array.isArray(links) ? links : []) if (row.child_admission_no) ids.add(String(row.child_admission_no));
+  } catch (_) {}
+  try {
+    const rows = await dbm().sequelize.query(
+      `SELECT s.admission_no FROM students s
+       JOIN parents p ON s.parent_id = p.parent_id OR s.guardian_id = p.parent_id
+       WHERE p.user_id = :uid OR p.phone = :phone`,
+      { replacements: { uid, phone }, type: dbm().sequelize.QueryTypes.SELECT },
+    );
+    for (const row of Array.isArray(rows) ? rows : []) if (row.admission_no) ids.add(String(row.admission_no));
+  } catch (_) {
+    // Older/shared schemas may not have parents.parent_id. In that case the
+    // student row itself carries the parent users.id relationship.
+    try {
+      const rows = await dbm().sequelize.query(
+        `SELECT admission_no FROM students
+         WHERE status = 'Active' AND (parent_id = :uid OR guardian_id = :uid)`,
+        { replacements: { uid }, type: dbm().sequelize.QueryTypes.SELECT },
+      );
+      for (const row of Array.isArray(rows) ? rows : []) if (row.admission_no) ids.add(String(row.admission_no));
+    } catch (_) {}
+  }
+  try {
+    const [rows] = await dbm().content.query(
+      `SELECT admission_no FROM kids_children WHERE parent_user_id = :uid AND status = 'Active'`,
+      { replacements: { uid } },
+    );
+    for (const row of Array.isArray(rows) ? rows : []) if (row.admission_no) ids.add(String(row.admission_no));
+  } catch (_) {}
+  return [...ids];
+}
+
+/** GET /kids/parent/children/activity?days=365 — parent-owned activity series. */
+async function getChildrenActivity(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (String(u.user_type || '').toLowerCase() !== 'parent') return res.status(403).json({ success: false, message: 'Parents only.' });
+    const childIds = await getParentChildIds(u);
+    let days = parseInt(String(req.query.days || '365'), 10);
+    if (!Number.isFinite(days)) days = 365;
+    days = Math.max(14, Math.min(400, days));
+    if (!childIds.length) return res.json({ success: true, data: { days, children: [] } });
+    const [rows] = await dbm().content.query(
+      `SELECT child_admission_no, DATE(completed_at) AS date,
+              COUNT(*) AS games, COALESCE(SUM(xp), 0) AS xp,
+              COALESCE(SUM(stars_earned), 0) AS stars,
+              COALESCE(ROUND(AVG(score), 1), 0) AS average_score
+       FROM kids_progress
+       WHERE child_admission_no IN (:children)
+         AND completed_at >= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)
+       GROUP BY child_admission_no, DATE(completed_at)
+       ORDER BY child_admission_no, date ASC`,
+      { replacements: { children: childIds, days } },
+    );
+    const grouped = new Map();
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const adm = String(row.child_admission_no);
+      if (!grouped.has(adm)) grouped.set(adm, []);
+      grouped.get(adm).push(row);
+    }
+    return res.json({
+      success: true,
+      data: {
+        days,
+        children: childIds.map((childId) => ({ child_admission_no: childId, ...denseActivity(grouped.get(childId) || [], days) })),
+      },
+    });
+  } catch (err) {
+    console.error('getChildrenActivity error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/** GET /kids/parent/results — bulk child results with optional date window. */
+async function getParentResults(req, res) {
+  try {
+    await ensureSchema();
+    const u = req.user || {};
+    if (String(u.user_type || '').toLowerCase() !== 'parent') return res.status(403).json({ success: false, message: 'Parents only.' });
+    const childIds = await getParentChildIds(u);
+    const limit = Math.max(1, Math.min(500, parseInt(String(req.query.limit || '200'), 10) || 200));
+    if (!childIds.length) return res.json({ success: true, data: { children: [], results: [] } });
+    const [rows] = await dbm().content.query(
+      `SELECT child_admission_no, lesson_id, score, stars_earned, xp, mode, completed_at
+       FROM kids_progress WHERE child_admission_no IN (:children)
+       ORDER BY completed_at DESC LIMIT ${limit}`,
+      { replacements: { children: childIds } },
+    );
+    return res.json({ success: true, data: { children: childIds, results: Array.isArray(rows) ? rows : [] } });
+  } catch (err) {
+    console.error('getParentResults error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 async function getChildren(req, res) {
   try {
     await ensureSchema();
@@ -343,23 +556,23 @@ async function getChildProgress(req, res) {
               ROUND(AVG(score), 1) AS avg_score,
               SUM(CASE WHEN score >= 80 THEN 1 ELSE 0 END) AS excellent_games,
               COUNT(DISTINCT lesson_id) AS unique_lessons,
-              MIN(created_at) AS first_play,
-              MAX(created_at) AS last_play
+              MIN(completed_at) AS first_play,
+              MAX(completed_at) AS last_play
        FROM kids_progress
-       WHERE child_admission_no = :adm AND created_at >= :weekStart`,
+       WHERE child_admission_no = :adm AND completed_at >= :weekStart`,
       { replacements: { adm, weekStart: weekStartStr } },
     );
-    const stats = (Array.isArray(progress[0]) ? progress[0] : [])[0] || {
+    const stats = (Array.isArray(progress) ? progress : [])[0] || {
       games_played: 0, avg_score: 0, excellent_games: 0, unique_lessons: 0,
     };
 
     // Get total points (all time)
     const [pts] = await dbm().content.query(
-      `SELECT COALESCE(SUM(points), 0) AS total_points, COALESCE(SUM(attempts), 0) AS total_attempts
-       FROM kids_weekly_points WHERE child_admission_no = :adm`,
+      `SELECT COALESCE(SUM(xp), 0) AS total_points, COUNT(*) AS total_attempts
+       FROM kids_progress WHERE child_admission_no = :adm`,
       { replacements: { adm } },
     );
-    const ptsRow = (Array.isArray(pts[0]) ? pts[0] : [])[0] || { total_points: 0, total_attempts: 0 };
+    const ptsRow = (Array.isArray(pts) ? pts : [])[0] || { total_points: 0, total_attempts: 0 };
 
     // Get badges earned this week
     const [badges] = await dbm().content.query(
@@ -372,25 +585,28 @@ async function getChildProgress(req, res) {
 
     // Get recent activity (last 5 games)
     const [recent] = await dbm().content.query(
-      `SELECT lesson_id, config_id, score, mode, created_at
+      `SELECT lesson_id, score, mode, completed_at AS created_at
        FROM kids_progress
        WHERE child_admission_no = :adm
-       ORDER BY created_at DESC LIMIT 5`,
+       ORDER BY completed_at DESC LIMIT 5`,
       { replacements: { adm } },
     );
 
     // Get current curriculum progress
-    const [curriculum] = await dbm().content.query(
-      `SELECT s.title AS subject_name, COUNT(DISTINCT l.id) AS total_lessons,
-              SUM(CASE WHEN p.score IS NOT NULL AND p.score >= 50 THEN 1 ELSE 0 END) AS completed_lessons
-       FROM kids_game_series s
-       LEFT JOIN kids_lessons l ON l.series_id = s.id AND l.content_state = 'published'
-       LEFT JOIN kids_progress p ON p.lesson_id = l.id AND p.child_admission_no = :adm AND p.mode = 'test'
-       WHERE s.subject_code IS NOT NULL
-       GROUP BY s.id, s.title
-       ORDER BY s.title`,
-      { replacements: { adm } },
-    );
+    let curriculum = [];
+    try {
+      [curriculum] = await dbm().content.query(
+        `SELECT s.title AS subject_name, COUNT(DISTINCT l.id) AS total_lessons,
+                SUM(CASE WHEN p.score IS NOT NULL AND p.score >= 50 THEN 1 ELSE 0 END) AS completed_lessons
+         FROM kids_game_series s
+         LEFT JOIN kids_lessons l ON l.series_id = s.id AND l.content_state = 'published'
+         LEFT JOIN kids_progress p ON p.lesson_id = l.id AND p.child_admission_no = :adm AND p.mode = 'test'
+         WHERE s.subject_code IS NOT NULL
+         GROUP BY s.id, s.title
+         ORDER BY s.title`,
+        { replacements: { adm } },
+      );
+    } catch (_) { /* older content schemas may not include series mapping */ }
 
     return res.json({
       success: true,
@@ -605,7 +821,7 @@ async function getChildControls(req, res) {
 
     // Active mode locks
     const [locks] = await dbm().content.query(
-      `SELECT lesson_id, mode, locked_by, class_code, created_at
+      `SELECT lesson_id, locked_mode AS mode, locked_by, class_code, created_at
        FROM kids_mode_locks
        WHERE (child_admission_no = :adm OR child_admission_no = '*')
        ORDER BY created_at DESC LIMIT 10`,
@@ -618,10 +834,10 @@ async function getChildControls(req, res) {
       `SELECT COUNT(*) AS games_today,
               ROUND(AVG(score), 1) AS avg_score_today
        FROM kids_progress
-       WHERE child_admission_no = :adm AND DATE(created_at) = :today`,
+       WHERE child_admission_no = :adm AND DATE(completed_at) = :today`,
       { replacements: { adm, today } },
     );
-    const stats = (Array.isArray(todayStats[0]) ? todayStats[0] : [])[0] || { games_today: 0, avg_score_today: 0 };
+    const stats = (Array.isArray(todayStats) ? todayStats : [])[0] || { games_today: 0, avg_score_today: 0 };
 
     return res.json({
       success: true,
@@ -676,12 +892,12 @@ async function getChildReport(req, res) {
               SUM(CASE WHEN score >= 80 THEN 1 ELSE 0 END) AS excellent,
               SUM(CASE WHEN score < 50 THEN 1 ELSE 0 END) AS needs_work,
               COUNT(DISTINCT lesson_id) AS unique_lessons,
-              SUM(time_spent_seconds) AS total_time_seconds
+              0 AS total_time_seconds
        FROM kids_progress
-       WHERE child_admission_no = :adm AND created_at >= :ws AND created_at < :we`,
+       WHERE child_admission_no = :adm AND completed_at >= :ws AND completed_at < :we`,
       { replacements: { adm, ws, we } },
     );
-    const weekly = (Array.isArray(progress[0]) ? progress[0] : [])[0] || {
+    const weekly = (Array.isArray(progress) ? progress : [])[0] || {
       games_played: 0, avg_score: 0, excellent: 0, needs_work: 0, unique_lessons: 0, total_time_seconds: 0,
     };
 
@@ -690,7 +906,7 @@ async function getChildReport(req, res) {
       `SELECT p.lesson_id, l.title, l.subject, COUNT(*) AS plays, ROUND(AVG(p.score), 1) AS avg
        FROM kids_progress p
        LEFT JOIN kids_lessons l ON l.id = p.lesson_id
-       WHERE p.child_admission_no = :adm AND p.created_at >= :ws AND p.created_at < :we
+       WHERE p.child_admission_no = :adm AND p.completed_at >= :ws AND p.completed_at < :we
        GROUP BY p.lesson_id, l.title, l.subject
        ORDER BY avg DESC`,
       { replacements: { adm, ws, we } },
@@ -698,12 +914,12 @@ async function getChildReport(req, res) {
 
     // All-time totals
     const [allTime] = await dbm().content.query(
-      `SELECT COALESCE(SUM(points), 0) AS total_points,
+      `SELECT COALESCE(SUM(xp), 0) AS total_points,
               COUNT(*) AS total_games
-       FROM kids_weekly_points WHERE child_admission_no = :adm`,
+       FROM kids_progress WHERE child_admission_no = :adm`,
       { replacements: { adm } },
     );
-    const at = (Array.isArray(allTime[0]) ? allTime[0] : [])[0] || { total_points: 0, total_games: 0 };
+    const at = (Array.isArray(allTime) ? allTime : [])[0] || { total_points: 0, total_games: 0 };
 
     // Badges this week
     const [badges] = await dbm().content.query(
@@ -744,6 +960,8 @@ module.exports = {
   login,
   register,
   getChildren,
+  getChildrenActivity,
+  getParentResults,
   getChildProgress,
   getChildAchievements,
   getChildControls,

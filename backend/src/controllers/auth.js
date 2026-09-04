@@ -7,6 +7,7 @@
  * EliteCore teacher/parent credential works on elitekids.com.ng.
  */
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
 const { generateLoginToken } = require('../middleware/sessionAuth');
@@ -274,6 +275,7 @@ async function studentLogin(req, res) {
   try {
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(username || '').trim());
     let student;
+    let localChild;
     let resolvedSchoolId = null;
 
     if (school_id || short_name) {
@@ -315,19 +317,45 @@ async function studentLogin(req, res) {
       resolvedSchoolId = student?.school_id || flagshipSchoolId || null;
     }
 
-    if (!student) {
+    // A child profile may opt into a Kids-local password. Look it up in the
+    // addon DB before authenticating so a changed Kids password is authoritative
+    // and never silently falls back to the shared EliteSMS password.
+    try {
+      const localWhere = resolvedSchoolId
+        ? 'admission_no = :admission_no AND school_id = :school_id'
+        : 'admission_no = :admission_no';
+      const rows = await db.content.query(
+        `SELECT * FROM kids_children WHERE ${localWhere} AND status = 'Active' LIMIT 1`,
+        {
+          replacements: {
+            admission_no: student?.admission_no || (!isEmail ? String(username).trim() : ''),
+            ...(resolvedSchoolId ? { school_id: resolvedSchoolId } : {}),
+          },
+          type: db.Sequelize.QueryTypes.SELECT,
+        }
+      );
+      localChild = rows?.[0] || null;
+    } catch (_) {
+      // The local profile is optional; shared EliteSMS login must keep working
+      // during an older-schema or content-DB outage.
+      localChild = null;
+    }
+
+    if (!student && !localChild) {
       return res.status(404).json({ success: false, errors: { username: 'Student not found!' } });
     }
 
-    const isMatch = await bcrypt.compare(password, student.password);
+    const localPasswordHash = localChild?.password_hash;
+    const passwordHash = localPasswordHash || student?.password;
+    const isMatch = passwordHash && await bcrypt.compare(password, passwordHash);
     if (!isMatch) {
       return res.status(400).json({ success: false, errors: { password: 'Incorrect password!' } });
     }
 
-    // School access gate: real-school children need the school subscribed or
-    // in-trial (the trial is auto-granted here on first login). Flagship kids
-    // are the free showcase and always pass.
-    resolvedSchoolId = student.school_id || resolvedSchoolId;
+    // Resolve from the local profile when this is a Kids-owned child, while
+    // retaining the shared students row as the canonical cross-app identity.
+    const account = student || localChild;
+    resolvedSchoolId = resolvedSchoolId || account.school_id;
     const access = await schoolAccessFor(resolvedSchoolId);
     if (!access.allowed) {
       const body = await lockedSchoolResponse(resolvedSchoolId, 'Student');
@@ -335,24 +363,35 @@ async function studentLogin(req, res) {
       return res.status(403).json(body);
     }
 
+    const admissionNo = account.admission_no;
+    const studentName = student?.student_name || localChild?.full_name || admissionNo;
+    const userType = student?.user_type || 'Student';
     const token = generateLoginToken({
-      id: student.admission_no, // students use admission_no as id
-      admission_no: student.admission_no,
-      student_name: student.student_name,
-      user_type: student.user_type || 'Student',
-      email: student.email || `${student.admission_no}@student.local`,
+      id: admissionNo, // students use admission_no as id
+      admission_no: admissionNo,
+      student_name: studentName,
+      user_type: userType,
+      email: student?.email || `${admissionNo}@student.local`,
       school_id: resolvedSchoolId,
-      branch_id: student.branch_id,
-      class_name: student.class_name || null,
-      current_class: student.current_class || null,
-      class_code: student.class_code || student.current_class || null,
+      branch_id: student?.branch_id || localChild?.branch_id,
+      class_name: student?.class_name || null,
+      current_class: student?.current_class || null,
+      class_code: student?.class_code || student?.current_class || localChild?.class_code || null,
     });
 
+    // Never expose either the shared or Kids-local password hash to the client.
+    const { password: _password, password_hash: _passwordHash, ...safeAccount } = {
+      ...(student || {}),
+      ...(localChild || {}),
+      admission_no: admissionNo,
+      student_name: studentName,
+      school_id: resolvedSchoolId,
+    };
     return res.json({
       success: true,
       token: 'Bearer ' + token,
-      user: { ...student, user_type: student.user_type || 'Student' },
-      user_type: student.user_type || 'Student',
+      user: { ...safeAccount, user_type: userType },
+      user_type: userType,
       sessionInfo: {
         lastActivity: new Date().toISOString(),
         inactivityTimeout: 15 * 60 * 1000,
@@ -674,48 +713,111 @@ async function resetPassword(req, res) {
   }
 }
 
+/** Return the columns for a shared table without assuming one schema version. */
+async function sharedTableColumns(table) {
+  return db.sequelize.query(
+    `SELECT COLUMN_NAME, DATA_TYPE, EXTRA
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table`,
+    { replacements: { table }, type: db.sequelize.QueryTypes.SELECT },
+  );
+}
+
+/** Insert only fields that exist in the current shared-school schema. */
+async function insertSharedRecord(table, values, columns, transaction) {
+  const available = new Set(columns.map((column) => column.COLUMN_NAME));
+  const fields = Object.keys(values).filter((field) => available.has(field));
+  if (!fields.length) throw new Error(`No compatible columns found for ${table}.`);
+  const replacements = {};
+  const placeholders = fields.map((field) => {
+    replacements[field] = values[field];
+    return `:${field}`;
+  });
+  const [result] = await db.sequelize.query(
+    `INSERT INTO \`${table}\` (${fields.map((field) => `\`${field}\``).join(', ')})
+     VALUES (${placeholders.join(', ')})`,
+    { replacements, transaction },
+  );
+  return result;
+}
+
 /** POST /auth/parent-signup — create a parent account (users + parents tables). */
 async function parentSignup(req, res) {
   try {
     const { name, email, phone, password, school_id } = req.body || {};
+    const cleanPhone = String(phone || '').replace(/\s+/g, '').replace(/^0/, '+234');
     if (!name || !phone || !password || !school_id) {
       return res.status(400).json({ success: false, message: 'name, phone, password and school_id are required.' });
     }
 
-    // Check phone not already registered
+    const [school] = await safeQuery(
+      `SELECT school_id FROM school_setup WHERE school_id = :school_id AND LOWER(status) = 'active' LIMIT 1`,
+      { school_id },
+    );
+    if (!school) return res.status(400).json({ success: false, message: 'School not found or inactive.' });
+
+    const parentColumns = await sharedTableColumns('parents');
     const [existing] = await db.sequelize.query(
-      `SELECT id FROM users WHERE phone = :phone AND school_id = :school LIMIT 1`,
-      { replacements: { phone, school: school_id }, type: db.sequelize.QueryTypes.SELECT }
-    ).catch(() => []);
-    if (existing) {
-      return res.status(409).json({ success: false, message: 'A parent with this phone number already exists.' });
+      `SELECT user_id FROM parents WHERE phone IN (:phones) AND school_id = :school_id LIMIT 1`,
+      { replacements: { phones: [...new Set([String(phone).trim(), cleanPhone])], school_id }, type: db.sequelize.QueryTypes.SELECT },
+    );
+    if (existing) return res.status(409).json({ success: false, message: 'A parent with this phone number already exists.' });
+
+    const userColumns = await sharedTableColumns('users');
+    const userColumnByName = new Map(userColumns.map((column) => [column.COLUMN_NAME, column]));
+    const generatedId = crypto.randomUUID().slice(0, 50);
+    const userEmail = String(email || '').trim() || `parent${Date.now()}@elitekids.com`;
+    const hashed = await bcrypt.hash(password, 10);
+    const userValues = {
+      id: generatedId,
+      name: String(name).trim(),
+      email: userEmail,
+      username: userEmail,
+      phone: cleanPhone,
+      password: hashed,
+      role: 'Parent',
+      user_type: 'Parent',
+      school_id,
+      status: 'Active',
+      is_activated: 1,
+      first_login_completed: 1,
+    };
+    // Numeric auto-increment IDs must be left to MySQL; string IDs need a value.
+    if (userColumnByName.get('id')?.EXTRA?.toLowerCase().includes('auto_increment') ||
+        !['char', 'varchar', 'text'].includes(String(userColumnByName.get('id')?.DATA_TYPE || '').toLowerCase())) {
+      delete userValues.id;
     }
 
-    // Create user row (email is NOT NULL in shared users table — generate placeholder if not provided)
-    const bcrypt = require('bcryptjs');
-    const hashed = await bcrypt.hash(password, 10);
-    const userEmail = (email && email.trim()) || `parent${Date.now()}@elitekids.com`;
-    const [userResult] = await db.sequelize.query(
-      `INSERT INTO users (name, email, phone, user_type, password, school_id, status, is_activated)
-       VALUES (:name, :email, :phone, 'Parent', :password, :school_id, 'Active', 1)`,
-      { replacements: { name, email: userEmail, phone, password: hashed, school_id } }
-    );
-    const userId = userResult;
+    const transaction = await db.sequelize.transaction();
+    let userId;
+    try {
+      const userResult = await insertSharedRecord('users', userValues, userColumns, transaction);
+      userId = userValues.id || userResult?.insertId;
+      if (!userId) throw new Error('Parent account was created without a user id.');
+      const parentType = String(parentColumns.find((column) => column.COLUMN_NAME === 'parent_id')?.DATA_TYPE || '').toLowerCase();
+      const parentId = ['int', 'bigint', 'smallint', 'mediumint'].includes(parentType) ? userId : `P${userId}`;
+      await insertSharedRecord('parents', {
+        parent_id: parentId,
+        fullname: String(name).trim(),
+        name: String(name).trim(),
+        phone: cleanPhone,
+        email: userEmail,
+        user_id: userId,
+        school_id,
+        password: hashed,
+        user_type: 'Parent',
+        status: 'Active',
+      }, parentColumns, transaction);
+      await transaction.commit();
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
 
-    // Create parent row
-    const parentId = `P${userId}`;
-    await db.sequelize.query(
-      `INSERT INTO parents (parent_id, fullname, phone, email, user_id, school_id, user_type, status)
-       VALUES (:pid, :name, :phone, :email, :uid, :school_id, 'Parent', 'Active')`,
-      { replacements: { pid: parentId, name, phone, email: userEmail, uid: userId, school_id } }
-    );
-
-    // Generate token (matching login function's payload shape)
-    const jwt = require('jsonwebtoken');
     const token = jwt.sign(
-      { id: userId, user_type: 'parent', email: userEmail, school_id, branch_id: null },
+      { id: userId, user_type: 'parent', email: userEmail, phone: cleanPhone, school_id, branch_id: null, children: [] },
       process.env.JWT_SECRET_KEY,
-      { expiresIn: '24h' }
+      { expiresIn: '24h' },
     );
 
     // Welcome email — fails open so a mailer hiccup can never break signup.
@@ -727,13 +829,7 @@ async function parentSignup(req, res) {
           to: email.trim(),
           subject: `Welcome to EliteKids, ${name}!`,
           text: `Hi ${name}, welcome to EliteKids! Your parent account is ready. Sign in to explore your child's progress, practice games, and live sessions.`,
-          html: `
-            <div style="font-family:sans-serif;max-width:560px">
-              <h2 style="margin:0 0 8px">Welcome to EliteKids 🎉</h2>
-              <p style="margin:0 0 12px;color:#374151">Hi ${name}, your parent account is ready. EliteKids is your window into your child's learning — games, progress, and live sessions.</p>
-              <p style="margin:0 0 12px;color:#374151">Sign in at <a href="https://elitekids.com.ng" style="color:#0d9488">elitekids.com.ng</a> to get started.</p>
-              <p style="color:#6b7280;font-size:12px;margin:0">EliteKids — Gamified learning for the next generation.</p>
-            </div>`,
+          html: `<div style="font-family:sans-serif;max-width:560px"><h2>Welcome to EliteKids 🎉</h2><p>Hi ${name}, your parent account is ready. Sign in at elitekids.com.ng to get started.</p></div>`,
         });
       });
     }
@@ -742,7 +838,7 @@ async function parentSignup(req, res) {
       success: true,
       token,
       school_id,
-      user: { id: userId, name, email: userEmail, phone, user_type: 'parent', school_id },
+      user: { id: userId, name: String(name).trim(), email: userEmail, phone: cleanPhone, user_type: 'parent', school_id },
     });
   } catch (err) {
     console.error('parentSignup error:', err.message);

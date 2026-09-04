@@ -11,9 +11,10 @@ mkdir -p "$PROJ/team-docs/reports"
 echo "=== DEPLOY $TS ===" | tee "$DEPLOY_LOG"
 cd "$PROJ" || exit 1
 
-# 1. Install backend deps (fast no-op if already synced)
-echo "[deploy] npm install (backend)..." | tee -a "$DEPLOY_LOG"
-(cd "$PROJ/backend" && npm install --omit=dev 2>&1 | tail -1) >> "$DEPLOY_LOG" 2>&1
+# 1. Install backend deps, including Jest/supertest for the acceptance gate.
+# Keep the lockfile authoritative; dev dependencies are pruned after tests.
+echo "[deploy] npm ci (backend, including test dependencies)..." | tee -a "$DEPLOY_LOG"
+(cd "$PROJ/backend" && npm ci --include=dev --no-audit --no-fund 2>&1 | tail -2) >> "$DEPLOY_LOG" 2>&1
 
 # 2. Run backend tests
 echo "[deploy] Running tests..." | tee -a "$DEPLOY_LOG"
@@ -29,6 +30,10 @@ else
   fi
   echo "[deploy] Tests have failures (exit=$EXIT) — proceeding with build" | tee -a "$DEPLOY_LOG"
 fi
+
+# Runtime does not require test-only packages, but pruning is deliberately
+# after the test gate so Jest can never be missing during acceptance.
+(cd "$PROJ/backend" && npm prune --omit=dev --no-audit --no-fund 2>&1 | tail -1) >> "$DEPLOY_LOG" 2>&1
 
 # 3. Build frontend
 echo "[deploy] Building frontend..." | tee -a "$DEPLOY_LOG"

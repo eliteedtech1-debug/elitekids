@@ -229,23 +229,24 @@ async function requireChildOwnership(req) {
   const phone = String(user.phone || '').trim();
   const parentId = String(user.id || user.user_id || '');
 
-  // Path 1: kids_parent_links (phone-based)
+  // Path 1: kids_parent_links (phone-based). Kids-owned tables live in the
+  // content database; never query the shared school connection for them.
   if (phone) {
-    const [links] = await db.sequelize.query(
+    const [links] = await db.content.query(
       `SELECT 1 FROM kids_parent_links
        WHERE parent_phone = :phone AND child_admission_no = :adm AND verified = 1 LIMIT 1`,
       { replacements: { phone, adm: requested } },
-    );
+    ).catch(() => [[]]);
     if (Array.isArray(links) && links.length > 0) return { ok: true };
   }
 
   // Path 2: kids_children (ecosystem JWT — parent_user_id)
   if (parentId) {
-    const [rows] = await db.sequelize.query(
+    const [rows] = await db.content.query(
       `SELECT 1 FROM kids_children
        WHERE parent_user_id = :pid AND admission_no = :adm LIMIT 1`,
       { replacements: { pid: parentId, adm: requested } },
-    );
+    ).catch(() => [[]]);
     if (Array.isArray(rows) && rows.length > 0) return { ok: true };
   }
 

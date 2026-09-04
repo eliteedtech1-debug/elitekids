@@ -126,6 +126,57 @@ describe('POST /students/login', () => {
     expect(res.status).toBe(404);
   });
 
+  it('uses the shared EliteSMS password until a Kids-local password is set', async () => {
+    const parent = await request(app)
+      .post('/users/login')
+      .send({ username: 'parent@kids.test', password: 'Parent@123', school_id: 'SCH-TEST' });
+    expect(parent.status).toBe(200);
+
+    const before = await testQuery(
+      `SELECT password_hash FROM kids_children WHERE admission_no = ? AND school_id = ?`,
+      ['NUR-001', 'SCH-TEST']
+    );
+    expect(before).toHaveLength(1);
+    expect(before[0].password_hash).toBeNull();
+
+    try {
+      const update = await request(app)
+        .put('/kids/children/NUR-001')
+        .set('authorization', parent.body.token)
+        .send({ new_password: 'KidsOnly@456' });
+      expect(update.status).toBe(200);
+      expect(update.body.data.password_hash).toBeUndefined();
+
+      // The local password is authoritative inside EliteKids.
+      const oldLogin = await request(app)
+        .post('/students/login')
+        .send({ username: 'NUR-001', password: 'Nursery@123', school_id: 'SCH-TEST' });
+      expect(oldLogin.status).toBe(400);
+
+      const localLogin = await request(app)
+        .post('/students/login')
+        .send({ username: 'NUR-001', password: 'KidsOnly@456', school_id: 'SCH-TEST' });
+      expect(localLogin.status).toBe(200);
+      expect(localLogin.body.user.password_hash).toBeUndefined();
+      expect(localLogin.body.user.password).toBeUndefined();
+    } finally {
+      await testQuery(
+        `UPDATE kids_children SET password_hash = NULL WHERE admission_no = ? AND school_id = ?`,
+        ['NUR-001', 'SCH-TEST']
+      );
+    }
+  });
+
+  it('logs in a Kids-only child with a local password', async () => {
+    const res = await request(app)
+      .post('/students/login')
+      .send({ username: 'REVIEW-001', password: 'ReviewChild@123', school_id: 'SCH-TEST' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.admission_no).toBe('REVIEW-001');
+    expect(res.body.user.password_hash).toBeUndefined();
+  });
+
   it('rejects a wrong password with 400', async () => {
     const res = await request(app)
       .post('/students/login')
@@ -159,6 +210,51 @@ describe('POST /superadmin-login', () => {
       .post('/superadmin-login')
       .send({ username: 'nope', password: 'Super@123' });
     expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /auth/parent-signup', () => {
+  it('creates a parent account with the shared-schema-compatible fields', async () => {
+    const res = await request(app)
+      .post('/auth/parent-signup')
+      .send({
+        name: 'New Test Parent',
+        email: 'new.parent@kids.test',
+        phone: '08077778888',
+        password: 'NewParent@123',
+        school_id: 'SCH-TEST',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.token).toBeTruthy();
+    expect(res.body.user.user_type).toBe('parent');
+    expect(res.body.user.phone).toBe('+2348077778888');
+
+    const rows = await testQuery(
+      `SELECT u.email, u.user_type, p.phone, p.school_id
+       FROM users u JOIN parents p ON p.user_id = u.id
+       WHERE u.email = ?`,
+      ['new.parent@kids.test'],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].user_type).toBe('Parent');
+    expect(rows[0].phone).toBe('+2348077778888');
+    expect(rows[0].school_id).toBe('SCH-TEST');
+  });
+
+  it('rejects duplicate parent phone numbers', async () => {
+    const res = await request(app)
+      .post('/auth/parent-signup')
+      .send({
+        name: 'Duplicate Parent',
+        email: 'duplicate.parent@kids.test',
+        phone: '08012345678',
+        password: 'NewParent@123',
+        school_id: 'SCH-TEST',
+      });
+
+    expect(res.status).toBe(409);
   });
 });
 
