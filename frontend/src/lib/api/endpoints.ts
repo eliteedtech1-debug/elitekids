@@ -22,6 +22,7 @@ export const ENDPOINTS = {
     GET: (admissionNo: string) => `/kids/children/detail?admission_no=${encodeURIComponent(admissionNo)}`,
     CREATE: '/kids/children',
     CREATE_FOR_PARENT: '/kids/children/create-for-parent',
+    CHANGE_PASSWORD: '/kids/children/change-password',
     UPDATE: (admissionNo: string) => `/kids/children/detail?admission_no=${encodeURIComponent(admissionNo)}`,
     DELETE: (admissionNo: string) => `/kids/children/detail?admission_no=${encodeURIComponent(admissionNo)}`,
     LINK: '/kids/children/link',

@@ -4,6 +4,7 @@ const {
   getChild,
   createChild,
   createChildForParent,
+  changeChildPassword,
   updateChild,
   deleteChild,
   linkChildForParent,
@@ -153,6 +154,7 @@ module.exports = (app) => {
   app.get('/kids/children', auth, listChildrenForParent);
   app.post('/kids/children', auth, requireStaff, createChild);
   app.post('/kids/children/create-for-parent', auth, createChildForParent);
+  app.post('/kids/children/change-password', auth, changeChildPassword);
   // Parent self-service linking (registered before any POST :param route).
   app.post('/kids/children/link', auth, linkChildForParent);
   // Admission numbers contain slashes (e.g. 213232/1/0029), so we use query

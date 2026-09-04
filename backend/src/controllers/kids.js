@@ -3,6 +3,7 @@
  * SAFETY RULE: child-facing reads filter content_state='published' in SQL.
  */
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcryptjs');
 const { recordAttemptPoints } = require('./kidsLeaderboard');
 const db = require('../models');
 const { generateGameConfig, persistGameConfig, generateSceneScript, persistSceneScript } = require('../services/contentGeneratorService');
@@ -397,7 +398,7 @@ async function createChild(req, res) {
   }
 }
 
-/** POST /kids/children/create-for-parent — parent creates a new child (no shared students table required). */
+/** POST /kids/children/create-for-parent — parent creates a new child + students row for login. */
 async function createChildForParent(req, res) {
   try {
     const user = req.user;
@@ -405,9 +406,12 @@ async function createChildForParent(req, res) {
     if (!userType.includes('parent')) {
       return res.status(403).json({ success: false, message: 'Only parents can create children.' });
     }
-    const { full_name, age_level, admission_no } = req.body || {};
+    const { full_name, age_level, admission_no, password } = req.body || {};
     if (!full_name) {
       return res.status(400).json({ success: false, message: 'full_name is required.' });
+    }
+    if (!password || String(password).length < 4) {
+      return res.status(400).json({ success: false, message: 'Password is required (min 4 characters).' });
     }
     const school_id = req.headers['x-school-id'] || user.school_id;
     const branch_id = req.headers['x-branch-id'] || user.branch_id || 'BR-MAIN';
@@ -416,6 +420,7 @@ async function createChildForParent(req, res) {
     // Generate admission number if not provided
     const childAdmission = admission_no || `KIDS-${Date.now().toString(36).toUpperCase()}`;
 
+    // 1) Create kids_children row (EliteKids-local profile + progress)
     const child = await db.KidChild.create({
       id: uuidv4(),
       admission_no: childAdmission,
@@ -425,11 +430,77 @@ async function createChildForParent(req, res) {
       age_level: age_level || 'Creche',
       class_code: null,
       parent_user_id: parentKey,
+      password_hash: await bcrypt.hash(String(password), 10),
       status: 'Active',
     });
+
+    // 2) Create students row in shared EliteSMS DB so studentLogin works
+    const existingStudent = await db.sequelize.query(
+      `SELECT id FROM students WHERE admission_no = :adm AND school_id = :sid LIMIT 1`,
+      { replacements: { adm: childAdmission, sid: school_id }, type: db.Sequelize.QueryTypes.SELECT }
+    ).catch(() => []);
+
+    if (!existingStudent || existingStudent.length === 0) {
+      await db.sequelize.query(
+        `INSERT INTO students (admission_no, student_name, school_id, branch_id, class_name, password, status, parent_id, user_type)
+         VALUES (:adm, :name, :sid, :bid, :cls, :pwd, 'Active', :pid, 'Student')`,
+        {
+          replacements: {
+            adm: childAdmission,
+            name: full_name,
+            sid: school_id,
+            bid: branch_id,
+            cls: age_level || 'Creche',
+            pwd: await bcrypt.hash(String(password), 10),
+            pid: parentKey,
+          },
+        }
+      );
+    }
+
     return res.status(201).json({ success: true, data: child });
   } catch (err) {
     console.error('createChildForParent error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/** POST /kids/children/change-password — parent changes a child's password. */
+async function changeChildPassword(req, res) {
+  try {
+    const user = req.user;
+    const userType = String(user.user_type || user.role || '').toLowerCase();
+    if (!userType.includes('parent')) {
+      return res.status(403).json({ success: false, message: 'Only parents can change child passwords.' });
+    }
+    const { admission_no, new_password } = req.body || {};
+    if (!admission_no || !new_password) {
+      return res.status(400).json({ success: false, message: 'admission_no and new_password are required.' });
+    }
+    if (String(new_password).length < 4) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 4 characters.' });
+    }
+
+    // Verify ownership
+    const child = await db.KidChild.findOne({ where: { admission_no, parent_user_id: String(user.id || user.user_id || '') } });
+    if (!child) {
+      return res.status(404).json({ success: false, message: 'Child not found or not linked to your account.' });
+    }
+
+    const hashed = await bcrypt.hash(String(new_password), 10);
+
+    // Update kids_children.password_hash
+    await child.update({ password_hash: hashed });
+
+    // Update shared students.password so studentLogin works
+    await db.sequelize.query(
+      `UPDATE students SET password = :pwd WHERE admission_no = :adm AND school_id = :sid`,
+      { replacements: { pwd: hashed, adm: admission_no, sid: child.school_id } }
+    ).catch(() => {});
+
+    return res.json({ success: true, message: 'Password updated.' });
+  } catch (err) {
+    console.error('changeChildPassword error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 }
@@ -1562,6 +1633,7 @@ module.exports = {
   getChild,
   createChild,
   createChildForParent,
+  changeChildPassword,
   updateChild,
   deleteChild,
   linkChildForParent,

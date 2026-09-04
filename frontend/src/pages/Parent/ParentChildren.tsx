@@ -128,8 +128,11 @@ export default function ParentChildren() {
   const [linkAdmission, setLinkAdmission] = useState('');
   const [linking, setLinking] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ full_name: '', age_level: 'Creche', admission_no: '' });
+  const [createForm, setCreateForm] = useState({ full_name: '', age_level: 'Creche', admission_no: '', password: '' });
   const [creating, setCreating] = useState(false);
+  const [pwChild, setPwChild] = useState<{ admission_no: string; name: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [changingPw, setChangingPw] = useState(false);
 
   // Real-time child online/offline presence via background WebSocket
   const { isOnline } = useParentPresence();
@@ -202,7 +205,7 @@ export default function ParentChildren() {
     try {
       const res = await apiClient.post(ENDPOINTS.CHILDREN.CREATE_FOR_PARENT, createForm);
       toast.success(t('parent.childAdded', { name: res.data?.data?.full_name || '' }));
-      setCreateForm({ full_name: '', age_level: 'Creche', admission_no: '' });
+      setCreateForm({ full_name: '', age_level: 'Creche', admission_no: '', password: '' });
       setShowCreate(false);
       setTab('children');
       await loadChildren();
@@ -211,6 +214,25 @@ export default function ParentChildren() {
       toast.error(err?.message || t('parent.createChildFailed'));
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pwChild || !newPassword.trim()) return;
+    setChangingPw(true);
+    try {
+      await apiClient.post(ENDPOINTS.CHILDREN.CHANGE_PASSWORD, {
+        admission_no: pwChild.admission_no,
+        new_password: newPassword.trim(),
+      });
+      toast.success(t('parent.passwordUpdated'));
+      setPwChild(null);
+      setNewPassword('');
+    } catch (err: any) {
+      toast.error(err?.message || t('parent.passwordUpdateFailed'));
+    } finally {
+      setChangingPw(false);
     }
   };
 
@@ -358,6 +380,10 @@ export default function ParentChildren() {
                                 {child.class_name || child.age_level}{child.class_code ? ` · ${child.class_code}` : ''} · {child.admission_no}
                               </p>
                             </div>
+                            <button onClick={() => { setPwChild({ admission_no: child.admission_no, name: child.full_name }); setNewPassword(''); }}
+                              className="shrink-0 self-start rounded-lg bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-600 hover:bg-gray-200 transition">
+                              {t('parent.changePassword')}
+                            </button>
                           </div>
 
                           {/* Progress strip */}
@@ -594,8 +620,11 @@ export default function ParentChildren() {
                       <input name="admission_no" value={createForm.admission_no} onChange={(e) => setCreateForm(p => ({ ...p, admission_no: e.target.value }))}
                         placeholder={t('parent.admissionOptional')}
                         className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
+                      <input name="password" type="password" value={createForm.password} onChange={(e) => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                        placeholder={t('parent.childPasswordPlaceholder')} required minLength={4}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#0F4D92] focus:outline-none" />
                       <div className="flex gap-2">
-                        <button type="submit" disabled={creating || !createForm.full_name.trim()}
+                        <button type="submit" disabled={creating || !createForm.full_name.trim() || !createForm.password}
                           className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">
                           {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                           {creating ? t('parent.creating') : t('parent.create')}
@@ -628,6 +657,31 @@ export default function ParentChildren() {
           </>
         )}
       </main>
+
+      {/* Change Password Modal */}
+      {pwChild && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="mb-1 text-base font-bold text-gray-800">{t('parent.changePasswordTitle')}</h3>
+            <p className="mb-4 text-xs text-gray-500">{pwChild.name} ({pwChild.admission_no})</p>
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                placeholder={t('parent.newPassword')} required minLength={4} autoFocus
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#0F4D92] focus:outline-none" />
+              <div className="flex gap-2">
+                <button type="submit" disabled={changingPw || !newPassword.trim()}
+                  className="flex-1 rounded-xl bg-[#0F4D92] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0d3d7a] disabled:opacity-50 transition">
+                  {changingPw ? t('parent.creating') : t('parent.changePassword')}
+                </button>
+                <button type="button" onClick={() => setPwChild(null)}
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
