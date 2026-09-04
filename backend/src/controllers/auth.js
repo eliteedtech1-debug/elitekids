@@ -85,8 +85,11 @@ async function lockedSchoolResponse(schoolId, userType) {
 /** Safe SELECT — returns [] when a table doesn't exist (mirrors elite-cbt-api). */
 const safeQuery = async (sql, replacements) => {
   try {
-    return await db.sequelize.query(sql, { replacements, type: db.sequelize.QueryTypes.SELECT });
+    const result = await db.sequelize.query(sql, { replacements, type: db.sequelize.QueryTypes.SELECT });
+    return result;
   } catch (e) {
+    console.error('[safeQuery] FAILED:', e.message.substring(0, 120));
+    console.error('[safeQuery] SQL:', sql.substring(0, 200));
     return [];
   }
 };

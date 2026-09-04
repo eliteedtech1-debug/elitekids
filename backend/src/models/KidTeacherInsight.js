@@ -20,6 +20,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'kids_teacher_insights',
+      timestamps: false,
       indexes: [
         { name: 'kids_teacher_insights_class', fields: ['class_id'] },
         { name: 'kids_teacher_insights_class_week', fields: ['class_id', 'week_start'] },

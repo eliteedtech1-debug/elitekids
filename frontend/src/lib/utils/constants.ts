@@ -17,6 +17,7 @@ export const STORAGE_KEYS = {
   BRANCH_ID: 'branch_id',
   SELECTED_BRANCH: 'selected_branch',
   USER_DATA: 'user_data',
+  TEACHER_SUBJECTS: 'teacher_subjects',
 } as const;
 
 export const ROUTES = {

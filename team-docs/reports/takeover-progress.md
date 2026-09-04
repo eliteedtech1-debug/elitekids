@@ -84,3 +84,8 @@
 - BUG caught by live E2E only: kidsSpeech.js lazy require '../src/models' → 500 on prod (unit tests never hit DB path). Fixed to '../models', redeployed, re-verified.
 - LIVE PROOF (Demo2 real session, 390×844): POST assess → 200 {overall:100, band:"amazing"}; result card + zero console errors; kids_speech_logs 0→1 row in elite_content.
 - Gates: backend 487P/2F (garden baseline only; kids-routes full-run flake passes isolated), tsc clean, vitest 117/117, build OK. Report: reports/q2-speech-slice2-live-verified.md. NOTE: targeted run-tests.sh needs --forceExit; TEST_DB creds map from DB_USERNAME/DB_PASSWORD (test DB = live name + _test).
+
+## REALTIME TEST SESSION TAKEOVER (2026-09-04, Buffy)
+- 2026-09-04: Took over from opencode realtime testing session (todo list: fix sync error ✅, servers on localhost ✅, Playwright tests ✅, theory-vs-reality report ✅, SRS doc ✅). Work found in tree: 5 realtime issues fixed locally (Vite WS proxy, TeacherLive class dropdown, login persists teacher subjects, Try-Another-School dead-end, resilient sync + 7 models timestamps:false) + kidsMeActivity.js stub (referenced by routes/kids.js — required). Report complete: reports/realtime-theory-vs-reality-2026-09-04.md.
+- 2026-09-04: LAST TODO DONE — SRS-RT-001 written (team-docs/SRS-realtime-features.md): roles/rooms, WS protocol + close codes, FR/NFR, security, test plans, dev notes (Vite WS proxy requirement).
+- 2026-09-04: Cleanup + verify — removed debug [LOGIN] logs from auth.js (kept error-only safeQuery logging); node --check ALL backend files OK; frontend tsc --noEmit EXIT 0. Working tree: 14 modified + 2 untracked, ready for commit/push at MASTER go.

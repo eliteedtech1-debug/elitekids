@@ -163,6 +163,12 @@ export default function Login() {
             <p className="font-semibold">{t('login.accessRestricted')}</p>
             <p>{t('login.noSubscription')}</p>
           </div>
+          <button
+            onClick={() => { setSchool(null); setForm((p) => ({ ...p, school_id: '' })); }}
+            className="mt-4 rounded-xl bg-teal-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-700 transition-colors"
+          >
+            Try Another School
+          </button>
         </div>
       </div>
     );
@@ -228,6 +234,9 @@ export default function Login() {
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, cleanToken);
         localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, data.school_id || schoolId);
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: userType }));
+        if (data.subjects && Array.isArray(data.subjects)) {
+          localStorage.setItem(STORAGE_KEYS.TEACHER_SUBJECTS, JSON.stringify(data.subjects));
+        }
         toast.success(t('login.loginSuccess'));
         if (/student/i.test(userType)) navigate('/student');
         else if (/parent/i.test(userType)) navigate('/parent');

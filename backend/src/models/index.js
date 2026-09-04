@@ -284,18 +284,32 @@ db.syncKidsTables = async () => {
     .map((name) => contentModels.find((m) => m.getTableName() === name))
     .filter(Boolean);
 
+  const synced = [];
+  const failed = [];
   for (const model of ordered) {
-    await model.sync({ force: false }); // creates table if missing, never alters
+    try {
+      await model.sync({ force: false });
+      synced.push(model.getTableName());
+    } catch (err) {
+      console.error(`⚠️  sync failed for ${model.getTableName()}: ${err.message}`);
+      failed.push(model.getTableName());
+    }
   }
   for (const model of aiModels) {
-    await model.sync({ force: false });
+    try {
+      await model.sync({ force: false });
+      synced.push(model.getTableName());
+    } catch (err) {
+      console.error(`⚠️  sync failed for ${model.getTableName()}: ${err.message}`);
+      failed.push(model.getTableName());
+    }
   }
 
   console.log(
-    `✅ Kids tables synced into ${contentSequelize.config.database} (${ordered.map((m) => m.getTableName()).join(', ')})`
+    `✅ Kids tables synced into ${contentSequelize.config.database} (${synced.join(', ')})`
   );
-  if (aiModels.length) {
-    console.log(`✅ Kids AI tables synced into ${aiSequelize.config.database} (${aiModels.map((m) => m.getTableName()).join(', ')})`);
+  if (failed.length) {
+    console.warn(`⚠️  Failed tables: ${failed.join(', ')}`);
   }
 };
 

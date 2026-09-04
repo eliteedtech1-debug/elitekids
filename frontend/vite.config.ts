@@ -13,5 +13,22 @@ export default defineConfig({
   server: {
     host: true,
     port: 34601,
+    proxy: {
+      '/kids/live': {
+        target: 'http://localhost:34600',
+        ws: true,
+      },
+      '/kids/chat': {
+        target: 'http://localhost:34600',
+        ws: true,
+      },
+      '/kids/teams': {
+        target: 'http://localhost:34600',
+        ws: true,
+      },
+      '/api': {
+        target: 'http://localhost:34600',
+      },
+    },
   },
 });

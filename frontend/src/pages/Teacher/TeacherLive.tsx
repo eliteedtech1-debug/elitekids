@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Mic, MicOff, Loader2, Radio, ArrowLeft, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
@@ -7,12 +7,43 @@ import { t } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
 import { EliteLive, type LivePeer } from '@/lib/live/audio';
 
+interface TeacherSubject {
+  class_code: string;
+  class_name: string;
+  subject: string;
+  section?: string;
+}
+
 /**
  * E3f — teacher console for KidsLive: broadcast audio to a class in real time,
  * hand individual students the mic for replies (walkie-talkie style).
  */
 export default function TeacherLive() {
-  const [classCode, setClassCode] = useState('');
+  const teacherSubjects = useMemo<TeacherSubject[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.TEACHER_SUBJECTS);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }, []);
+
+  const classOptions = useMemo(() => {
+    const map = new Map<string, { class_code: string; class_name: string; subjects: string[] }>();
+    for (const s of teacherSubjects) {
+      const existing = map.get(s.class_code);
+      if (existing) {
+        if (s.subject && !existing.subjects.includes(s.subject)) existing.subjects.push(s.subject);
+      } else {
+        map.set(s.class_code, {
+          class_code: s.class_code,
+          class_name: s.class_name || s.class_code,
+          subjects: s.subject ? [s.subject] : [],
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.class_name.localeCompare(b.class_name));
+  }, [teacherSubjects]);
+
+  const [selectedClass, setSelectedClass] = useState('');
   const [joined, setJoined] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [status, setStatus] = useState<'off' | 'connecting' | 'live' | 'error'>('off');
@@ -24,7 +55,7 @@ export default function TeacherLive() {
   useEffect(() => () => liveRef.current?.disconnect(), []);
 
   const join = async () => {
-    if (!classCode.trim()) return toast.error(t('teacher.live.enterCode'));
+    if (!selectedClass) return toast.error('Select a class first');
     setConnecting(true);
     try {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
@@ -33,7 +64,7 @@ export default function TeacherLive() {
         onPresence: setPeers,
       });
       liveRef.current = live;
-      live.connect(token, `class=${encodeURIComponent(classCode.trim().toUpperCase())}`);
+      live.connect(token, `class=${encodeURIComponent(selectedClass)}`);
       setTimeout(() => {
         if (live.status === 'live') {
           setJoined(true);
@@ -98,17 +129,26 @@ export default function TeacherLive() {
         {!joined ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <label className="text-xs font-bold text-gray-600">
-              {t('teacher.live.classCode')}
-              <input
-                value={classCode}
-                onChange={(e) => setClassCode(e.target.value)}
-                placeholder={t('teacher.live.codePlaceholder')}
-                className="mt-1 w-full max-w-xs rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal uppercase"
-              />
+              Select Class
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="mt-1 w-full max-w-xs rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal"
+              >
+                <option value="">— Choose a class —</option>
+                {classOptions.map((c) => (
+                  <option key={c.class_code} value={c.class_code}>
+                    {c.class_name} ({c.subjects.join(', ')})
+                  </option>
+                ))}
+              </select>
             </label>
+            {classOptions.length === 0 && (
+              <p className="mt-2 text-xs text-amber-600">No classes assigned. Contact your admin.</p>
+            )}
             <button
               onClick={join}
-              disabled={connecting}
+              disabled={connecting || !selectedClass}
               className="mt-3 inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-2.5 text-sm font-extrabold text-white shadow hover:bg-red-700 disabled:opacity-50"
             >
               {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
