@@ -921,13 +921,21 @@ async function getChildReport(req, res) {
     );
     const at = (Array.isArray(allTime) ? allTime : [])[0] || { total_points: 0, total_games: 0 };
 
-    // Badges this week
-    const [badges] = await dbm().content.query(
-      `SELECT badge_name, badge_emoji, awarded_at
-       FROM kids_badges
-       WHERE child_admission_no = :adm AND awarded_at >= :ws AND awarded_at < :we`,
-      { replacements: { adm, ws, we } },
-    );
+    // Badges this week — decorative section; must never 500 the report if the
+    // badges table is missing/misconfigured (arena badges are written to
+    // elite_content but were never created there on prod — see e3fArena).
+    let badges = [];
+    try {
+      const [badgeRows] = await dbm().content.query(
+        `SELECT badge_name, badge_emoji, awarded_at
+         FROM kids_badges
+         WHERE child_admission_no = :adm AND awarded_at >= :ws AND awarded_at < :we`,
+        { replacements: { adm, ws, we } },
+      );
+      badges = Array.isArray(badgeRows) ? badgeRows : [];
+    } catch (e) {
+      console.warn('getChildReport badges query skipped:', e.message);
+    }
 
     // Child info
     const [childInfo] = await dbm().content.query(

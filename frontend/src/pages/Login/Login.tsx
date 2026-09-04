@@ -234,7 +234,21 @@ export default function Login() {
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, cleanToken);
         localStorage.setItem(STORAGE_KEYS.SCHOOL_ID, data.school_id || schoolId);
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify({ user_type: userType }));
-        if (data.subjects && Array.isArray(data.subjects)) {
+        // TeacherLive needs the teacher's class assignments. /users/login does NOT
+        // return them, but /verify-token does (subjects = teacher_classes join via
+        // active_teacher_classes). Fetch once after login and persist, so the class
+        // dropdown on /teacher/live is populated.
+        if (/teacher/i.test(userType)) {
+          try {
+            const v = await apiClient.get(ENDPOINTS.AUTH.VERIFY_TOKEN);
+            const subs = v.data?.subjects;
+            if (Array.isArray(subs) && subs.length) {
+              localStorage.setItem(STORAGE_KEYS.TEACHER_SUBJECTS, JSON.stringify(subs));
+            }
+          } catch {
+            /* non-fatal — dropdown falls back to empty */
+          }
+        } else if (data.subjects && Array.isArray(data.subjects)) {
           localStorage.setItem(STORAGE_KEYS.TEACHER_SUBJECTS, JSON.stringify(data.subjects));
         }
         toast.success(t('login.loginSuccess'));

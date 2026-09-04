@@ -163,12 +163,16 @@ async function listChildrenForParent(req, res) {
                     COALESCE(class_code, current_class) AS class_code,
                     class_name, student_name AS full_name
              FROM students
-             WHERE status = 'Active' AND (parent_id IN (:codes) OR guardian_id IN (:codes))
-             GROUP BY admission_no`,
+             WHERE status = 'Active' AND (parent_id IN (:codes) OR guardian_id IN (:codes))`,
             { replacements: { codes }, type: db.Sequelize.QueryTypes.SELECT },
           );
         }
-      } catch (e) { /* shared parents/students may be missing columns — use kids_children only */ }
+      } catch (e) {
+        // GROUP BY variant broke under only_full_group_by (MySQL 8 default) and
+        // was silently swallowed. Dedupe happens in the `seen` Map below, so no
+        // GROUP BY is needed. Log anyway so future failures are visible.
+        console.warn('listChildrenForParent shared-link query failed:', e.message);
+      }
     }
     sharedRows = Array.isArray(sharedRows) ? sharedRows : [];
 
