@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Settings, Eye, Type, Zap, Palette, RotateCcw } from 'lucide-react';
+import { Settings, Eye, Type, Zap, Palette, RotateCcw, Languages } from 'lucide-react';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { haptic } from '@/lib/utils/haptic';
-import { t } from '@/lib/i18n';
+import { t, LOCALES, loadLocale, setLocale, getLocale } from '@/lib/i18n';
 import PopoverPanel from '@/components/PopoverPanel';
 
 /**
@@ -96,6 +96,11 @@ export default function A11ySettings() {
             checked={largeText}
             onChange={() => { haptic('medium'); toggleLargeText(); }}
           />
+
+          {/* Language — the escape hatch when the UI is in a language the
+              reader cannot read (e.g. stuck in Hausa). Labels are shown in
+              their OWN language so they stay recognizable. */}
+          <LanguageRow />
         </div>
 
         {/* Reset button */}
@@ -107,6 +112,55 @@ export default function A11ySettings() {
           {t('a11y.reset')}
         </button>
       </PopoverPanel>
+    </div>
+  );
+}
+
+/** Language picker row: current locale → tap to cycle/change, labels in their own language. */
+function LanguageRow() {
+  const current = getLocale();
+  return (
+    <div className="flex items-start gap-2 sm:gap-3 rounded-xl p-2.5 sm:p-2">
+      <span className="mt-0.5 text-gray-500"><Languages className="h-4 w-4" /></span>
+      <div className="flex-1">
+        <span className="block text-sm font-semibold text-gray-700">{t('a11y.language')}</span>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {LOCALES.map(({ code, label }) => {
+            const active = code === current;
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={async () => {
+                  haptic('medium');
+                  if (code !== 'en') await loadLocale(code); // lazy dict, then switch
+                  setLocale(code);
+                }}
+                className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                  active
+                    ? 'bg-[#0F4D92] text-white shadow'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-[#0F4D92]/40 hover:bg-blue-50'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+          {/* English escape hatch — always available, always readable. */}
+          {current !== 'en' && current !== 'en-NG' && (
+            <button
+              type="button"
+              onClick={async () => {
+                haptic('medium');
+                setLocale('en-NG');
+              }}
+              className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 border border-amber-300 hover:bg-amber-200"
+            >
+              English
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

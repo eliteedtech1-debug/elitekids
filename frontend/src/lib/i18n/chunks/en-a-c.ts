@@ -12,6 +12,7 @@ export const enAC: Record<string, string> = {
   'a11y.largeTextDesc': 'Increase font sizes by 20%',
   'a11y.reduceMotion': 'Reduce motion',
   'a11y.reduceMotionDesc': 'Disable animations',
+  'a11y.language': 'Language',
   'a11y.reset': 'Reset to defaults',
   'a11y.settings': 'Accessibility settings',
   'a11y.shortLabel': 'A11y',

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Volume2, X } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t } from '@/lib/i18n';
-import { playCorrect, playTap } from '@/lib/utils/sound';
+import { playCorrect, playTap, speak } from '@/lib/utils/sound';
 import { haptic } from '@/lib/utils/haptic';
 
 /**
@@ -95,6 +95,29 @@ export default function PlacementQuiz({
 
   const q = questions && idx < questions.length ? questions[idx] : null;
   const picked = q ? answers[q.id] : undefined;
+
+  /** Spoken form of the current question: prompt + lettered options, so a
+   *  child who cannot read yet can still answer (audio-first placement). */
+  const spokenQuestion = q
+    ? `${q.prompt}. ${q.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o.label}`).join('. ')}`
+    : '';
+
+  // AUDIO SUPPORT: auto-speak each question as it appears (browser TTS only
+  // fires after the user's opening tap, so this is gesture-safe), with a
+  // replay button for "again!". Goes through speak() → Phonix, so phonics
+  // prompts like "Tap /sh/" are spoken as sounds.
+  useEffect(() => {
+    if (open && q && !result && !submitting) void speak(spokenQuestion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, q?.id]);
+
+  // Speak the result too — the celebration is audible, not just visual.
+  useEffect(() => {
+    if (open && result) {
+      void speak(`Great job! You are placed in ${result.band}. Let's play!`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, result?.band]);
 
   const pick = (optionIndex: number) => {
     if (!q || submitting) return;
@@ -202,7 +225,17 @@ export default function PlacementQuiz({
               <p className="mb-1 text-center text-xs font-bold uppercase tracking-wide text-gray-400">
                 {t('placement.questionOf', { current: idx + 1, total: questions.length })}
               </p>
-              <h3 className="mb-5 text-center text-lg font-bold text-gray-800">{q.prompt}</h3>
+              <div className="mb-5 flex items-start justify-center gap-2">
+                <h3 className="text-center text-lg font-bold text-gray-800">{q.prompt}</h3>
+                <button
+                  onClick={() => { haptic('light'); void speak(spokenQuestion); }}
+                  className="mt-0.5 shrink-0 rounded-full bg-[#0d9488]/10 p-2 text-[#0d9488] transition hover:bg-[#0d9488]/20 active:scale-95"
+                  aria-label={t('placement.hearAgain')}
+                  title={t('placement.hearAgain')}
+                >
+                  <Volume2 className="h-4 w-4" />
+                </button>
+              </div>
               <div className="grid gap-2.5">
                 {q.options.map((opt, i) => (
                   <button

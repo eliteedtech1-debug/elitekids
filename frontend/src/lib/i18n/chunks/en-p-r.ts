@@ -27,6 +27,7 @@ export const enPR: Record<string, string> = {
   'placement.doneTitle': 'All done! 🎉',
   'placement.doneBody': 'We measured your answers ({score}%) and picked the perfect games for you.',
   'placement.finish': 'Finish and see my level',
+  'placement.hearAgain': 'Hear it again',
   'placement.letsPlay': 'Let\'s Play',
   'placement.loadFailed': 'Could not load the quiz right now.',
   'placement.loading': 'Getting your quiz ready…',

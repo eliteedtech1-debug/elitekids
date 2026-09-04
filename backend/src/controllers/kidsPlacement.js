@@ -156,6 +156,21 @@ async function getPlacementQuiz(req, res) {
       }
     }
 
+    // PERSIST the fresh quiz so POST /submit can grade against it (submit
+    // rebuilds the asked questions from this row — without this row the
+    // submit always 409s and the child sees "Could not save your level").
+    // Safe to overwrite `band` with startBand: startBand is itself resolved
+    // FROM this row's placement when one exists, so it round-trips.
+    if (questions.length > 0) {
+      const schoolId = String(req.user.school_id || '');
+      await content.query(
+        `INSERT INTO kids_band_placements (child_admission_no, school_id, band, score_pct, quiz_questions)
+         VALUES (?, ?, ?, 0, ?)
+         ON DUPLICATE KEY UPDATE quiz_questions = VALUES(quiz_questions), band = VALUES(band), score_pct = 0`,
+        { replacements: [admission, schoolId, startBand, JSON.stringify(questions)] }
+      );
+    }
+
     return res.json({
       success: true,
       data: { questions, reused: false, startedAtBand: startBand },
