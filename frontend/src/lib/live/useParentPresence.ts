@@ -50,12 +50,22 @@ export function useParentPresence() {
 
   useEffect(() => {
     // Use parent-specific token so parent + student can coexist in same browser
-    const token = localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN) || localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-    if (!token) return;
+    // Decode JWTs to find the parent token (don't rely on shared user_data)
+    const candidates = [
+      localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN),
+      localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN),
+      localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN),
+    ].filter(Boolean);
 
-    const decoded = decodeToken(token);
-    if (!decoded) return;
-    if (String(decoded.user_type || '').toLowerCase() !== 'parent') return;
+    let token: string | null = null;
+    for (const t of candidates) {
+      const decoded = decodeToken(t!);
+      if (decoded && String(decoded.user_type || '').toLowerCase() === 'parent') {
+        token = t!;
+        break;
+      }
+    }
+    if (!token) return;
 
     const live = new EliteLive({});
     liveRef.current = live;

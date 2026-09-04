@@ -98,23 +98,41 @@ export const getCurrentUser = (): any => {
 };
 
 // ── Auth + tenant headers (mirrors elite-core createHeaders) ───────────────
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+  } catch { return null; }
+}
+
 export const createAuthHeaders = (customHeaders: Record<string, string> = {}): Record<string, string> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...customHeaders };
   try {
-    // Read from role-specific key first, fallback to shared key
-    const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA) || '{}');
-    const userType = (userData.user_type || '').toLowerCase();
-    let token: string | null = null;
-    if (userType === 'student') {
-      token = localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN);
-    } else if (userType === 'parent') {
-      token = localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN);
-    }
-    if (!token) token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    // Try each role-specific token and pick the one whose JWT matches the current route context.
+    // Decode each to find the right role — never rely on shared user_data (it gets overwritten).
+    const candidates = [
+      { key: STORAGE_KEYS.PARENT_TOKEN, token: localStorage.getItem(STORAGE_KEYS.PARENT_TOKEN) },
+      { key: STORAGE_KEYS.STUDENT_TOKEN, token: localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN) },
+      { key: STORAGE_KEYS.AUTH_TOKEN, token: localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) },
+    ].filter((c) => !!c.token) as Array<{ key: string; token: string }>;
 
-    // Backends (elite-api / elite-cbt-api / this app) all use
-    // passport-jwt's fromAuthHeaderAsBearerToken(), which REQUIRES the
-    // "Bearer " scheme — the stored token has no prefix, so add it here.
+    let token: string | null = null;
+    // Prefer the token whose path matches the role
+    const path = window.location.pathname;
+    for (const c of candidates) {
+      const payload = decodeJwtPayload(c.token);
+      const role = String(payload?.user_type || '').toLowerCase();
+      if (path.startsWith('/parent') && role === 'parent') { token = c.token; break; }
+      if (path.startsWith('/student') && role === 'student') { token = c.token; break; }
+      if (path.startsWith('/teacher') || path.startsWith('/dashboard') || path.startsWith('/admin')) {
+        if (role !== 'parent' && role !== 'student') { token = c.token; break; }
+      }
+    }
+    // Fallback: first available token
+    if (!token && candidates.length) token = candidates[0].token;
+
+    // Backends use passport-jwt's fromAuthHeaderAsBearerToken()
     if (token) headers.authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
 
     const ctx = getSchoolContext();
