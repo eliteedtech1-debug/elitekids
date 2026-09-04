@@ -204,6 +204,8 @@ export const ENDPOINTS = {
     SAVE_OPENSOURCE: '/media/save-opensource',
     SAVE_BATCH: '/media/save-opensource-batch',
     OPENSOURCE_ASSETS: '/media/opensource-assets',
+    UPLOAD: '/media/upload',
+    UPLOAD_STATUS: (jobId: string) => `/media/upload-status/${encodeURIComponent(jobId)}`,
   },
 
   // Illustrated story scenes (Phase 3): approved backgrounds/characters +

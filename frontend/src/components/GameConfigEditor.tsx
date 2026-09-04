@@ -14,6 +14,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Wand2, Plus, Trash2, Code2, Sparkles } from 'lucide-react';
 import MediaPicker from '@/components/MediaPicker';
+import VoiceRecorderField from '@/components/VoiceRecorderField';
 import EmojiPicker from '@/components/EmojiPicker';
 import { t } from '@/lib/i18n';
 
@@ -189,6 +190,12 @@ export default function GameConfigEditor({ template, configJson, onJsonChange }:
                 <MediaPicker value={p.image || ''} onChange={v => update(c => { c.pairs[i].image = v; })} />
               </Field>
             </div>
+            <div className="mt-2">
+              <VoiceRecorderField
+                value={p.audio || ''}
+                onChange={v => update(c => { c.pairs[i].audio = v; })}
+              />
+            </div>
           </RowCard>
         ))}
         <AddButton label={t('gameEditor.addPair')} onClick={() => update(c => { c.pairs.push({ a: '', b: '', image: '' }); })} />
@@ -217,6 +224,12 @@ export default function GameConfigEditor({ template, configJson, onJsonChange }:
               <Field label={t('gameEditor.matchesId')} hint={t('gameEditor.matchesHint')}>
                 <TextInput value={it.matches || ''} onChange={v => update(c => { c.assets.items[i].matches = v; })} />
               </Field>
+            </div>
+            <div className="mt-2">
+              <VoiceRecorderField
+                value={it.audio || ''}
+                onChange={v => update(c => { c.assets.items[i].audio = v; })}
+              />
             </div>
           </RowCard>
         ))}
@@ -249,6 +262,12 @@ export default function GameConfigEditor({ template, configJson, onJsonChange }:
               <Field label={t('gameEditor.altDescription')}>
                 <TextInput value={it.context || ''} onChange={v => update(c => { c.items[i].context = v; })} />
               </Field>
+            </div>
+            <div className="mt-2">
+              <VoiceRecorderField
+                value={it.audio || ''}
+                onChange={v => update(c => { c.items[i].audio = v; })}
+              />
             </div>
           </RowCard>
         ))}
@@ -337,6 +356,12 @@ export default function GameConfigEditor({ template, configJson, onJsonChange }:
             <Field label={t('gameEditor.answerImage')}>
               <MediaPicker value={o.image || ''} onChange={v => update(c => { c.options[i].image = v; })} />
             </Field>
+          </div>
+          <div className="mt-2">
+            <VoiceRecorderField
+              value={o.audio || ''}
+              onChange={v => update(c => { c.options[i].audio = v; })}
+            />
           </div>
         </RowCard>
       ))}
