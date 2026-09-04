@@ -353,6 +353,7 @@ export default function Login() {
             </button>
           </div>
 
+          {authView === 'login' && (
           <form onSubmit={handleSubmit} className="space-y-3">
             {/* School short name — shown until the lookup resolves (typed flow),
                 after Change on a subdomain, or when the auto subdomain lookup failed */}
@@ -502,6 +503,7 @@ export default function Login() {
               </span>
             </button>
           </form>
+          )}
 
           {/* Parent signup link — flagship only */}
           {mode === 'users' && FLAGSHIP_SHORT_NAMES.includes((short_name?.toLowerCase() || '') as typeof FLAGSHIP_SHORT_NAMES[number]) && (
@@ -547,6 +549,11 @@ export default function Login() {
                   placeholder={t('login.registerPassword')} required minLength={6}
                   className="w-full rounded-xl border border-gray-200/80 bg-white/70 py-2.5 pl-10 pr-3 text-sm focus:border-teal-400 focus:outline-none transition-all duration-200" />
               </div>
+              {error && (
+                <div className="rounded-xl bg-red-50/80 border border-red-200/50 p-3 text-xs text-red-700 backdrop-blur-sm">
+                  {error}
+                </div>
+              )}
               <button type="submit" disabled={signupLoading || !form.school_id}
                 className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2.5 text-sm font-bold text-white shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all duration-300 hover:shadow-[0_8px_25px_rgba(16,185,129,0.4)] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60">
                 {signupLoading ? t('login.creatingAccount') : t('login.createParentAccount')}
