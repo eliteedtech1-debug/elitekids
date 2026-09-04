@@ -13,6 +13,7 @@ uploads/
 *.db-shm
 *.db-wal
 .DS_Store
+.playwright-mcp/
 logs/
 
 # internal ops - never public
