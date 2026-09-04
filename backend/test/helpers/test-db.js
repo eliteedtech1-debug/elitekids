@@ -15,6 +15,25 @@
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
+// Load test-only env from backend/.env.test (git-ignored) so globalSetup (a
+// separate process that does NOT run setupFiles) still sees the TEST_DB_*
+// credentials. Explicit process.env (CI-provided) always wins.
+const fs = require('fs');
+const path = require('path');
+const envTestPath = path.join(__dirname, '..', '..', '.env.test');
+if (fs.existsSync(envTestPath)) {
+  const lines = fs.readFileSync(envTestPath, 'utf8').split('\n');
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq === -1) continue;
+    const k = line.slice(0, eq).trim();
+    const v = line.slice(eq + 1).trim();
+    if (k && process.env[k] === undefined) process.env[k] = v;
+  }
+}
+
 const TEST_DB = process.env.TEST_DB_NAME || 'elite_kids_test';
 const CONFIG = {
   host: process.env.TEST_DB_HOST || '127.0.0.1',
@@ -81,6 +100,7 @@ CREATE TABLE IF NOT EXISTS school_setup (
   badge_url VARCHAR(500) NULL,
   status VARCHAR(20) NULL DEFAULT 'Active',
   kids_stand_alone TINYINT(1) NULL DEFAULT 0,
+  kids_url VARCHAR(50) NULL DEFAULT NULL,
   nursery_section TINYINT(1) NULL DEFAULT 0,
   cbt_stand_alone TINYINT(1) NULL DEFAULT 0,
   created_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
@@ -114,6 +134,7 @@ CREATE TABLE IF NOT EXISTS kids_children (
   parent_user_id VARCHAR(50) NULL,
   parent_phone VARCHAR(20) NULL,
   status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+  allow_anonymous_comparison TINYINT(1) NOT NULL DEFAULT 0,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_admission_school (admission_no, school_id),

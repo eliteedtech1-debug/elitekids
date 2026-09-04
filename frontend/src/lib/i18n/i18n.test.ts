@@ -12,7 +12,7 @@ import './test-shim';
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
-import { t, tN, setLocale, loadLocale, getLocale, getTtsLocale, useI18n } from './index';
+import { t, tN, setLocale, loadLocale, getLocale, getDir, getTtsLocale, useI18n } from './index';
 
 /** Recursively collect source files (skip .test.ts, .bak-*, node_modules). */
 function collectSrcFiles(dir: string, out: string[] = []): string[] {
@@ -107,8 +107,16 @@ describe('locale switching', () => {
     await loadLocale('ha'); // ha is lazy-loaded; register before switching
     setLocale('ha');
     expect(getLocale()).toBe('ha');
+    expect(getDir()).toBe('ltr'); // Hausa uses Latin script and is not RTL
     expect(getTtsLocale()).toBe('en-NG'); // Hausa UI still gets an EN voice
     setLocale('en-NG'); // restore default for later tests
+  });
+
+  it('loads a persisted Hausa dictionary before rendering translated copy', async () => {
+    setLocale('ha');
+    expect(t('common.loading')).toBe('Ana lodi…');
+    expect(t('error.authRequired')).toBe('Da fatan za a shiga don ci gaba.');
+    expect(t('companion.context.returning.1')).toBe('Barka da dawowa! Na yi kewarku! 🌟');
   });
 
   it('ignores unknown locales (store unchanged)', () => {

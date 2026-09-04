@@ -37,6 +37,8 @@ import SceneRenderer from '@/components/SceneRenderer';
 import SpeechGame from '@/components/SpeechGame';
 import { flattenScenes, isVisualStory, estimateDurationSec } from '@/lib/utils/scenes';
 import type { SceneLibrary, NormalizedScene } from '@/lib/utils/scenes';
+import type { LearningPathData, PathLesson, LessonState } from '@/lib/utils/learningPath';
+import { flattenUnits } from '@/lib/utils/learningPath';
 // NOTE: children never see payment UI — no SubscriptionUpsell here anymore.
 import StickerButton from '@/components/StickerButton';
 import { getFeedbackClasses, getTimerColor, FOCUS_RING_GAME, motionClass } from '@/lib/utils/accessibility';
@@ -1846,6 +1848,12 @@ function QuizGame({
 
   const promptMode = config.promptMode || 'text';
   const responseMode = config.responseMode || 'text';
+  // Mobile-first smart sizing: when this game presents an IMAGE question with
+  // IMAGE options (e.g. animal games), the small phone screen gets more room by
+  // stacking options one-per-row and enlarging the artwork. No options are
+  // removed — only the layout scales up for clarity.
+  const imgPromptGame = promptMode === 'image';
+  const imgResponseGame = responseMode === 'image';
   const isLearning = mode === 'learning';
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
@@ -2119,8 +2127,8 @@ function QuizGame({
 
           {/* Multimodal image/audio prompt */}
           {promptMode === 'image' && (currentQ.image || config.image) && (
-            <div className="mt-3 flex justify-center">
-              <CachedImg src={currentQ.image || config.image} alt="" className="h-20 w-20 object-contain rounded-xl" />
+            <div className={`flex justify-center ${imgPromptGame ? 'mt-2' : 'mt-3'}`}>
+              <CachedImg src={currentQ.image || config.image} alt="" className={`object-contain rounded-xl ${imgPromptGame ? 'h-32 w-32 sm:h-24 sm:w-24' : 'h-20 w-20'}`} />
             </div>
           )}
           {promptMode === 'audio' && (
@@ -2147,7 +2155,7 @@ function QuizGame({
       </div>
 
       {/* Answer options — large touch targets */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${imgResponseGame ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
         {options.map((opt, i) => (
           <button
             key={i}
@@ -2174,9 +2182,9 @@ function QuizGame({
               </>
             ) : responseMode === 'image' ? (
               opt.image ? (
-                <CachedImg src={opt.image} alt="" className="mx-auto h-16 w-16 object-contain" />
+                <CachedImg src={opt.image} alt="" className={`object-contain ${imgResponseGame ? 'h-24 w-24 sm:h-16 sm:w-16' : 'h-16 w-16'}`} />
               ) : opt.emoji ? (
-                <span className="text-4xl" role="img" aria-label="option">{opt.emoji}</span>
+                <span className={`${imgResponseGame ? 'text-6xl sm:text-4xl' : 'text-4xl'}`} role="img" aria-label="option">{opt.emoji}</span>
               ) : (
                 <span className="text-lg font-bold text-gray-700">{opt.label}</span>
               )
@@ -2642,6 +2650,9 @@ function ResultBreakdown({
   mode,
   onRestart,
   onBack,
+  onNext,
+  nextLabel,
+  nextNote,
 }: {
   answers: AnswerResult[];
   score: number;
@@ -2649,6 +2660,9 @@ function ResultBreakdown({
   mode: GameMode;
   onRestart: () => void;
   onBack: () => void;
+  onNext?: () => void;
+  nextLabel?: string;
+  nextNote?: string;
 }) {
   const { colorblindMode } = useA11yStore();
   const cbCorrect = getFeedbackClasses(colorblindMode, 'correct');
@@ -2726,20 +2740,30 @@ function ResultBreakdown({
         )}
 
         {/* Buttons */}
-        <div className="flex gap-3 justify-center animate-game-slide-up stagger-6">
+        <div className="flex gap-3 justify-center animate-game-slide-up stagger-6 flex-wrap">
           <button
             onClick={() => { playTap(); onRestart(); }}
             className="inline-flex items-center gap-2 rounded-xl border-2 border-[#0F4D92]/20 px-5 py-2.5 text-sm font-semibold text-[#0F4D92] hover:bg-[#0F4D92]/5 transition-all hover:scale-105 hover:animate-game-squish active:scale-95"
           >
             <RotateCcw className="h-4 w-4" /> {t('game.playAgain')}
           </button>
-          <button
-            onClick={() => { playTap(); onBack(); }}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0D3F7A] transition-all hover:scale-105 hover:animate-game-squish active:scale-95"
-          >
-            {t('game.backToGames')}
-          </button>
+          {onNext && nextLabel ? (
+            <button
+              onClick={() => { playTap(); onNext(); }}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-200 hover:bg-[#0D3F7A] transition-all hover:scale-105 hover:animate-game-squish active:scale-95"
+            >
+              {nextLabel} →
+            </button>
+          ) : (
+            <button
+              onClick={() => { playTap(); onBack(); }}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0D3F7A] transition-all hover:scale-105 hover:animate-game-squish active:scale-95"
+            >
+              {t('game.backToGames')}
+            </button>
+          )}
         </div>
+        {nextNote && <p className="mt-3 text-sm font-semibold text-[#0F4D92] animate-pulse">{nextNote}</p>}
       </div>
     </div>
   );
@@ -3630,6 +3654,12 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   const savedMode = savedModeKey ? (localStorage.getItem(savedModeKey) as GameMode | null) : null;
   const [phase, setPhase] = useState<Phase>(validUrlMode ? 'play' : 'play');
   const [mode, setMode] = useState<GameMode>(validUrlMode || savedMode || 'practice');
+  // TikTok-flow path context (Issue 2): the ordered learning path lets GamePlay
+  // know the current lesson's own state (for Test gating) and the next node to
+  // auto-advance to after passing. Best-effort fetch; never blocking.
+  const [pathData, setPathData] = useState<LearningPathData | null>(null);
+  const [ownLessonState, setOwnLessonState] = useState<LessonState>('none');
+  const nextLessonRef = useRef<PathLesson | null>(null);
   const [config, setConfig] = useState<GameConfig | null>(null);
   const [scenes, setScenes] = useState<SceneWrapper[]>([]);
   const [sceneIdx, setSceneIdx] = useState(0);
@@ -3945,6 +3975,9 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   const className = tokenPayload.class_name || tokenPayload.current_class || '';
   const canLockMode = ['teacher', 'parent', 'admin', 'branchadmin', 'superadmin'].includes(userRole) && admissionNo;
   const isTeacher = ['teacher', 'admin', 'branchadmin', 'superadmin'].includes(userRole);
+  // Issue 2: children must practice a game before the Test is offered. Staff,
+  // preview sessions and locked-mode overrides always see Test.
+  const hideTestTab = !isTeacher && !isPreview && pathData !== null && ownLessonState === 'none';
 
   // Fetch mode lock when game loads — checks per-student AND class-wide
   useEffect(() => {
@@ -3960,6 +3993,64 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
       })
       .catch(() => {}); // No lock — child can choose freely
   }, [lessonId, admissionNo, className]);
+
+  // TikTok-flow path context (Issue 2): fetch the ordered learning path once so
+  // we can gate the Test tab on practice_done and auto-advance after a pass.
+  useEffect(() => {
+    if (!lessonId || !admissionNo || isPreview) return;
+    apiClient.get(ENDPOINTS.LEARNING_PATH(admissionNo))
+      .then((res) => {
+        const data = res.data?.data as LearningPathData | undefined;
+        if (!data) return;
+        setPathData(data);
+        const flat = flattenUnits(data);
+        // Current lesson's state (Test gating).
+        let selfState: LessonState = 'none';
+        let selfFlatIdx = -1;
+        for (let i = 0; i < flat.length; i++) {
+          const idx = flat[i].unit.lessons.findIndex((l) => l.lesson_id === lessonId);
+          if (idx !== -1) { selfFlatIdx = i; selfState = flat[i].unit.lessons[idx].state; break; }
+        }
+        setOwnLessonState(selfState);
+        // Next node = first lesson in path order whose unit is open AND state is
+        // not 'done', preferring the one immediately after the current node.
+        let next: PathLesson | null = null;
+        if (selfFlatIdx !== -1) {
+          const after = flat.slice(selfFlatIdx);
+          for (const { unit } of after) {
+            if (unit.locked) break; // stops at the next locked boundary
+            const cand = unit.lessons.find((l) => l.state !== 'passed');
+            if (cand && cand.lesson_id !== lessonId) { next = cand; break; }
+          }
+          if (!next) {
+            const any = flat.find(({ unit }) => !unit.locked && unit.lessons.some((l) => l.state !== 'passed'));
+            if (any) next = any.unit.lessons.find((l) => l.state !== 'passed') || null;
+          }
+        }
+        nextLessonRef.current = next;
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId, admissionNo]);
+
+  // Issue 2 (TikTok flow): after PASSING a test, auto-advance to the next
+  // lesson in path order (short countdown). Cancelled if the child taps out.
+  const goToPathNext = useCallback(() => {
+    const next = nextLessonRef.current;
+    if (next && next.lesson_id && next.lesson_id !== lessonId) {
+      playTap();
+      navigate(`/play/${encodeURIComponent(next.lesson_id)}`);
+    } else {
+      navigate('/student');
+    }
+  }, [lessonId, navigate]);
+
+  const testPassed = mode === 'test' && score >= 50;
+  useEffect(() => {
+    if (phase !== 'result' || !testPassed) return;
+    const id = setTimeout(goToPathNext, 3500);
+    return () => clearTimeout(id);
+  }, [phase, testPassed, goToPathNext]);
 
   // Adaptive difficulty: fetch the ADE v2 (BKT) profile on mount. v1 removed
   // (Phase 4 cleanup) — v2 tracks per-lesson mastery via the same lesson_id.
@@ -4716,6 +4807,22 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
 
   /* ── Result Phase ── */
   if (phase === 'result') {
+    // Issue 2 (TikTok flow): pick the frictionless next action.
+    const nextLesson = nextLessonRef.current;
+    const passingTest = testPassed && !!(nextLesson && nextLesson.lesson_id !== lessonId);
+    const takingTest = mode === 'practice' && !testPassed;
+    let nextLabel: string | undefined;
+    let nextHandler: (() => void) | undefined;
+    if (passingTest) {
+      nextLabel = `${t('game.next')}: ${nextLesson!.title}`;
+      nextHandler = goToPathNext;
+    } else if (takingTest) {
+      nextLabel = `${t('game.modeLabel.test')} →`;
+      nextHandler = () => { handleModeSelect('test'); setPhase('play'); };
+    } else if (testPassed) {
+      nextLabel = t('game.backToGames');
+      nextHandler = goToPathNext;
+    }
     return (
       <>
         <ResultBreakdown
@@ -4725,6 +4832,8 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           mode={mode}
           onRestart={handleRestart}
           onBack={() => navigate('/student')}
+          onNext={nextHandler}
+          nextLabel={nextLabel}
         />
         {/* Q1 Phase 2: ADE v2 next-item recommendations (weakest skills first) */}
         {nextRecs && nextRecs.length > 0 && (
@@ -4833,7 +4942,9 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
           {([
             { key: 'learning' as GameMode, icon: '📺', label: t('game.modeLabel.learn'), color: 'purple', desc: t('game.modeDesc.learn') },
             { key: 'practice' as GameMode, icon: '🎯', label: t('game.modeLabel.practice'), color: 'green', desc: t('game.modeDesc.practice') },
-            { key: 'test' as GameMode, icon: '📝', label: t('game.modeLabel.test'), color: 'blue', desc: t('game.modeDesc.test') },
+            // Issue 2 (TikTok flow): Test stays hidden until the child has
+            // practiced the game (practice_done). Staff/preview always see it.
+            ...(hideTestTab ? [] : [{ key: 'test' as GameMode, icon: '📝', label: t('game.modeLabel.test'), color: 'blue', desc: t('game.modeDesc.test') }]),
           ]).map((m) => (
             <button
               key={m.key}

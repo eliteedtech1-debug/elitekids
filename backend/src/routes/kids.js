@@ -89,6 +89,7 @@ const { getModeLock, setModeLock, removeModeLock, listModeLocks, convertTestScor
 // Flagship `elite` model school + subscriptions (spec: FLAGSHIP-ELITE-SCHOOL-SPEC.md)
 const subCtrl = require('../controllers/kidsSubscription');
 const { requireKidsEntitlement } = require('../controllers/kidsSubscription');
+const mktCtrl = require('../controllers/kidsMarketplace');
 
 const auth = passport.authenticate('jwt', { session: false });
 const { getLeaderboard, getMyStatus, getMyBadges } = require('../controllers/kidsLeaderboard');
@@ -114,6 +115,10 @@ const analyticsCtrl = require('../controllers/kidsAnalytics');
 const matchHistoryCtrl = require('../controllers/kidsMatchHistory');
 // E4: Voice Notes (async teacher audio)
 const { voiceNoteUploadMW, createVoiceNote, listVoiceNotes, listMyVoiceNotes, streamVoiceNoteAudio } = require("../controllers/e4VoiceNotes");
+// Q3 2027: Classroom Collaboration + Parent Intelligence + Teacher AI
+const collabCtrl = require('../controllers/kidsCollaboration');
+const parentIntelCtrl = require('../controllers/kidsParentIntelligence');
+const teacherCtrl = require('../controllers/kidsTeacher');
 
 module.exports = (app) => {
   // ── Parent read-only activity feed ──────────────────────────────────────
@@ -375,6 +380,18 @@ module.exports = (app) => {
   // req.rawBody is captured by the global express.json({ verify }) in app.js
   app.post('/kids/paystack/webhook', subCtrl.webhook);
 
+  // ── Phase 4: Content Marketplace (Q4 §2.13 — Paystack + Monnify) ───────
+  app.get('/kids/marketplace/listings', auth, mktCtrl.listListings);
+  app.get('/kids/marketplace/listings/:id', auth, mktCtrl.getListing);
+  app.post('/kids/marketplace/listings', auth, requireStaff, mktCtrl.createListing);
+  app.patch('/kids/marketplace/listings/:id', auth, requireStaff, mktCtrl.updateListing);
+  app.delete('/kids/marketplace/listings/:id', auth, requireStaff, mktCtrl.deleteListing);
+  app.post('/kids/marketplace/initiate', auth, mktCtrl.initiatePurchase);
+  app.post('/kids/marketplace/purchase/verify', auth, mktCtrl.verifyPurchase);
+  app.post('/kids/marketplace/review', auth, mktCtrl.addReview);
+  app.post('/kids/marketplace/webhook', mktCtrl.purchaseWebhook);            // Paystack
+  app.post('/kids/marketplace/monnify-webhook', mktCtrl.monnifyWebhook);     // Monnify
+
   // ── Phase 4: Match History ──────────────────────────────────────────────
   app.get('/kids/match-history', auth, matchHistoryCtrl.getMatchHistory);
   app.get('/kids/match-history/rivalry', auth, matchHistoryCtrl.getRivalry);
@@ -391,4 +408,31 @@ module.exports = (app) => {
   app.get('/kids/chat/:adm/unread', auth, chatCtrl.unreadCount);
 
   app.get('/kids/match-history/stats', auth, requireStaff, matchHistoryCtrl.getMatchStats);
+
+  // ── Q3 2027: Classroom Collaboration (§3.1) ──────────────────────────────
+  app.post('/kids/teams/create', auth, requireStaff, collabCtrl.createTeam);
+  app.get('/kids/teams/mine', auth, collabCtrl.getMyTeam);
+  app.get('/kids/teams/:id', auth, collabCtrl.getTeam);
+  app.post('/kids/teams/:id/join', auth, collabCtrl.joinTeam);
+  app.get('/kids/teams/:id/challenge', auth, collabCtrl.getTeamChallenge);
+  app.post('/kids/teams/:id/challenge/submit', auth, collabCtrl.submitChallenge);
+  app.post('/kids/peer-teach/record', auth, collabCtrl.recordPeerTeaching);
+  app.get('/kids/peer-teach/board', auth, collabCtrl.getPeerTeachingBoard);
+  app.get('/kids/class-quest/active', auth, collabCtrl.getActiveClassQuest);
+  app.post('/kids/class-quest/contribute', auth, collabCtrl.contributeClassQuest);
+  app.get('/kids/class-quest/leaderboard', auth, collabCtrl.getClassQuestLeaderboard);
+
+  // ── Q3 2027: Parent Intelligence (§3.2) ──────────────────────────────────
+  app.get('/kids/parent/insights/:childId', auth, parentIntelCtrl.getInsights);
+  app.get('/kids/parent/weekly-digest/:childId', auth, parentIntelCtrl.getWeeklyDigest);
+  app.get('/kids/parent/comparison/:childId', auth, parentIntelCtrl.getComparison);
+  app.post('/kids/parent/action-ack', auth, parentIntelCtrl.ackActionItem);
+  app.post('/kids/parent/opt-in', auth, parentIntelCtrl.toggleOptIn);
+
+  // ── Q3 2027: Teacher AI Assistant (§3.3) ─────────────────────────────────
+  app.get('/kids/teacher/insights', auth, requireStaff, teacherCtrl.getTeacherInsights);
+  app.get('/kids/teacher/suggestions', auth, requireStaff, teacherCtrl.getSuggestions);
+  app.post('/kids/teacher/auto-assign', auth, requireStaff, teacherCtrl.autoAssign);
+  app.get('/kids/teacher/weekly-report', auth, requireStaff, teacherCtrl.getWeeklyReport);
+  app.get('/kids/teacher/struggling', auth, requireStaff, teacherCtrl.getStruggling);
 };

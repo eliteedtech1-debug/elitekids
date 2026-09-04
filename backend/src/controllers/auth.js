@@ -345,6 +345,7 @@ async function studentLogin(req, res) {
       branch_id: student.branch_id,
       class_name: student.class_name || null,
       current_class: student.current_class || null,
+      class_code: student.class_code || student.current_class || null,
     });
 
     return res.json({
@@ -574,6 +575,28 @@ async function forgotPassword(req, res) {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    const mailer = require('../services/mailer');
+
+    if (email) {
+      const sName = user.name || '';
+      setImmediate(() => {
+        mailer.send({
+          kind: 'password-reset-otp',
+          to: email,
+          subject: 'Your EliteKids password reset code',
+          text: `Hello ${sName}, your EliteKids password reset code is ${otp}. It expires in 30 minutes. If you did not request this, you can ignore this email.`,
+          html: `
+            <div style="font-family:sans-serif;max-width:560px">
+              <h2 style="margin:0 0 8px">Password reset</h2>
+              <p style="margin:0 0 12px;color:#374151">Hello ${sName}, use the code below to reset your EliteKids password. It expires in 30 minutes.</p>
+              <p style="font-size:28px;font-weight:bold;letter-spacing:4px;background:#f0fdfa;padding:12px 16px;border-radius:8px;display:inline-block;margin:0 0 12px">${otp}</p>
+              <p style="color:#6b7280;font-size:12px;margin:0">If you did not request this, you can safely ignore this email.</p>
+            </div>`,
+        });
+      });
+    }
+    // Phone-based resets have no inbox here; OTP still returned via the generic
+    // response ("If an account exists, an OTP has been sent.").
 
     await db.sequelize
       .query(
@@ -625,6 +648,25 @@ async function resetPassword(req, res) {
       `UPDATE password_reset_tokens SET used_at = NOW() WHERE contact = :contact AND otp_code = :otp_code AND school_id = :school_id`,
       { replacements: { contact, otp_code, school_id } }
     );
+
+    const mailer = require('../services/mailer');
+    if (email) {
+      setImmediate(() => {
+        mailer.send({
+          kind: 'password-reset-confirm',
+          to: email,
+          subject: 'Your EliteKids password was reset',
+          text: 'Your EliteKids password was successfully reset. If you did not do this, please contact support immediately.',
+          html: `
+            <div style="font-family:sans-serif;max-width:560px">
+              <h2 style="margin:0 0 8px">Password reset successful</h2>
+              <p style="margin:0 0 12px;color:#374151">Your EliteKids password was just reset. You can now sign in with your new password.</p>
+              <p style="color:#6b7280;font-size:12px;margin:0">If you did not do this, please contact support immediately.</p>
+            </div>`,
+        });
+      });
+    }
+
     return res.json({ success: true, message: 'Password reset successfully.' });
   } catch (err) {
     console.error('reset-password error:', err.message);
@@ -675,6 +717,26 @@ async function parentSignup(req, res) {
       process.env.JWT_SECRET_KEY,
       { expiresIn: '24h' }
     );
+
+    // Welcome email — fails open so a mailer hiccup can never break signup.
+    if (email && email.trim()) {
+      const mailer = require('../services/mailer');
+      setImmediate(() => {
+        mailer.send({
+          kind: 'signup-welcome',
+          to: email.trim(),
+          subject: `Welcome to EliteKids, ${name}!`,
+          text: `Hi ${name}, welcome to EliteKids! Your parent account is ready. Sign in to explore your child's progress, practice games, and live sessions.`,
+          html: `
+            <div style="font-family:sans-serif;max-width:560px">
+              <h2 style="margin:0 0 8px">Welcome to EliteKids 🎉</h2>
+              <p style="margin:0 0 12px;color:#374151">Hi ${name}, your parent account is ready. EliteKids is your window into your child's learning — games, progress, and live sessions.</p>
+              <p style="margin:0 0 12px;color:#374151">Sign in at <a href="https://elitekids.com.ng" style="color:#0d9488">elitekids.com.ng</a> to get started.</p>
+              <p style="color:#6b7280;font-size:12px;margin:0">EliteKids — Gamified learning for the next generation.</p>
+            </div>`,
+        });
+      });
+    }
 
     return res.status(201).json({
       success: true,

@@ -22,6 +22,7 @@ import {
   Sparkles,
   Mic,
   ChevronDown,
+  Users,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -62,6 +63,10 @@ import {
   type LearningPathData,
   type WeeklyGoal,
 } from '@/lib/utils/learningPath';
+import TeamChallenge from '@/components/TeamChallenge';
+import PeerTeachingBoard from '@/components/PeerTeachingBoard';
+import ClassQuest from '@/components/ClassQuest';
+import CollaborationBadge from '@/components/CollaborationBadge';
 
 /* ── Types ────────────────────────────────────────────────────── */
 
@@ -114,6 +119,7 @@ const TABS: Tab[] = [
   { key: 'food', labelKey: 'student.tab.food', icon: <Apple className="h-4 w-4" />, view: 'grid', filter: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
   { key: 'festival', labelKey: 'student.tab.festival', icon: <Swords className="h-4 w-4" />, view: 'special', filter: () => true },
   { key: 'leaderboard', labelKey: 'student.tab.leaderboard', icon: <Trophy className="h-4 w-4" />, view: 'special', filter: () => true },
+  { key: 'teams', labelKey: 'collab.myTeam', icon: <Users className="h-4 w-4" />, view: 'special', filter: () => true },
 ];
 
 /* ── Age-level badge colors (from accessibility palette) ── */
@@ -189,6 +195,18 @@ export default function StudentHome() {
       setStudent(decoded);
 
       const admissionNo = decoded?.admission_no || decoded?.id;
+
+      // Discover the student's team from the server so the collaboration tab
+      // remains reachable even when the JWT predates Q3 team membership.
+      if (admissionNo && String(decoded?.user_type || '').toLowerCase() === 'student') {
+        const teamRes = await apiClient.get(ENDPOINTS.COLLAB.TEAMS_MINE).catch(() => null);
+        const team = teamRes?.data?.data;
+        if (team) {
+          const nextStudent = { ...decoded, team_id: team.id, class_code: team.class_id || decoded?.class_code };
+          decoded = nextStudent;
+          setStudent(nextStudent);
+        }
+      }
 
       // Welcome tour: gate on server-side onboarding status independently of
       // catalog/offline state so first-time students always see the tour right
@@ -692,6 +710,22 @@ export default function StudentHome() {
           </div>
         ) : (
           <>
+            {/* Collaboration notification rail */}
+            <div className="mb-4 flex items-center gap-3 rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-lg shadow-[#0F4D92]/5 backdrop-blur-xl animate-game-slide-up">
+              <CollaborationBadge
+                classId={student?.class_code ? String(student.class_code) : undefined}
+                childAdmissionNo={String(student?.admission_no || student?.id || '')}
+              />
+              <div className="flex-1" />
+              <button
+                onClick={() => { playTap(); setActiveTab('teams'); }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-[#0d9488] to-emerald-500 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-[#0d9488]/25 transition hover:shadow-lg hover:scale-105 active:scale-95"
+              >
+                <Users className="h-3.5 w-3.5" />
+                {t('collab.myTeam', { defaultValue: 'Teams' })}
+              </button>
+            </div>
+
             {/* Tabs — game-style pill navigation (Learning Path is the default) */}
             <div className="mb-5 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {/* Keep at least ONE subject pill visible even when every subject
@@ -735,6 +769,28 @@ export default function StudentHome() {
               <StudentFestival onGoPlay={() => navigate('/student')} />
             ) : activeTab === 'leaderboard' ? (
               <StudentLeaderboardPanel />
+            ) : activeTab === 'teams' ? (
+              <div className="space-y-5 animate-game-slide-up">
+                {student?.class_code && (
+                  <ClassQuest
+                    classId={String(student.class_code)}
+                    childAdmissionNo={String(student.admission_no || student.id || '')}
+                  />
+                )}
+                {student?.team_id && (
+                  <TeamChallenge
+                    teamId={Number(student.team_id)}
+                    classId={String(student.class_code)}
+                    childAdmissionNo={String(student.admission_no || student.id || '')}
+                  />
+                )}
+                {student?.class_code && (
+                  <PeerTeachingBoard
+                    classId={String(student.class_code)}
+                    childAdmissionNo={String(student.admission_no || student.id || '')}
+                  />
+                )}
+              </div>
             ) : activeTab === 'path' ? (
               <>
                 {/* Path header + refresh */}

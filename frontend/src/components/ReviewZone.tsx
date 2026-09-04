@@ -110,6 +110,19 @@ export default function ReviewZone() {
     );
   }
 
+  // Issue 1: hide the whole Review Zone when this child has NO accumulated
+  // review data — no due reviews AND no review history. A brand-new learner
+  // shouldn't see a spaced-repetition section that only serves prior play.
+  const hasReviewData =
+    reviews.length > 0 ||
+    (stats != null &&
+      (Number(stats.total_reviewed) > 0 ||
+       Number(stats.due_today) > 0 ||
+       Number(stats.streak_days) > 0));
+  if (!hasReviewData) {
+    return null;
+  }
+
   const accuracy = stats ? Math.round(Number(stats.avg_accuracy) || 0) : 0;
   const safeAccuracy = Number.isFinite(accuracy) ? accuracy : 0;
 

@@ -29,7 +29,7 @@ import { en } from './en';
 export type Locale = 'en' | 'en-NG' | 'ha';
 
 /** RTL locales require dir="rtl" on the root element. */
-const RTL_LOCALES = new Set<string>(['ha', 'ar', 'fa', 'ur']);
+const RTL_LOCALES = new Set<string>(['ar', 'fa', 'ur']);
 
 interface I18nState {
   locale: Locale;
@@ -117,6 +117,11 @@ export async function loadLocale(locale: string): Promise<void> {
     // Strip _meta if present
     const { _meta, ...strings } = dict;
     addLocale(locale, strings);
+    // A persisted locale can be restored before its lazy dictionary loads.
+    // Re-apply it after registration so the UI rerenders with translated copy.
+    if (getLocale() === locale && locale !== 'en') {
+      useI18n.getState().setLocale(locale as Locale);
+    }
   } catch {
     // locale file not found — silently ignore, fallback to en
   }

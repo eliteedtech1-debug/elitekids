@@ -13,6 +13,10 @@ import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t, tN } from '@/lib/i18n';
 import AdminNav from '@/components/AdminNav';
+import TeacherInsightsPanel from '@/components/TeacherInsightsPanel';
+import StudentAlertCard from '@/components/StudentAlertCard';
+import ContentSuggestion from '@/components/ContentSuggestion';
+import AutoAssignDialog from '@/components/AutoAssignDialog';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -107,8 +111,12 @@ export default function TeacherAnalytics() {
   const [games, setGames] = useState<GameRow[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'overview' | 'classes' | 'struggling' | 'games' | 'leaderboard'>('overview');
+  const [tab, setTab] = useState<'overview' | 'classes' | 'struggling' | 'games' | 'leaderboard' | 'insights' | 'suggestions'>('overview');
   const [lbPeriod, setLbPeriod] = useState<'week' | 'month' | 'all'>('week');
+  const [teacherInsights, setTeacherInsights] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showAutoAssign, setShowAutoAssign] = useState(false);
+  const [autoAssignIntents, setAutoAssignIntents] = useState<any[]>([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -133,6 +141,28 @@ export default function TeacherAnalytics() {
   }, [lbPeriod]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Q3 intelligence is class-scoped and must be loaded after the analytics
+  // response identifies a class. Keep it separate so a Q3 outage never hides
+  // the established analytics dashboard.
+  useEffect(() => {
+    const classId = classes[0]?.class_code;
+    if (!classId) return;
+    let alive = true;
+    Promise.all([
+      apiClient.get(`${ENDPOINTS.TEACHER_AI.INSIGHTS}?class_id=${encodeURIComponent(classId)}`),
+      apiClient.get(`${ENDPOINTS.TEACHER_AI.SUGGESTIONS}?class_id=${encodeURIComponent(classId)}`),
+    ]).then(([insightRes, suggestionRes]) => {
+      if (!alive) return;
+      setTeacherInsights(insightRes.data?.data || []);
+      setSuggestions(suggestionRes.data?.data || []);
+    }).catch(() => {
+      if (!alive) return;
+      setTeacherInsights([]);
+      setSuggestions([]);
+    });
+    return () => { alive = false; };
+  }, [classes]);
 
   const ov = overview || { total_students: 0, active_this_week: 0, games_played_this_week: 0, avg_score_this_week: 0, excellent_games_this_week: 0, active_classes: 0, total_points: 0 };
 
@@ -170,6 +200,8 @@ export default function TeacherAnalytics() {
           <TabBtn active={tab === 'struggling'} onClick={() => setTab('struggling')}>{t('teacher.analytics.tab.struggling')}</TabBtn>
           <TabBtn active={tab === 'games'} onClick={() => setTab('games')}>{t('teacher.analytics.tab.games')}</TabBtn>
           <TabBtn active={tab === 'leaderboard'} onClick={() => setTab('leaderboard')}>{t('teacher.analytics.tab.leaderboard')}</TabBtn>
+          <TabBtn active={tab === 'insights'} onClick={() => setTab('insights')}>{t('teacher.ai.classInsights', { defaultValue: 'AI Insights' })}</TabBtn>
+          <TabBtn active={tab === 'suggestions'} onClick={() => setTab('suggestions')}>{t('teacher.ai.suggestionsTitle', { defaultValue: 'Suggestions' })}</TabBtn>
         </div>
 
         {loading ? (
@@ -372,6 +404,41 @@ export default function TeacherAnalytics() {
                       </tbody>
                     </table>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ── AI Insights Tab ── */}
+            {tab === 'insights' && (
+              <div>
+                <TeacherInsightsPanel classId={classes[0]?.class_code || ''} />
+              </div>
+            )}
+
+            {/* ── Suggestions Tab ── */}
+            {tab === 'suggestions' && (
+              <div>
+                <h2 className="mb-3 font-semibold text-gray-800">Content Suggestions</h2>
+                {suggestions.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-gray-400">No suggestions yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {suggestions.map((s) => (
+                      <ContentSuggestion key={s.id} suggestion={s} onAssign={(sg) => {
+                        setAutoAssignIntents([{ child_admission_no: 'class', skill_key: sg.strand, action: 'assign' }]);
+                        setShowAutoAssign(true);
+                      }} />
+                    ))}
+                  </div>
+                )}
+                {showAutoAssign && (
+                  <AutoAssignDialog
+                    open={showAutoAssign}
+                    onClose={() => setShowAutoAssign(false)}
+                    classId={classes[0]?.class_code || ''}
+                    intents={autoAssignIntents}
+                    onDone={() => { setShowAutoAssign(false); }}
+                  />
                 )}
               </div>
             )}

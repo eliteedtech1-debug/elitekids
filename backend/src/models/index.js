@@ -61,6 +61,17 @@ const KIDS_CONTENT_TABLES = [
   'kids_mode_locks',
   'kids_learning_goals',
   'kids_age_declarations',
+  // Q3 2027: Classroom Collaboration
+  'kids_teams',
+  'kids_team_members',
+  'kids_team_challenges',
+  'kids_peer_teaching',
+  'kids_class_quests',
+  // Q3 2027: Parent Intelligence + Teacher AI
+  'kids_insights',
+  'kids_action_items',
+  'kids_teacher_insights',
+  'kids_content_suggestions',
 ];
 
 const KIDS_AI_TABLES = ['kids_content_generation_audit'];
@@ -95,6 +106,17 @@ const KIDS_CONTENT_MODEL_FILES = [
   'KidModeLock.js',
   'KidLearningGoal.js',
   'KidAgeDeclaration.js',
+  // Q3 2027: Classroom Collaboration
+  'KidTeam.js',
+  'KidTeamMember.js',
+  'KidTeamChallenge.js',
+  'KidPeerTeaching.js',
+  'KidClassQuest.js',
+  // Q3 2027: Parent Intelligence + Teacher AI
+  'KidInsight.js',
+  'KidActionItem.js',
+  'KidTeacherInsight.js',
+  'KidContentSuggestion.js',
 ];
 
 // Model files bound to the AI DB (AI_DB_NAME; elite_bot on the prod server)
@@ -240,6 +262,17 @@ db.syncKidsTables = async () => {
     'kids_parental_controls',
     'kids_mode_locks',
     'kids_learning_goals',
+    // Q3 2027: Classroom Collaboration
+    'kids_teams',
+    'kids_team_members',
+    'kids_team_challenges',
+    'kids_peer_teaching',
+    'kids_class_quests',
+    // Q3 2027: Parent Intelligence + Teacher AI
+    'kids_insights',
+    'kids_action_items',
+    'kids_teacher_insights',
+    'kids_content_suggestions',
   ];
   const ordered = SYNC_ORDER
     .map((name) => contentModels.find((m) => m.getTableName() === name))

@@ -7,6 +7,12 @@ import { STORAGE_KEYS } from '@/lib/utils/constants';
 import AppSwitcher from './AppSwitcher';
 import SkillMap, { type PortfolioSkill, type SkillSummary, type PortfolioRecommendation } from './SkillMap';
 import EvidenceGallery, { type SpeakingEvidence, type GamesEvidence, type WeeklyStats } from './EvidenceGallery';
+import InsightCard from './InsightCard';
+import ActionItem from './ActionItem';
+import WeeklyDigest from './WeeklyDigest';
+import ComparisonChart from './ComparisonChart';
+import ParentNudge from './ParentNudge';
+import { ENDPOINTS } from '@/lib/api/endpoints';
 
 type View = 'login' | 'register' | 'dashboard' | 'child';
 
@@ -31,6 +37,8 @@ export default function ParentDashboard() {
     weekly?: WeeklyStats;
   } | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [insights, setInsights] = useState<any[]>([]);
+  const [actionItems, setActionItems] = useState<any[]>([]);
 
   const login = async () => {
     if (!phone.trim()) return toast.error(t('parent.phoneRequired'));
@@ -122,6 +130,21 @@ export default function ParentDashboard() {
       })
       .catch(() => { /* portfolio is additive — existing progress view still works */ })
       .finally(() => alive && setPortfolioLoading(false));
+    return () => { alive = false; };
+  }, [view, selectedChild, token]);
+
+  // Q3: Fetch parent intelligence insights for selected child.
+  useEffect(() => {
+    if (view !== 'child' || !selectedChild || !token) return;
+    let alive = true;
+    apiClient.get(ENDPOINTS.PARENT_INTEL.INSIGHTS(selectedChild), {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => {
+      if (alive) {
+        setInsights(res.data?.data?.insights || []);
+        setActionItems(res.data?.data?.action_items || []);
+      }
+    }).catch(() => {});
     return () => { alive = false; };
   }, [view, selectedChild, token]);
 
@@ -328,6 +351,42 @@ export default function ParentDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Q3 Parent Intelligence — meaning + next steps, not just activity */}
+          {insights.length > 0 && (
+            <div className="mb-4 space-y-2">
+              <h3 className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gray-400">
+                <TrendingUp className="h-3.5 w-3.5" /> {t('parentIntel.today', { defaultValue: 'What this means' })}
+              </h3>
+              {insights.map((insight: any, index: number) => (
+                <InsightCard key={insight.id || `${insight.rule_key}-${index}`} insight={insight} />
+              ))}
+            </div>
+          )}
+          {actionItems.length > 0 && (
+            <div className="mb-4 space-y-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-wide text-gray-400">
+                {t('parentIntel.actions', { defaultValue: 'Try this together' })}
+              </h3>
+              {actionItems.map((item: any) => (
+                <ActionItem key={item.id} item={{
+                  ...item,
+                  title: item.title || item.action_text || 'Try this learning activity',
+                  description: item.description || item.nudge,
+                }} />
+              ))}
+            </div>
+          )}
+          {insights.some((insight: any) => insight.severity === 'high') && (
+            <div className="mb-4">
+              <ParentNudge
+                title={insights.find((insight: any) => insight.severity === 'high')?.title || t('parentIntel.nudgeTitle', { defaultValue: 'A little support can help' })}
+                body={insights.find((insight: any) => insight.severity === 'high')?.body || t('parentIntel.nudgeBody', { defaultValue: 'A short, calm practice together can make a difference.' })}
+              />
+            </div>
+          )}
+          {selectedChild && <WeeklyDigest childId={selectedChild} />}
+          {selectedChild && <div className="my-4"><ComparisonChart childId={selectedChild} /></div>}
 
           {/* This Week */}
           <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm">

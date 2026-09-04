@@ -42,6 +42,8 @@ async function ensureSchemaMigrations() {
     ['kids_lessons', 'nerdc_strand', 'VARCHAR(100) NULL DEFAULT NULL'],
     ['kids_lessons', 'nerdc_sub_strand', 'VARCHAR(100) NULL DEFAULT NULL'],
     ['kids_session_state', 'session_id', 'VARCHAR(50) NULL DEFAULT NULL'],
+    // Q3 Parent Intelligence: anonymous-comparison opt-in (additive on kids_children)
+    ['kids_children', 'allow_anonymous_comparison', 'TINYINT(1) NOT NULL DEFAULT 0'],
   ];
   try {
     for (const [table, col, ddl] of CONTENT_COLUMN_PLAN) {
@@ -92,6 +94,7 @@ if (SKIP_DB_SYNC) {
     console.log(`🚀 elite-kids-api listening on port ${port} (read-only boot)`);
     require('./controllers/e3fLive').attach(server);
     try { require('./sockets/chat').attach(server); } catch (e) { console.warn('⚠️ Chat socket skipped:', e.message); }
+    try { require('./sockets/collaboration').attach(server); } catch (e) { console.warn('⚠️ Collab socket skipped:', e.message); }
   });
   server.timeout = 120000;
   return;
@@ -122,6 +125,7 @@ ensureSchemaMigrations()
       console.log(`🚀 elite-kids-api listening on port ${port}`);
       require('./controllers/e3fLive').attach(server);
       try { require('./sockets/chat').attach(server); } catch (e) { console.warn('⚠️ Chat socket skipped:', e.message); }
+      try { require('./sockets/collaboration').attach(server); } catch (e) { console.warn('⚠️ Collab socket skipped:', e.message); }
     });
     server.timeout = 120000;
 

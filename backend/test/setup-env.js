@@ -6,6 +6,26 @@
  * because dotenv.config() never overrides already-set variables — so tests
  * can never accidentally touch the prod tunnel DBs.
  */
+
+// Load test-only env from backend/.env.test (git-ignored) when present, so DB
+// credentials live in the env file only — never in commands or the repo.
+// Explicit process.env (e.g. CI-provided TEST_DB_*) always wins.
+const fs = require('fs');
+const path = require('path');
+const envTestPath = path.join(__dirname, '..', '.env.test');
+if (fs.existsSync(envTestPath)) {
+  const lines = fs.readFileSync(envTestPath, 'utf8').split('\n');
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq === -1) continue;
+    const k = line.slice(0, eq).trim();
+    const v = line.slice(eq + 1).trim();
+    if (k && process.env[k] === undefined) process.env[k] = v;
+  }
+}
+
 process.env.NODE_ENV = 'test';
 process.env.DB_HOST = process.env.TEST_DB_HOST || '127.0.0.1';
 process.env.DB_PORT = String(process.env.TEST_DB_PORT || 3306);

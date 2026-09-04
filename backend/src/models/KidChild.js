@@ -26,6 +26,9 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 'Active',
       },
+      // Q3 Parent Intelligence: additive opt-in for anonymous age-band comparison
+      // (reconciled via backend/src/index.js CONTENT_COLUMN_PLAN).
+      allow_anonymous_comparison: { type: DataTypes.TINYINT, allowNull: false, defaultValue: 0 },
     },
     {
       tableName: 'kids_children',

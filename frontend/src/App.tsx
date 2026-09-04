@@ -9,7 +9,7 @@ import StudentHome from '@/pages/Student/StudentHome';
 import AuthGuard from '@/components/AuthGuard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import TrialBanner from '@/components/TrialBanner';
-import { applyDir, t, useI18n } from '@/lib/i18n';
+import { applyDir, loadLocale, t, useI18n } from '@/lib/i18n';
 
 /**
  * App shell — routes for the EliteKids SPA.
@@ -63,7 +63,12 @@ function DraftPreview() {
 }
 
 export default function App() {
+  const locale = useI18n((s) => s.locale);
   const dir = useI18n((s) => s.dir);
+
+  useEffect(() => {
+    if (locale !== 'en') void loadLocale(locale);
+  }, [locale]);
 
   useEffect(() => {
     applyDir();

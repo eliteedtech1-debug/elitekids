@@ -7,6 +7,109 @@
 const { isStaffRole, isAdminRole } = require('../config/config');
 
 /**
+ * Q3 class-scope guard. Collaboration and teacher-intelligence routes must
+ * never trust a caller-supplied class_id by itself.
+ */
+async function hasClassAccess(user, classId) {
+  if (!user || !String(classId || '').trim()) return false;
+  const role = normaliseUserType(user);
+  const classCode = String(classId).trim();
+  if (isAdminRole(role) && role.includes('superadmin')) return true;
+
+  const db = require('../models');
+  const schoolId = String(user.school_id || '').trim();
+  if (!schoolId) return false;
+
+  try {
+    if (role === 'student') {
+      const rows = await db.sequelize.query(
+        `SELECT 1 FROM students
+         WHERE admission_no = :adm AND school_id = :school AND class_code = :classCode
+         LIMIT 1`,
+        {
+          replacements: {
+            adm: String(user.admission_no || user.id || ''),
+            school: schoolId,
+            classCode,
+          },
+          type: db.Sequelize.QueryTypes.SELECT,
+        }
+      );
+      return Array.isArray(rows) && rows.length > 0;
+    }
+
+    if (role.includes('parent')) {
+      const [rows] = await db.content.query(
+        `SELECT 1 FROM kids_children
+         WHERE school_id = :school AND class_code = :classCode
+           AND ((parent_user_id IS NOT NULL AND parent_user_id = :parentId)
+             OR (parent_phone IS NOT NULL AND parent_phone = :phone))
+         LIMIT 1`,
+        {
+          replacements: {
+            school: schoolId,
+            classCode,
+            parentId: String(user.id || user.user_id || ''),
+            phone: String(user.phone || ''),
+          },
+        }
+      );
+      return Array.isArray(rows) && rows.length > 0;
+    }
+
+    if (role === 'teacher') {
+      const teacherRows = await db.sequelize.query(
+        `SELECT 1
+         FROM active_teacher_classes tc
+         JOIN teachers t ON t.id = tc.teacher_id
+         WHERE t.user_id = :userId AND tc.school_id = :school AND tc.class_code = :classCode
+         LIMIT 1`,
+        {
+          replacements: { userId: String(user.id || user.user_id || ''), school: schoolId, classCode },
+          type: db.Sequelize.QueryTypes.SELECT,
+        }
+      ).catch(() => []);
+      if (Array.isArray(teacherRows) && teacherRows.length > 0) return true;
+
+      const roleRows = await db.sequelize.query(
+        `SELECT 1
+         FROM class_role cr
+         JOIN teachers t ON t.id = cr.teacher_id
+         WHERE t.user_id = :userId AND cr.school_id = :school AND cr.class_code = :classCode
+         LIMIT 1`,
+        {
+          replacements: { userId: String(user.id || user.user_id || ''), school: schoolId, classCode },
+          type: db.Sequelize.QueryTypes.SELECT,
+        }
+      ).catch(() => []);
+      return Array.isArray(roleRows) && roleRows.length > 0;
+    }
+
+    // Other staff may inspect classes in their own school. Require the class
+    // to exist in the shared school data rather than trusting the query string.
+    const rows = await db.sequelize.query(
+      `SELECT 1 FROM students WHERE school_id = :school AND class_code = :classCode LIMIT 1`,
+      {
+        replacements: { school: schoolId, classCode },
+        type: db.Sequelize.QueryTypes.SELECT,
+      }
+    );
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    // Fail closed for privacy-sensitive Q3 data.
+    return false;
+  }
+}
+
+async function requireClassAccess(req, classId) {
+  if (!req?.user) return { ok: false, status: 401, body: { success: false, message: 'Authentication required.' } };
+  const allowed = await hasClassAccess(req.user, classId);
+  return allowed
+    ? { ok: true }
+    : { ok: false, status: 403, body: { success: false, message: 'You do not have access to this class.' } };
+}
+
+/**
  * Normalise a user object's user_type to lowercase for consistent comparison.
  * Returns the normalised user_type string.
  */
@@ -174,4 +277,6 @@ module.exports = {
   isStaffRole,
   isAdminRole,
   normaliseUserType,
+  hasClassAccess,
+  requireClassAccess,
 };

@@ -280,9 +280,9 @@ async function getCurriculum(req, res) {
       where: { child_admission_no: admission },
       attributes: ['lesson_id', 'mode', 'score'],
     });
-    // E3f SUPERVISOR GATE (non-negotiable): a lesson counts as complete ONLY when the
-    // child has BOTH a practice completion AND a passed test (score >= 50) on it.
-    // Legacy rows (mode NULL from before this gate) never satisfy the pair.
+    // E3f SUPERVISOR GATE: a lesson counts as complete when the child has a
+    // PASSING TEST (score >= 50) on it. A separate practice-mode row is not
+    // required — a passing test proves mastery and unlocks the next unit.
     const lessonState = {};
     for (const r of prog) {
       const st = lessonState[r.lesson_id] || (lessonState[r.lesson_id] = { practice: false, testPass: false });
@@ -291,7 +291,7 @@ async function getCurriculum(req, res) {
     }
     const lessonComplete = (l) => {
       const st = lessonState[l];
-      return !!st && st.practice && st.testPass;
+      return !!st && st.testPass;
     };
 
     const unitsBySeries = {};
@@ -394,7 +394,7 @@ async function getUnitLockStatus(req, res) {
         success: true,
         data: {
           locked: !passedLegacy,
-          reason: passedLegacy ? null : `Finish unit ${prereqUnit.unit_number}: play Practice AND pass the Test for every game first.`,
+          reason: passedLegacy ? null : `Finish unit ${prereqUnit.unit_number}: pass the Test for every game first.`,
           prerequisite_unit_id: unit.prerequisite_unit_id,
         },
       });
@@ -410,9 +410,11 @@ async function getUnitLockStatus(req, res) {
       if (r.mode === 'practice') s.practice = true;
       if (r.mode === 'test' && Number(r.score) >= 50) s.testPass = true;
     }
+    // A passing TEST alone completes a prerequisite lesson (no separate practice
+    // row required) — see getLearningPath gate comment.
     const passed = prereqLessonIds.every((l) => {
       const s = pstate[l];
-      return !!s && s.practice && s.testPass;
+      return !!s && s.testPass;
     });
 
     const locked = !passed;
@@ -420,7 +422,7 @@ async function getUnitLockStatus(req, res) {
       success: true,
       data: {
         locked,
-        reason: locked ? `Finish unit ${prereqUnit.unit_number}: play Practice AND pass the Test for every game first.` : null,
+        reason: locked ? `Finish unit ${prereqUnit.unit_number}: pass the Test for every game first.` : null,
         prerequisite_unit_id: unit.prerequisite_unit_id,
       },
     });
@@ -617,9 +619,13 @@ async function getLearningPath(req, res) {
       if (r.mode === 'practice') st.practice = true;
       if (r.mode === 'test' && Number(r.score) >= 50) st.testPass = true;
     }
+    // E3f gate (per user decision 2026-09-04): a passing TEST (score >= 50)
+    // alone completes a lesson and unlocks the next unit — a separate raw
+    // practice-mode row is NOT required (it was false-locking children who
+    // reached a passing test without a distinct archived practice row).
     const lessonComplete = (l) => {
       const st = lessonState[l];
-      return !!st && st.practice && st.testPass;
+      return !!st && st.testPass;
     };
 
     const idsOf = (u) => (Array.isArray(u.content_items) ? u.content_items : [])
@@ -678,7 +684,7 @@ async function getLearningPath(req, res) {
         const locked = !done && !chainOk;
         const relation = below ? (done ? 'passed_below' : 'spillover') : 'current';
         const reason = locked
-          ? `Finish the previous level: play Practice AND pass the Test first.`
+          ? `Finish the previous level: play Practice and pass the Test first.`
           : below && !done
             ? 'Go back and pass earlier levels to unlock your level.'
             : null;

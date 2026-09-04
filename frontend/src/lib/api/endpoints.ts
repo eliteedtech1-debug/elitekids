@@ -305,4 +305,37 @@ export const ENDPOINTS = {
     STATS: '/kids/match-history/stats',
   },
 
+  // Q3 2027: Classroom Collaboration (The Village §3.1)
+  COLLAB: {
+    TEAMS_CREATE: '/kids/teams/create',
+    TEAMS_MINE: '/kids/teams/mine',
+    TEAMS_GET: (id: string) => `/kids/teams/${encodeURIComponent(id)}`,
+    TEAMS_JOIN: (id: string) => `/kids/teams/${encodeURIComponent(id)}/join`,
+    TEAMS_CHALLENGE: (id: string) => `/kids/teams/${encodeURIComponent(id)}/challenge`,
+    TEAMS_CHALLENGE_SUBMIT: (id: string) => `/kids/teams/${encodeURIComponent(id)}/challenge/submit`,
+    PEER_TEACH_RECORD: '/kids/peer-teach/record',
+    PEER_TEACH_BOARD: '/kids/peer-teach/board',
+    CLASS_QUEST_ACTIVE: '/kids/class-quest/active',
+    CLASS_QUEST_CONTRIBUTE: '/kids/class-quest/contribute',
+    CLASS_QUEST_LEADERBOARD: '/kids/class-quest/leaderboard',
+  },
+
+  // Q3 2027: Parent Intelligence (§3.2)
+  PARENT_INTEL: {
+    INSIGHTS: (childId: string) => `/kids/parent/insights/${encodeURIComponent(childId)}`,
+    WEEKLY_DIGEST: (childId: string) => `/kids/parent/weekly-digest/${encodeURIComponent(childId)}`,
+    COMPARISON: (childId: string) => `/kids/parent/comparison/${encodeURIComponent(childId)}`,
+    ACTION_ACK: '/kids/parent/action-ack',
+    OPT_IN: '/kids/parent/opt-in',
+  },
+
+  // Q3 2027: Teacher AI Assistant (§3.3)
+  TEACHER_AI: {
+    INSIGHTS: '/kids/teacher/insights',
+    SUGGESTIONS: '/kids/teacher/suggestions',
+    AUTO_ASSIGN: '/kids/teacher/auto-assign',
+    WEEKLY_REPORT: '/kids/teacher/weekly-report',
+    STRUGGLING: '/kids/teacher/struggling',
+  },
+
 } as const;
