@@ -29,6 +29,18 @@ export const getSubdomain = (): string => {
 export const getSchoolShortName = (): string => getSubdomain();
 export const short_name = getSubdomain();
 
+/**
+ * Flagship school identity used for flagship-only promotional surfaces.
+ * Keep this aligned with the backend flagship seeder. Unknown or missing
+ * context is deliberately treated as non-flagship so child ads never leak
+ * into another school's experience.
+ */
+export const isFlagshipSchool = (schoolId?: string | null, shortName?: string | null): boolean => {
+  const id = sanitize(schoolId).toUpperCase();
+  const name = sanitize(shortName).toLowerCase();
+  return id === 'SCH-ELITE' || ['elite', 'kids', 'practice'].includes(name);
+};
+
 // ── Local storage helpers ───────────────────────────────────────────────────
 const sanitize = (value: any): string => {
   if (!value || value === 'null' || value === 'undefined' || typeof value !== 'string') return '';

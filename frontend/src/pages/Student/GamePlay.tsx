@@ -25,6 +25,7 @@ import SpeakButton from '@/components/SpeakButton';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t, tN } from '@/lib/i18n';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { isFlagshipSchool } from '@/lib/utils/school';
 import TimerBar from '@/components/Timer';
 import { getItemVisual, getNumberEmoji, getNumberImageUrl } from '@/lib/utils/icons';
 import { useA11yStore } from '@/lib/utils/a11y-store';
@@ -3726,6 +3727,21 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   const sessionStartRef = useRef(Date.now());
   const { colorblindMode, toggleColorblind } = useA11yStore();
 
+  // Promotional child copy is a flagship-only surface. Fail closed when the
+  // token has no school context so non-flagship schools never see an ad-like
+  // subscribe/ask-parent prompt.
+  const isFlagshipChild = useMemo(() => {
+    try {
+      const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN) || '';
+      const payload = token.split('.')[1];
+      if (!payload) return false;
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      return isFlagshipSchool(decoded?.school_id, decoded?.short_name);
+    } catch {
+      return false;
+    }
+  }, []);
+
   // Adaptive difficulty state
   const [adaptiveProfile, setAdaptiveProfile] = useState<{ difficulty: number; mastery_pct: number; streak_days: number } | null>(null);
   const adaptiveFetched = useRef(false);
@@ -4507,6 +4523,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
     // adult". Parents/admins do the subscribing (ParentDashboard, login wall).
     if (gate?.locked) {
       const isSchoolLock = !!gate.childFriendly;
+      const isFlagshipQuotaLock = !isSchoolLock && isFlagshipChild;
       const isDailyPlayed = gate.dailyLessonId === lessonId && gate.dailyPlayed;
       return (
         <div className="flex min-h-screen items-center justify-center bg-[#E7EEF6] p-4">
@@ -4515,14 +4532,22 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
               {isSchoolLock ? '🔒' : isDailyPlayed ? '🌙' : '🔒'}
             </div>
             <h2 className="mb-2 text-lg font-extrabold text-gray-800">
-              {isSchoolLock ? t('freemium.schoolEndedTitle') : isDailyPlayed ? t('freemium.dailyDoneTitle') : t('freemium.lockedTitle')}
+              {isSchoolLock
+                ? t('freemium.schoolEndedTitle')
+                : isFlagshipQuotaLock
+                  ? isDailyPlayed ? t('freemium.dailyDoneTitle') : t('freemium.lockedTitle')
+                  : t('freemium.unavailableTitle', { defaultValue: 'This game is not available right now.' })}
             </h2>
-            <p className="mb-6 text-sm text-gray-500">{gate.message || t('freemium.lockedBody')}</p>
+            <p className="mb-6 text-sm text-gray-500">
+              {isSchoolLock || isFlagshipQuotaLock
+                ? gate.message || t('freemium.lockedBody')
+                : t('freemium.unavailableBody', { defaultValue: 'Please choose another game.' })}
+            </p>
             {isSchoolLock ? (
               <p className="rounded-xl bg-teal-50 border border-teal-200 p-3 mb-5 text-xs font-medium text-teal-700">
                 {t('freemium.schoolEndedBody')}
               </p>
-            ) : (
+            ) : isFlagshipQuotaLock ? (
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 mb-5">
                 <p className="text-xs font-medium text-amber-700">
                   {t('freemium.quotaInfo', { freeLimit: gate.freeLimit })}
@@ -4531,7 +4556,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
                   {t('freemium.askParent')}
                 </p>
               </div>
-            )}
+            ) : null}
             <button onClick={() => navigate('/student')} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 active:scale-95 transition-all">
               {t('game.backToGames')}
             </button>

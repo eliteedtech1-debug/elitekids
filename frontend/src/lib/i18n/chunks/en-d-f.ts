@@ -127,5 +127,7 @@ export const enDF: Record<string, string> = {
   'freemium.quotaInfo': 'Every child gets {freeLimit} free games — then one free game each day.',
   'freemium.schoolEndedBody': 'Tell your teacher or mummy/daddy — they can switch the games back on for everyone. No games were lost, your stars are safe! ⭐',
   'freemium.schoolEndedTitle': 'Game time is paused!',
+  'freemium.unavailableBody': 'Please choose another game.',
+  'freemium.unavailableTitle': 'This game is not available right now.',
   'freemium.subscribeCta': 'Subscribe to unlock all games',
 };
