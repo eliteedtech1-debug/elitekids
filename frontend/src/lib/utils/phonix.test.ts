@@ -7,6 +7,8 @@ import {
   PHONEME_MAP,
   isPhonicsNotation,
   phonixToSpeech,
+  phonixSegment,
+  phonixSegmentToSpeech,
   toPhoneme,
 } from './phonix';
 
@@ -19,6 +21,30 @@ describe('phoneme map', () => {
     expect(PHONEME_MAP.ng).toBe('nng');
     expect(PHONEME_MAP.oo).toBe('ooh');
   });
+
+  it('covers trigraphs, magic-e and vowel teams (full English inventory)', () => {
+    expect(PHONEME_MAP.igh).toBe('eye');
+    expect(PHONEME_MAP.tch).toBe('chuh');
+    expect(PHONEME_MAP.dge).toBe('juh');
+    expect(PHONEME_MAP.a_e).toBe('ay');
+    expect(PHONEME_MAP.i_e).toBe('eye');
+    expect(PHONEME_MAP.o_e).toBe('oh');
+    expect(PHONEME_MAP.ea).toBe('ee');
+    expect(PHONEME_MAP.ou).toBe('ow');
+    expect(PHONEME_MAP.oi).toBe('oy');
+    expect(PHONEME_MAP.air).toBe('air');
+    expect(PHONEME_MAP.ear).toBe('eer');
+    expect(PHONEME_MAP.ure).toBe('yoor');
+    expect(PHONEME_MAP.qu).toBe('kwuh');
+  });
+
+  it('covers every single letter of the alphabet', () => {
+    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+    for (const l of letters) expect(isKeyLike(l)).toBe(true);
+  });
+
+  const isKeyLike = (k: string) =>
+    Object.prototype.hasOwnProperty.call(PHONEME_MAP, k);
 });
 
 describe('slash notation /x/', () => {
@@ -39,6 +65,12 @@ describe('slash notation /x/', () => {
   it('leaves unknown slash tokens alone', () => {
     expect(phonixToSpeech('/xyz/')).toBe('/xyz/');
   });
+
+  it('converts multi-letter slash notation', () => {
+    expect(phonixToSpeech('/igh/')).toBe('eye');
+    expect(phonixToSpeech('/tch/')).toBe('chuh');
+    expect(phonixToSpeech('find /air/')).toBe('find air');
+  });
 });
 
 describe('split grapheme runs', () => {
@@ -50,6 +82,21 @@ describe('split grapheme runs', () => {
 
   it('handles phonics-style drill sentences', () => {
     expect(phonixToSpeech('sh ch th')).toBe('shh chuh thh');
+  });
+
+  it('merges split vowel teams into one sound', () => {
+    expect(phonixToSpeech('i e')).toBe('eye');
+    expect(phonixToSpeech('a e')).toBe('ay');
+  });
+
+  it('maps standalone grapheme words (digraphs/trigraphs)', () => {
+    expect(phonixToSpeech('sh')).toBe('shh');
+    expect(phonixToSpeech('igh')).toBe('eye');
+    expect(phonixToSpeech('tch')).toBe('chuh');
+  });
+
+  it('guards real English words that collide with graphemes', () => {
+    expect(phonixToSpeech('or air are ear')).toBe('or air are ear');
   });
 
   it('keeps ordinary words untouched', () => {
@@ -80,9 +127,29 @@ describe('toPhoneme (single grapheme)', () => {
   });
 });
 
+describe('oral segmentation (whole word → sounds)', () => {
+  it('segments words with digraphs (longest-first matches trigraphs)', () => {
+    expect(phonixSegment('ship')).toBe('shh ih puh');
+    expect(phonixSegment('chat')).toBe('chuh aah tuh');
+    expect(phonixSegment('high')).toBe('huh eye'); // h + igh — correct phonics!
+  });
+
+  it('segments with vowel teams as single sounds', () => {
+    expect(phonixSegment('see')).toBe('sss ee'); // s + ee — two phonemes
+  });
+
+  it('formats for TTS with ellipsis pacing', () => {
+    expect(phonixSegmentToSpeech('ship')).toBe('shh … ih … puh');
+  });
+
+  it('keeps unmapped letters rather than dropping them', () => {
+    expect(phonixSegment('pxq')).toBe('puh ks q'); // x → 'ks'; lone q (no u) stays
+  });
+});
+
 describe('idempotency / safety', () => {
   it('does not double-transform respelled sounds', () => {
     const once = phonixToSpeech('s h');
-    expect(phonixToSpeech(once)).toBe(once); // "sss hhh" chunks are 3 letters → words
+    expect(phonixToSpeech(once)).toBe(once); // "sss huh" chunks are 3-letter words → guarded? no — but they are not keys
   });
 });

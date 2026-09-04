@@ -330,12 +330,19 @@ export async function speakFeedback(isCorrect: boolean): Promise<void> {
 // ── Phonics (PHONIX engine) ──────────────────────────────────
 // Implementation lives in phonix.ts (pure + unit-tested); the phoneme
 // transform is applied inside speak() so EVERY call site — prompts like
-// "Tap /sh/", split graphemes "s h", labels — hears sounds, not letter
-// names. These re-exports keep the historical API for existing callers.
-// Usage: toPhonicsSound("sh") → "shh"  |  toPhonicsSound("s") → "sss"
-import { PHONEME_MAP as PHONICS_SOUND_MAP, toPhoneme, phonixToSpeech } from './phonix';
+// "Tap /sh/" or "/igh/", split graphemes "s h", labels — hears sounds,
+// not letter names. These re-exports keep the historical API for existing
+// callers and expose oral segmentation for sound games.
+// Usage: toPhonicsSound("sh") → "shh"  |  phonixSegment("ship") → "shh ih puh"
+import {
+  PHONEME_MAP as PHONICS_SOUND_MAP,
+  toPhoneme,
+  phonixToSpeech,
+  phonixSegment,
+  phonixSegmentToSpeech,
+} from './phonix';
 
-export { PHONICS_SOUND_MAP, phonixToSpeech };
+export { PHONICS_SOUND_MAP, phonixToSpeech, phonixSegment, phonixSegmentToSpeech };
 
 export function toPhonicsSound(grapheme: string): string {
   return toPhoneme(grapheme);
