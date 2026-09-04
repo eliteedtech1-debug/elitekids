@@ -3,25 +3,35 @@
  * Sync en.json from en.ts — the single source of truth for English translations.
  * Run: node scripts/sync-i18n.js
  */
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-const enTsPath = path.join(__dirname, '../src/lib/i18n/en.ts');
-const enJsonPath = path.join(__dirname, '../src/lib/i18n/locales/en.json');
-const haJsonPath = path.join(__dirname, '../src/lib/i18n/locales/ha.json');
+const HERE = import.meta.dirname;
+const chunksDir = path.join(HERE, '../src/lib/i18n/chunks');
+const enJsonPath = path.join(HERE, '../src/lib/i18n/locales/en.json');
+const haJsonPath = path.join(HERE, '../src/lib/i18n/locales/ha.json');
 
-// Read en.ts
-const tsContent = fs.readFileSync(enTsPath, 'utf-8');
+// Read en.ts chunks (alphabetical per-letter-range files). en.ts itself is a
+// barrel merging these — never edit entries directly in en.ts.
+const chunkFiles = fs
+  .readdirSync(chunksDir)
+  .filter((f) => f.endsWith('.ts'))
+  .sort()
+  .map((f) => path.join(chunksDir, f));
 
-// Extract key-value pairs using regex
+// Extract key-value pairs using regex (handles 'key': 'value' and
+// 'key': "value" — values are single-line in chunk files).
 const entries = {};
 const regex = /^\s+'([^']+)':\s+(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'),?\s*$/gm;
-let match;
-while ((match = regex.exec(tsContent)) !== null) {
-  const key = match[1];
-  const value = match[2] !== undefined ? match[2] : match[3];
-  // Unescape
-  entries[key] = value.replace(/\\'/g, "'").replace(/\\"/g, '"');
+for (const file of chunkFiles) {
+  const tsContent = fs.readFileSync(file, 'utf-8');
+  let match;
+  while ((match = regex.exec(tsContent)) !== null) {
+    const key = match[1];
+    const value = match[2] !== undefined ? match[2] : match[3];
+    // Unescape
+    entries[key] = value.replace(/\\'/g, "'").replace(/\\"/g, '"');
+  }
 }
 
 console.log(`Extracted ${Object.keys(entries).length} keys from en.ts`);

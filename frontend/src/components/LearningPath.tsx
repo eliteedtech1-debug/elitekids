@@ -15,9 +15,11 @@ import {
   Flag,
   Lock,
   Play,
+  RefreshCw,
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { t } from '@/lib/i18n';
 import { playTap } from '@/lib/utils/sound';
 import {
@@ -38,6 +40,14 @@ interface LearningPathProps {
   offline?: boolean;
   /** Parent navigates to /student/game/:lessonId?mode=… */
   onOpenLesson: (lessonId: string, mode: GameMode) => void;
+  /** Empty state: jump to the subject browse tabs (fallback games). */
+  onExploreSubjects?: () => void;
+  /** Empty state: parent re-fetches the path in realtime (countdown loop). */
+  onRefresh?: () => void;
+  /** True when the lessons catalog itself has NO data (not an age-band
+   *  filter). Truly-empty catalog → static "check back soon" (no countdown,
+   *  no explore shortcut — those are dead ends when nothing exists). */
+  catalogEmpty?: boolean;
 }
 
 /* ── Small bits ──────────────────────────────────────────────────── */
@@ -149,23 +159,50 @@ function LessonRow({
   );
 }
 
-/* ── Main component ──────────────────────────────────────────────── */
-
-export default function LearningPath({ data, loading, offline, onOpenLesson }: LearningPathProps) {
-  if (loading) return null;
+/* ── Main component ──────────────────────────────────────────────── */export default function LearningPath({ data, loading, offline, onOpenLesson, onExploreSubjects, onRefresh, catalogEmpty }: LearningPathProps) {
+  // Realtime empty-state countdown: when data exists but nothing has landed in
+  // this child's band yet, the engine is generating a personalized assessment
+  // to place them on the right track — so instead of "check back soon" we
+  // auto-refresh on a short loop with a visible counter and a caution that it
+  // may run longer than estimated. A genuinely empty catalog (no lessons at
+  // all = absence of data) stays static with "check back soon".
+  const REFRESH_SECONDS = 20;
+  const [secondsLeft, setSecondsLeft] = useState(REFRESH_SECONDS);
 
   const flat = flattenUnits(data);
   const markerIndex = currentPositionIndex(data);
   const allDone = flat.length > 0 && markerIndex === null;
+
+  useEffect(() => {
+    if (flat.length > 0 || !onRefresh || catalogEmpty) return;
+    const t = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          onRefresh();
+          return REFRESH_SECONDS;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [flat.length, onRefresh]);
+
+  if (loading) return null;
 
   if (flat.length === 0) {
     return (
       <div className="relative overflow-hidden rounded-3xl border-2 border-dashed border-[#0F4D92]/20 bg-gradient-to-br from-white via-[#E7EEF6]/40 to-emerald-50/40 p-10 text-center shadow-lg backdrop-blur-xl animate-game-slide-up">
         <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#0F4D92]/10 blur-2xl" />
         <div className="absolute -left-6 -bottom-6 h-20 w-20 rounded-full bg-emerald-300/20 blur-xl" />
-        <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0F4D92] to-[#0d9488] text-white shadow-xl shadow-[#0F4D92]/30 ring-2 ring-white/60 animate-game-float">
+        <button
+          type="button"
+          onClick={() => { playTap(); onExploreSubjects?.(); }}
+          disabled={!onExploreSubjects}
+          aria-label={t('student.path.emptyExplore', { defaultValue: 'Explore subject games' })}
+          className={`relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0F4D92] to-[#0d9488] text-white shadow-xl shadow-[#0F4D92]/30 ring-2 ring-white/60 animate-game-float transition hover:brightness-110 active:scale-95 ${onExploreSubjects ? 'cursor-pointer' : 'cursor-default'}`}
+        >
           <Sparkles className="h-8 w-8 drop-shadow" />
-        </div>
+        </button>
         <h3 className="relative text-lg font-extrabold text-gray-800">
           {t('student.path.empty', { defaultValue: 'Your learning path is still growing 🌱' })}
         </h3>
@@ -174,14 +211,30 @@ export default function LearningPath({ data, loading, offline, onOpenLesson }: L
             ? t('student.path.offlineBody', {
                 defaultValue: "You're offline — your path will appear when you are back online.",
               })
-            : t('student.path.emptyBody', {
-                defaultValue: 'Your teacher is building your adventure — check back soon!',
-              })}
+            : catalogEmpty
+              ? t('student.path.emptyBodySoon', {
+                  defaultValue: 'Your teacher is building your adventure — check back soon!',
+                })
+              : t('student.path.emptyBody', {
+                  defaultValue: 'The engine is generating a personalized assessment to place you in the right track — refreshing automatically.',
+                })}
         </p>
-        <p className="relative mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-          <span>🌟</span>
-          Tap a subject tab above to start exploring games while you wait!
-        </p>
+        {!offline && !catalogEmpty && onRefresh && (
+          <p className="relative mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-700 ring-1 ring-sky-100">
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            {t('student.path.emptyCountdown', { seconds: secondsLeft, defaultValue: 'Placing you on the right track — refreshing in {seconds}s. May take more than estimated time' })}
+          </p>
+        )}
+        {!offline && !catalogEmpty && onExploreSubjects && (
+          <button
+            type="button"
+            onClick={() => { playTap(); onExploreSubjects(); }}
+            className="relative mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700 transition hover:bg-amber-100 active:scale-95"
+          >
+            <span>🌟</span>
+            {t('student.path.emptyExplore', { defaultValue: 'Tap a subject tab above to explore games while you wait!' })}
+          </button>
+        )}
       </div>
     );
   }

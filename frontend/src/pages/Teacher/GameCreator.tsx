@@ -25,6 +25,7 @@ import {
   Mic,
   BookA,
   MessageSquareText,
+  Hash,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -144,6 +145,22 @@ const TEMPLATES = [
     color: 'bg-teal-50 border-teal-200 text-teal-700',
     activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-200 text-teal-800',
   },
+  {
+    id: 'speech-story',
+    labelKey: 'gameCreator.tpl.speechStory.label',
+    icon: <BookOpen className="h-5 w-5" />,
+    descKey: 'gameCreator.tpl.speechStory.desc',
+    color: 'bg-teal-50 border-teal-200 text-teal-700',
+    activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-200 text-teal-800',
+  },
+  {
+    id: 'speech-count',
+    labelKey: 'gameCreator.tpl.speechCount.label',
+    icon: <Hash className="h-5 w-5" />,
+    descKey: 'gameCreator.tpl.speechCount.desc',
+    color: 'bg-teal-50 border-teal-200 text-teal-700',
+    activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-200 text-teal-800',
+  },
 ] as const;
 
 /* ── JSON Editor Template ──────────────────────────────── */
@@ -169,6 +186,8 @@ function getConfigTemplate(template: string, ageLevel: string): string {
     'speech-letter': { promptMode: 'audio', responseMode: 'audio' },
     'speech-word': { promptMode: 'audio', responseMode: 'audio' },
     'speech-sentence': { promptMode: 'audio', responseMode: 'audio' },
+    'speech-story': { promptMode: 'audio', responseMode: 'audio' },
+    'speech-count': { promptMode: 'audio', responseMode: 'audio' },
   };
   const modes = defaultModes[template] || { promptMode: 'text', responseMode: 'text' };
 
@@ -449,6 +468,28 @@ function getConfigTemplate(template: string, ageLevel: string): string {
       items: [
         { id: 'sp1', expected_text: 'The cat sat on the mat.', mode: 'sentence' },
         { id: 'sp2', expected_text: 'I love to read books.', mode: 'sentence' },
+      ],
+    },
+    // Q27: story narration — child reads a short story aloud, line by line
+    'speech-story': {
+      ...base,
+      scenario: 'Tell the story out loud!',
+      characters: [{ name: 'Mrs. Ada', emoji: '👩🏾\u200d🏫', personality: 'encouraging' }],
+      items: [
+        { id: 'sp1', expected_text: 'The sun woke up over the village.', mode: 'sentence' },
+        { id: 'sp2', expected_text: 'A little goat found a shiny leaf.', mode: 'sentence' },
+        { id: 'sp3', expected_text: 'It ate it and smiled all day.', mode: 'sentence' },
+      ],
+    },
+    // Q27: counting aloud — child counts objects/series, scored as words
+    'speech-count': {
+      ...base,
+      scenario: 'Count out loud!',
+      characters: [{ name: 'Mrs. Ada', emoji: '👩🏾\u200d🏫', personality: 'encouraging' }],
+      items: [
+        { id: 'sp1', expected_text: 'one two three', mode: 'word' },
+        { id: 'sp2', expected_text: 'four five six', mode: 'word' },
+        { id: 'sp3', expected_text: 'seven eight nine ten', mode: 'word' },
       ],
     },
   };

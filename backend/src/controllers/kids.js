@@ -679,7 +679,7 @@ async function createLessonManual(req, res) {
       return res.status(400).json({ success: false, message: 'title, subject, age_level, template, and config_json are required.' });
     }
 
-    const VALID_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split', 'memory-pairs', 'label-diagram', 'stage-sequence', 'game-chain', 'speech-letter', 'speech-word', 'speech-sentence'];
+    const VALID_TEMPLATES = ['matching', 'tap-recognition', 'drag-sort', 'quiz', 'fill-in-blank', 'puzzle-split', 'memory-pairs', 'label-diagram', 'stage-sequence', 'game-chain', 'speech-letter', 'speech-word', 'speech-sentence', 'speech-story', 'speech-count'];
     if (!VALID_TEMPLATES.includes(template)) {
       return res.status(400).json({ success: false, message: `template must be one of: ${VALID_TEMPLATES.join(', ')}` });
     }

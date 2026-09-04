@@ -380,6 +380,12 @@ export default function StudentHome() {
     return completed > 0 || stars > 0 || xp > 0;
   }, [progress?.games_completed, progress?.total_stars, progress?.total_xp]);
 
+  // Truly-empty catalog = NO published lessons exist at all (absence of
+  // data). Distinguishes the "check back soon" case (teacher hasn't created
+  // content) from the age-band case (data exists but filtered out — which
+  // must NEVER be empty per the review/remedial guarantee).
+  const catalogEmpty = lessons.length === 0;
+
   // Subject tabs list ONLY lessons at-or-below the child's band — a hard
   // ceiling, no exact → adjacent → ALL fallback (the live list is already
   // band-capped server-side; this keeps the offline catalog honest too).
@@ -688,12 +694,21 @@ export default function StudentHome() {
           <>
             {/* Tabs — game-style pill navigation (Learning Path is the default) */}
             <div className="mb-5 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-              {TABS.map((tab, idx) => {
-                // Subject pills hide when the child has no in-band lessons there;
-                // path/festival/trophy pills always show.
-                const count = tab.view === 'grid' ? bandLessons.filter(tab.filter).length : 0;
-                if (tab.view === 'grid' && count === 0) return null;
-                return (
+              {/* Keep at least ONE subject pill visible even when every subject
+                  has 0 in-band lessons, so the LearningPath empty-state shortcut
+                  ('explore subject games') never dead-ends. */}
+              {(() => {
+                const anyGridLesson = bandLessons.length > 0;
+                let gridShown = 0;
+                return TABS.map((tab, idx) => {
+                  // Subject pills hide when the child has no in-band lessons there,
+                  // UNLESS nothing else is playable — then show the first subject
+                  // pill so kids always have a tab to explore.
+                  const count = tab.view === 'grid' ? bandLessons.filter(tab.filter).length : 0;
+                  const hideEmptyGrid = tab.view === 'grid' && count === 0 && (gridShown > 0 || anyGridLesson);
+                  if (hideEmptyGrid) return null;
+                  if (tab.view === 'grid') gridShown++;
+                  return (
                   <button
                     key={tab.key}
                     onClick={() => { playTap(); setActiveTab(tab.key); }}
@@ -711,8 +726,9 @@ export default function StudentHome() {
                       </span>
                     )}
                   </button>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
 
             {activeTab === 'festival' ? (
@@ -775,6 +791,9 @@ export default function StudentHome() {
                     loading={loading}
                     offline={offlineMode}
                     onOpenLesson={openLesson}
+                    onExploreSubjects={() => setActiveTab('numbers')}
+                    onRefresh={loadData}
+                    catalogEmpty={catalogEmpty}
                   />
                 </div>
               </>
@@ -806,7 +825,11 @@ export default function StudentHome() {
                 <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
                   {offlineMode
                     ? t('offline.mode.noGamesDesc')
-                    : t('student.home.noGamesBody')}
+                    : catalogEmpty
+                      ? t('student.home.noGamesBodySoon', {
+                          defaultValue: 'Check back soon — your teacher is preparing fun games!',
+                        })
+                      : t('student.home.noGamesBody')}
                 </p>
               </div>
             ) : (

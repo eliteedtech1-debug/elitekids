@@ -216,6 +216,39 @@ units and never a higher-band game.
 - **N+1 queries**: path endpoint must batch `KidProgress`/`KidTestAttempt` per student (one
   IN query), not per-lesson lookups.
 
+## 5.1 NEVER-EMPTY guarantee — empty states are bugs (explicit spec)
+
+> Directive origin: `team-docs/reports/kids-board-fix-progress.md` (user brief, line 3):
+> **"below-band games must read as REVIEW/REMEDIAL not current stage"**. Engineering rule
+> (this spec §5 Risks): keep **"go back & pass" (spillover) visible and always allow
+> practice replays of already-passed lessons** (never regress garden, per ECCE rule).
+
+**Invariant:** a child for whom ANY published lessons exist **must never** see an empty
+learning path or an empty subject grid. Below-band content always fills the gap as
+REVIEW/REMEDIAL — the backend enforces this in `kidsSeries.js` (spill-over / `passed_below`
+units are never `locked` and sort first), and the subject grid lists at-or-below-band
+lessons. There is no age scenario with data present that legitimately renders empty.
+
+### Empty-state classification (UI copy contract)
+
+| Class | Condition | Verdict | UI behavior |
+|---|---|---|---|
+| **A — absence of data** | Catalog has **zero** published lessons (`lessons.length === 0`) | **Not a bug** — nothing exists yet | Static **"check back soon"** copy (teacher building content). No countdown, no explore shortcut (both would be dead ends). |
+| **B — age-bracket empty** | Data exists but nothing landed in the child's band/path (`lessons.length > 0` + `path` empty) | **BUG — violates NEVER-EMPTY** | **Realtime countdown** (~20s auto-refresh) with caution **"may take more than estimated time"** — the engine is generating a personalized assessment to place the child on the right track. Keep the 🌟 explore-subjects shortcut. |
+| **C — offline** | `navigator.onLine === false`, cache empty | Not a bug | Offline copy ("appears when back online"). |
+
+**Bug contract:** any Class-B sighting must be filed against the **engine/placement layer**
+(the thing that should have produced an in-band or spill-over track), not papered over with
+static copy in the UI. The UI's job is only to classify (via the `catalogEmpty` prop
+`LearningPath` receives from `StudentHome`, computed as `lessons.length === 0`) and pick the
+correct behavior from the table above.
+
+**Status (2026-09-04):** UI classification implemented — `LearningPath`
+(`catalogEmpty` prop) + `StudentHome` grid both branch Class A/B/C correctly; countdown
+copy describes assessment-track generation. Engine-side end-to-end placement for
+band-less children (assessment → track creation → path fill) is the remaining verification
+item — see QUEUE (speech/template lanes) for the engine backlog.
+
 ## 6. File touch map
 
 **Backend:** `controllers/kidsSeries.js` (path endpoint, reuse lock gate), `controllers/kids.js`
@@ -237,3 +270,7 @@ units and never a higher-band game.
 - [ ] Weekly goal: auto-default 1/week, child- or teacher-set, progress from real play, rollover
 - [ ] Series rule holds: each unit = one topic; final story unit may connect the series
 - [ ] Full suite at baseline fail-set; regression 25/25; vitest green; live smoke passed
+- [ ] **NEVER-EMPTY**: no child with published lessons ever sees an empty path/grid —
+      below-band spill-over fills as REVIEW/REMEDIAL; Class-A (no data) shows "check back
+      soon", Class-B (age-bracket) shows the assessment countdown and is filed as an
+      engine bug, never static-copy'd

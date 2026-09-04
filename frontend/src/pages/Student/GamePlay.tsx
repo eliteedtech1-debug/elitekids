@@ -3533,8 +3533,8 @@ type SpeechItemMode = (typeof SPEECH_MODES)[number];
 
 function speechModeFromTemplate(template: string): SpeechItemMode {
   if (template === 'speech-letter') return 'letter';
-  if (template === 'speech-sentence') return 'sentence';
-  return 'word';
+  if (template === 'speech-sentence' || template === 'speech-story') return 'sentence';
+  return 'word'; // speech-word + speech-count (numbers spoken as words)
 }
 
 function SpeechLessonGame({

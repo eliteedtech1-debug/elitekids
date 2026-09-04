@@ -22,6 +22,7 @@ import { applyDir, t, useI18n } from '@/lib/i18n';
 // Lazy route pages — loaded on first navigation to their route.
 const GamePlay = lazy(() => import('@/pages/Student/GamePlay'));
 const SpeechPractice = lazy(() => import('@/pages/Student/SpeechPractice'));
+const DrawingPractice = lazy(() => import('@/pages/Student/DrawingPractice'));
 const TeacherLessons = lazy(() => import('@/pages/Teacher/TeacherLessons'));
 const TeacherApprovals = lazy(() => import('@/pages/Teacher/TeacherApprovals'));
 const TeacherArena = lazy(() => import('@/pages/Teacher/TeacherArena'));
@@ -139,6 +140,14 @@ export default function App() {
         element={
           <AuthGuard>
             <LazyRoute element={<SpeechPractice />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/student/drawing"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<DrawingPractice />} />
           </AuthGuard>
         }
       />

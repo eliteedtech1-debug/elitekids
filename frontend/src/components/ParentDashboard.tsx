@@ -5,6 +5,8 @@ import apiClient from '@/lib/api/client';
 import { t, tN } from '@/lib/i18n';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import AppSwitcher from './AppSwitcher';
+import SkillMap, { type PortfolioSkill, type SkillSummary, type PortfolioRecommendation } from './SkillMap';
+import EvidenceGallery, { type SpeakingEvidence, type GamesEvidence, type WeeklyStats } from './EvidenceGallery';
 
 type View = 'login' | 'register' | 'dashboard' | 'child';
 
@@ -21,6 +23,14 @@ export default function ParentDashboard() {
   const [progress, setProgress] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState('');
+  const [portfolio, setPortfolio] = useState<{
+    skill_map: PortfolioSkill[];
+    skill_summary: SkillSummary;
+    recommendations: PortfolioRecommendation[];
+    evidence: { speaking?: SpeakingEvidence; games?: GamesEvidence };
+    weekly?: WeeklyStats;
+  } | null>(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
 
   const login = async () => {
     if (!phone.trim()) return toast.error(t('parent.phoneRequired'));
@@ -87,6 +97,53 @@ export default function ParentDashboard() {
       toast.error(t('parent.progressLoadFailed'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load the Q2-E portfolio for the selected child (read-only aggregation).
+  useEffect(() => {
+    if (view !== 'child' || !selectedChild) return;
+    let alive = true;
+    setPortfolioLoading(true);
+    apiClient
+      .get(`/kids/portfolio/${encodeURIComponent(selectedChild)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (!alive) return;
+        const d = res.data?.data;
+        setPortfolio({
+          skill_map: Array.isArray(d?.skill_map) ? d.skill_map : [],
+          skill_summary: d?.skill_summary || { total: 0, mastered: 0, nearly_there: 0, practicing: 0, learning: 0, new: 0 },
+          recommendations: Array.isArray(d?.recommendations) ? d.recommendations : [],
+          evidence: d?.evidence || {},
+          weekly: d?.weekly,
+        });
+      })
+      .catch(() => { /* portfolio is additive — existing progress view still works */ })
+      .finally(() => alive && setPortfolioLoading(false));
+    return () => { alive = false; };
+  }, [view, selectedChild, token]);
+
+  // Q2-E export: same payload as a downloadable JSON file.
+  const exportPortfolio = async () => {
+    if (!selectedChild) return;
+    try {
+      const res = await apiClient.get(`/kids/portfolio/${encodeURIComponent(selectedChild)}/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `portfolio-${selectedChild.replace(/[^A-Za-z0-9_-]/g, '_')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t('portfolio.export.done', { defaultValue: 'Portfolio downloaded!' }));
+    } catch {
+      toast.error(t('portfolio.export.failed', { defaultValue: 'Could not download portfolio.' }));
     }
   };
 

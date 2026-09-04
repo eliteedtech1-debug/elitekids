@@ -43,7 +43,14 @@ describe('Q1 error_code contract (backend → frontend)', () => {
   const mapSrc = read('frontend/src/lib/api/mapApiError.ts');
   const mapCodes = extractCodes(mapSrc);
 
-  const enSrc = read('frontend/src/lib/i18n/en.ts');
+  // en.ts is a barrel now — the dictionary lives in alphabetically-sorted
+  // chunks under frontend/src/lib/i18n/chunks/. Read all of them.
+  const chunksDir = path.join(ROOT, 'frontend/src/lib/i18n/chunks');
+  const enSrc = fs
+    .readdirSync(chunksDir)
+    .filter((f) => f.endsWith('.ts'))
+    .map((f) => fs.readFileSync(path.join(chunksDir, f), 'utf8'))
+    .join('\n');
 
   it('every controller-emitted Q1 error_code is mapped in the frontend ERROR_MAP', () => {
     const missing = [...controllerCodes].filter((c) => !mapCodes.has(c));
