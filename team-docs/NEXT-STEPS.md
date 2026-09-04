@@ -1,9 +1,15 @@
-# NEXT STEPS — EliteKids (handoff, updated 2026-09-01)
+# NEXT STEPS — EliteKids (handoff, updated 2026-09-04)
 
 Pickup notes for whoever continues EliteKids work. Everything below was either
 verified live or is a known gap with a concrete fix. Companion docs:
 `FLAGSHIP-ELITE-SCHOOL-SPEC.md`, `EXECUTION-PLAN-ELITE-SCHOOL.md`,
 `MVP-TO-PROD-DB-SWAP.md`, `SESSION-PLAYBOOK.md`.
+
+> **🆕 2026-09-04 status:** Q2 workstream (queue Q24–Q29: speech/drawing/portfolio FE,
+> i18n chunking, never-empty UX) is COMPLETE and live on main (`c74d9ae`+). Mailer
+> confirmed live (`backend/.env` SMTP creds). **Open:** Q30 HA review (emailed MASTER),
+> Q31 mailer flow wiring. Full picture: `team-docs/reports/status-2026-09-04.md` —
+> queue is the live board: `team-docs/QUEUE.md`.
 
 ---
 
