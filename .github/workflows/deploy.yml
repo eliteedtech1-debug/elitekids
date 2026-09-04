@@ -46,18 +46,28 @@ jobs:
           # Use token from Actions secret for auth (avoids plaintext PAT on disk)
           git remote set-url origin "https://x-access-token:${ELITEKIDS_TOKEN}@github.com/eliteedtech1-debug/elitekids.git"
 
-          # Preserve any local-only working-tree edits, then fast-forward to the
-          # pushed head (ignored files like .env are untouched by this).
-          if [ -n "$(git status --porcelain)" ]; then
-            git stash push -m "live-local-before-deploy-$(date +%s)" || true
+          # Preserve any local-only working-tree edits as a STASH COMMIT without
+          # touching the tree (never `git stash pop` — popping a stale stash onto
+          # new code leaves conflict markers that break the API boot; see
+          # 2026-09-04 incident). The commit hash is written to /tmp for manual
+          # recovery; .env / node_modules are untouched by reset --hard.
+          LOCAL_STASH="$(git stash create 2>/dev/null || true)"
+          if [ -n "$LOCAL_STASH" ]; then
+            echo "$LOCAL_STASH" > /tmp/elitekids-local-stash-$(date +%s).txt
+            echo "local edits preserved as $LOCAL_STASH (see /tmp/elitekids-local-stash-*.txt)"
           fi
           git fetch origin main 2>&1 | tail -1
           BEFORE=$(git rev-parse --short HEAD)
           git reset --hard origin/main
           AFTER=$(git rev-parse --short HEAD)
           echo "backend: $BEFORE -> $AFTER"
-          # Restore local-only edits if they still apply (never blocks the deploy)
-          git stash pop 2>/dev/null && echo "local edits restored" || echo "(no local edits to restore — ok)"
+          # Gate: refuse to continue if conflict markers or unmerged paths
+          # survived (stops a silently-broken tree from reaching the restart).
+          if git ls-files -u | grep -q . \
+             || grep -rqE '^(<<<<<<<|>>>>>>>)' src ../frontend/src 2>/dev/null; then
+            echo "❌ CONFLICT MARKERS / UNMERGED PATHS in tree — refusing to continue"
+            exit 1
+          fi
 
           # Install the locked dev dependencies before the backend acceptance
           # gate; Jest is required by scripts/run-tests.sh.
