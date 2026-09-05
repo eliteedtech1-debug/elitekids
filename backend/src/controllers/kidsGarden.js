@@ -45,7 +45,9 @@ async function getGarden(req, res) {
       garden = await db.KidGardenState.create({
         id: uuidv4(),
         student_id: studentId,
-        garden_elements: [],
+        garden_elements: [
+          { type: 'plot', label: 'My Garden', planted: true, position: { row: 0, col: 0 } },
+        ],
       });
     }
 
@@ -119,11 +121,16 @@ async function addGardenElement(req, res) {
       garden = await db.KidGardenState.create({
         id: uuidv4(),
         student_id,
-        garden_elements: [],
+        garden_elements: [
+          { type: 'plot', label: 'My Garden', planted: true, position: { row: 0, col: 0 } },
+        ],
       });
     }
 
-    const elements = garden.garden_elements || [];
+    const rawElements = garden.garden_elements;
+    const elements = Array.isArray(rawElements)
+      ? rawElements.map((element) => ({ ...element }))
+      : [];
 
     // Check if this item already has a garden element
     const existingIdx = elements.findIndex((e) => e.item_id === item_id);
@@ -137,18 +144,28 @@ async function addGardenElement(req, res) {
 
     // Tier determines the growth stage
     const stageNames = ['seed', 'sprout', 'bloom', 'full'];
+    const requestedTier = Math.max(0, Math.min(Number(tier), stageNames.length - 1));
 
     if (existingIdx >= 0) {
-      // Upgrade: only grow, never regress
+      // Upgrade: only grow, never regress. Older rows may have a stale or
+      // missing tier, so derive the durable level from both persisted fields.
       const existing = elements[existingIdx];
-      const currentStage = stageNames.indexOf(existing.stage || 'seed');
-      const newStage = Math.min(tier, stageNames.length - 1);
-      if (newStage > currentStage) {
+      const currentStage = Math.max(0, stageNames.indexOf(existing.stage || 'seed'));
+      const persistedTier = Number(existing.tier);
+      const currentTier = Number.isFinite(persistedTier)
+        ? Math.max(persistedTier, currentStage)
+        : currentStage;
+      const nextTier = Math.max(currentTier, requestedTier);
+
+      // Normalize stage and tier together even when the request is lower. This
+      // repairs legacy inconsistent JSON and makes the monotonic invariant
+      // durable across requests, not just within one Sequelize instance.
+      if (existing.stage !== stageNames[nextTier] || Number(existing.tier) !== nextTier) {
         elements[existingIdx] = {
           ...existing,
-          stage: stageNames[newStage],
-          tier: newStage,
-          upgraded_at: new Date().toISOString(),
+          stage: stageNames[nextTier],
+          tier: nextTier,
+          ...(nextTier > currentTier ? { upgraded_at: new Date().toISOString() } : {}),
         };
       }
     } else {
@@ -157,15 +174,15 @@ async function addGardenElement(req, res) {
         item_id,
         category,
         type: elementType,
-        stage: stageNames[Math.min(tier, stageNames.length - 1)],
-        tier,
+        stage: stageNames[requestedTier],
+        tier: requestedTier,
         planted_at: new Date().toISOString(),
       });
     }
 
     // Clone on write: updating with the same (mutated) array reference can be
     // treated as unchanged by Sequelize and silently skip the JSON column.
-    await garden.update({ garden_elements: [...elements] });
+    await garden.update({ garden_elements: elements });
 
     return res.json({ success: true, data: garden });
   } catch (err) {

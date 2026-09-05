@@ -372,13 +372,22 @@ async function submitDamage(req, res) {
       { replacements: { dmg: actualDamage, score: Number(score) || 0, rt: Number(response_time_ms) || 0, rid: raidId, adm } },
     );
 
-    // Record boss run
+    // Resolve shared roster data on the shared connection before writing the
+    // Kids-owned boss run. Cross-database subqueries are invalid because the
+    // content connection must never read shared tables.
+    const classRows = await dbm().sequelize.query(
+      `SELECT class_code FROM students WHERE admission_no=:adm AND school_id=:s LIMIT 1`,
+      { replacements: { adm, s: String(schoolId) }, type: dbm().Sequelize.QueryTypes.SELECT },
+    ).catch(() => []);
+    const classCode = classRows?.[0]?.class_code || null;
+
+    // Record boss run in the Kids-owned content DB.
     await dbm().content.query(
       `INSERT INTO kids_boss_runs (child_admission_no, school_id, class_code, lesson_id, config_id, guardian_slug, score, combo_max, rage_used, response_time_ms, duration_s)
-       VALUES (:adm, :s, (SELECT class_code FROM students WHERE admission_no=:adm AND school_id=:s LIMIT 1), :lid, :cfg, :g, :sc, :cm, :ru, :rt, :ds)`,
+       VALUES (:adm, :s, :class_code, :lid, :cfg, :g, :sc, :cm, :ru, :rt, :ds)`,
       {
         replacements: {
-          adm, s: String(schoolId), lid: lesson_id || null, cfg: config_id || null,
+          adm, s: String(schoolId), class_code: classCode, lid: lesson_id || null, cfg: config_id || null,
           g: raid.guardian_slug, sc: Number(score) || 0, cm: Number(combo_max) || 0,
           ru: Number(rage_used) || 0, rt: Number(response_time_ms) || 0, ds: Number(duration_s) || 0,
         },

@@ -480,34 +480,10 @@ async function createChildForParent(req, res) {
       status: 'Active',
     });
 
-    // 2) Create students row in shared EliteSMS DB so studentLogin works
-    const existingStudent = await db.sequelize.query(
-      `SELECT id FROM students WHERE admission_no = :adm AND school_id = :sid LIMIT 1`,
-      { replacements: { adm: childAdmission, sid: school_id }, type: db.Sequelize.QueryTypes.SELECT }
-    ).catch(() => []);
-
-    if (!existingStudent || existingStudent.length === 0) {
-      const nameParts = String(full_name).trim().split(/\s+/);
-      const firstName = nameParts[0] || full_name;
-      const surname = nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
-      await db.sequelize.query(
-        `INSERT INTO students (admission_no, student_name, first_name, surname, school_id, branch_id, class_name, password, status, parent_id, user_type)
-         VALUES (:adm, :name, :fname, :sname, :sid, :bid, :cls, :pwd, 'Active', :pid, 'Student')`,
-        {
-          replacements: {
-            adm: childAdmission,
-            name: full_name,
-            fname: firstName,
-            sname: surname,
-            sid: school_id,
-            bid: branch_id,
-            cls: age_level || 'Creche',
-            pwd: await bcrypt.hash(String(password), 10),
-            pid: parentKey,
-          },
-        }
-      );
-    }
+    // The local profile is sufficient for an EliteKids-only child. Shared
+    // EliteSMS students are imported identity records and are never created or
+    // mutated by this addon. Student login uses the local profile when no
+    // shared row exists, and the local hash remains authoritative when present.
 
     return res.status(201).json({ success: true, data: child });
   } catch (err) {
@@ -540,14 +516,11 @@ async function changeChildPassword(req, res) {
 
     const hashed = await bcrypt.hash(String(new_password), 10);
 
-    // Update kids_children.password_hash
+    // Password changes are Kids-local only. The shared EliteSMS students row
+    // is canonical identity data and must never be overwritten by this addon.
+    // studentLogin checks the local hash first, so the new password remains
+    // authoritative inside EliteKids without mutating shared credentials.
     await child.update({ password_hash: hashed });
-
-    // Update shared students.password so studentLogin works
-    await db.sequelize.query(
-      `UPDATE students SET password = :pwd WHERE admission_no = :adm AND school_id = :sid`,
-      { replacements: { pwd: hashed, adm: admission_no, sid: child.school_id } }
-    ).catch(() => {});
 
     return res.json({ success: true, message: 'Password updated.' });
   } catch (err) {

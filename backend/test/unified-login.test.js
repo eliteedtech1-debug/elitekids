@@ -127,7 +127,7 @@ describe('POST /kids/parent/register — links child with shared password only',
   it('rejects a PIN-only registration (shared password required)', async () => {
     const res = await request(app)
       .post('/kids/parent/register')
-      .send({ phone: PARENT.phone, admission_no: 'NUR-003', school_id: PARENT.school_id, pin: '1234' });
+      .send({ phone: PARENT.phone, admission_no: 'NUR-002', school_id: PARENT.school_id, pin: '1234' });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -137,7 +137,7 @@ describe('POST /kids/parent/register — links child with shared password only',
   it('links a child after proving the shared EliteSMS password, and returns no token', async () => {
     const res = await request(app)
       .post('/kids/parent/register')
-      .send({ phone: PARENT.phone, admission_no: 'NUR-003', school_id: PARENT.school_id, password: PARENT.password });
+      .send({ phone: PARENT.phone, admission_no: 'NUR-002', school_id: PARENT.school_id, password: PARENT.password });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);

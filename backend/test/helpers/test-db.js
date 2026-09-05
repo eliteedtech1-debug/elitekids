@@ -3,9 +3,8 @@
 /**
  * Hermetic integration-test database for elite-kids-api.
  *
- * Creates `elite_kids_test` on the LOCAL MySQL (root, no password) with the
- * minimal shared-school tables the auth/school routes query (users, parents,
- * students, school_setup, password_reset_tokens) and seeds fixtures.
+ * Creates `elite_db_test` for shared EliteSMS tables and `elite_content_test`
+ * for Kids-owned tables on LOCAL MySQL (never production).
  *
  * NEVER points at the prod DBs — the app's .env (tunnel/prod) is ignored in
  * tests because setup-env.js sets process.env before the app is imported and
@@ -34,13 +33,24 @@ if (fs.existsSync(envTestPath)) {
   }
 }
 
-const TEST_DB = process.env.TEST_DB_NAME || 'elite_kids_test';
+const legacyTestDb = process.env.TEST_DB_NAME === 'elite_kids_test' ? undefined : process.env.TEST_DB_NAME;
+const TEST_DB = process.env.TEST_SHARED_DB_NAME || legacyTestDb || 'elite_db_test';
+const TEST_CONTENT_DB = process.env.TEST_CONTENT_DB_NAME || 'elite_content_test';
+const SHARED_TABLES = new Set(['users', 'parents', 'students', 'school_setup', 'password_reset_tokens']);
 const CONFIG = {
   host: process.env.TEST_DB_HOST || '127.0.0.1',
   port: Number(process.env.TEST_DB_PORT || 3306),
   user: process.env.TEST_DB_USER || 'root',
   password: process.env.TEST_DB_PASSWORD || '',
 };
+
+function sqlUsesSharedTable(sql) {
+  return [...SHARED_TABLES].some((table) => new RegExp(`\\b${table}\\b`, 'i').test(sql));
+}
+
+function routedConnection(sharedConn, contentConn, sql) {
+  return sqlUsesSharedTable(sql) ? sharedConn : contentConn;
+}
 
 const TABLES = `
 CREATE TABLE IF NOT EXISTS users (
@@ -571,21 +581,32 @@ CREATE TABLE IF NOT EXISTS kids_parental_controls (
 `;
 
 async function ensureTestDb() {
-  const conn = await mysql.createConnection(CONFIG);
+  const admin = await mysql.createConnection(CONFIG);
+  let conn;
   try {
-    // Full rebuild each run — the DB is throwaway, so schema always matches
-    // the DDL below even when the table layout changed between commits
-    // (CREATE TABLE IF NOT EXISTS would silently keep a stale schema).
-    await conn.query('DROP DATABASE IF EXISTS `' + TEST_DB + '`');
-    await conn.query('CREATE DATABASE `' + TEST_DB + '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-    await conn.query('USE `' + TEST_DB + '`');
+    // Full rebuild each run — shared identity data and Kids-owned content are
+    // deliberately reset in separate throwaway databases.
+    for (const database of [TEST_DB, TEST_CONTENT_DB]) {
+      await admin.query('DROP DATABASE IF EXISTS `' + database + '`');
+      await admin.query('CREATE DATABASE `' + database + '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    }
 
-    // Tables
+    const sharedConn = await mysql.createConnection({ ...CONFIG, database: TEST_DB });
+    const contentConn = await mysql.createConnection({ ...CONFIG, database: TEST_CONTENT_DB });
+    conn = {
+      query: (sql, params) => routedConnection(sharedConn, contentConn, sql).query(sql, params),
+      end: async () => Promise.all([sharedConn.end(), contentConn.end()]),
+    };
+
+    // Tables are routed by ownership: users/parents/students/school_setup and
+    // password reset tokens belong to the shared DB; every kids_* table belongs
+    // to the Kids content DB.
+    await conn.query('SET FOREIGN_KEY_CHECKS = 0');
     const statements = TABLES.split(';').map((s) => s.trim()).filter(Boolean);
     for (const sql of statements) await conn.query(sql);
-
-    // Reset data between runs
-    await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+    // Reset data in the database that owns each table. A table-qualified query
+    // is intentionally routed by the same helper used by tests.
     for (const t of ['users', 'parents', 'students', 'school_setup', 'password_reset_tokens', 'kids_children', 'kids_progress', 'kids_lessons', 'kids_game_configs', 'kids_mode_locks', 'kids_content_approvals', 'kids_generation_jobs', 'kids_scene_scripts', 'kids_prescreen_log', 'kids_denylist_rules', 'kids_content_generation_audit', 'kids_game_series', 'kids_game_units', 'kids_curriculum_points', 'kids_library_games', 'kids_class_game_variants', 'kids_game_item_responses', 'kids_engagement_snapshots', 'kids_mastery_progress', 'kids_test_attempts', 'kids_review_schedule', 'kids_interface_onboarding', 'kids_garden_state', 'kids_companion_state', 'kids_session_state', 'kids_parental_controls', 'kids_badges', 'kids_festival_state']) {
       await conn.query('TRUNCATE TABLE `' + t + '`');
     }
@@ -806,15 +827,17 @@ async function ensureTestDb() {
       [JSON.stringify([{ type: 'plot', label: 'My Garden', planted: true }])]
     );
 
-    return { db: TEST_DB, ok: true };
+    return { db: TEST_DB, contentDb: TEST_CONTENT_DB, ok: true };
   } finally {
-    await conn.end();
+    if (conn) await conn.end();
+    await admin.end();
   }
 }
 
-/** Direct query helper for tests (e.g. reading the OTP the API wrote). */
+/** Direct query helper for tests; routes shared and Kids SQL to their owners. */
 async function testQuery(sql, params) {
-  const conn = await mysql.createConnection({ ...CONFIG, database: TEST_DB });
+  const database = sqlUsesSharedTable(sql) ? TEST_DB : TEST_CONTENT_DB;
+  const conn = await mysql.createConnection({ ...CONFIG, database });
   try {
     const [rows] = await conn.query(sql, params);
     return rows;
@@ -823,4 +846,4 @@ async function testQuery(sql, params) {
   }
 }
 
-module.exports = { ensureTestDb, testQuery, TEST_DB };
+module.exports = { ensureTestDb, testQuery, TEST_DB, TEST_CONTENT_DB };

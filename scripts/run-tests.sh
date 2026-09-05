@@ -10,8 +10,9 @@
 #       / `TEST_DB_PASSWORD=` lines win if present; otherwise the app DB
 #       credentials (`DB_USERNAME=` / `DB_PASSWORD=`) are mapped onto them —
 #       test/setup-env.js + global-setup.js use these ONLY to create and seed
-#       the throwaway local `elite_kids_test` database (see
-#       backend/test/helpers/test-db.js), never to touch real data.
+#       the throwaway local `elite_db_test` (shared) and `elite_content_test`
+#       (Kids-owned) databases (see backend/test/helpers/test-db.js), never to
+#       touch real data.
 #     - NODE_ENV=test and DISABLE_RATE_LIMIT=1 are forced.
 #       test/setup-env.js additionally blanks B2/Redis vars, so no network
 #       side-effects are possible regardless of what .env contains.

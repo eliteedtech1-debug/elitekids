@@ -18,6 +18,8 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 'Nursery',
       },
       class_code: { type: DataTypes.STRING(50), allowNull: true },
+      // EliteKids-local credential; the shared students.password remains read-only.
+      password_hash: { type: DataTypes.STRING(255), allowNull: true },
       avatar_url: { type: DataTypes.STRING(500), allowNull: true },
       parent_user_id: { type: DataTypes.STRING(50), allowNull: true }, // elite_db.users.id (user_type=parent)
       parent_phone: { type: DataTypes.STRING(20), allowNull: true },

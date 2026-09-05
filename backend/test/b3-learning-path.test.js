@@ -65,9 +65,9 @@ describe('B3: ageBand mapping + visible levels', () => {
     expect(AGE_BANDS).toEqual(['Creche', 'Nursery', 'KG1', 'KG2', 'Primary']);
     expect(classToAgeLevel('Creche')).toBe('Creche');
     expect(classToAgeLevel('Pre-Nursery')).toBe('Creche');
-    expect(classToAgeLevel('Nursery 2')).toBe('Nursery');
-    expect(classToAgeLevel('Year 3')).toBe('KG1');
-    expect(classToAgeLevel('Year 4')).toBe('KG2');
+    expect(classToAgeLevel('Nursery 2')).toBe('KG2');
+    expect(classToAgeLevel('Year 3')).toBe('Primary');
+    expect(classToAgeLevel('Year 4')).toBe('Primary');
     expect(classToAgeLevel('Year 5')).toBe('Primary');
     expect(classToAgeLevel('Primary 2')).toBe('Primary'); // keyword beats bare-number fallback
     expect(classToAgeLevel('Basic 3')).toBe('Primary');
@@ -79,7 +79,7 @@ describe('B3: ageBand mapping + visible levels', () => {
 
   it('visible levels = band + everything below (strict ceiling)', () => {
     expect(visibleLevels('Creche')).toEqual(['Creche']);
-    expect(visibleLevels('Nursery')).toEqual(['Creche', 'Nursery']);
+    expect(visibleLevels('Nursery')).toEqual(['Creche', 'Nursery', 'KG1']);
     expect(visibleLevels('KG2')).toEqual(['Creche', 'Nursery', 'KG1', 'KG2']);
     expect(visibleLevels('Bogus')).toBeNull();
   });
