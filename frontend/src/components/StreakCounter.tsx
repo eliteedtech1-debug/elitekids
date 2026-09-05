@@ -34,7 +34,7 @@ export default function StreakCounter({ current, longest = 0, freezeCount = 0, c
         <div className="text-lg font-bold leading-none text-white">
           {current === 0 ? 'Start a streak!' : ordinalDay(current)}
         </div>
-        <div className="mt-0.5 text-xs text-white/50">
+        <div className="mt-0.5 text-xs text-white/70">
           {mult.multiplier > 1 ? (
             <span className="font-semibold text-orange-300">{mult.label}</span>
           ) : (
@@ -42,7 +42,7 @@ export default function StreakCounter({ current, longest = 0, freezeCount = 0, c
           )}
         </div>
       </div>
-      <div className="ml-auto flex items-center gap-3 text-xs text-white/50">
+      <div className="ml-auto flex items-center gap-3 text-xs text-white/70">
         {longest > 0 && <span className="hidden sm:block">Best: {longest}</span>}
         {freezeCount > 0 && (
           <span className="flex items-center gap-0.5 rounded-full bg-blue-400/20 px-2 py-0.5 text-blue-300">

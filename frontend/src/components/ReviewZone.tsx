@@ -202,7 +202,7 @@ export default function ReviewZone() {
       {reviews.length === 0 ? (
         <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-[#0d9488]/25 bg-white/60 px-4 py-3 backdrop-blur-sm">
           <span className="text-lg">🌈</span>
-          <p className="text-xs font-bold text-gray-400">{t('reviewZone.emptyCompact', { defaultValue: 'All caught up! Play to earn reviews ⚡' })}</p>
+          <p className="text-xs font-bold text-gray-500">{t('reviewZone.emptyCompact', { defaultValue: 'All caught up! Play to earn reviews ⚡' })}</p>
         </div>
       ) : (
         <div className="space-y-3">

@@ -131,17 +131,17 @@ function LessonRow({
       aria-label={`${lesson.title} — ${stateSub(lesson)}`}
     >
       {/* State dot */}
-      <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
-          lesson.state === 'passed'
-            ? 'bg-emerald-100 text-emerald-600'
-            : lesson.state === 'practice_done'
-              ? 'bg-amber-100 text-amber-500'
-              : open
-                ? 'bg-white text-[#0F4D92] shadow-sm ring-1 ring-[#0F4D92]/20'
-                : 'bg-white text-gray-300 ring-1 ring-gray-200'
-        }`}
-      >
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
+            lesson.state === 'passed'
+              ? 'bg-emerald-100 text-emerald-600'
+              : lesson.state === 'practice_done'
+                ? 'bg-amber-100 text-amber-500'
+                : open
+                  ? 'bg-white text-[#0F4D92] shadow-sm ring-1 ring-[#0F4D92]/20'
+                  : 'bg-gray-100 text-gray-400 ring-1 ring-gray-200'
+          }`}
+        >
         {lesson.state === 'passed' ? '✓' : lesson.state === 'practice_done' ? '⭐' : index + 1}
       </span>
       <span className="min-w-0 flex-1">

@@ -38,7 +38,7 @@ export default function XPBar({ xpTotal, streakDays = 0, compact = false }: XPBa
             Level {info.level} · {info.title}
           </span>
         </div>
-        <span className="text-xs text-white/50">
+        <span className="text-xs text-white/70">
           {isFresh ? '🌱 Tap a lesson to start' : `${xpTotal.toLocaleString()} XP`}
         </span>
       </div>
@@ -54,7 +54,7 @@ export default function XPBar({ xpTotal, streakDays = 0, compact = false }: XPBa
           style={{ width: `${Math.max(pct, isFresh ? 8 : 4)}%` }}
         />
       </div>
-      <div className="mt-1 flex items-center justify-between text-xs text-white/50">
+      <div className="mt-1 flex items-center justify-between text-xs text-white/70">
         <span>
           {isFresh
             ? 'Earn XP by finishing games'

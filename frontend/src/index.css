@@ -206,6 +206,13 @@ button:focus-visible,
 [data-low-end="true"] .bg-white\/70 { background-color: rgba(255,255,255,0.92) !important; }
 [data-low-end="true"] .bg-emerald-50\/70 { background-color: rgba(240,253,244,0.95) !important; }
 
+/* Ensure readable text on low-end devices — raise low-opacity text to visible levels */
+[data-low-end="true"] .text-white\/40 { color: rgba(255,255,255,0.85) !important; }
+[data-low-end="true"] .text-white\/50 { color: rgba(255,255,255,0.85) !important; }
+[data-low-end="true"] .text-white\/60 { color: rgba(255,255,255,0.90) !important; }
+[data-low-end="true"] .text-gray-300 { color: #9CA3AF !important; }
+[data-low-end="true"] .text-gray-400 { color: #6B7280 !important; }
+
 /* ══════════════════════════════════════════════════════════════════
    ACCESSIBILITY — High Contrast
    ══════════════════════════════════════════════════════════════════ */
