@@ -49,9 +49,23 @@ async function progressSummary(admissionNo) {
     const s = Number(r.score) || 0;
     if (s > byLesson[lid].best_score) byLesson[lid].best_score = s;
   }
+  // Fetch lesson titles so the client can display human-readable names.
+  const lessonIds = Object.keys(byLesson);
+  let titleMap = {};
+  if (lessonIds.length > 0) {
+    try {
+      const lessons = await db.KidLesson.findAll({
+        where: { id: lessonIds },
+        attributes: ['id', 'title'],
+      });
+      for (const l of lessons) titleMap[l.id] = l.title;
+    } catch { /* lesson lookup best-effort */ }
+  }
+
   const gameStats = {};
   for (const [lid, agg] of Object.entries(byLesson)) {
     gameStats[lid] = {
+      title: titleMap[lid] || null,
       times_played: agg.times_played,
       best_score: agg.best_score,
       avg_score: agg.times_played > 0 ? Math.round(agg.total_score / agg.times_played) : 0,

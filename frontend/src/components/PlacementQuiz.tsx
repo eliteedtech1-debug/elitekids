@@ -40,6 +40,26 @@ const BAND_EMOJI: Record<string, string> = {
   Primary: '🌟',
 };
 
+/** User-friendly class labels — the raw ENUM values (Creche, Nursery, …)
+ *  are internal storage labels; children and parents see the equivalent
+ *  class name used in their school (Northern-Nigeria vocabulary). */
+const BAND_LABEL: Record<string, string> = {
+  Creche: 'Pre-Nursery',
+  Nursery: 'Nursery 1',
+  KG1: 'KG1',
+  KG2: 'Nursery 2',
+  Primary: 'Primary',
+};
+
+/** TTS-friendly spoken form — includes the equivalence for audio clarity. */
+const BAND_SPEAK: Record<string, string> = {
+  Creche: 'Pre-Nursery',
+  Nursery: 'Nursery 1, also known as KG1',
+  KG1: 'KG1, also known as Nursery 1',
+  KG2: 'Nursery 2, also known as KG2',
+  Primary: 'Primary',
+};
+
 export default function PlacementQuiz({
   open,
   onClose,
@@ -114,7 +134,7 @@ export default function PlacementQuiz({
   // Speak the result too — the celebration is audible, not just visual.
   useEffect(() => {
     if (open && result) {
-      void speak(`Great job! You are placed in ${result.band}. Let's play!`);
+      void speak(`Great job! You are placed in ${BAND_SPEAK[result.band] || result.band}. Let's play!`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, result?.band]);
@@ -200,7 +220,7 @@ export default function PlacementQuiz({
               <p className="max-w-sm text-sm text-gray-500">{t('placement.doneBody', { score: result.score_pct })}</p>
               <div className="rounded-2xl bg-[#0F4D92]/5 px-6 py-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-[#0F4D92]/60">{t('placement.yourLevel')}</p>
-                <p className="text-lg font-black text-[#0F4D92]">{result.band}</p>
+                <p className="text-lg font-black text-[#0F4D92]">{BAND_LABEL[result.band] || result.band}</p>
               </div>
               <button
                 onClick={() => { playTap(); onClose(); }}

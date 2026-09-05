@@ -14,6 +14,7 @@ import PublicLoginSwitcher from '@/components/PublicLoginSwitcher';
 import LoginAppsPanel from '@/components/LoginAppsPanel';
 import LoginUpsell, { verifyPendingSubscription, type LoginUpsellPayload } from '@/components/LoginUpsell';
 import { t } from '@/lib/i18n';
+import { applyLowEndMode } from '@/lib/utils/lowEnd';
 
 interface SchoolDetails {
   school_id: string;
@@ -31,28 +32,30 @@ function FloatingShapes() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
       {/* Large teal blob */}
-      <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-gradient-to-br from-teal-400/30 to-emerald-500/20 blur-3xl animate-pulse" />
+      <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-gradient-to-br from-teal-400/30 to-emerald-500/20 blur-3xl animate-pulse login-gpu-heavy" />
       {/* Amber accent */}
-      <div className="absolute top-1/3 -right-16 h-56 w-56 rounded-full bg-gradient-to-br from-amber-400/25 to-orange-400/15 blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/3 -right-16 h-56 w-56 rounded-full bg-gradient-to-br from-amber-400/25 to-orange-400/15 blur-2xl animate-pulse login-gpu-heavy" style={{ animationDelay: '1s' }} />
       {/* Small floating book */}
-      <svg className="absolute top-[15%] left-[10%] h-12 w-12 text-teal-300/40 animate-bounce" style={{ animationDuration: '3s' }} viewBox="0 0 24 24" fill="currentColor">
+      <svg className="absolute top-[15%] left-[10%] h-12 w-12 text-teal-300/40 animate-bounce login-gpu-heavy" style={{ animationDuration: '3s' }} viewBox="0 0 24 24" fill="currentColor">
         <path d="M21 4H3a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1zM4 6h7v12H4V6zm9 12V6h7v12h-7z"/>
       </svg>
       {/* Floating star */}
-      <svg className="absolute top-[60%] left-[5%] h-8 w-8 text-amber-300/50 animate-bounce" style={{ animationDuration: '4s', animationDelay: '0.5s' }} viewBox="0 0 24 24" fill="currentColor">
+      <svg className="absolute top-[60%] left-[5%] h-8 w-8 text-amber-300/50 animate-bounce login-gpu-heavy" style={{ animationDuration: '4s', animationDelay: '0.5s' }} viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
       </svg>
       {/* Pencil */}
-      <svg className="absolute top-[25%] right-[12%] h-10 w-10 text-emerald-300/35 animate-bounce" style={{ animationDuration: '3.5s', animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="currentColor">
+      <svg className="absolute top-[25%] right-[12%] h-10 w-10 text-emerald-300/35 animate-bounce login-gpu-heavy" style={{ animationDuration: '3.5s', animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="currentColor">
         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
       </svg>
       {/* Small circle */}
-      <div className="absolute bottom-[20%] right-[8%] h-6 w-6 rounded-full bg-teal-400/30 animate-pulse" style={{ animationDelay: '2s' }} />
+      <div className="absolute bottom-[20%] right-[8%] h-6 w-6 rounded-full bg-teal-400/30 animate-pulse login-gpu-heavy" style={{ animationDelay: '2s' }} />
     </div>
   );
 }
 
 export default function Login() {
+  useEffect(applyLowEndMode, []);
+
   const navigate = useNavigate();
   const [mode, setMode] = useState<LoginMode>('users');
   const [form, setForm] = useState({ school_id: '', email: '', password: '' });
@@ -303,16 +306,16 @@ export default function Login() {
     <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f0fdfa] via-[#e0f7ef] to-[#fef3c7] p-4 sm:p-6 overflow-hidden">
       <FloatingShapes />
 
-      <div className="relative z-10 w-full max-w-5xl overflow-hidden rounded-[2rem] bg-white/60 backdrop-blur-2xl shadow-[0_20px_80px_rgba(13,148,136,0.15)] border border-white/60 lg:flex">
+      <div className="relative z-10 w-full max-w-5xl overflow-hidden rounded-[2rem] bg-white/60 backdrop-blur-2xl shadow-[0_20px_80px_rgba(13,148,136,0.15)] border border-white/60 lg:flex login-gpu-heavy">
         {upsell && <LoginUpsell payload={upsell} onClose={() => setUpsell(null)} />}
         {/* ── Left hero panel ─────────────────────────────────────────────── */}
         <section className="hidden min-h-[680px] w-[40%] flex-col justify-between rounded-l-[2rem] bg-gradient-to-br from-[#0a1628] via-[#0F4D92] to-[#0d9488] p-10 text-white relative overflow-hidden lg:flex">
           {/* 3D decorative blobs */}
-          <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-teal-400/20 blur-2xl" />
-          <div className="absolute bottom-20 -right-10 h-32 w-32 rounded-full bg-amber-400/15 blur-2xl" />
+          <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-teal-400/20 blur-2xl login-gpu-heavy" />
+          <div className="absolute bottom-20 -right-10 h-32 w-32 rounded-full bg-amber-400/15 blur-2xl login-gpu-heavy" />
 
           <div className="relative z-10">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-2xl bg-white/10 backdrop-blur-sm px-4 py-2 border border-white/10">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-2xl bg-white/10 backdrop-blur-sm px-4 py-2 border border-white/10 login-gpu-heavy">
               <img src="/logo.svg" alt="Elite brand" className="h-10 w-10 rounded-xl object-contain" />
               <span className="text-lg font-bold tracking-tight">EliteKids</span>
             </div>
@@ -331,7 +334,7 @@ export default function Login() {
               { icon: <BookOpen className="h-4 w-4" />, text: 'NERDC Curriculum' },
               { icon: <Star className="h-4 w-4" />, text: 'Progress Garden' },
             ].map((feat) => (
-              <div key={feat.text} className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm px-3 py-1.5 text-xs font-medium border border-white/5">
+              <div key={feat.text} className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm px-3 py-1.5 text-xs font-medium border border-white/5 login-gpu-heavy">
                 {feat.icon}
                 {feat.text}
               </div>
@@ -352,7 +355,7 @@ export default function Login() {
           {/* School crest + brand */}
           <div className="mb-6 text-center">
             <div className="relative mx-auto mb-4 h-24 w-24">
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-teal-400 to-emerald-500 opacity-20 blur-xl" />
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-teal-400 to-emerald-500 opacity-20 blur-xl login-gpu-heavy" />
               <img
                 src={school?.badge_url || '/logo.svg'}
                 alt={t('login.schoolLogoAlt')}
@@ -370,8 +373,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setMode('users')}
-              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                mode === 'users'
+              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 $              {mode === 'users'
                   ? 'bg-gradient-to-r from-[#0F4D92] to-[#0d9488] text-white shadow-[0_4px_15px_rgba(15,77,146,0.3)]'
                   : 'text-gray-500 hover:text-[#0F4D92]'
               }`}
@@ -426,7 +428,7 @@ export default function Login() {
 
             {/* Resolved school (input auto-hides after correct data is fetched) */}
             {school && (
-              <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-3.5 py-2.5 backdrop-blur-sm sm:gap-3 sm:px-4 sm:py-3">
+              <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-3.5 py-2.5 backdrop-blur-sm sm:gap-3 sm:px-4 sm:py-3 login-gpu-heavy">
                 <img
                   src={school.badge_url || '/logo.svg'}
                   alt={t('login.schoolLogoAlt')}
@@ -514,12 +516,12 @@ export default function Login() {
             </div>
 
             {schoolError && (
-              <div className="rounded-2xl bg-amber-50/80 border border-amber-200/50 p-3 text-xs text-amber-800 backdrop-blur-sm">
+              <div className="rounded-2xl bg-amber-50/80 border border-amber-200/50 p-3 text-xs text-amber-800 backdrop-blur-sm login-gpu-heavy">
                 {schoolError}
               </div>
             )}
             {error && (
-              <div className="rounded-2xl bg-red-50/80 border border-red-200/50 p-3 text-xs text-red-700 backdrop-blur-sm">
+              <div className="rounded-2xl bg-red-50/80 border border-red-200/50 p-3 text-xs text-red-700 backdrop-blur-sm login-gpu-heavy">
                 {error}
               </div>
             )}
@@ -560,7 +562,7 @@ export default function Login() {
 
           {/* Parent signup form — flagship only */}
           {authView === 'signup' && mode === 'users' && FLAGSHIP_SHORT_NAMES.includes((short_name?.toLowerCase() || '') as typeof FLAGSHIP_SHORT_NAMES[number]) && (
-            <form onSubmit={handleSignup} className="mt-5 space-y-3 rounded-2xl bg-white/50 backdrop-blur-sm p-4 border border-white/50 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+            <form onSubmit={handleSignup} className="mt-5 space-y-3 rounded-2xl bg-white/50 backdrop-blur-sm p-4 border border-white/50 shadow-[0_4px_20px_rgba(0,0,0,0.04)] login-gpu-heavy">
               <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                 {t('login.registerTitle')}

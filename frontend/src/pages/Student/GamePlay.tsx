@@ -73,6 +73,7 @@ import { qualityForAnswers, pickNextRecs, reasonEmoji, humanizeSkill } from '@/l
 import apiClientBoss from '@/lib/api/client';
 import type { PromptMode, ResponseMode } from '@/lib/types/game';
 import { getPromptDisplay, getResponseDisplay } from '@/lib/types/game';
+import { applyLowEndMode } from '@/lib/utils/lowEnd';
 
 /* ── Item visual renderer (image → emoji → color → text) ── */
 
@@ -3660,6 +3661,7 @@ function SpeechLessonGame({
 /* ── Main GamePlay Page ────────────────────────────────────── */
 
 export default function GamePlay({ initialConfig }: { initialConfig?: { config: any; scenes?: SceneText[] } }) {
+  useEffect(applyLowEndMode, []);
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();

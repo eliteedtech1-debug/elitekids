@@ -161,6 +161,52 @@ button:focus-visible,
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   LOW-END DEVICE MODE — GPU-heavy effects stripped
+   Set data-low-end="true" on <html> from JS when:
+     • navigator.deviceMemory ≤ 2 (Chrome)
+     • screen width ≤ 360px + no hardware-accelerated GPU hints
+     • navigator.hardwareConcurrency <= 2
+   ══════════════════════════════════════════════════════════════════ */
+
+[data-low-end="true"] .login-gpu-heavy,
+[data-low-end="true"] .login-gpu-heavy * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  animation: none !important;
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Also cover blur-3xl / blur-2xl / blur-xl used as Tailwind utility classes */
+[data-low-end="true"] .blur-3xl,
+[data-low-end="true"] .blur-2xl,
+[data-low-end="true"] .blur-xl {
+  filter: none !important;
+}
+
+[data-low-end="true"] .backdrop-blur-2xl,
+[data-low-end="true"] .backdrop-blur-xl,
+[data-low-end="true"] .backdrop-blur,
+[data-low-end="true"] .backdrop-blur-sm {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-low-end="true"] .animate-pulse,
+[data-low-end="true"] .animate-bounce,
+[data-low-end="true"] .animate-spin,
+[data-low-end="true"] [class*="animate-game-"] {
+  animation: none !important;
+}
+
+/* Fall back to opaque backgrounds when blur is stripped */
+[data-low-end="true"] .bg-white\/60 { background-color: rgba(255,255,255,0.92) !important; }
+[data-low-end="true"] .bg-white\/50 { background-color: rgba(255,255,255,0.85) !important; }
+[data-low-end="true"] .bg-white\/70 { background-color: rgba(255,255,255,0.92) !important; }
+[data-low-end="true"] .bg-emerald-50\/70 { background-color: rgba(240,253,244,0.95) !important; }
+
+/* ══════════════════════════════════════════════════════════════════
    ACCESSIBILITY — High Contrast
    ══════════════════════════════════════════════════════════════════ */
 

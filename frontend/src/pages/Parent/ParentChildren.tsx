@@ -29,6 +29,7 @@ import { useParentPresence } from '@/lib/live/useParentPresence';
 /* ── Types ────────────────────────────────────────────── */
 
 interface GameStat {
+  title?: string | null;
   times_played: number;
   best_score: number;
   avg_score: number;
@@ -418,7 +419,7 @@ export default function ParentChildren() {
                                         <Gamepad2 className="h-4 w-4" />
                                       </span>
                                       <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-medium text-gray-800">{prettyName}</p>
+                                        <p className="truncate text-sm font-medium text-gray-800">{stat.title || prettyName}</p>
                                         <div className="flex items-center gap-3 text-[11px] text-gray-500">
                                           <span className="flex items-center gap-1">
                                             <RotateCcw className="h-3 w-3" />

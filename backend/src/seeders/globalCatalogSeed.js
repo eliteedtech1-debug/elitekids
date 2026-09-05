@@ -32,11 +32,11 @@ const CATALOG = [
     subject: 'Art',
     age_level: 'Creche', // rank 0
     questions: [
-      q('c1', 'Which one is RED? 🍎', ['🍎 Apple', '🥬 Leaf', '🌊 Sea', '☁️ Cloud'], 0),
-      q('c2', 'Which one is GREEN? 🥬', ['🍎 Apple', '🥬 Leaf', '🌞 Sun', '🍌 Banana'], 1),
-      q('c3', 'Which one is YELLOW? 🌞', ['🐸 Frog', '🍇 Grape', '🌞 Sun', '🐻 Bear'], 2),
-      q('c4', 'Which one is BLUE? 🌊', ['🌊 Sea', '🔥 Fire', '🌳 Tree', '🍌 Banana'], 0),
-      q('c5', 'Tap the WHITE one ☁️', ['☁️ Cloud', 'coal ⚫', 'grass 🌿', 'cheese 🧀'], 0),
+      q('c1', 'Which one is RED?', ['🍎 Apple', '🥬 Leaf', '🌊 Sea', '☁️ Cloud'], 0),
+      q('c2', 'Which one is GREEN?', ['🍎 Apple', '🥬 Leaf', '🌞 Sun', '🍌 Banana'], 1),
+      q('c3', 'Which one is YELLOW?', ['🐸 Frog', '🍇 Grape', '🌞 Sun', '🐻 Bear'], 2),
+      q('c4', 'Which one is BLUE?', ['🌊 Sea', '🔥 Fire', '🌳 Tree', '🍌 Banana'], 0),
+      q('c5', 'Tap the WHITE one', ['☁️ Cloud', 'coal ⚫', 'grass 🌿', 'cheese 🧀'], 0),
     ],
   },
   {
@@ -49,7 +49,7 @@ const CATALOG = [
       q('n2', 'Count the ducks: 🦆🦆🦆', ['1', '2', '3', '4'], 2),
       q('n3', 'What comes after 2?', ['1', '3', '4', '5'], 1),
       q('n4', 'Count the stars: ⭐⭐', ['1', '2', '3', '5'], 1),
-      q('n5', 'Which group has FOUR? 🍓🍓🍓🍓', ['🍓', '🍓🍓', '🍓🍓🍓', '🍓🍓🍓🍓'], 3),
+      q('n5', 'Which group has THREE?', ['🍓', '🍓🍓', '🍓🍓🍓', '🍓🍓🍓🍓'], 2),
     ],
   },
   {
@@ -60,7 +60,7 @@ const CATALOG = [
     questions: [
       q('l1', 'Which letter says "ah"?', ['A', 'B', 'C', 'D'], 0),
       q('l2', '🍎 Apple starts with…', ['Z', 'B', 'A', 'M'], 2),
-      q('l3', 'Which one is letter B?', ['🅰️', '🅱️', 'ℹ️', '🆎'], 1),
+      q('l3', 'Which one is letter B?', ['A', 'B', 'C', 'D'], 1),
       q('l4', '🐘 Elephant starts with…', ['E', 'F', 'L', 'P'], 0),
       q('l5', 'Which letter comes after C?', ['B', 'D', 'A', 'Z'], 1),
     ],
@@ -72,7 +72,7 @@ const CATALOG = [
     age_level: 'KG2', // rank 2 (≡ Nursery 2)
     questions: [
       q('s1', 'How many sides does a SQUARE have?', ['3', '4', '5', '6'], 1),
-      q('s2', 'Which shape is round? ⚪', ['🔺 Triangle', '⚪ Circle', '⬛ Square', '⭐ Star'], 1),
+      q('s2', 'Which shape is round?', ['🔺 Triangle', '⚪ Circle', '⬛ Square', '⭐ Star'], 1),
       q('s3', 'A ball is shaped like a…', ['cube', 'sphere', 'cone', 'pyramid'], 1),
       q('s4', '🔺 + 🔺 makes a…', ['circle', 'square', 'bigger triangle', 'line'], 2),
       q('s5', 'How many corners does a TRIANGLE have?', ['2', '3', '4', '5'], 1),
