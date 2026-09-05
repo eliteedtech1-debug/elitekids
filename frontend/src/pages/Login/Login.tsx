@@ -14,7 +14,6 @@ import PublicLoginSwitcher from '@/components/PublicLoginSwitcher';
 import LoginAppsPanel from '@/components/LoginAppsPanel';
 import LoginUpsell, { verifyPendingSubscription, type LoginUpsellPayload } from '@/components/LoginUpsell';
 import { t } from '@/lib/i18n';
-import { applyLowEndMode } from '@/lib/utils/lowEnd';
 
 interface SchoolDetails {
   school_id: string;
@@ -54,8 +53,6 @@ function FloatingShapes() {
 }
 
 export default function Login() {
-  useEffect(applyLowEndMode, []);
-
   const navigate = useNavigate();
   const [mode, setMode] = useState<LoginMode>('users');
   const [form, setForm] = useState({ school_id: '', email: '', password: '' });

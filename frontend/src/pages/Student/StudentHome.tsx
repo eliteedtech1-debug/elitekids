@@ -69,7 +69,6 @@ import TeamChallenge from '@/components/TeamChallenge';
 import PeerTeachingBoard from '@/components/PeerTeachingBoard';
 import ClassQuest from '@/components/ClassQuest';
 import CollaborationBadge from '@/components/CollaborationBadge';
-import { applyLowEndMode } from '@/lib/utils/lowEnd';
 
 /* ── Types ────────────────────────────────────────────────────── */
 
@@ -153,7 +152,6 @@ function decodeToken(token: string): Record<string, any> | null {
 }
 
 export default function StudentHome() {
-  useEffect(applyLowEndMode, []);
   const navigate = useNavigate();
   const [student, setStudent] = useState<Record<string, any> | null>(null);
   const [lessons, setLessons] = useState<LessonCard[]>([]);
