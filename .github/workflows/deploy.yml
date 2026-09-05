@@ -71,8 +71,17 @@ jobs:
 
           # Install the locked dev dependencies before the backend acceptance
           # gate; Jest is required by scripts/run-tests.sh.
+          # pipefail ensures npm ci failures are caught (previously swallowed by tail).
           cd backend
-          npm ci --include=dev --no-audit --no-fund 2>&1 | tail -2
+          set -o pipefail
+          npm ci --include=dev --no-audit --no-fund 2>&1 | tail -5
+          # Sanity check: supertest must be present or integration tests fail.
+          if [ ! -d node_modules/supertest ]; then
+            echo "❌ supertest missing after npm ci — retrying fresh install"
+            rm -rf node_modules
+            npm ci --include=dev --no-audit --no-fund 2>&1 | tail -5
+          fi
+          set +o pipefail
           bash ../scripts/run-tests.sh --forceExit
           npm prune --omit=dev --no-audit --no-fund 2>&1 | tail -1
 
