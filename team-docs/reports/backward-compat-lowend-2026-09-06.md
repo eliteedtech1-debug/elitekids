@@ -209,3 +209,62 @@ Verified:
 exit 1, ~1:59). Change is frontend-only; local re-run of the hermetic gate passed
 606/606 → flaky/environmental, not code (same class as round-2 060605 incident).
 API not restarted, frontend not rebuilt by that run. Re-triggering via docs bump.
+## Round 5 DEPLOY: SUCCESS
+2026-09-06 07:16 (worker): re-trigger 7b38b00 → Worker_20260906-071152 Succeeded.
+API restarted, dist rsynced 07:15 (index.html), live https://kids.elitekids.com.ng = 200,
+  health 127.0.0.1:8484 = ok.
+
+## Round 6: placement-quiz modal + dashboard cards scatter on low-end (user report: "placement test scattered, not in a modal; streak/weekly/daily cards scattered on small androids")
+
+2026-09-06 ~08:50 (worker, Buffy via Freebuff)
+Req: two scatter bugs on low-end — (1) PlacementQuiz renders as scattered page
+content instead of a centered modal; (2) kid-dashboard streak/weekly/daily
+cards scatter on small Androids.
+
+Root cause (validated against built compat sheet):
+1. LOGICAL PROPERTIES (Chrome 87+): Tailwind v4 emits px/py utilities as
+   padding-inline/padding-block, mx-auto as margin-inline:auto, space-y as
+   margin-block-start/end; 63 declarations total. Old WebViews drop them
+   wholesale → every container loses padding/centering/rhythm → scattered.
+2. flex/grid `gap` (Chrome 84+): grid card spacing vanished → cards squash
+   together / scatter. (Round-5 fix covered only inline flex gap.)
+3. INDIVIDUAL TRANSFORM PROPS translate:/rotate:/scale: (Chrome 104+), 36
+   declarations incl. active:scale/hover lifts; also @property-based
+   --tw-translate-*/--tw-scale-* defaults are absent pre-Chrome-85, so even
+   converted transforms would have been invalid.
+4. :where()/:is() SELECTORS (Chrome 88+): every space-y-* rule is
+   `.space-y-N>:where(:not(:last-child))` → whole rule invalid → vertical
+   rhythm zero; group-hover/peer-checked utilities also died.
+5. PlacementQuiz overlay used the `inset-0` utility — switched component to
+   explicit top/right/bottom/left utilities for belt-and-braces parity with
+   the round-5 AppSwitcher fix.
+
+Implemented:
+- frontend/scripts/compat-css.mjs — 4 new downlevel passes (no deps):
+    logicalToPhysical(): margin/padding/inset/border inline/block[-side] →
+      physical left/right/top/bottom (mx-auto → margin-left/right:auto,
+      space-y margin-block-* → margin-top/bottom)
+    individualTransformsToTransform(): translate/rotate/scale: → transform:
+      (replacement — individual props compose with transform on modern),
+      multi-token → translate3d/scale(a,b), var(--tw-*,0) fallbacks injected
+    addLegacyGapNames(): every gap/column-gap/row-gap ALSO emits
+      grid-column-gap/grid-row-gap (Chrome 57+ legacy grid names)
+    expandWhereIsSelectors(): expands :where(A,B)/:is(A,B) in SELECTOR
+      position to plain selectors (cartesian product, ≤8 args, at-rule
+      preludes untouched; recursive scanner — at-rules recurse, decl blocks
+      verbatim). Restores space-y rhythm + group-hover/peer utilities.
+- frontend/src/components/PlacementQuiz.tsx: overlay `inset-0` →
+  `top-0 right-0 bottom-0 left-0` (explicit offsets, same rendering).
+
+Verification (local):
+- npm run build clean (tsc + vite, ~1m); compat sheet 196,754B
+- compat census: @layer=0 oklch/oklab=0 color-mix bodies=flat
+  padding/margin/inset logical=0 translate:/rotate:/scale:=0 :where=0 :is=0
+  braces 2567/2567 balanced
+- spot rules: .mx-auto{margin-left:auto;margin-right:auto};
+  .space-y-5>:not(:last-child){…margin-top/margin-bottom…} (plain);
+  .peer-checked translate-x rule now transform:translate(var(--tw-translate-x,0),var(--tw-translate-y,0))
+- node scripts/check-bundle.mjs PASSED
+- vitest 229/229 (20 files)
+
+## Status round 6: CODE DONE + verified locally. Push pending user order.

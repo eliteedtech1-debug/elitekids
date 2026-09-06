@@ -371,7 +371,205 @@ function addGradientFlatFallback(css) {
   );
 }
 
+/**
+ * Rewrite logical margin/padding/inset/border declarations to physical
+ * properties. `padding-inline`, `padding-block`, `margin-block-start`,
+ * `inset-inline`… need Chrome 87+ — older WebViews drop them WHOLESALE,
+ * which deletes every px/py/space-y rhythm and mx-auto centering.
+ */
+const LOGICAL_SIDE = {
+  'inline-start': 'left',
+  'inline-end': 'right',
+  'block-start': 'top',
+  'block-end': 'bottom',
+};
+function logicalToPhysical(css) {
+  return css.replace(
+    /([;{}])(margin|padding|inset|border)-(inline|block)(?:-(start|end))?:([^;}]*)(?=[;}])/g,
+    (m, lead, prop, axis, end, val) => {
+      if (end) return `${lead}${prop}-${LOGICAL_SIDE[`${axis}-${end}`]}:${val}`;
+      const a = axis === 'inline' ? 'left' : 'top';
+      const b = axis === 'inline' ? 'right' : 'bottom';
+      return `${lead}${prop}-${a}:${val};${prop}-${b}:${val}`;
+    },
+  );
+}
+
+/**
+ * `gap` (flex + grid) needs Chrome 84+. Old WebViews drop it → grids of
+ * cards squash together / look scattered. Grid accepts the legacy
+ * grid-column-gap/grid-row-gap names since Chrome 57, so emit both; flex
+ * containers lose only the spacing (layout stays intact).
+ */
+function addLegacyGapNames(css) {
+  return css.replace(
+    /([;{}])(gap|column-gap|row-gap):([^;}]*)(?=[;}])/g,
+    (m, lead, prop, val) => {
+      if (prop === 'gap') return `${lead}gap:${val};grid-column-gap:${val};grid-row-gap:${val}`;
+      const legacy = prop === 'column-gap' ? 'grid-column-gap' : 'grid-row-gap';
+      return `${lead}${prop}:${val};${legacy}:${val}`;
+    },
+  );
+}
+
+/** Split `a b c` space-separated transform values into tokens. */
+function transformTokens(val) {
+  return val.trim().split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Individual transform properties (`translate:`/`rotate:`/`scale:`) need
+ * Chrome 104+. Convert every one to the universally supported `transform:`
+ * (replacement, not addition — individual props COMPOSE with transform on
+ * modern browsers, so keeping both would double-apply). Multi-token values
+ * map to translate3d/scale(a,b); rare same-rule combos degrade to the last
+ * declaration, which matches what old browsers did before the fix anyway.
+ */
+function individualTransformsToTransform(css) {
+  // Tailwind v4 references --tw-translate-*/--tw-scale-* without in-rule
+  // fallbacks (defaults come from @property, Chrome 85+). Inject `,0` so the
+  // generated transform still resolves when only one axis var is set.
+  const varFallback = (v) => v.replace(/var\((--[a-zA-Z0-9-]+)\)/g, 'var($1,0)');
+  const one = (prop, val) => {
+    const t = transformTokens(val);
+    if (t.length === 0) return null;
+    if (prop === 'rotate') return `transform:rotate(${t.join(',')})`;
+    if (t.length === 1) return `transform:${prop}(${varFallback(t[0])})`;
+    if (prop === 'translate' && t.length === 3) return `transform:translate3d(${t.map(varFallback).join(',')})`;
+    return `transform:${prop}(${t.slice(0, 2).map(varFallback).join(',')})`;
+  };
+  return css.replace(
+    /([;{}])(translate|rotate|scale):([^;}]*)(?=[;}])/g,
+    (m, lead, prop, val) => {
+      const out = one(prop, val);
+      return out === null ? m : lead + out;
+    },
+  );
+}
+
 /* ── @layer unwrap ──────────────────────────────────────────────────────── */
+/**
+ * Expand `:where(A,B)` / `:is(A,B)` in selectors into plain selectors
+ * (cartesian product over the args). `:where` needs Chrome 88+, `:is` 88+ —
+ * old WebViews drop the ENTIRE rule, which silently killed every space-y-*
+ * vertical-rhythm rule (dashboard cards stacked with zero gaps) and every
+ * group-hover/peer-checked utility. Expansion keeps meaning for single-rule
+ * selector lists, which is all Tailwind emits here.
+ */
+function expandWhereInSelector(sel) {
+  let guard = 0;
+  let cur = sel;
+  for (;;) {
+    if (++guard > 24) return cur;
+    const m = cur.match(/:where\(|:is\(/);
+    if (!m) return cur;
+    const openIdx = m.index + m[0].length - 1;
+    const closeIdx = matchParen(cur, openIdx);
+    if (closeIdx < 0) return cur;
+    const args = splitTopLevel(cur.slice(openIdx + 1, closeIdx), ',');
+    if (args.length > 8) return cur; // pathological — leave as-is
+    const prefix = cur.slice(0, m.index);
+    const suffix = cur.slice(closeIdx + 1);
+    cur = args.map((a) => prefix + a.trim() + suffix).join(',');
+  }
+}
+
+/** Rewrite :where/:is ONLY in selector positions (never in @-rule preludes). */
+function expandWhereIsSelectors(css) {
+  const n = css.length;
+  const out = [];
+
+  /**
+   * Scan one level of the cascade from `start`, appending transformed CSS to
+   * the `out` array. At-rule blocks recurse (their contents are nested
+   * rules); declaration blocks are copied verbatim. Stops after emitting the
+   * `}` that closes this level's block (nested calls) or at EOF (top level).
+   * Returns the index just past that `}`.
+   */
+  function scan(start) {
+    let selStart = start; // start of pending selector / prelude / stray text
+    let i = start;
+    const flush = (end) => {
+      const raw = css.slice(selStart, end);
+      // at-rule preludes (@media/@supports conditions) pass through untouched;
+      // plain selectors get :where/:is expanded
+      out.push(/^\s*@/.test(raw) ? raw : expandWhereInSelector(raw));
+    };
+    while (i < n) {
+      const c = css[i];
+      if (c === '"' || c === "'") {
+        const q = c;
+        out.push(c);
+        i++;
+        while (i < n && css[i] !== q) {
+          out.push(css[i]);
+          i++;
+        }
+        if (i < n) {
+          out.push(c);
+          i++;
+        }
+        continue;
+      }
+      if (c === '{') {
+        flush(i);
+        out.push('{');
+        if (/^\s*@/.test(css.slice(selStart, i))) {
+          // at-rule block → nested statements; recurse and resume after its }
+          i = scan(i + 1);
+        } else {
+          // declaration block → copy verbatim to the matching close brace
+          let depth = 1;
+          i++;
+          while (i < n && depth > 0) {
+            const d = css[i];
+            if (d === '"' || d === "'") {
+              const q = d;
+              out.push(d);
+              i++;
+              while (i < n && css[i] !== q) {
+                out.push(css[i]);
+                i++;
+              }
+              if (i < n) {
+                out.push(d);
+                i++;
+              }
+              continue;
+            }
+            if (d === '{') depth++;
+            else if (d === '}') depth--;
+            out.push(d);
+            i++;
+          }
+        }
+        selStart = i;
+        continue;
+      }
+      if (c === '}') {
+        flush(i); // pending text of the last inner rule (or stray declarations)
+        out.push('}');
+        return i + 1;
+      }
+      if (c === ';') {
+        const raw = css.slice(selStart, i);
+        if (/^\s*@/.test(raw)) {
+          out.push(raw, ';'); // @import/@charset — terminate the pending buffer
+          selStart = i + 1;
+        }
+        i++;
+        continue;
+      }
+      i++;
+    }
+    out.push(css.slice(selStart)); // EOF
+    return i;
+  }
+
+  scan(0);
+  return out.join('');
+}
+
 function stripLayers(css) {
   let out = '';
   let i = 0;
@@ -554,6 +752,10 @@ export function buildCompatCss(distDir) {
   out = replaceColors(out);
   out = stripGradientHints(out);
   out = rewriteColorMixBodies(out, extractThemeColors(out));
+  out = expandWhereIsSelectors(out);
+  out = logicalToPhysical(out);
+  out = individualTransformsToTransform(out);
+  out = addLegacyGapNames(out);
   out = addGradientFlatFallback(out);
 
   writeFileSync(join(assetsDir, COMPAT_NAME), out);

@@ -174,7 +174,7 @@ export default function PlacementQuiz({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" role="dialog" aria-label={t('placement.title')}>
+    <div className="fixed top-0 right-0 bottom-0 left-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" role="dialog" aria-label={t('placement.title')}>
       <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl animate-game-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 bg-gradient-to-r from-[#0F4D92]/5 to-teal-500/5 px-5 py-4">
