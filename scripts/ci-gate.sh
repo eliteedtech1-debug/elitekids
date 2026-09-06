@@ -78,8 +78,12 @@ catch (e) { process.exit(3); }
 const backend = path.resolve(process.argv[2]);
 if (!j || !Array.isArray(j.testResults)) process.exit(3);
 const ids = [];
-for (const tr of j.testResults) {
-  const rel = path.relative(backend, tr.testFilePath).split(path.sep).join("/");
+    for (const tr of j.testResults) {
+      // Jest on Node 24 emits the test file path in `name` and leaves
+      // `testFilePath` UNDEFINED, so fall back to `name`. Skip orphan entries.
+      const filePath = (tr && (tr.testFilePath || tr.name)) || "";
+      if (!filePath || typeof filePath !== "string") continue;
+      const rel = path.relative(backend, filePath).split(path.sep).join("/");
   const failed = (tr.assertionResults || []).filter(a => a.status === "failed");
   if (failed.length === 0) {
     if (tr.status === "failed")
@@ -135,8 +139,10 @@ while IFS= read -r f; do
 done <<< "$FAILSET"
 
 echo "[gate] fail-set: ${#KNOWN[@]} known-baseline / ${#NEW[@]} new"
-for k in "${KNOWN[@]}"; do echo "  KNOWN  $k"; done
-for n in "${NEW[@]}";  do echo "  NEW    $n"; done
+# Guard with ${#arr[@]} length checks: under `set -u` + bash 3.2, expanding an
+# empty array "$arr[@]" raises "unbound variable" (fixed in bash 4.4+).
+if [ "${#KNOWN[@]}" -gt 0 ]; then for k in "${KNOWN[@]}"; do echo "  KNOWN  $k"; done; fi
+if [ "${#NEW[@]}"    -gt 0 ]; then for n in "${NEW[@]}";  do echo "  NEW    $n";  done; fi
 
 TS_H="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 if [[ ${#NEW[@]} -gt 0 ]]; then

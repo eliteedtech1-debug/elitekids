@@ -16,6 +16,7 @@
 const request = require('supertest');
 const app = require('../src/app');
 const { closeConnections } = require('./helpers/teardown');
+const { testQuery } = require('./helpers/test-db');
 
 afterAll(async () => {
   await closeConnections();
@@ -73,6 +74,31 @@ describe('GET /kids/children', () => {
 });
 
 describe('GET /kids/children/:admissionNo', () => {
+  // C-DEBT-05 (owned fixtures): NUR-008 is not referenced by any other test
+  // suite, so its kids_progress rollup is deterministic regardless of
+  // --runInBand ordering — immune to the cross-suite pollution that hits the
+  // shared NUR-001 fixture. NUR-001's base PROG-1 row is likewise re-seeded
+  // here (idempotent: delete-by-id then insert) because jest's default
+  // size-ordered sequencer may run e6-boss-battles BEFORE this suite, which
+  // deletes NUR-001/LESSON-1 progress — leaving the shared fixture at 0.
+  beforeAll(async () => {
+    await testQuery(
+      `INSERT INTO kids_children (id, admission_no, school_id, branch_id, full_name, age_level, class_code, parent_user_id, status)
+       VALUES ('CHILD-OWNED', 'NUR-008', 'SCH-TEST', 'BR-TEST', 'Owned Child', 'Nursery', 'NUR-A', 'U2', 'Active')`
+    );
+    await testQuery(
+      `INSERT INTO kids_progress (id, school_id, branch_id, child_admission_no, lesson_id, score, stars_earned, xp, completed_at)
+       VALUES ('PROG-OWNED-1', 'SCH-TEST', 'BR-TEST', 'NUR-008', 'LESSON-1', 80, 3, 10, NOW())`
+    );
+    // Re-seed NUR-001's base progress row (idempotent — row may still exist
+    // from global seed, or may have been deleted by e6-boss-battles).
+    await testQuery(`DELETE FROM kids_progress WHERE id = 'PROG-1'`);
+    await testQuery(
+      `INSERT INTO kids_progress (id, school_id, branch_id, child_admission_no, lesson_id, score, stars_earned, xp, completed_at)
+       VALUES ('PROG-1', 'SCH-TEST', 'BR-TEST', 'NUR-001', 'LESSON-1', 80, 3, 10, NOW())`
+    );
+  });
+
   it('returns the child + progress summary for the owning parent', async () => {
     const res = await request(app)
       .get('/kids/children/NUR-001')
@@ -80,6 +106,23 @@ describe('GET /kids/children/:admissionNo', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.admission_no).toBe('NUR-001');
+    // NUR-001 is a shared fixture; sibling suites legitimately record progress
+    // rows for it during a full --runInBand gate. Use tolerance-based asserts
+    // (precedent: kids-routes.test.js:214) so this is order-independent. Exact
+    // rollup is asserted on the owned NUR-008 fixture below. (C-DEBT-05)
+    expect(res.body.data.progress.total_xp).toBeGreaterThanOrEqual(10);
+    expect(res.body.data.progress.total_stars).toBeGreaterThanOrEqual(3);
+    expect(res.body.data.progress.games_completed).toBeGreaterThanOrEqual(1);
+  });
+
+  it('returns an exact, pollution-free progress rollup for an owned dedicated fixture (C-DEBT-05)', async () => {
+    const res = await request(app)
+      .get('/kids/children/NUR-008')
+      .set('authorization', await parentToken());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.admission_no).toBe('NUR-008');
+    // NUR-008 is exclusively seeded here, so these are exact assertions.
     expect(res.body.data.progress.total_xp).toBe(10);
     expect(res.body.data.progress.total_stars).toBe(3);
     expect(res.body.data.progress.games_completed).toBe(1);
