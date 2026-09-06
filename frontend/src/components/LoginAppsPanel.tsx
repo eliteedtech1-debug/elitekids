@@ -48,14 +48,14 @@ export default function LoginAppsPanel() {
     <div className="flex flex-col justify-between h-full">
       {/* Top: Brand */}
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-100">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-50">
           Elite Suite
         </p>
       </div>
 
       {/* Middle: Apps */}
       <div className="space-y-2.5">
-        <p className="text-xs font-bold uppercase tracking-wider text-blue-200/60 mb-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-blue-100/90 mb-3">
           Our Apps
         </p>
         {ELITE_APPS.map((app) => (
@@ -84,7 +84,7 @@ export default function LoginAppsPanel() {
       </div>
 
       {/* Bottom: Footer */}
-      <div className="text-xs text-blue-200/50">
+      <div className="text-xs text-blue-100/80">
         <p>Powered by Elite Edu Tech Systems</p>
       </div>
     </div>

@@ -9,7 +9,6 @@ import { short_name, hasKidsAccess, getSchoolShortName, createAuthHeaders } from
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import apiClient from '@/lib/api/client';
 import { STORAGE_KEYS, FLAGSHIP_SHORT_NAMES } from '@/lib/utils/constants';
-import AppSwitcher from '@/components/AppSwitcher';
 import PublicLoginSwitcher from '@/components/PublicLoginSwitcher';
 import LoginAppsPanel from '@/components/LoginAppsPanel';
 import LoginUpsell, { verifyPendingSubscription, type LoginUpsellPayload } from '@/components/LoginUpsell';
@@ -165,7 +164,7 @@ export default function Login() {
           </div>
           <button
             onClick={() => { setSchool(null); setForm((p) => ({ ...p, school_id: '' })); }}
-            className="mt-4 rounded-xl bg-teal-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-700 transition-colors"
+            className="mt-4 rounded-xl bg-teal-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-800 transition-colors"
           >
             Try Another School
           </button>
@@ -449,7 +448,7 @@ export default function Login() {
                       {t('login.changeSchool')}
                     </button>
                   </div>
-                  <p className="mt-0.5 flex items-center gap-1 text-xs font-medium leading-snug text-emerald-600">
+                  <p className="mt-0.5 flex items-center gap-1 text-xs font-bold leading-snug text-emerald-700">
                     <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
                     </svg>
@@ -601,7 +600,7 @@ export default function Login() {
             </form>
           )}
 
-          <div className="mt-5 flex items-center justify-center gap-3 text-xs text-gray-400">
+          <div className="mt-5 flex items-center justify-center gap-3 text-xs text-gray-500">
             <span>{t('common.poweredBy')}</span>
             <span className="hidden lg:inline-flex"><PublicLoginSwitcher /></span>
           </div>

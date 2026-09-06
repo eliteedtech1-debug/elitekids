@@ -159,7 +159,7 @@ export default function LoginUpsell({ payload, onClose }: { payload: LoginUpsell
             );
           })}
           {plans.length === 0 && (
-            <p className="py-4 text-center text-sm text-gray-400">
+            <p className="py-4 text-center text-sm text-gray-500">
               Plans are loading… If this persists, contact {SALES_EMAIL}.
             </p>
           )}
@@ -194,7 +194,7 @@ export default function LoginUpsell({ payload, onClose }: { payload: LoginUpsell
               Contact sales <Mail className="h-3.5 w-3.5" />
             </a>
           </div>
-          <p className="flex items-center justify-center gap-1 pt-1 text-[11px] text-gray-400">
+          <p className="flex items-center justify-center gap-1 pt-1 text-[11px] text-gray-500">
             <ShieldCheck className="h-3.5 w-3.5" /> Secure payment via Paystack · card, transfer & USSD
           </p>
         </div>
