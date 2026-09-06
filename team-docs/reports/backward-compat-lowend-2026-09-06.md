@@ -96,5 +96,12 @@ CODE DONE + verified. PUSHED 2026-09-06 commit 00d65ae (user-ordered push).
       bash scripts/run-tests.sh --forceExit  ->  606/606 PASSED (84s)
   and live api (PID 639943, restarted at 05:49 by docs deploy) is active+200.
   Conclusion: 06:06 failure was transient (test-suite/db/env hiccup), NOT code.
-- Re-trigger triggered via docs commit; verifying the new run, then marking
-  final live status below.
+- Re-trigger: commit fba30e2 → run Worker_20260906-061542 **SUCCEEDED**.
+  Backend restarted (PID 659538, 06:18), backend gate green, frontend rebuilt by
+  runner at 06:19 (index.html + dist assets), health 200.
+- LIVE VERIFIED (kids.elitekids.com.ng):
+  - GET /                        → 200, served HTML carries boot-splash +
+    legacyCssNeeded + index-compat.css swap logic
+  - GET /assets/index-compat.css → 200; content scan: @layer=0, oklch=0 ✓
+  - GET /health (127.0.0.1:8484) → 200
+## DONE. Round-2 CSS fix is LIVE and verified.
