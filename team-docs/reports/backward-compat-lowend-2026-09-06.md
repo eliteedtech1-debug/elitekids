@@ -105,3 +105,37 @@ CODE DONE + verified. PUSHED 2026-09-06 commit 00d65ae (user-ordered push).
   - GET /assets/index-compat.css → 200; content scan: @layer=0, oklch=0 ✓
   - GET /health (127.0.0.1:8484) → 200
 ## DONE. Round-2 CSS fix is LIVE and verified.
+
+## ROUND 3 (this session) — visibility on low-end (user: invisible tabs/login btn,
+"white text and lighter bg everywhere"; directive: keep colorful game-style,
+colors are the safe primitive, shadows/gradients may not render)
+Root cause analysis (validated against built CSS):
+- Alpha* utility colors (bg-white/70, text-white/60 …) are emitted as
+  `color-mix(in oklab, var(--color-x) p%, transparent)` inside
+  `@supports(color:color-mix(in lab,red,red)){}`. A static rgba fallback line
+  pre-exists, BUT 40 non-gated color-mix leftovers remain: the 59 gradient-alpha
+  stops (`--tw-gradient-from/via/to: color-mix(...)`) live inside CUSTOM
+  PROPERTIES where the @supports fallback does NOT protect them → on browsers
+  without color-mix, the whole --tw-gradient-stops chain turns guaranteed-invalid
+  → background-image dropped → gradient-filled buttons/chips/pills render as
+  transparent → white text on light bg, "invisible" tab+login buttons.
+- Gradient direction (--tw-gradient-position) was FINE (kept, hint stripped).
+Implemented in frontend/scripts/compat-css.mjs (no new deps):
+  1. resolveColorMix() + rewriteColorMixBodies(): statically resolve EVERY
+     color-mix() inside declaration bodies → flat comma rgb/rgba, resolving
+     var(--color-*) against the @theme :root map. @supports/@media PREAMBLES
+     untouched (feature gates keep meaning; gated bodies now plain colors).
+     Verified: .text-white/70 → color:rgba(255,255,255,.7);
+     .from-[#0F4D92]/5 → rgba(15,77,146,.05); --tw-gradient-to:color-mix →
+     flat rgba. Remaining color-mix = only inside @supports conditions (260)
+     + shadow-alpha & ::placeholder (40, gated, cosmetic — user OK to drop
+     shadows).
+  2. addGradientFlatFallback(): every .bg-gradient-to-{t,r,b,l,tr,tl,br,bl}
+     now also sets background-color:rgb(15,77,146) → flat brand color keeps
+     buttons colored/readable even when gradients or custom properties are
+     unsupported; where they ARE supported the gradient paints over it.
+Local verification:
+- npm run build clean (plugin regenerates index-compat.css, 193KB)
+- compat sheet: @layer==0, oklch==0, braces balanced, all alpha stops flat
+- node scripts/check-bundle.mjs PASSED, vitest 229/229
+## Status round 3: CODE DONE + verified locally. Push pending user order.
