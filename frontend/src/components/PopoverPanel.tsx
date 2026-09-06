@@ -81,10 +81,11 @@ export default function PopoverPanel({
     };
   }, [open, updatePosition]);
 
-  // Close on outside pointerdown (capture) + Escape while open.
+  // Close on outside interaction (pointerdown preferred; touchstart/mousedown
+  // fallbacks cover old Android WebViews without Pointer Events) + Escape.
   useEffect(() => {
     if (!open) return;
-    const onPointer = (e: PointerEvent) => {
+    const onTap = (e: Event) => {
       const target = e.target as Node;
       if (panelRef.current?.contains(target)) return;
       if (anchorRef.current?.contains(target)) return; // trigger handles its own toggle
@@ -93,10 +94,14 @@ export default function PopoverPanel({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    document.addEventListener('pointerdown', onPointer, true);
+    document.addEventListener('pointerdown', onTap, true);
+    document.addEventListener('touchstart', onTap, true);
+    document.addEventListener('mousedown', onTap, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('pointerdown', onPointer, true);
+      document.removeEventListener('pointerdown', onTap, true);
+      document.removeEventListener('touchstart', onTap, true);
+      document.removeEventListener('mousedown', onTap, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [open, onClose, anchorRef]);

@@ -169,3 +169,37 @@ Verified:
 - vitest 229/229 (20 files)
 
 ## Status round 4: CODE DONE + verified locally. Push pending user order.
+## Round 4 DEPLOY: SUCCESS
+2026-09-06 07:03 (worker): push 35a34d9 → Worker_20260906-065842, Job result Succeeded,
+exit 0 (backend gate 606/606 + frontend rebuild + dist rsync). Live.
+
+## Round 5: AppSwitcher (login + navbar) low-end support
+
+2026-09-06 07:06 (worker)
+Req: AppSwitcher dropdown + consent modal must work on old Android WebViews,
+not just modern Chrome.
+
+Root cause: breakage was all INLINE styles in src/components/AppSwitcher.tsx
+(inline styles are NOT covered by the compat-css.mjs Tailwind pipeline):
+- consent-modal overlay used `inset: 0` (Chrome 87+) → old WebViews drop ALL
+  four offsets → overlay collapses, modal unusable.
+- app-tile tints used 8-digit hex alpha `#3D5EE114` (Chrome 62+) → invalid on
+  old browsers → app tiles/emoji lost their tinted background.
+- flex `gap` in modal header / consent row / footer buttons (Chrome 84+) →
+  squashed on low-end.
+
+Fixes:
+- AppSwitcher.tsx: new `hexToRgba(hex, alpha)` helper → plain rgba() tints
+  (menu tile 0.08, modal header tile 0.08). Modal overlay now explicit
+  top/right/bottom/left 0 instead of `inset`. Replaced inline flex `gap` with
+  explicit margins (marginRight 10 / marginLeft 10 / marginLeft+marginTop 8).
+  Shared component → fixes BOTH login and navbar instances at once.
+- PopoverPanel.tsx: outside-close now also listens to touchstart + mousedown
+  (capture) beside pointerdown, so old Android WebViews lacking Pointer Events
+  still close the dropdown; idempotent on modern browsers.
+
+Verified:
+- npm run build clean (1m)
+- node scripts/check-bundle.mjs PASSED, vitest 229/229
+
+## Status round 5: CODE DONE + verified locally. Push pending user order.

@@ -74,6 +74,15 @@ function getToken(): string | null {
   } catch { return null; }
 }
 
+/** Low-end-safe tint: older WebViews reject 8-digit hex (#RRGGBBAA, Chrome 62+),
+ * so resolve a color like #3D5EE1 + 0.08 alpha into a plain rgba() string. */
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
 function normalizeRole(role: string | undefined | null): string {
   return String(role || '').toLowerCase().trim();
 }
@@ -297,7 +306,7 @@ export default function AppSwitcher() {
                 >
                   <span
                     className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base"
-                    style={{ background: `${app.color}14` }}
+                    style={{ background: hexToRgba(app.color, 0.08) }}
                   >
                     {app.emoji}
                   </span>
@@ -326,13 +335,13 @@ export default function AppSwitcher() {
     {/* ── Not-subscribed / restricted modal (consent + Try Demo) ── */}
     {modalApp && (
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 1000000, background: 'rgba(15,23,42,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif' }}
+        style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1000000, background: 'rgba(15,23,42,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif' }}
         onClick={() => { setModalApp(null); setAgree(false); }}
       >
         <div style={{ background: '#fff', color: '#111827', maxWidth: 440, width: '100%', borderRadius: 16, boxShadow: '0 25px 60px rgba(0,0,0,.3)', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid #e5e7eb' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 700 }}>
-              <span style={{ display: 'flex', width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: `${modalApp.color}14`, fontSize: 16 }}>{modalApp.emoji}</span>
+            <span style={{ display: 'flex', alignItems: 'center', fontSize: 15, fontWeight: 700 }}>
+              <span style={{ display: 'flex', width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: hexToRgba(modalApp.color, 0.08), fontSize: 16, marginRight: 10, flexShrink: 0 }}>{modalApp.emoji}</span>
               {modalApp.label}
             </span>
             <button type="button" onClick={() => { setModalApp(null); setAgree(false); }} style={{ border: 0, background: 'transparent', fontSize: 15, cursor: 'pointer', color: '#6b7280' }}>✕</button>
@@ -349,9 +358,9 @@ export default function AppSwitcher() {
                 <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px', lineHeight: 1.5 }}>
                   This app is not part of your school&rsquo;s current subscription. As a school admin you can authorize access, but this decision (who and when) will be logged.
                 </p>
-                <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: modalApp.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: '#374151', lineHeight: 1.45 }}>
+                  <span style={{ fontSize: 12, color: '#374151', lineHeight: 1.45, marginLeft: 10 }}>
                     I consent to proceeding, and I understand this action will be logged (who I am and when). Only school admins are eligible to authorize this.
                   </span>
                 </label>
@@ -363,9 +372,9 @@ export default function AppSwitcher() {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', padding: '14px 18px', borderTop: '1px solid #e5e7eb', flexWrap: 'wrap', background: '#fcfcfd' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '14px 18px', borderTop: '1px solid #e5e7eb', flexWrap: 'wrap', background: '#fcfcfd' }}>
             <span style={{ fontSize: 12, color: '#9ca3af', marginRight: 'auto' }}>Try the app risk-free in the demo:</span>
-            <button type="button" onClick={() => window.open(demoUrl(modalApp), '_blank')} style={{ border: 0, borderRadius: 9, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: '#e5e7eb', color: '#111827' }}>
+            <button type="button" onClick={() => window.open(demoUrl(modalApp), '_blank')} style={{ border: 0, borderRadius: 9, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: '#e5e7eb', color: '#111827', marginLeft: 8, marginTop: 8 }}>
               Try Demo
             </button>
             {isAdmin && (                  <button
@@ -375,7 +384,7 @@ export default function AppSwitcher() {
                       setOpen(false);
                       void agreeAndAccess(modalApp);
                     }}
-                style={{ border: 0, borderRadius: 9, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: agree ? 'pointer' : 'not-allowed', fontFamily: 'inherit', background: modalApp.color, color: '#fff', opacity: agree ? 1 : 0.5 }}
+                style={{ border: 0, borderRadius: 9, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: agree ? 'pointer' : 'not-allowed', fontFamily: 'inherit', background: modalApp.color, color: '#fff', opacity: agree ? 1 : 0.5, marginLeft: 8, marginTop: 8 }}
               >
                 Agree &amp; log &amp; access
               </button>
