@@ -74,6 +74,24 @@ reachable standalone via sibling suite writes. Fix options (product call): per-f
 progress writes on dedicated students (suggested), or delta-based assertion, or scoped fixture rows.
 **Blocker:** no (CI gate must treat as known-set alongside C-DEBT-01/02).
 
+**TICKET UPGRADE 2026-09-06 (worker Buffy) — proper-fix plan locked.** Re-observed today: 606-test corpus
+showed 2F/604P once (children suite, this flake) then 606/606 clean on immediate rerun — order-dependent,
+load/timing sensitive. Evidence pinned:
+- Assertion: `backend/test/children.test.js:84` → `expect(res.body.data.progress.total_stars).toBe(3)`
+  (absolute, breaks on any earlier NUR-001 progress write).
+- In-repo tolerant precedent: `backend/test/kids-routes.test.js:214` →
+  `toBeGreaterThanOrEqual(3)` for the same shared fixture.
+- Owned-fixture precedent: C-F9 (parental.test.js NUR-005) eliminated that file's clock/pollution flake.
+**RECOMMENDED FIX (Option A, test-only, ~30min):** children.test.js summary test OWNS a dedicated fixture
+child (next free NUR-00X, own PROG rows seeded in the test) → assert exact rollup on it; keep NUR-001
+assertions tolerance-based (≥3) per kids-routes precedent. No prod code, no schema, no reseed infra.
+Option B (fallback): assert `>= 3` + presence of keys (weaker, leaves drift unmeasured).
+Option C (only if A fails): per-file truncate/reseed in global-setup — heavy, slow, last resort.
+**Acceptance:** children.test.js green across 10 consecutive full-suite `--runInBand` runs (incl. stress:
+run suite twice back-to-back); b1-regression stays 25/25 in-suite + standalone; zero prod-code diff.
+**Priority:** Medium — gate retry (deploy.yml round-7 hardening) masks it in CI, but it still burns retry
+cycles and can flip a marginal run. **Owner:** backend worker. **Status:** OPEN, plan locked, awaiting brief.
+
 ---
 
 ## SCHEMA DRIFT DISCOVERED (needs human/migration decision — NOT altered, C2 honored)

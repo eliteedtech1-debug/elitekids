@@ -82,8 +82,27 @@ jobs:
             npm ci --include=dev --no-audit --no-fund 2>&1 | tail -5
           fi
           set +o pipefail
-          bash ../scripts/run-tests.sh --forceExit
-          npm prune --omit=dev --no-audit --no-fund 2>&1 | tail -1
+          set +e
+          # Backend acceptance gate. run-tests.sh restores dev deps itself if a
+          # previous deploy pruned them (preflight guard). Retry once with FULL
+          # output on failure; the log persists on-box for forensics (the
+          # results service retains nothing after upload).
+          GATE_LOG="/tmp/elitekids-backend-gate-$(date +%Y%m%dT%H%M%SZ).log"
+          bash ../scripts/run-tests.sh --forceExit > "$GATE_LOG" 2>&1
+          GATE_RC=$?
+          if [ "$GATE_RC" -ne 0 ]; then
+            echo "backend gate failed once (rc=$GATE_RC) — retrying with full output"
+            bash ../scripts/run-tests.sh --forceExit 2>&1 | tee "$GATE_LOG"
+            GATE_RC=${PIPESTATUS[0]}
+          fi
+          if [ "$GATE_RC" -ne 0 ]; then
+            echo "❌ backend gate FAILED — last 40 lines of $GATE_LOG:"
+            tail -40 "$GATE_LOG"
+            exit 1
+          fi
+          tail -4 "$GATE_LOG"
+          echo "gate log: $GATE_LOG"
+          set -e
 
           # Restart the live user unit + verify
           systemctl --user restart elite-kids-api

@@ -286,3 +286,56 @@ reset time). Re-trigger: commit fd90b9f → Worker_20260906-093501 **SUCCEEDED**
 196,753B with :where=0, padding-inline=0, grid-column-gap=18 (legacy gap
 aliases present); api health 127.0.0.1:8484 → 200.
 ## Round 6 DEPLOY: SUCCESS — placement-quiz modal + dashboard cards fix is LIVE.
+
+## Round 7: deploy-gate root cause + CI compat guard (worker Buffy, 2026-09-06 ~10:30)
+
+Req (user): (a) investigate the recurring backend test-gate "transient" failures
+that broke deploys in rounds 2/5/6; (b) add a CI check scanning the compat CSS
+for modern-only features so regressions fail the build.
+
+### (a) Gate failures — NOT transient. Root cause found + fixed.
+Reproduced on-box: right after a successful deploy the backend gate FAILS with
+29 suites / "Cannot find module 'supertest'" in ~4s. Resolver path in the error
+= ~/.npm/_npx/... → `npx jest` was running from the NPX CACHE, not the tree.
+Chain: deploy.yml ended every successful backend deploy with
+`npm prune --omit=dev` → jest/supertest DELETED from backend/node_modules →
+next deploy's gate silently fell back to the npx cache (whose resolver cannot
+see backend modules) AND the gate's npm ci --include=dev had to re-download all
+538 packages from the registry → one registry hiccup (~2min mark) = step death
+= the three "transient" failures (Worker_20260906-060605 / 070707 / 091908, all
+exit 1 at 110–126s, no OOM — kernel log clean, 9.3GB free).
+Fixes:
+- scripts/run-tests.sh: PREFLIGHT GUARD — if node_modules/jest or
+  node_modules/supertest missing, npm ci --include=dev first (self-heals any
+  pruned tree; FATAL exit 2 if restore fails).
+- .github/workflows/deploy.yml: REMOVED the post-deploy `npm prune --omit=dev`
+  (dev deps stay installed → subsequent gates run offline-safe & fast); gate
+  retry once with FULL output on failure (previous silent retry hid the real
+  error); persistent on-box gate log /tmp/elitekids-backend-gate-*.log (the
+  results service retains nothing after upload — blocks dir wiped); `set -e`
+  re-armed before systemctl restart.
+Verified: pruned tree → preflight restored deps → gate green (mailer smoke 6/6
++ full suite 606/606 twice). Frontend: build clean, guard:bundle PASSED,
+vitest 229/229.
+Note: 606-test corpus has a pre-existing intermittent shared-DB pollution flake
+(C-DEBT-05, 2 tests) — the new retry absorbs it; still ticket-only per Phase C
+precedent.
+
+### (b) CI compat-CSS guard — frontend/scripts/check-compat-css.mjs
+Denylist scanner over dist/assets/index-compat.css (exit 1 on any hit):
+cascade-layer / container-query rules; :where/:is/:has selectors; oklch/oklab;
+logical props (padding-inline/margin-block/inset-inline/border-*) ; individual
+transform props (translate:/rotate:/scale:); min()/max()/clamp() math fns
+(minmax allowed); dvh/svh/lvh; image-set(); text-wrap:balance/pretty; color-mix
+outside @supports blocks (inside = intended fallback, warned only); brace
+balance + non-empty sheet sanity. WARN-only: aspect-ratio (auto-height
+degrade), gated color-mix bodies (cosmetic drop). String literals stripped
+before matching (data-URI safety); deny tokens written as RegExp strings so
+Tailwind's content scanner never sees raw @tokens here (a literal `@container`
+in v1 of the checker made Tailwind generate a ghost `.\@container` utility in
+the sheet — caught by the guard itself on first run, fixed). Wired into
+`npm run build` after vite build (regression = build fails) + `guard:compat`
+script. Negative-tested: injected padding-inline/:where/oklch/ungated
+color-mix all caught.
+
+## Status round 7: DONE + verified (workflow hardening ships on next push; push pending user order).

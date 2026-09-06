@@ -67,6 +67,20 @@ export DISABLE_RATE_LIMIT="1"
 
 cd "$BACKEND" || exit 2
 
+# PREFLIGHT GUARD — jest/supertest must resolve from backend/node_modules.
+# After `npm prune --omit=dev` (which the deploy workflow used to run post-deploy),
+# `npx jest` silently fell back to the npx cache (~/.npm/_npx), whose resolver
+# cannot see backend modules → mass "Cannot find module 'supertest'" failures
+# that looked like flaky transients. Restore dev deps here so the gate always
+# runs the tree's own jest.
+if [[ ! -d "node_modules/jest" || ! -d "node_modules/supertest" ]]; then
+  echo "PREFLIGHT: jest/supertest missing from backend/node_modules — restoring dev deps…" >&2
+  npm ci --include=dev --no-audit --no-fund >/dev/null || {
+    echo "FATAL: dev-deps restore failed — backend gate cannot run." >&2
+    exit 2
+  }
+fi
+
 if [[ $# -eq 0 ]]; then
   exec npx jest --runInBand --forceExit
 else
