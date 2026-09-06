@@ -267,4 +267,16 @@ Verification (local):
 - node scripts/check-bundle.mjs PASSED
 - vitest 229/229 (20 files)
 
-## Status round 6: CODE DONE + verified locally. Push pending user order.
+## Status round 6: CODE DONE + verified locally. PUSHED 2026-09-06 commit 42e6126 (user-ordered).
+
+## Round 6 DEPLOY: transient gate failure — RE-TRIGGER
+2026-09-06 09:35 (worker): push 42e6126 → Worker_20260906-091908 FAILED at backend
+gate (step failed ~110s in; job result Failed; frontend deploy step skipped by
+gate). Same transient signature as round-2 (060605) and round-5 (070707)
+incidents — change is frontend-only (compat-css.mjs + PlacementQuiz overlay),
+backend untouched. Frontend fix is already effectively live on this VPS because
+nginx docroot IS this repo tree and dist/ was built+verified locally at 08:45
+(live compat sheet byte-identical: :where=0, padding-inline=0, 196,753B; site
+200, api health 200). NOTE: runner's `git reset --hard` discard-recovered the
+post-push status line in this report (no /tmp stash file — tree was clean at
+reset time). Re-triggering deploy via docs bump (round-2/5 precedent).
