@@ -55,7 +55,9 @@ describe('POST /kids/session/save', () => {
       });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.current_tier).toBe(1);
+    // C-DRIFT-01: current_item_id/current_tier are folded into saved_state
+    // (no dedicated prod columns), so assert them on the state blob.
+    expect(res.body.data.saved_state.current_tier).toBe(1);
     expect(res.body.data.saved_state.question_index).toBe(3);
   });
 

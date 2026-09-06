@@ -26,32 +26,36 @@ const { requireChildOwnership } = require('../services/routesHelper');
  */
 async function saveSession(req, res) {
   try {
-    const { session_id, student_id, current_item_id, current_tier, saved_state } = req.body || {};
-    if (!session_id || !student_id || !current_item_id || current_tier === undefined) {
+    const { session_id, student_id, current_item_id, current_tier, saved_state, lesson_id } = req.body || {};
+    if (!session_id || !student_id) {
       return res.status(400).json({
         success: false,
-        message: 'session_id, student_id, current_item_id, and current_tier are required.',
+        message: 'session_id and student_id are required.',
       });
     }
 
     const ownership = await requireChildOwnership(req);
     if (!ownership.ok) return res.status(ownership.status).json(ownership.body);
 
+    // C-DRIFT-01: prod `kids_session_state` persists free-form state in the
+    // `session_data` JSON column; `current_item_id` / `current_tier` have no
+    // dedicated prod columns, so they are folded INTO saved_state. The model
+    // maps `saved_state` -> `session_data` (field:). This keeps the frontend
+    // request-body contract intact while writing to prod's real schema.
+    const state = (saved_state && typeof saved_state === 'object') ? { ...saved_state } : {};
+    if (current_item_id !== undefined) state.current_item_id = current_item_id;
+    if (current_tier !== undefined) state.current_tier = current_tier;
+
     // Upsert: one active session per student+session_id
     const [record, created] = await db.KidSessionState.findOrCreate({
       where: { student_id, session_id },
-      defaults: {
-        current_item_id,
-        current_tier,
-        saved_state: saved_state || {},
-      },
+      defaults: { lesson_id, saved_state: state },
     });
 
     if (!created) {
       await record.update({
-        current_item_id,
-        current_tier,
-        saved_state: saved_state || record.saved_state,
+        lesson_id: lesson_id || record.lesson_id,
+        saved_state: Object.keys(state).length ? state : record.saved_state,
       });
     }
 

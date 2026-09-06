@@ -566,9 +566,9 @@ CREATE TABLE IF NOT EXISTS kids_session_state (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   session_id VARCHAR(50) NOT NULL,
   student_id VARCHAR(50) NOT NULL,
-  current_item_id VARCHAR(50) NOT NULL,
-  current_tier INT NOT NULL,
-  saved_state JSON NOT NULL,
+  lesson_id VARCHAR(100) NULL,
+  session_data JSON NOT NULL,
+  last_saved_at DATETIME NULL,
   createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY kids_session_state_student_session (student_id, session_id)
