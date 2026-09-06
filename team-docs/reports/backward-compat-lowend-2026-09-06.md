@@ -52,6 +52,10 @@ Observed today: main chunk `index-*.js` = 701 KB eager (login bundle).
 - frontend/dist/* (rebuilt)
 
 ## Status
-DONE (code + verified build). PUSH NOT PERFORMED — protocol: no push without
-MASTER order. On push to main, auto-deploy rebuilds frontend on runner (npm ci
-picks up locked legacy deps) + rsyncs dist to nginx docroot.
+DONE. PUSHED 2026-09-06 commit 238c429 (origin/main, user-ordered). Auto-deploy
+verified:
+- backend: healthy 200, systemd restart 05:45:40 (journalctl)
+- frontend: runner rebuilt dist 05:47 & rsynced to nginx docroot; live
+  index.html carries boot-splash + vite-legacy + polyfills-legacy markers
+- live asset HTTP: modern index 200, index-legacy 200, polyfills-legacy 200
+- runner job completed clean (Worker_20260906-054329-utc.log "Job completed")
