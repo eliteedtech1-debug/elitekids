@@ -13,8 +13,85 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <title>Elite Kids — Nursery Learning Platform</title>
+    <script>
+      // EliteKids boot script — MUST stay ES5-compatible (no let/const/arrows/
+      // template strings) so ancient WebViews can parse it. Runs before any app
+      // bundle: paints an instant branded splash (never a blank white screen),
+      // tags low-end devices synchronously, and shows a graceful "update your
+      // browser" card if the app genuinely cannot boot.
+      (function () {
+        function detectLowEnd() {
+          try {
+            var mem = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : 0;
+            var cores = typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : 4;
+            var w = window.screen ? screen.width : 0;
+            var h = window.screen ? screen.height : 0;
+            if (mem > 0 && mem <= 2) return true;
+            if (cores <= 2) return true;
+            if (w > 0 && h > 0 && w <= 360 && h <= 640) return true;
+          } catch (e) {}
+          return false;
+        }
+        if (detectLowEnd()) {
+          try {
+            document.documentElement.setAttribute('data-low-end', 'true');
+            window.__ELITE_KIDS_LOW_END__ = true;
+          } catch (e) {}
+        }
+        var splash = document.createElement('div');
+        splash.id = 'boot-splash';
+        splash.setAttribute('role', 'status');
+        splash.style.cssText =
+          'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;' +
+          'justify-content:center;background:linear-gradient(165deg,#f0fdfa 0%,#e0f7ef 55%,#fef3c7 100%);';
+        splash.innerHTML =
+          '<img src="/logo.svg" alt="" style="width:78px;height:78px;object-fit:contain;">' +
+          '<div style="margin-top:14px;font:700 19px/1.3 Fredoka, Nunito, system-ui, sans-serif;color:#0F4D92;">EliteKids</div>' +
+          '<div style="margin-top:24px;width:34px;height:34px;border-radius:50%;border:4px solid rgba(13,148,136,.18);' +
+          'border-top-color:#0d9488;-webkit-animation:ek-spin .9s linear infinite;animation:ek-spin .9s linear infinite;"></div>' +
+          '<style>@-webkit-keyframes ek-spin{to{-webkit-transform:rotate(360deg);transform:rotate(360deg)}}' +
+          '@keyframes ek-spin{to{-webkit-transform:rotate(360deg);transform:rotate(360deg)}}</style>';
+        function showBoot() {
+          if (!document.body) { document.addEventListener('DOMContentLoaded', showBoot); return; }
+          document.body.appendChild(splash);
+        }
+        if (document.body) showBoot(); else document.addEventListener('DOMContentLoaded', showBoot);
+        function dismissSplash() {
+          window.__ELITE_KIDS_READY__ = true;
+          if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+        }
+        function showUpgradeCard() {
+          if (window.__ELITE_KIDS_READY__ || !splash || !splash.parentNode) return;
+          splash.innerHTML =
+            '<div style="max-width:320px;margin:16px;padding:26px 22px;background:#fff;border-radius:20px;' +
+            'box-shadow:0 12px 44px rgba(13,148,136,.16);text-align:center;">' +
+            '<div style="font:700 17px/1.35 Fredoka, Nunito, system-ui, sans-serif;color:#0F4D92;">Your browser is not supported</div>' +
+            '<p style="margin-top:10px;font:400 13px/1.55 system-ui, -apple-system, sans-serif;color:#475569;">' +
+            'EliteKids needs an up-to-date browser (Chrome 47+ or the latest Android WebView). Updating Chrome often makes it work.</p>' +
+            '<a href="https://play.google.com/store/apps/details?id=com.android.chrome" rel="noopener" ' +
+            'style="display:inline-block;margin-top:16px;padding:11px 24px;border-radius:12px;background:#0F4D92;color:#fff;' +
+            'font:600 13px system-ui, -apple-system, sans-serif;text-decoration:none;">Update Chrome</a></div>';
+        }
+        // App signals readiness right after first React render (fired from main.tsx).
+        document.addEventListener('app:ready', dismissSplash);
+        // Hard-fail watchdog: if the app never mounts (script parse failure on old
+        // WebView, blocked request, fatal runtime error) replace splash with a
+        // helpful card instead of a permanent white screen.
+        window.setTimeout(function () {
+          if (!window.__ELITE_KIDS_READY__) showUpgradeCard();
+        }, 15000);
+        window.addEventListener('error', function () {
+          if (!window.__ELITE_KIDS_READY__) window.setTimeout(showUpgradeCard, 1500);
+        });
+      })();
+    </script>
   </head>
   <body>
+    <noscript>
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f0fdfa;font-family:system-ui,sans-serif;text-align:center;color:#475569;">
+        EliteKids needs JavaScript enabled to load.
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

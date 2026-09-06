@@ -10,6 +10,13 @@
 let _applied = false;
 
 export function isLowEnd(): boolean {
+  // The inline boot script in index.html tags low-end devices synchronously
+  // before any bundle runs — prefer its (already-applied) verdict.
+  try {
+    if ((window as unknown as { __ELITE_KIDS_LOW_END__?: boolean }).__ELITE_KIDS_LOW_END__) return true;
+  } catch {
+    /* noop */
+  }
   try {
     // deviceMemory: Chrome-only, values 0.25/0.5/1/2/4/8 — low ≤ 2 GB
     // @ts-ignore
