@@ -83,6 +83,58 @@
         window.addEventListener('error', function () {
           if (!window.__ELITE_KIDS_READY__) window.setTimeout(showUpgradeCard, 1500);
         });
+        // ── Legacy CSS switch ─────────────────────────────────────────────────
+        // Tailwind v4's stylesheet is modern-only: `@layer` (Chrome 99+) wraps
+        // everything and colors are oklch/color-mix (Chrome 111+). Old WebViews
+        // parse it to ZERO rules → the unstyled login. Detect and redirect them
+        // to index-compat.css (downleveled at build time, see scripts/compat-css.mjs).
+        var legacyCssNeeded = (function () {
+          try {
+            var probe = document.createElement('style');
+            probe.textContent = '@layer p{@media (min-width:0px){.c{c:red}}}';
+            document.head.appendChild(probe);
+            var n = 0;
+            try { if (probe.sheet && probe.sheet.cssRules) n = probe.sheet.cssRules.length; } catch (e) {}
+            document.head.removeChild(probe);
+            if (n > 0) {
+              // @layer works — only switch if oklch/color-mix are missing too
+              if (window.CSS && CSS.supports && CSS.supports('color', 'color-mix(in oklab, red, blue)')) return false;
+            }
+            return true;
+          } catch (e) { return true; }
+        })();
+        if (legacyCssNeeded) {
+          var swapped = false;
+          function swapCss(l) {
+            var href = l.getAttribute('href') || '';
+            if (/assets\/index-[A-Za-z0-9_-]+\.css(\?.*)?$/.test(href)) {
+              l.setAttribute('href', href.replace(/([^\/]*\/)?index-[A-Za-z0-9_-]+\.css/, '$1index-compat.css'));
+              swapped = true;
+            }
+          }
+          if (window.MutationObserver) {
+            new MutationObserver(function () {
+              var ls = document.head.querySelectorAll('link[rel="stylesheet"]');
+              for (var i = 0; i < ls.length; i++) swapCss(ls[i]);
+            }).observe(document.head, { childList: true, subtree: false });
+          }
+          // Backup: if the stylesheet link was already parsed before the
+          // observer attached (or on ancient browsers without MutationObserver),
+          // rewrite now + append the compat sheet as a guaranteed fallback.
+          function ensureLegacyCss() {
+            var ls = document.head.querySelectorAll('link[rel="stylesheet"]');
+            for (var i = 0; i < ls.length; i++) swapCss(ls[i]);
+            if (!swapped && !document.getElementById('compat-css')) {
+              var link = document.createElement('link');
+              link.id = 'compat-css';
+              link.rel = 'stylesheet';
+              link.href = 'assets/index-compat.css';
+              document.head.appendChild(link);
+            }
+          }
+          if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureLegacyCss);
+          else ensureLegacyCss();
+        }
       })();
     </script>
   </head>

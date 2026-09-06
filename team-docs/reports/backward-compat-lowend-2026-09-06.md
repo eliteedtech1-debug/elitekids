@@ -59,3 +59,33 @@ verified:
   index.html carries boot-splash + vite-legacy + polyfills-legacy markers
 - live asset HTTP: modern index 200, index-legacy 200, polyfills-legacy 200
 - runner job completed clean (Worker_20260906-054329-utc.log "Job completed")
+
+## ROUND 2 (this session) — CSS backward-compat ("no css ever" login)
+Symptom reported by user: small device shows raw layout, giant scattered icons,
+"like no CSS ever". Root cause: Tailwind v4 emits modern-only CSS — EVERY rule is
+wrapped in `@layer` (Chrome 99+) and colors are `oklch()`/`color-mix()` (Chrome
+111+). Old WebView without `@layer` parses the whole sheet to ZERO rules →
+completely unstyled login. Layer-1 JS fix only fixed the boot, not the CSS.
+
+Implemented (verified locally):
+- frontend/scripts/compat-css.mjs — downlevels the built stylesheet:
+   1. unwraps every `@layer` wrapper (incl. nested in @media/@supports), source
+      order preserved so utilities still override base/theme
+   2. converts every oklch()/oklab() token to static rgb()/rgba() (oklab→srgb
+      matrix; spot-checked: teal-400→rgb(0,213,190), emerald-600→rgb(0,153,102))
+   3. strips ` in oklab` interpolation hints from --tw-gradient-position (solid
+      arbitrary hex gradients like login hero are untouched → render fine)
+  color-mix() lines left in place (Tailwind emits a static rgb fallback on the
+  line before every color-mix; old browsers keep the fallback, modern ignore it)
+- vite.config.ts closeBundle plugin writes dist/assets/index-compat.css (202 KB)
+- index.html boot script gains ES5 feature-detect (`@layer` probe + CSS.supports
+  color-mix) → old/mid browsers redirect the stylesheet href to index-compat.css
+  via MutationObserver swap + DOMContentLoaded backup append.
+  Coverage: Chrome <99 (no @layer) + Chrome 99–110 (oklch missing) get compat;
+  Chrome 111+ keep the modern sheet.
+- Verified: build clean (compat css generated @layer=0 oklch=0 braces balanced),
+  guard:bundle passed, vitest 229/229, decision scenario-tested
+  (old→compat / modern→modern / mid→compat), swap regex tested on real hrefs.
+
+## Status round 2
+CODE DONE + verified. Commit pending push (user-ordered next).

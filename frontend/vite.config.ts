@@ -1,8 +1,21 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import legacy from '@vitejs/plugin-legacy';
 import path from 'path';
+import { buildCompatCss } from './scripts/compat-css.mjs';
+
+// Emit a Chrome-47-safe downleveled stylesheet (see scripts/compat-css.mjs).
+// Old WebViews can't parse @layer/oklch, so the modern sheet renders as nothing.
+function compatCssPlugin(): Plugin {
+  return {
+    name: 'elitekids-compat-css',
+    apply: 'build',
+    closeBundle() {
+      buildCompatCss(path.resolve(__dirname, 'dist'));
+    },
+  };
+}
 
 export default defineConfig({
   // Legacy build: old Android WebView / Chrome (low-end devices) cannot parse
@@ -18,6 +31,7 @@ export default defineConfig({
       modernPolyfills: true,
       renderLegacyChunks: true,
     }),
+    compatCssPlugin(),
   ],
   resolve: {
     alias: {
