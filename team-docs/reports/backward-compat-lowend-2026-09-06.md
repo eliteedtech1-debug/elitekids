@@ -139,3 +139,33 @@ Local verification:
 - compat sheet: @layer==0, oklch==0, braces balanced, all alpha stops flat
 - node scripts/check-bundle.mjs PASSED, vitest 229/229
 ## Status round 3: CODE DONE + verified locally. Push pending user order.
+## Round 4: MatchingGame — sequential one-pair-at-a-time (frictionless)
+
+Timestamp: 2026-09-06 06:56 (worker)
+Req: pair games on mobile feel cramped; show ONE item ("Cat:") with a list of all
+pairing options, auto-advance to next pairing after EVERY pick (wrong included) —
+no waiting for human "Next" navigation. Support images, not just emojis.
+
+Changes (frontend only):
+- src/pages/Student/GamePlay.tsx: rewrote MatchingGame.
+  - Fixed shuffled question order (questionOrderRef) + de-duplicated shuffled option
+    pool built from every pair's "b" (Map by String(b); handles dup 'Baa').
+  - Prompt card shows one pairing (image | audio | big text). Options = bigger cards
+    (min-h-28/32, grid-cols-2 sm:3) with CachedImg when pair.image or value looks
+    like an image src; text fallback for labels/emojis; label shown under image.
+  - handlePick feedback timing: TEST mode = one pick per question, wrong auto-advances
+    after 350ms shake. PRACTICE mode = retry-until-correct (no auto-advance on wrong,
+    kid stays on the question until they pick the right answer). Learning auto-plays.
+  - "Question X of N" header + progress dots; stripEmoji on option labels via aria-label.
+  - Learning mode auto-plays each pairing sequentially (speak A → highlight B → next).
+  - New module helpers: isImageSrc(), pairVisual() (prompt/response image resolution).
+- i18n: added game.matchPromptLabel / game.matchPickLabel / game.matchQuestion
+  ({current}/{total} interpolation) to chunks/en-g-i.ts + locales/en.json + ha.json
+  (HA: Matsa katin da ya dace / Haɗa wannan / Tambaya {current} cikin {total}).
+
+Verified:
+- npm run build clean (1m7s)
+- node scripts/check-bundle.mjs PASSED
+- vitest 229/229 (20 files)
+
+## Status round 4: CODE DONE + verified locally. Push pending user order.

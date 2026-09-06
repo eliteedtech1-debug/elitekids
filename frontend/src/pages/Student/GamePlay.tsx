@@ -120,6 +120,18 @@ function PairIcon({ text, size = 'lg' }: { text: string; size?: 'sm' | 'md' | 'l
   return <ItemIcon emoji={visual.emoji || emoji} imageUrl={visual.imageUrl} label={label} size={size} />;
 }
 
+function isImageSrc(s: unknown): boolean {
+  if (typeof s !== 'string' || !s.trim()) return false;
+  return /^(https?:\/\/|\/|\.{0,2}\/|media\/|data:|blob:)/i.test(s.trim());
+}
+
+function pairVisual(p: { a?: string; b: string; image?: string }, mode: 'prompt' | 'response', responseMode = 'image'): string | null {
+  if (p.image && typeof p.image === 'string' && p.image.trim()) return p.image;
+  if (mode === 'prompt') return isImageSrc(p.a) ? p.a! : null;
+  if (responseMode === 'image' && isImageSrc(p.b)) return p.b;
+  return null;
+}
+
 /* ── Types ────────────────────────────────────────────────────── */
 
 interface GameConfig {
@@ -283,18 +295,41 @@ function MatchingGame({
   const responseMode = config.responseMode || 'image';
   const isLearning = mode === 'learning';
   const isTest = mode === 'test';
-  const [selected, setSelected] = useState<{ side: 'a' | 'b'; index: number } | null>(null);
-  const [matched, setMatched] = useState<Set<number>>(new Set());
-  const [wrong, setWrong] = useState<string | null>(null);
-  const [celebrate, setCelebrate] = useState<number | null>(null);
-  const [dancing, setDancing] = useState<string | null>(null);
+
+  // ONE pairing at a time (mobile-friendly). Fixed shuffled question order, and a
+  // de-duplicated shuffled option pool built from every pair's "b" side so the
+  // child picks the right partner from a list — no more cramped left/right grid.
+  const questionOrderRef = useRef<number[] | null>(null);
+  if (questionOrderRef.current === null) {
+    questionOrderRef.current = shuffle(pairs.map((_, i) => i));
+  }
+  const optionPoolRef = useRef<{ b: string; image?: string }[] | null>(null);
+  if (optionPoolRef.current === null) {
+    const seen = new Map<string, { b: string; image?: string }>();
+    for (const p of pairs) {
+      const key = String(p.b);
+      if (!seen.has(key)) seen.set(key, p);
+    }
+    optionPoolRef.current = shuffle([...seen.values()]);
+  }
+  const options = optionPoolRef.current;
+  const [q, setQ] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [wrongOpt, setWrongOpt] = useState<string | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
   const [score, setScore] = useState(0);
+  const scoreRef = useRef(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState('');
   const [showHint, setShowHint] = useState(false);
   const [streak, setStreak] = useState(0);
   const [floatingXP, setFloatingXP] = useState(false);
-  const shuffledB = useRef(shuffle(pairs.map((p, i) => ({ label: p.b, origIdx: i }))));
+
+  const currentIdx = questionOrderRef.current[q];
+  const current = pairs[currentIdx];
+  const total = pairs.length;
+  const promptImg = current ? pairVisual(current, 'prompt', responseMode) : null;
 
   // Resolve character
   const characters = config.characters || [];
@@ -312,6 +347,16 @@ function MatchingGame({
     return () => { cancelled = true; clearTimeout(timer); };
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Read the current pairing aloud each time we advance (practice + test).
+  useEffect(() => {
+    if (!soundOn || isLearning || !current) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (!cancelled) await speakOrPlay(current.audio, stripEmoji(current.a) || current.a);
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [q, soundOn, isLearning]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const showFeedbackMsg = (type: 'correct' | 'wrong') => {
     const msg = type === 'correct'
       ? (config.feedbackCorrect || t('game.feedback.matchCorrect'))
@@ -324,86 +369,90 @@ function MatchingGame({
     setTimeout(() => { setFeedback(null); setFeedbackMsg(''); setShowHint(false); }, type === 'correct' ? 1500 : 2000);
   };
 
-  const handlePick = (side: 'a' | 'b', index: number, origIdx?: number) => {
+  const handlePick = (optIdx: number) => {
+    if (locked) return;
+    const opt = options[optIdx];
+    if (!opt) return;
     if (soundOn) playTap();
-    setDancing(`${side}-${index}`);
-    setTimeout(() => setDancing(null), 300);
-    if (matched.has(index) && side === 'a') return;
-
-    if (!selected) {
-      setSelected({ side, index: side === 'a' ? index : (origIdx ?? index) });
-      return;
-    }
-    if (selected.side === side) {
-      setSelected({ side, index: side === 'a' ? index : (origIdx ?? index) });
-      return;
-    }
-
-    const aIdx = side === 'a' ? index : selected.index;
-    const bOrigIdx = side === 'b' ? (origIdx ?? index) : selected.index;
-
-    if (aIdx === bOrigIdx) {
-      if (!isTest && soundOn) playMatch();
-      const newMatched = new Set(matched);
-      newMatched.add(aIdx);
-      setMatched(newMatched);
-      if (!isTest) setCelebrate(aIdx);
-      setScore((s) => s + 10);
-      setSelected(null);
+    if (String(opt.b) === String(current.b)) {
+      const nScore = scoreRef.current + 10;
+      scoreRef.current = nScore;
+      setScore(nScore);
+      setSelected(String(opt.b));
+      setCelebrate(true);
+      setLocked(true);
+      if (!isLearning && !isTest && soundOn) playMatch();
       setStreak((s) => s + 1);
       setFloatingXP(true);
       setTimeout(() => setFloatingXP(false), 800);
-      if (!isTest) {
-        showFeedbackMsg('correct');
-        if (streak > 0 && streak % 3 === 2 && soundOn) playStreak(Math.floor(streak / 3));
-      }
-      onAnswer?.({ correct: true, expected: pairs[aIdx].a, given: pairs[aIdx].b });
-      if (newMatched.size === pairs.length) {
-        setTimeout(() => onComplete(score + 10), isTest ? 200 : 800);
-      }
+      if (!isLearning && !isTest) showFeedbackMsg('correct');
+      onAnswer?.({ correct: true, expected: current.a, given: opt.b });
+      const last = q + 1 >= total;
+      const delay = isTest || isLearning ? 300 : 1000;
+      setTimeout(() => {
+        setCelebrate(false);
+        setSelected(null);
+        setLocked(false);
+        if (last) onComplete(nScore);
+        else setQ(q + 1);
+      }, delay);
     } else {
       setStreak(0);
-      if (!isTest && soundOn) playWrong();
-      if (!isTest) {
-        setWrong(`${side}-${index}`);
-        setTimeout(() => setWrong(null), 500);
-        showFeedbackMsg('wrong');
+      setWrongOpt(String(opt.b));
+      if (!isTest && !isLearning && soundOn) playWrong();
+      if (!isTest && !isLearning) showFeedbackMsg('wrong');
+      onAnswer?.({ correct: false, expected: current.a, given: opt.b });
+      if (isTest) {
+        // Test mode: one pick per question — brief shake then auto-advance.
+        setSelected(String(opt.b));
+        setLocked(true);
+        const last = q + 1 >= total;
+        setTimeout(() => {
+          setWrongOpt(null);
+          setSelected(null);
+          setLocked(false);
+          if (last) onComplete(scoreRef.current);
+          else setQ(q + 1);
+        }, 350);
+      } else {
+        // Practice mode: stay on the question — kid retries until the right answer.
+        setSelected(null);
+        setTimeout(() => setWrongOpt(null), 500);
       }
-      onAnswer?.({ correct: false, expected: pairs[aIdx].a, given: pairs[bOrigIdx]?.b || '?' });
-      setSelected(null);
     }
   };
 
-  const isMatchedA = (i: number) => matched.has(i);
-
-  // Learning mode auto-play
+  // Learning mode auto-play: show one pairing at a time, highlight the right
+  // option, say it aloud, then advance to the next pairing.
   useEffect(() => {
-    if (mode !== 'learning') return;
-    const nextIdx = pairs.findIndex((_, i) => !matched.has(i));
-    if (nextIdx === -1) return;
-    const pair = pairs[nextIdx];
+    if (mode !== 'learning' || !current) return;
     let cancelled = false;
-    const timer = setTimeout(async () => {
-      setSelected({ side: 'a', index: nextIdx });
-      if (soundOn) await speakOrPlay(pair.audio, stripEmoji(pair.a) || pair.a);
+    const timers: number[] = [];
+    const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
+    later(700, () => {
+      if (cancelled || !soundOn) return;
+      speakOrPlay(current.audio, stripEmoji(current.a) || current.a);
+    });
+    later(2000, () => {
       if (cancelled) return;
-      setSelected({ side: 'b', index: nextIdx });
-      if (soundOn) await speakOrPlay(pair.audio, stripEmoji(pair.b) || pair.b);
+      setSelected(String(current.b));
+      if (soundOn) speakOrPlay(current.audio, stripEmoji(current.b) || current.b);
+    });
+    later(3300, () => {
       if (cancelled) return;
+      setCelebrate(true);
       if (soundOn) playMatch();
-      const newMatched = new Set(matched);
-      newMatched.add(nextIdx);
-      setMatched(newMatched);
-      setCelebrate(nextIdx);
+      onAnswer?.({ correct: true, expected: current.a, given: current.b });
+    });
+    later(4300, () => {
+      if (cancelled) return;
       setSelected(null);
-      onAnswer?.({ correct: true, expected: pair.a, given: pair.b });
-      setTimeout(() => setCelebrate(null), 600);
-      if (newMatched.size === pairs.length) {
-        setTimeout(() => onComplete(0), 800);
-      }
-    }, 600);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, matched, pairs, soundOn, onComplete, onAnswer]);
+      setCelebrate(false);
+      if (q + 1 >= total) onComplete(0);
+      else setQ(q + 1);
+    });
+    return () => { cancelled = true; timers.forEach(window.clearTimeout); };
+  }, [mode, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
@@ -457,64 +506,87 @@ function MatchingGame({
         </div>
       )}
 
+      {/* Question header */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-bold text-gray-600">
+          {t('game.matchQuestion', { current: Math.min(Math.max(q, 0) + 1, total), total })}
+        </p>
+        <div className="flex gap-1.5">
+          {pairs.map((_, i) => (
+            <div
+              key={i}
+              className={`h-2.5 w-2.5 rounded-full transition-all ${
+                i < q ? 'bg-green-400' : i === q ? 'bg-blue-500 ring-2 ring-blue-200' : 'bg-gray-200'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Prompt — one pairing at a time */}
+      {current && (
+        <div className="rounded-3xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 via-teal-50 to-white p-6 text-center animate-game-drop-in">
+          <p className="text-xs font-black uppercase tracking-wider text-blue-500 mb-3">{t('game.matchPromptLabel')}</p>
+          {promptImg ? (
+            <CachedImg src={promptImg} alt="" className="mx-auto h-28 w-28 sm:h-36 sm:w-36 object-contain animate-game-squish" />
+          ) : promptMode === 'audio' ? (
+            <span className="inline-flex items-center justify-center gap-2 text-2xl sm:text-3xl font-bold text-gray-800">
+              <Volume2 className="h-6 w-6 text-teal-500" />{stripEmoji(current.a) || current.a}
+            </span>
+          ) : (
+            <span className="text-3xl sm:text-4xl font-extrabold text-gray-800 leading-tight">{current.a}</span>
+          )}
+        </div>
+      )}
+
+      {/* Pick instruction */}
       <p className="text-center text-sm font-medium text-gray-500">
-        Tap a letter on the left, match it on the right
-        <SpeakButton text={config.speechText || config.scenario || 'Tap a letter on the left, match it on the right'} size="sm" className="ml-2 align-middle" />
+        {t('game.matchPickLabel')}
+        {current && (
+          <SpeakButton text={stripEmoji(current.a) || current.a} size="sm" className="ml-2 align-middle" />
+        )}
       </p>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-3">
-          {pairs.map((pair, i) => (
+      {/* Options — one pairing at a time, bigger touch targets */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        {options.map((opt, oi) => {
+          const img = pairVisual(opt, 'response', responseMode);
+          const isSel = selected === String(opt.b);
+          const isCorrectPick = isSel && String(opt.b) === String(current?.b);
+          const isWrongPick = wrongOpt === String(opt.b);
+          return (
             <button
-              key={`a-${i}`}
-              onClick={() => handlePick('a', i)}
-              disabled={isMatchedA(i)}
-              className={`w-full rounded-xl border-2 p-4 text-left text-lg font-semibold transition-all animate-game-slide-left stagger-${Math.min(i + 1, 12)} ${
-                isMatchedA(i)
-                  ? `${cbCorrect.border} ${cbCorrect.bg} ${cbCorrect.text} opacity-70 animate-game-correct`
-                  : selected?.side === 'a' && selected.index === i
+              key={`o-${oi}-${opt.b}`}
+              onClick={() => handlePick(oi)}
+              disabled={isLearning || locked}
+              aria-label={stripEmoji(img ? String(opt.b) : String(opt.b))}
+              className={`flex min-h-28 sm:min-h-32 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3 text-center transition-all animate-game-slide-up ${
+                isCorrectPick
+                  ? `${cbCorrect.border} ${cbCorrect.bg} ${cbCorrect.text} animate-game-correct`
+                  : isWrongPick
+                  ? `animate-game-wrong ${cbWrong.border} ${cbWrong.bg}`
+                  : isSel
                   ? 'border-blue-500 bg-blue-50 shadow-lg animate-game-jelly'
                   : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:animate-game-squish'
-              } ${!isTest && wrong?.startsWith(`a-${i}`) ? `animate-game-wrong ${cbWrong.border} ${cbWrong.bg}` : ''} ${celebrate === i ? 'animate-game-dance' : ''} ${dancing === `a-${i}` ? 'animate-game-tap-ripple' : ''}`}
+              }`}
             >
-              {isLearning ? (
-                <span>{pair.a}</span>
-              ) : promptMode === 'image' && (pair as any).image ? (
-                <CachedImg src={(pair as any).image} alt="" className="h-10 w-10 object-contain" />
-              ) : promptMode === 'audio' ? (
-                <span className="flex items-center gap-1"><Volume2 className="h-4 w-4" />{stripEmoji(pair.a)}</span>
+              {img ? (
+                <>
+                  <CachedImg
+                    src={img}
+                    alt=""
+                    className={`h-16 w-16 sm:h-20 sm:w-20 object-contain ${isCorrectPick ? 'animate-game-trophy-drop' : ''}`}
+                  />
+                  {!isImageSrc(opt.b) && (
+                    <span className="text-sm font-semibold text-gray-600 leading-tight">{opt.b}</span>
+                  )}
+                </>
               ) : (
-                <span>{pair.a}</span>
+                <span className="text-xl sm:text-2xl font-bold leading-tight text-gray-800">{opt.b}</span>
               )}
             </button>
-          ))}
-        </div>
-        <div className="space-y-3">
-          {shuffledB.current.map((item, i) => (
-            <button
-              key={`b-${item.origIdx}`}
-              onClick={() => handlePick('b', item.origIdx, item.origIdx)}
-              disabled={isMatchedA(item.origIdx)}
-              className={`w-full rounded-xl border-2 p-4 text-left text-lg font-semibold transition-all animate-game-slide-right stagger-${Math.min(i + 1, 12)} ${
-                isMatchedA(item.origIdx)
-                  ? `${cbCorrect.border} ${cbCorrect.bg} ${cbCorrect.text} opacity-70 animate-game-correct`
-                  : selected?.side === 'b' && selected.index === item.origIdx
-                  ? 'border-blue-500 bg-blue-50 shadow-lg animate-game-jelly'
-                  : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:animate-game-squish'
-              } ${!isTest && wrong?.startsWith(`b-${item.origIdx}`) ? `animate-game-wrong ${cbWrong.border} ${cbWrong.bg}` : ''} ${celebrate === item.origIdx ? 'animate-game-dance' : ''} ${dancing === `b-${item.origIdx}` ? 'animate-game-tap-ripple' : ''}`}
-            >
-              {isLearning ? (
-                <span>{item.label}</span>
-              ) : responseMode === 'image' && (pairs[item.origIdx] as any)?.image ? (
-                <CachedImg src={(pairs[item.origIdx] as any).image} alt="" className="h-10 w-10 object-contain" />
-              ) : responseMode === 'audio' ? (
-                <span className="flex items-center gap-1"><Volume2 className="h-4 w-4" />{stripEmoji(item.label)}</span>
-              ) : (
-                <span>{item.label}</span>
-              )}
-            </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {/* Hint */}
@@ -545,18 +617,6 @@ function MatchingGame({
           <span className="text-2xl font-extrabold text-amber-500 drop-shadow-lg">{t('game.xp', { count: 10 })}</span>
         </div>
       )}
-
-      {/* Progress dots */}
-      <div className="flex justify-center gap-1.5">
-        {pairs.map((_, i) => (
-          <div
-            key={i}
-            className={`h-2.5 w-2.5 rounded-full transition-all ${
-              matched.has(i) ? 'bg-green-400' : 'bg-gray-200'
-            }`}
-          />
-        ))}
-      </div>
     </div>
   );
 }
