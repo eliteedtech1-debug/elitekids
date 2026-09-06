@@ -113,6 +113,34 @@ jobs:
           echo "--- recent log ---"
           journalctl --user -u elite-kids-api -n 8 --no-pager | tail -8
 
+      - name: Apply nginx config (no-cache shell) via sudo
+        env:
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+        run: |
+          set -e
+          LIVE=/var/www/html/elite/elite-kids
+          CONF="$LIVE/deploy/nginx/elitekids.conf"
+          TARGET=/etc/nginx/sites-enabled/elitekids
+          [ -f "$CONF" ] || { echo "no repo nginx config — skipping"; exit 0; }
+          if ! printf '%s\n' "$SUDO_PASSWORD" | sudo -S -p '' true 2>/dev/null; then
+            echo "❌ sudo auth failed — check the SUDO_PASSWORD Actions secret"; exit 1
+          fi
+          if cmp -s "$CONF" "$TARGET"; then
+            echo "nginx config unchanged — skipping"
+          else
+            BK="/tmp/elitekids-nginx-backup-$(date +%Y%m%dT%H%M%SZ).conf"
+            printf '%s\n' "$SUDO_PASSWORD" | sudo -S -p '' cp "$TARGET" "$BK"
+            printf '%s\n' "$SUDO_PASSWORD" | sudo -S -p '' cp "$CONF" "$TARGET"
+            if printf '%s\n' "$SUDO_PASSWORD" | sudo -S -p '' nginx -t 2>&1; then
+              printf '%s\n' "$SUDO_PASSWORD" | sudo -S -p '' nginx -s reload
+              echo "nginx config applied + reloaded (backup: $BK)"
+            else
+              printf '%s\n' "$SUDO_PASSWORD" | sudo -S -p '' cp "$BK" "$TARGET"
+              echo "❌ nginx -t failed after applying repo config — restored from backup $BK"
+              exit 1
+            fi
+          fi
+
       - name: Deploy frontend (build + rsync to nginx docroot, non-fatal)
         run: |
           set +e
@@ -140,4 +168,6 @@ jobs:
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url")
             echo "$code  $url"
           done
+          echo "--- shell cache headers (must be no-cache) ---"
+          curl -sI --max-time 15 https://kids.elitekids.com.ng/ | grep -iE '^(HTTP|cache-control|pragma)'
           echo "==== DONE ===="

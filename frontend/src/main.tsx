@@ -28,9 +28,14 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 
 // Dismiss the boot splash (index.html inline script) once React has mounted and
 // painted. Guarded so it is a no-op anywhere else.
+// NOTE: the boot script listens on `document` — a synthetic event dispatched
+// only on `window` never reaches it, and the splash would sit over the rendered
+// app forever (live incident 2026-09-06). Fire on document, keep window for any
+// window-level listeners.
 if (typeof window !== 'undefined') {
   (window as unknown as { __ELITE_KIDS_READY__?: boolean }).__ELITE_KIDS_READY__ = true;
   window.setTimeout(() => {
+    document.dispatchEvent(new Event('app:ready'));
     window.dispatchEvent(new Event('app:ready'));
   }, 0);
 }

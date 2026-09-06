@@ -83,6 +83,34 @@
         window.addEventListener('error', function () {
           if (!window.__ELITE_KIDS_READY__) window.setTimeout(showUpgradeCard, 1500);
         });
+        // Backstop 1 — missed-event self-heal: if React mounted but the splash
+        // is still up (event lost, old bundle), drop it as soon as #root has
+        // content. Runs until ready; costs one getElementById per 500ms.
+        function checkRootMounted() {
+          var root = document.getElementById('root');
+          if (root && root.firstChild && splash.parentNode) {
+            dismissSplash();
+          } else if (splash.parentNode && !window.__ELITE_KIDS_READY__) {
+            window.setTimeout(checkRootMounted, 500);
+          }
+        }
+        window.setTimeout(checkRootMounted, 1000);
+        // Backstop 2 — stale-shell self-heal: a cached index.html can reference
+        // hashed assets a new deploy deleted → script 404 → stuck loader. On the
+        // first script resource error before ready, reload ONCE with a cache
+        // busting param (sessionStorage flag prevents loops).
+        window.addEventListener('error', function (e) {
+          if (window.__ELITE_KIDS_READY__ || !e || !e.target || !e.target.src) return;
+          if (!/\/assets\/.*\.js/.test(String(e.target.src))) return;
+          try {
+            if (sessionStorage.getItem('ek-boot-reload')) return;
+            sessionStorage.setItem('ek-boot-reload', '1');
+          } catch (err) {}
+          window.location.replace(window.location.pathname + '?ek=' + Date.now());
+        }, true);
+        document.addEventListener('app:ready', function () {
+          try { sessionStorage.removeItem('ek-boot-reload'); } catch (err) {}
+        });
         // ── Legacy CSS switch ─────────────────────────────────────────────────
         // Tailwind v4's stylesheet is modern-only: `@layer` (Chrome 99+) wraps
         // everything and colors are oklch/color-mix (Chrome 111+). Old WebViews

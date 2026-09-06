@@ -6,17 +6,21 @@
  *   - Background Sync: 'progress-sync' tag pokes open clients to drain the
  *     IndexedDB sync queue (the page owns auth/queueing, the SW just nudges).
  */
-const CACHE = 'elitekids-shell-v3';
+const CACHE = 'elitekids-shell-v4';
 const SHELL_URL = '/index.html';
 const ASSET_PREFIXES = ['/assets/', '/logo.svg'];
 
 // CACHE_VERSION gates a hard purge of stale caches from older builds.
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 const OLD_CACHE_PREFIX = 'elitekids-shell-';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.add(SHELL_URL).catch(() => {}))
+    caches
+      .open(CACHE)
+      .then((cache) =>
+        cache.add(new Request(SHELL_URL, { cache: 'reload' })).catch(() => {})
+      )
   );
   self.skipWaiting();
 });
@@ -62,7 +66,10 @@ self.addEventListener('fetch', (event) => {
 
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
+      // cache:'reload' — bypass the browser HTTP cache. A stale heuristic-cached
+      // index.html references hashed assets a new deploy deleted → 404 → app
+      // never boots. Navigations must always revalidate with the server.
+      fetch(req, { cache: 'reload' })
         .then((res) => {
           const copy = res.clone();
           caches
