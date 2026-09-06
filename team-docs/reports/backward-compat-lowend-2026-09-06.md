@@ -279,4 +279,10 @@ nginx docroot IS this repo tree and dist/ was built+verified locally at 08:45
 (live compat sheet byte-identical: :where=0, padding-inline=0, 196,753B; site
 200, api health 200). NOTE: runner's `git reset --hard` discard-recovered the
 post-push status line in this report (no /tmp stash file — tree was clean at
-reset time). Re-triggering deploy via docs bump (round-2/5 precedent).
+reset time). Re-trigger: commit fd90b9f → Worker_20260906-093501 **SUCCEEDED**
+(09:37:59Z). Backend restarted 09:36:40 (api up, ws attached), frontend rebuilt
++ rsynced to docroot 09:37:56. LIVE VERIFIED (kids.elitekids.com.ng): GET / →
+200 with boot-splash + legacyCssNeeded markers; /assets/index-compat.css →
+196,753B with :where=0, padding-inline=0, grid-column-gap=18 (legacy gap
+aliases present); api health 127.0.0.1:8484 → 200.
+## Round 6 DEPLOY: SUCCESS — placement-quiz modal + dashboard cards fix is LIVE.
