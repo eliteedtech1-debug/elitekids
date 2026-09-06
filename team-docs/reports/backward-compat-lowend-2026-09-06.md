@@ -88,4 +88,13 @@ Implemented (verified locally):
   (old→compat / modern→modern / mid→compat), swap regex tested on real hrefs.
 
 ## Status round 2
-CODE DONE + verified. Commit pending push (user-ordered next).
+CODE DONE + verified. PUSHED 2026-09-06 commit 00d65ae (user-ordered push).
+- First auto-deploy run (Worker_20260906-060605) FAILED at backend deploy step
+  (exit 1 after 126s; stdout uploaded to results service, not retained locally).
+  Root cause not fully recoverable; the hermetic backend gate re-ran manually
+  right after:
+      bash scripts/run-tests.sh --forceExit  ->  606/606 PASSED (84s)
+  and live api (PID 639943, restarted at 05:49 by docs deploy) is active+200.
+  Conclusion: 06:06 failure was transient (test-suite/db/env hiccup), NOT code.
+- Re-trigger triggered via docs commit; verifying the new run, then marking
+  final live status below.
