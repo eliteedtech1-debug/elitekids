@@ -203,3 +203,9 @@ Verified:
 - node scripts/check-bundle.mjs PASSED, vitest 229/229
 
 ## Status round 5: CODE DONE + verified locally. Push pending user order.
+
+## Round 5 DEPLOY: transient gate failure — RE-TRIGGER
+2026-09-06 07:10 (worker): push 21491ae → Worker_20260906-070707 FAILED (backend gate
+exit 1, ~1:59). Change is frontend-only; local re-run of the hermetic gate passed
+606/606 → flaky/environmental, not code (same class as round-2 060605 incident).
+API not restarted, frontend not rebuilt by that run. Re-triggering via docs bump.
