@@ -338,4 +338,17 @@ the sheet — caught by the guard itself on first run, fixed). Wired into
 script. Negative-tested: injected padding-inline/:where/oklch/ungated
 color-mix all caught.
 
-## Status round 7: DONE + verified (workflow hardening ships on next push; push pending user order).
+## Status round 7: DONE + verified.
+PUSHED 2026-09-06 commit 526ebe9 (user-ordered; includes C-DEBT-05 ticket upgrade
+in reports/c-preexisting-failures.md). Deploy Worker_20260906-102131 SUCCEEDED
+10:24:53Z — FIRST run on the hardened workflow: gate passed via on-box log
+/tmp/elitekids-backend-gate-20260906T102141Z.log (50 suites, 606/606, 89s, no
+retry needed), API restarted 10:23:19, frontend rebuilt+rsynced 10:24:50, compat
+guard ran inside the live build (192.2KB sheet, 0 modern-only features). Live:
+site 200, health 200, compat :where=0.
+Low-end verification audit (on-box equivalent of device testing): all 319
+classes used by PlacementQuiz + dashboard card components (StreakReminder,
+RevisionCard, ReviewZone, StreakCounter, XPBar, GoalCard) resolve to rules in
+the live compat sheet (v1 audit's 94 'missing' were audit-script escaping
+artifacts — backslash unescaping + nested-template stripping fixed it).
+Physical-device confirmation still recommended on real hardware.
