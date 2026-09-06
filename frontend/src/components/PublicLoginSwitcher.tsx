@@ -18,9 +18,9 @@ export default function PublicLoginSwitcher() {
         aria-label="Open Elite Suite links"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
+        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white/70 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-white hover:border-gray-400"
       >
-        <LayoutGrid className="h-4 w-4" />
+        <LayoutGrid className="h-4 w-4 text-[#0F4D92]" />
         <span>Elite Suite</span>
       </button>
 

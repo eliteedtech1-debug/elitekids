@@ -370,9 +370,10 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setMode('users')}
-              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 $              {mode === 'users'
+              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                mode === 'users'
                   ? 'bg-gradient-to-r from-[#0F4D92] to-[#0d9488] text-white shadow-[0_4px_15px_rgba(15,77,146,0.3)]'
-                  : 'text-gray-500 hover:text-[#0F4D92]'
+                  : 'bg-white/70 text-gray-600 hover:bg-white hover:text-[#0F4D92]'
               }`}
             >
               <GraduationCap className="h-4 w-4" />
@@ -384,7 +385,7 @@ export default function Login() {
               className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
                 mode === 'students'
                   ? 'bg-gradient-to-r from-[#0F4D92] to-[#0d9488] text-white shadow-[0_4px_15px_rgba(15,77,146,0.3)]'
-                  : 'text-gray-500 hover:text-[#0F4D92]'
+                  : 'bg-white/70 text-gray-600 hover:bg-white hover:text-[#0F4D92]'
               }`}
             >
               <Users className="h-4 w-4" />
