@@ -352,3 +352,40 @@ RevisionCard, ReviewZone, StreakCounter, XPBar, GoalCard) resolve to rules in
 the live compat sheet (v1 audit's 94 'missing' were audit-script escaping
 artifacts — backslash unescaping + nested-template stripping fixed it).
 Physical-device confirmation still recommended on real hardware.
+
+## Round 8 CRITICAL: splash stuck on ALL browsers — FIXED + LIVE (worker Buffy, 2026-09-06 ~11:20)
+
+**Incident:** two real devices (Firefox + Chrome) stuck on the boot loader with
+the login button visible UNDER the overlay. Root cause: main.tsx dispatched
+`app:ready` on `window`; the boot script listens on `document` → dismissSplash
+never ran. Headless check this morning had shown splash-in-DOM=1 but was
+misread as "splash hits = script source text". Live since boot-splash shipped.
+
+**Also fixed (stale-shell trap for returning devices):** HTML shell had NO
+Cache-Control → heuristic caching grows with Last-Modified age; a returning
+device can serve stale HTML referencing hashed assets that rsync --delete
+removed → 404 → app never boots.
+
+**Fix (commit 1ea11db, pushed user-ordered via workflow):**
+- main.tsx: fire `app:ready` on document (+ window kept)
+- index.html boot script: backstop 1 (root-mounted self-heal, 500ms poll),
+  backstop 2 (stale-shell: on first /assets/*.js error pre-ready, one
+  cache-busted reload, sessionStorage loop-guard), ES5-safe throughout
+- public/sw.js: v4 — install shell with cache:'reload'; navigations fetch with
+  cache:'reload' (bypass HTTP cache); old-version cache purge
+- deploy/nginx/elitekids.conf (repo source of truth): no-cache on
+  =/index.html + =/sw.js; assets stay immutable
+- deploy.yml: new step "Apply nginx config via sudo" (SUDO_PASSWORD secret,
+  backup + nginx -t guard + auto-restore on failure, skip when unchanged);
+  external verify now asserts shell cache headers
+
+**Deploy Worker_20260906-110701 SUCCEEDED 11:10Z. Gate 606/606 (on-box log
+/tmp/elitekids-backend-gate-20260906T110711Z.log). nginx live config = repo
+config (diff clean). LIVE headers: Cache-Control no-cache,no-store,must-revalidate
++ Pragma no-cache on the shell. Live headless: boot-splash in final DOM = 0,
+login renders, root mounted, bundle index-BIJx0QpM.js carries
+document.dispatchEvent(new Event("app:ready")). API health 200.**
+
+**User device test (all browsers, incl. Firefox): load site once more — if a
+stale shell is pinned, backstop reloads once automatically; splash must
+dismiss to login/dashboard. Report still-scuck cases with device+browser.**
