@@ -42,6 +42,13 @@ const CONFIG = {
   port: Number(process.env.TEST_DB_PORT || 3306),
   user: process.env.TEST_DB_USER || 'root',
   password: process.env.TEST_DB_PASSWORD || '',
+  // Pin test sessions to UTC so test-side clock math (NOW(), DATE_SUB(...))
+  // shares one timeline with the API's Sequelize pools (timezone 'Z' →
+  // session +00:00). Without this, sessions on a non-UTC MySQL run at the
+  // SYSTEM tz and timestamps cross the test/API boundary shifted by the
+  // offset — which broke due/overdue reviews and day-bucket rollups.
+  timezone: '+00:00',
+  sessionVariables: { time_zone: "+00:00" },
 };
 
 function sqlUsesSharedTable(sql) {
@@ -593,6 +600,9 @@ async function ensureTestDb() {
 
     const sharedConn = await mysql.createConnection({ ...CONFIG, database: TEST_DB });
     const contentConn = await mysql.createConnection({ ...CONFIG, database: TEST_CONTENT_DB });
+    // Match the API's UTC session clock (see testQuery + CONFIG comment).
+    await sharedConn.query("SET time_zone = '+00:00'");
+    await contentConn.query("SET time_zone = '+00:00'");
     conn = {
       query: (sql, params) => routedConnection(sharedConn, contentConn, sql).query(sql, params),
       end: async () => Promise.all([sharedConn.end(), contentConn.end()]),
@@ -839,6 +849,10 @@ async function testQuery(sql, params) {
   const database = sqlUsesSharedTable(sql) ? TEST_DB : TEST_CONTENT_DB;
   const conn = await mysql.createConnection({ ...CONFIG, database });
   try {
+    // Pin the session clock to UTC to match the API's Sequelize pools
+    // (timezone 'Z' → session +00:00). mysql2's connect-time options were
+    // unreliable here, so the tz is enforced per-connection with SET.
+    await conn.query("SET time_zone = '+00:00'");
     const [rows] = await conn.query(sql, params);
     return rows;
   } finally {

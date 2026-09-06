@@ -16,7 +16,14 @@ function normalizeParentPhone(value) {
 
 function toIsoDay(value) {
   if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return String(value || '').slice(0, 10);
+  const s = String(value || '');
+  // `dateStrings: true` yields raw DB wall-clock strings (DB session tz = UTC).
+  // `new Date(s)` would re-interpret them in the server's local timezone and
+  // shift the day on non-UTC hosts, so the day bucket is taken straight from
+  // the string (with a UTC fallback for anything already tz-explicit).
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return new Date(s).toISOString().slice(0, 10);
 }
 
 function denseActivity(rows, days) {
@@ -29,13 +36,13 @@ function denseActivity(rows, days) {
       average_score: Number(row.average_score) || 0,
     },
   ]));
-  const end = new Date();
-  end.setHours(0, 0, 0, 0);
-  const start = new Date(end);
-  start.setDate(start.getDate() - (days - 1));
+  // Day keys are UTC calendar days (matching the DB's UTC session tz and
+  // DATE() bucketing). Deriving them from local-midnight Dates + toISOString()
+  // shifted the whole series a day back on non-UTC hosts, hiding today's rows.
+  const nowMs = Date.now();
   const series = [];
-  for (let cursor = start; cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
-    const date = cursor.toISOString().slice(0, 10);
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const date = new Date(nowMs - i * 86400000).toISOString().slice(0, 10);
     series.push({ date, ...(byDay.get(date) || { games: 0, xp: 0, stars: 0, average_score: 0 }) });
   }
   let streak = 0;

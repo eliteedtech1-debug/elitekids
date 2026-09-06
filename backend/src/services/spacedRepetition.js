@@ -102,6 +102,23 @@ function calculateNewEase(ease, quality) {
 }
 
 /**
+ * Parse a DB wall-clock DATETIME string as UTC.
+ *
+ * The Sequelize dialectOptions set `dateStrings: true`, so DATETIME columns
+ * arrive as raw strings (DB session tz = UTC on every environment). Feeding
+ * those to `new Date()` makes Node interpret them in the server's LOCAL
+ * timezone — a no-op on the VPS (UTC) but a ±1h skew anywhere else, which
+ * flipped due/overdue math on review cards. Appending 'Z' pins the intended
+ * UTC reading. JS Date objects (legacy rows) pass through untouched.
+ */
+function parseDbTime(value) {
+  if (value instanceof Date) return value;
+  const s = String(value || '');
+  if (/Z$|[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s); // already tz-explicit
+  return new Date(`${s}Z`);
+}
+
+/**
  * Check if a card is due for review.
  * @param {object} card - { next_review_at, repetitions }
  * @param {Date} [now] - current time
@@ -109,8 +126,7 @@ function calculateNewEase(ease, quality) {
  */
 function isDue(card, now = new Date()) {
   if (!card.next_review_at) return true;
-  const reviewAt = new Date(card.next_review_at);
-  return reviewAt <= now;
+  return parseDbTime(card.next_review_at) <= now;
 }
 
 /**
@@ -121,8 +137,7 @@ function isDue(card, now = new Date()) {
  */
 function daysOverdue(card, now = new Date()) {
   if (!card.next_review_at) return 0;
-  const reviewAt = new Date(card.next_review_at);
-  const diffMs = now.getTime() - reviewAt.getTime();
+  const diffMs = now.getTime() - parseDbTime(card.next_review_at).getTime();
   if (diffMs <= 0) return 0;
   return Math.floor(diffMs / 86400000);
 }

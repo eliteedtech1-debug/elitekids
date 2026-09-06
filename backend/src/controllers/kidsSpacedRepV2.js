@@ -58,10 +58,14 @@ async function getTodayReviews(req, res) {
     await ensureSchema();
     const { content } = dbm();
 
-    // Due reviews (next_review_at <= NOW)
+    // Due reviews (next_review_at <= NOW). days_overdue is computed in SQL so
+    // both operands share the DB clock — passing the column through the JS
+    // driver mis-parses DB wall time on non-UTC hosts (dateStrings/local-tz
+    // asymmetry) and zeroed the overdue math.
     const [rows] = await content.query(
       `SELECT r.id AS review_id, r.skill_key, r.item_id, r.interval_days, r.repetitions,
-              r.last_quality, r.next_review_at, r.ease
+              r.last_quality, r.next_review_at, r.ease,
+              GREATEST(0, TIMESTAMPDIFF(DAY, r.next_review_at, NOW())) AS days_overdue_sql
        FROM kids_review_schedule_v2 r
        WHERE r.child_admission_no = :adm
          AND r.status = 'active'
@@ -106,7 +110,7 @@ async function getTodayReviews(req, res) {
         lesson_id: lessonId,
         lesson_title: lessonTitle,
         next_review_at: r.next_review_at,
-        days_overdue: daysOverdue({ next_review_at: r.next_review_at }),
+        days_overdue: Number(r.days_overdue_sql || 0),
         current_interval_days: Number(r.interval_days || 1),
         mastery_probability: mastery,
         quality_last: r.last_quality,
