@@ -388,4 +388,4 @@ document.dispatchEvent(new Event("app:ready")). API health 200.**
 
 **User device test (all browsers, incl. Firefox): load site once more — if a
 stale shell is pinned, backstop reloads once automatically; splash must
-dismiss to login/dashboard. Report still-scuck cases with device+browser.**
+dismiss to login/dashboard. Report still-stuck cases with device+browser.**
