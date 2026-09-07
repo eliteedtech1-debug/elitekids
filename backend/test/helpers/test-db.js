@@ -36,6 +36,32 @@ if (fs.existsSync(envTestPath)) {
 const legacyTestDb = process.env.TEST_DB_NAME === 'elite_kids_test' ? undefined : process.env.TEST_DB_NAME;
 const TEST_DB = process.env.TEST_SHARED_DB_NAME || legacyTestDb || 'elite_db_test';
 const TEST_CONTENT_DB = process.env.TEST_CONTENT_DB_NAME || 'elite_content_test';
+
+// ── Production-safety guard (deploy-gate incident fix, 2026-09-06) ─────────
+// The suite runs ON the VPS as a deploy gate with REAL DB credentials mapped
+// from backend/.env (see scripts/run-tests.sh). A single stray env line such
+// as TEST_DB_NAME=elite_db turned ensureTestDb() into "DROP DATABASE elite_db"
+// on every deploy. Hard rule from now on: test database names MUST end in
+// _test and must never be one of the known production databases.
+const PROD_DB_NAMES = new Set(['elite_db', 'elite_content', 'elite_bot', 'elite_kids', 'elite_ai']);
+function assertSafeTestDbName(name, label) {
+  const value = String(name || '').trim();
+  if (!value) throw new Error(`[test-db] ${label} is empty — refusing to touch any database`);
+  if (!/_test$/.test(value)) {
+    throw new Error(
+      `[test-db] ${label}="${value}" does not end in _test — refusing to DROP/TRUNCATE. ` +
+      'Set TEST_DB_* variables to *_test names only (e.g. elite_db_test).'
+    );
+  }
+  if (PROD_DB_NAMES.has(value.toLowerCase())) {
+    throw new Error(`[test-db] ${label}="${value}" is a production database — refusing to DROP/TRUNCATE.`);
+  }
+  return value;
+}
+// Fail fast at module load — before any connection is ever opened.
+assertSafeTestDbName(TEST_DB, 'TEST_DB');
+assertSafeTestDbName(TEST_CONTENT_DB, 'TEST_CONTENT_DB');
+
 const SHARED_TABLES = new Set(['users', 'parents', 'students', 'school_setup', 'password_reset_tokens']);
 const CONFIG = {
   host: process.env.TEST_DB_HOST || '127.0.0.1',
@@ -588,6 +614,11 @@ CREATE TABLE IF NOT EXISTS kids_parental_controls (
 `;
 
 async function ensureTestDb() {
+  // Re-assert right before any destructive statement (defense in depth —
+  // env could have changed after module load).
+  assertSafeTestDbName(TEST_DB, 'TEST_DB');
+  assertSafeTestDbName(TEST_CONTENT_DB, 'TEST_CONTENT_DB');
+
   const admin = await mysql.createConnection(CONFIG);
   let conn;
   try {

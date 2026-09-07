@@ -16,6 +16,21 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
 const TEST_DB = process.env.TEST_DB_NAME || 'elite_kids_test';
+
+// Production-safety guard (deploy-gate incident fix, 2026-09-06): this file
+// DROPs TEST_DB and TRUNCATEs shared tables. A stray TEST_DB_NAME=elite_db
+// used to point those statements at the live shared DB. Test DB names MUST
+// end in _test and must never be a production database name.
+(function assertSafeTestDbName() {
+  const value = String(TEST_DB || '').trim();
+  const prodNames = ['elite_db', 'elite_content', 'elite_bot', 'elite_kids', 'elite_ai'];
+  if (!value || !/_test$/.test(value) || prodNames.includes(value.toLowerCase())) {
+    throw new Error(
+      `[test-db] TEST_DB="${value}" is not a safe *_test database name — refusing to DROP/TRUNCATE.`
+    );
+  }
+})();
+
 const CONFIG = {
   host: process.env.TEST_DB_HOST || '127.0.0.1',
   port: Number(process.env.TEST_DB_PORT || 3306),

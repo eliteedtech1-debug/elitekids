@@ -65,6 +65,28 @@ export TEST_DB_USER TEST_DB_PASSWORD
 export NODE_ENV="test"
 export DISABLE_RATE_LIMIT="1"
 
+# PRODUCTION-SAFETY PREFLIGHT (deploy-gate incident fix, 2026-09-06) ─────────
+# The jest suite DROPs and TRUNCATEs the *_test databases using the real DB
+# credentials sourced above. One stray line in backend/.env or the calling
+# shell (e.g. TEST_DB_NAME=elite_db) used to point those statements at the
+# LIVE shared database on every deploy. Refuse to run unless every test-DB
+# name override (from .env OR the environment) ends in _test.
+for VAR in TEST_DB_NAME TEST_SHARED_DB_NAME TEST_CONTENT_DB_NAME TEST_AI_DB_NAME TEST_KIDS_DB_NAME; do
+  for SOURCE in env_value env_file_value; do
+    if [ "$SOURCE" = "env_value" ]; then
+      VAL="${!VAR:-}"
+    else
+      VAL="$(grep -E "^${VAR}=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '[:space:]')"
+    fi
+    [ -n "$VAL" ] || continue
+    if [[ "$VAR" == *_NAME && "$VAL" != *_test ]]; then
+      echo "FATAL: ${VAR}=${VAL} (${SOURCE}) — test DB names must end in _test." >&2
+      echo "       This guard stops the deploy gate from dropping a production database." >&2
+      exit 2
+    fi
+  done
+done
+
 cd "$BACKEND" || exit 2
 
 # PREFLIGHT GUARD — jest/supertest must resolve from backend/node_modules.

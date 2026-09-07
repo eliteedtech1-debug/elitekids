@@ -36,6 +36,30 @@ process.env.DB_NAME = process.env.TEST_SHARED_DB_NAME || legacyTestDb || 'elite_
 process.env.CONTENT_DB_NAME = process.env.TEST_CONTENT_DB_NAME || 'elite_content_test';
 process.env.AI_DB_NAME = process.env.TEST_AI_DB_NAME || process.env.TEST_CONTENT_DB_NAME || 'elite_content_test';
 process.env.KIDS_DB_NAME = process.env.TEST_KIDS_DB_NAME || process.env.TEST_CONTENT_DB_NAME || 'elite_content_test';
+
+// Production-safety guard (deploy-gate incident fix, 2026-09-06): the resolved
+// DB names below become the connections the app-under-test uses. A stray env
+// line (e.g. TEST_DB_NAME=elite_db) used to be honored verbatim. Every name
+// MUST end in _test and must never be a production database. Inline guard so
+// this file stays dependency-free (it runs before any other module loads).
+(function assertSafeTestDbNames() {
+  const prodNames = ['elite_db', 'elite_content', 'elite_bot', 'elite_kids', 'elite_ai'];
+  const names = {
+    DB_NAME: process.env.DB_NAME,
+    CONTENT_DB_NAME: process.env.CONTENT_DB_NAME,
+    AI_DB_NAME: process.env.AI_DB_NAME,
+    KIDS_DB_NAME: process.env.KIDS_DB_NAME,
+  };
+  for (const [label, value] of Object.entries(names)) {
+    const v = String(value || '').trim();
+    if (!v || !/_test$/.test(v) || prodNames.includes(v.toLowerCase())) {
+      throw new Error(
+        `[setup-env] ${label}="${v}" is not a safe *_test database name — refusing to point the app at it.`
+      );
+    }
+  }
+})();
+
 process.env.JWT_SECRET_KEY = 'test-jwt-secret';
 process.env.ALLOWED_ORIGINS = 'http://localhost:34601';
 process.env.DISABLE_RATE_LIMIT = '1';
