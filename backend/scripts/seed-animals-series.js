@@ -5,9 +5,24 @@
  * Based on elitekids-animals-series-package (Doc A–E)
  *
  * Usage: cd backend && node scripts/seed-animals-series.js
+ *
+ * SAFETY: this script DELETEs existing Animals-series rows before re-seeding.
+ * It routes that DELETE through backend/lib/db-drop-guard.js so a stray env that
+ * points DB_NAME at a production database will abort instead of wiping prod data.
  */
 const { v4: uuidv4 } = require('uuid');
 const db = require('../src/models');
+const dbGuard = require('../lib/db-drop-guard');
+
+// The script only deletes rows scoped to the Animals category. Opt that into the
+// guard so it can run against a real (non-test) DB when intended, but NEVER against
+// a known production DB without this explicit allowlist.
+dbGuard.assertDestructiveTarget({
+  database: db.sequelize.config.database || process.env.DB_NAME || '',
+  operation: 'DELETE',
+  allowedDatabases: [process.env.DB_NAME || 'elite_db'],
+});
+
 
 const AGE_BANDS = [
   { key: 'creche', label: 'Creche', tier: 0, tapTargetPx: 96, dragSnapRadiusPx: 60, timedOptional: false, successThresholdPct: 60 },

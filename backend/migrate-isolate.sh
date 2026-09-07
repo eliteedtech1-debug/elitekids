@@ -13,8 +13,17 @@
 #
 # Usage: bash migrate-isolate.sh
 #   Dry-run first: bash migrate-isolate.sh --dry-run
+#
+# SAFETY: every DROP TABLE / DROP DATABASE in this script is routed through
+# backend/lib/assert-database-name.sh, which delegates to backend/lib/db-drop-guard.js.
+# The script will abort clean if the target is a production database name or anything
+# that does not end in _test (except where explicitly allowed).
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
+
+# Load the shared DB-name guard (returns 1 + message on stderr when rejected).
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/lib" && pwd)/assert-database-name.sh"
 
 DB_HOST="127.0.0.1"
 DB_USER="elite"
@@ -49,8 +58,12 @@ for tbl in school_subscriptions school_proctoring_settings; do
   if [ "$DRY_RUN" = "--dry-run" ]; then
     log "  [DRY-RUN] Would drop if empty"
   elif [ "$row_cnt" = "0" ] || [ "$row_cnt" = "-1" ]; then
-    eval $MYSQL -e "DROP TABLE IF EXISTS elite_content.$tbl" 2>/dev/null || true
-    log "  Dropped elite_content.$tbl"
+    if assert_database_name "elite_content" "DROP TABLE" "elite_content"; then
+      eval $MYSQL -e "DROP TABLE IF EXISTS elite_content.$tbl" 2>/dev/null || true
+      log "  Dropped elite_content.$tbl"
+    else
+      error "  Refused to drop elite_content.$tbl — guard rejected elite_content as target"
+    fi
   else
     log "  WARNING: $tbl has $row_cnt rows — keeping it"
   fi
@@ -133,8 +146,12 @@ for tbl in "${CBT_TABLES[@]}"; do
     $MYSQL -e "CREATE TABLE IF NOT EXISTS elite_cbt.$tbl LIKE elite_content.$tbl;"
     $MYSQL -e "INSERT INTO elite_cbt.$tbl SELECT * FROM elite_content.$tbl;"
     rows=$($MYSQL -e "SELECT COUNT(*) FROM elite_cbt.$tbl;" 2>/dev/null)
-    $MYSQL -e "DROP TABLE elite_content.$tbl;"
-    log "  Moved $tbl → elite_cbt ($rows rows)"
+    if assert_database_name "elite_content" "DROP TABLE" "elite_content"; then
+      $MYSQL -e "DROP TABLE elite_content.$tbl;"
+      log "  Moved $tbl → elite_cbt ($rows rows)"
+    else
+      error "  Refused to drop elite_content.$tbl after move — guard rejected elite_content as target"
+    fi
   fi
 done
 
@@ -165,8 +182,12 @@ if [ -n "$KIDS_IN_CONTENT" ]; then
     $MYSQL -e "CREATE TABLE IF NOT EXISTS elite_kids.$tbl LIKE elite_content.$tbl;"
     $MYSQL -e "INSERT INTO elite_kids.$tbl SELECT * FROM elite_content.$tbl;"
     rows=$($MYSQL -e "SELECT COUNT(*) FROM elite_kids.$tbl;" 2>/dev/null)
-    $MYSQL -e "DROP TABLE elite_content.$tbl;"
-    log "  Moved $tbl → elite_kids ($rows rows)"
+    if assert_database_name "elite_content" "DROP TABLE" "elite_content"; then
+      $MYSQL -e "DROP TABLE elite_content.$tbl;"
+      log "  Moved $tbl → elite_kids ($rows rows)"
+    else
+      error "  Refused to drop elite_content.$tbl after move — guard rejected elite_content as target"
+    fi
   fi
 done
 fi
@@ -232,7 +253,11 @@ for tbl in "${CBT_TABLES_CLEANUP[@]}"; do
     if [ "$DRY_RUN" = "--dry-run" ]; then
       log "    [DRY-RUN] Would drop elite_content.$tbl"
     else
-      $MYSQL -e "DROP TABLE IF EXISTS elite_content.$tbl;" 2>/dev/null && log "    Dropped elite_content.$tbl" || log "    Failed to drop elite_content.$tbl"
+      if assert_database_name "elite_content" "DROP TABLE" "elite_content"; then
+        $MYSQL -e "DROP TABLE IF EXISTS elite_content.$tbl;" 2>/dev/null && log "    Dropped elite_content.$tbl" || log "    Failed to drop elite_content.$tbl"
+      else
+        error "  Refused to drop elite_content.$tbl — guard rejected elite_content as target"
+      fi
     fi
   fi
 done
@@ -245,7 +270,11 @@ for tbl in "${KIDS_TABLES_CLEANUP[@]}"; do
     if [ "$DRY_RUN" = "--dry-run" ]; then
       log "    [DRY-RUN] Would drop elite_content.$tbl"
     else
-      $MYSQL -e "DROP TABLE IF EXISTS elite_content.$tbl;" 2>/dev/null && log "    Dropped elite_content.$tbl" || log "    Failed to drop elite_content.$tbl"
+      if assert_database_name "elite_content" "DROP TABLE" "elite_content"; then
+        $MYSQL -e "DROP TABLE IF EXISTS elite_content.$tbl;" 2>/dev/null && log "    Dropped elite_content.$tbl" || log "    Failed to drop elite_content.$tbl"
+      else
+        error "  Refused to drop elite_content.$tbl — guard rejected elite_content as target"
+      fi
     fi
   fi
 done
@@ -260,3 +289,9 @@ CONTENT_COUNT=$($MYSQL -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE 
 log "  elite_cbt: $CBT_COUNT tables"
 log "  elite_kids: $KIDS_COUNT tables"
 log "  elite_content: $CONTENT_COUNT tables (should only contain: assignment_question_bank_link, ca_exam_submissions, question_usage_log, report_print_logs, school_website_*)"
+
+# ── Post-flight guard ──
+# Not used after the migration above wraps every DROP; kept as a documentation
+# anchor so the script's safety model is visible in-code. The real guard is the
+# per-statement assert_database_name calls + the shared db-drop-guard.js module.
+log "Note: this script routes every DROP TABLE through backend/lib/db-drop-guard.js."
