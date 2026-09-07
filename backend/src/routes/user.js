@@ -32,6 +32,77 @@ module.exports = (app) => {
   app.post('/auth/reset-password', authLimiter, resetPassword);
   app.post('/auth/parent-signup', authLimiter, parentSignup);
 
+  // ── Cross-app handoff ticket redemption (EliteSMS → EliteKids) ──────────
+  app.post('/apps/kids/redeem-ticket', async (req, res) => {
+    const { ticket } = req.body || {};
+    if (!ticket) {
+      return res.status(400).json({ success: false, error_code: 'VALIDATION_ERROR', message: 'ticket is required' });
+    }
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(ticket, process.env.JWT_SECRET_KEY);
+      if (!decoded.email || !decoded.user_type) {
+        return res.status(400).json({ success: false, error_code: 'INVALID_TICKET', message: 'Invalid ticket payload' });
+      }
+
+      // Pull the user from the shared DB to get school_id / branch_id.
+      const [userRows] = await db.sequelize.query(
+        `SELECT id, email, school_id, branch_id, user_type, role
+         FROM users WHERE email = :email LIMIT 1`,
+        { replacements: { email: String(decoded.email).toLowerCase().trim() }, type: db.sequelize.QueryTypes.SELECT }
+      );
+      const user = userRows?.[0] || null;
+      if (!user) {
+        // Also check parents table — parent accounts live there.
+        const [parentRows] = await db.sequelize.query(
+          `SELECT u.id, u.email, u.school_id, u.branch_id, u.user_type, u.role
+           FROM users u JOIN parents p ON u.id = p.user_id
+           WHERE LOWER(u.email) = LOWER(:email) LIMIT 1`,
+          { replacements: { email: String(decoded.email).toLowerCase().trim() }, type: db.sequelize.QueryTypes.SELECT }
+        );
+        const p = parentRows?.[0] || null;
+        if (!p) {
+          return res.status(404).json({ success: false, error_code: 'USER_NOT_FOUND', message: 'Session expired. Please log in again.' });
+        }
+        const { generateLoginToken } = require('../middleware/sessionAuth');
+        const newToken = generateLoginToken({
+          id: p.id,
+          user_type: decoded.user_type || p.user_type || 'Parent',
+          email: p.email,
+          school_id: p.school_id,
+          branch_id: p.branch_id,
+        });
+        return res.json({
+          ok: true,
+          user_id: p.id,
+          user: { id: p.id, user_type: decoded.user_type || p.user_type || 'Parent', school_id: p.school_id, branch_id: p.branch_id },
+          token: 'Bearer ' + newToken,
+        });
+      }
+
+      const { generateLoginToken } = require('../middleware/sessionAuth');
+      const newToken = generateLoginToken({
+        id: user.id,
+        user_type: decoded.user_type || user.user_type || user.role || 'Admin',
+        email: user.email,
+        school_id: user.school_id,
+        branch_id: user.branch_id,
+      });
+      return res.json({
+        ok: true,
+        user_id: user.id,
+        user: { id: user.id, user_type: decoded.user_type || user.user_type || user.role || 'Admin', school_id: user.school_id, branch_id: user.branch_id },
+        token: 'Bearer ' + newToken,
+      });
+    } catch (err) {
+      if (err.name === 'TokenExpiredError' || err.name === 'JsonWebTokenError') {
+        return res.status(401).json({ success: false, error_code: 'INVALID_TICKET', message: 'Session expired. Please log in again.' });
+      }
+      console.error('redeem-ticket error:', err.message);
+      return res.status(500).json({ success: false, error_code: 'SERVER_ERROR', message: 'Could not verify session. Please log in again.' });
+    }
+  });
+
   // ── Multi-school selection (port of elite-cbt-api /auth/select-school) ───
   app.post('/auth/select-school', async (req, res) => {
     const { selection_token, school_id } = req.body;

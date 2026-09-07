@@ -1,6 +1,6 @@
 'use strict';
 
-const { testQuery, TEST_DB, TEST_CONTENT_DB } = require('./helpers/test-db');
+const { testQuery, TEST_DB, TEST_KIDS_DB } = require('./helpers/test-db');
 
 afterAll(async () => {
   // The global test teardown closes application connections; testQuery opens and
@@ -14,15 +14,15 @@ describe('test database ownership boundary', () => {
     expect(rows[0].database_name).toBe(TEST_DB);
   });
 
-  it('routes Kids-table SQL to elite_content_test', async () => {
+  it('routes Kids-table SQL to elite_kids_test', async () => {
     const rows = await testQuery('SELECT DATABASE() AS database_name FROM kids_children LIMIT 1');
     expect(rows).toHaveLength(1);
-    expect(rows[0].database_name).toBe(TEST_CONTENT_DB);
+    expect(rows[0].database_name).toBe(TEST_KIDS_DB);
   });
 
   it('keeps the two ownership databases distinct', () => {
     expect(TEST_DB).toBe('elite_db_test');
-    expect(TEST_CONTENT_DB).toBe('elite_content_test');
-    expect(TEST_DB).not.toBe(TEST_CONTENT_DB);
+    expect(TEST_KIDS_DB).toBe('elite_kids_test');
+    expect(TEST_DB).not.toBe(TEST_KIDS_DB);
   });
 });

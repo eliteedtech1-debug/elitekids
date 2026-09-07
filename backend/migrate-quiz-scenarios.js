@@ -466,8 +466,8 @@ async function migrate() {
 
   for (const [id, transform] of Object.entries(TRANSFORMS)) {
     try {
-      const [rows] = await db.sequelize.query(
-        'SELECT config_json FROM elite_content.kids_game_configs WHERE id = ?',
+      const [rows] = await db.content.query(
+        'SELECT config_json FROM kids_game_configs WHERE id = ?',
         { replacements: [id] }
       );
 
@@ -503,8 +503,8 @@ async function migrate() {
       }
 
       // Update in database
-      await db.sequelize.query(
-        'UPDATE elite_content.kids_game_configs SET config_json = ? WHERE id = ?',
+      await db.content.query(
+        'UPDATE kids_game_configs SET config_json = ? WHERE id = ?',
         { replacements: [JSON.stringify(newConfig), id] }
       );
 

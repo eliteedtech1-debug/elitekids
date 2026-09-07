@@ -106,8 +106,8 @@ function getConfigHash(config) {
 }
 
 async function migrate() {
-  const [rows] = await db.sequelize.query(
-    `SELECT id, config_json FROM elite_content.kids_game_configs WHERE template = 'tap-recognition'`
+  const [rows] = await db.content.query(
+    `SELECT id, config_json FROM kids_game_configs WHERE template = 'tap-recognition'`
   );
 
   console.log(`Found ${rows.length} tap-recognition configs to migrate\n`);
@@ -157,8 +157,8 @@ async function migrate() {
       speechText: scenario + ' ' + prompt,
     };
 
-    await db.sequelize.query(
-      `UPDATE elite_content.kids_game_configs SET config_json = :config WHERE id = :id`,
+    await db.content.query(
+      `UPDATE kids_game_configs SET config_json = :config WHERE id = :id`,
       { replacements: { config: JSON.stringify(updatedConfig), id: row.id } }
     );
 

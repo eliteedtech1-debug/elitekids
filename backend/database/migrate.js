@@ -47,6 +47,7 @@ const RUN_BACKUP_DIR = path.join(BACKUP_DIR, timestamp);
 const CFG = {
   mainDb: process.env.DB_NAME,
   contentDb: process.env.CONTENT_DB_NAME || 'elite_content',
+  kidsDb: process.env.KIDS_DB_NAME || 'elite_kids',
   aiDb: process.env.AI_DB_NAME || 'elite_bot', // elite_bot = AI DB on the prod server (elite-api default)
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT) || 3306,
@@ -140,7 +141,7 @@ async function main() {
   log('ELITE KIDS MIGRATION RUNNER');
   log(`mode      : ${APPLY ? 'APPLY' : 'DRY-RUN'}${SKIP_BACKUP ? ' (backups skipped)' : ''}${SKIP_DATA ? ' (data updates skipped)' : ''}`);
   log(`main DB   : ${CFG.mainDb}`);
-  log(`content DB: ${CFG.contentDb}`);
+  log(`kids DB   : ${CFG.kidsDb}`);
   log(`AI DB     : ${CFG.aiDb}`);
   log('==================================================\n');
 
@@ -156,10 +157,10 @@ async function main() {
   }
   try {
     await content.authenticate();
-    log(`✅ connected to content DB: ${CFG.contentDb}`);
+    log(`✅ connected to kids DB: ${CFG.kidsDb}`);
   } catch (e) {
-    log(`❌ cannot connect to content DB (${CFG.contentDb}): ${e.message}`);
-    log('   Set CONTENT_DB_NAME in .env (kids_* tables live here).');
+    log(`❌ cannot connect to kids DB (${CFG.kidsDb}): ${e.message}`);
+    log('   Set KIDS_DB_NAME in .env (kids_* tables live here).');
     process.exitCode = 1;
     return;
   }
@@ -207,26 +208,13 @@ async function main() {
     !deps || deps.every((d) => existing.has(d))
   );
 
-  // ---- 4. Content DB + AI DB kids tables ----------------------------------
-  const [contentTables] = await content.query(
+  // ---- 4. Kids DB tables ------------------------------------------
+  const [kidsTables] = await require('../src/models').kids.query(
     `SELECT TABLE_NAME FROM information_schema.TABLES
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'kids_%'`
   );
-  const existingContent = new Set(contentTables.map((r) => r.TABLE_NAME));
-  const missingContent = KIDS_CONTENT_TABLE_LIST.filter((t) => !existingContent.has(t));
-
-  const [contentColumns] = await content.query(
-    `SELECT TABLE_NAME, COLUMN_NAME
-     FROM information_schema.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (:tables)`,
-    { replacements: { tables: CONTENT_COLUMN_PLAN.map(([table]) => table) } }
-  );
-  const existingContentColumns = new Set(
-    contentColumns.map((row) => `${row.TABLE_NAME}.${row.COLUMN_NAME}`)
-  );
-  const addContentColumns = CONTENT_COLUMN_PLAN
-    .filter(([table, column]) => existingContent.has(table) && !existingContentColumns.has(`${table}.${column}`))
-    .map(([table, column, ddl]) => `ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${ddl}`);
+  const existingKids = new Set(kidsTables.map((r) => r.TABLE_NAME));
+  const missingKids = KIDS_CONTENT_TABLE_LIST.filter((t) => !existingKids.has(t));
 
   let missingAi = [];
   if (aiConnected) {
@@ -241,10 +229,10 @@ async function main() {
   }
 
   // ---- 5. Report / apply ----------------------------------------------------
-  const summary = { addColumns, addContentColumns, dataSteps, missingContent, missingAi };
+  const summary = { addColumns, addContentColumns, dataSteps, missingKids, missingAi };
 
   log('\n── Planned changes ────────────────────────────────────────────────');
-  if (!addColumns.length && !addContentColumns.length && !summary.dataSteps.length && !missingContent.length && !missingAi.length) {
+  if (!addColumns.length && !addContentColumns.length && !summary.dataSteps.length && !missingKids.length && !missingAi.length) {
     log('Nothing to do — schema already up to date.');
   } else {
     if (addColumns.length) {
@@ -252,16 +240,16 @@ async function main() {
       addColumns.forEach((sql) => log(`  + ${sql};`));
     }
     if (addContentColumns.length) {
-      log(`\n${addContentColumns.length} ADD COLUMN(s) (content DB):`);
+      log(`\n${addContentColumns.length} ADD COLUMN(s) (kids DB):`);
       addContentColumns.forEach((sql) => log(`  + ${sql};`));
     }
     if (summary.dataSteps.length) {
       log(`\n${summary.dataSteps.length} data-fix UPDATE(s) (main DB, scoped):`);
       summary.dataSteps.forEach((d) => log(`  ~ ${d[0]}`));
     }
-    if (missingContent.length) {
-      log(`\n${missingContent.length} kids table(s) to create in '${CFG.contentDb}':`);
-      missingContent.forEach((t) => log(`  + CREATE TABLE IF NOT EXISTS \`${t}\``));
+    if (missingKids.length) {
+      log(`\n${missingKids.length} kids table(s) to create in '${CFG.kidsDb}':`);
+      missingKids.forEach((t) => log(`  + CREATE TABLE IF NOT EXISTS \`${t}\``));
     }
     if (missingAi.length) {
       log(`\n${missingAi.length} kids AI table(s) to create in '${CFG.aiDb}':`);
@@ -340,9 +328,9 @@ async function main() {
       await sequelize.query(sql);
       log(`  ~ applied: ${sql.split('\n').join(' ')}`);
     }
-    if (missingContent.length || addContentColumns.length || missingAi.length) {
+    if (missingKids.length || addContentColumns.length || missingAi.length) {
       await db.syncKidsTables();
-      log(`  + kids tables ensured in '${CFG.contentDb}' + '${CFG.aiDb}'`);
+      log(`  + kids tables ensured in '${CFG.kidsDb}' + '${CFG.aiDb}'`);
     }
   } catch (e) {
     log(`❌ Migration failed: ${e.message}`);

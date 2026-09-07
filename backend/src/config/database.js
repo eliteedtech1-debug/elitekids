@@ -1,9 +1,15 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * Database Connection Configuration (mirrors elite-cbt-api/src/config/database.js)
+ * Database Connection Configuration
  *
- * MySQL2 connection pool for the MAIN shared school DB. Addon-owned tables
- * live in elite_content / the AI DB via Sequelize (see src/models/index.js).
+ * MySQL2 connection pools:
+ *   1. `pool`     → main shared school DB (DB_NAME, e.g. elite_db) — users,
+ *                   students, teachers, parents, school_setup. READ/use only;
+ *                   never create tables here.
+ *   2. `kidsPool` → dedicated kids DB (KIDS_DB_NAME, e.g. elite_kids) — kids_*
+ *                   content tables (lessons, game configs, scene scripts, …).
+ *                   The Sequelize layer (src/models/index.js) binds kids models
+ *                   to this DB via `db.content` (aliased to `kidsSequelize`).
  * ═══════════════════════════════════════════════════════════════════════════
  */
 

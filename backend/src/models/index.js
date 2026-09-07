@@ -2,24 +2,24 @@
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * EliteKids — model registry (mirrors elite-cbt-api/src/models/index.js)
+ * EliteKids — model registry
  *
- * Three Sequelize connections:
+ * Four Sequelize connections:
  *   1. `sequelize`  → main shared school DB (DB_NAME, e.g. elite_db) — users,
  *                     students, teachers, parents, school_setup, classes,
  *                     subjects, school_locations. READ/use only.
- *   2. `content`    → elite_content (CONTENT_DB_NAME) — kids_* content tables
- *                     (lessons, game configs, scene scripts, progress, …).
+ *   2. `content`    → kids DB (KIDS_DB_NAME, e.g. elite_kids) — kids_* content
+ *                     tables (lessons, game configs, scene scripts, progress, …).
+ *                     NOTE: `db.content` is rebound to `kidsSequelize` so all
+ *                     existing `db.content.query(...)` calls automatically hit
+ *                     the kids DB. Do NOT use `content` for shared tables.
  *   3. `ai`         → AI DB (AI_DB_NAME; elite_bot on the prod server) —
  *                     kids_content_generation_audit.
  *   4. `kids`       → dedicated kids DB (KIDS_DB_NAME, elite_kids) — C1 target
- *                     home for kids/game-domain tables. Provisioned; kids
- *                     models still read/write elite_content until a supervised
- *                     data move is approved (elite_content also hosts other
- *                     apps' tables, so moves need human review).
+ *                     home for kids/game-domain tables.
  *
  * The shared school DB is NEVER altered by this service. Addon tables are only
- * created in elite_content / the AI DB via syncKidsTables() (create-if-missing,
+ * created in elite_kids / the AI DB via syncKidsTables() (create-if-missing,
  * never alter) + additive column reconciles in database/migrate.js.
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -31,7 +31,7 @@ require('dotenv').config();
 
 const basename = path.basename(__filename);
 
-// ── Tables this addon OWNS (created in elite_content / the AI DB) ────────────
+// ── Tables this addon OWNS (created in elite_kids / the AI DB) ────────────
 const KIDS_CONTENT_TABLES = [
   'kids_children',
   'kids_lessons',
@@ -78,7 +78,10 @@ const KIDS_CONTENT_TABLES = [
 
 const KIDS_AI_TABLES = ['kids_content_generation_audit'];
 
-// Model files bound to the content DB (elite_content)
+// Model files bound to the kids DB (KIDS_DB_NAME, e.g. elite_kids)
+// NOTE: `db.content` is aliased to `kidsSequelize` below so all existing
+// `db.content.query(...)` calls in controllers/sockets automatically route
+// to the kids DB without touching shared tables.
 const KIDS_CONTENT_MODEL_FILES = [
   'KidChild.js',
   'KidLesson.js',
@@ -170,15 +173,7 @@ const sequelize = new Sequelize(
   buildOptions(process.env.DB_NAME)
 );
 
-// 2) Content connection → kids_* content tables (elite_content)
-const contentSequelize = new Sequelize(
-  process.env.CONTENT_DB_NAME || 'elite_content',
-  process.env.DB_USERNAME,
-  process.env.DB_PASSWORD,
-  buildOptions(process.env.CONTENT_DB_NAME || 'elite_content')
-);
-
-// 3) AI connection → audit log (AI_DB_NAME; defaults to elite_bot, which is the
+// 2) AI connection → audit log (AI_DB_NAME; defaults to elite_bot, which is the
 //    AI DB that actually exists on the prod server — elite-api's own default.
 //    Provision/set AI_DB_NAME=elite_ai where that DB exists.)
 const aiSequelize = new Sequelize(
@@ -188,9 +183,8 @@ const aiSequelize = new Sequelize(
   buildOptions(process.env.AI_DB_NAME || 'elite_bot')
 );
 
-// 4) Dedicated kids-domain DB (KIDS_DB_NAME, e.g. elite_kids). C1 target home.
-//    No models bound yet — kids tables still live in elite_content; this
-//    instance is ready for the supervised data move (see team-docs reports).
+// 3) Dedicated kids-domain DB (KIDS_DB_NAME, e.g. elite_kids). C1 target home.
+//    Models are bound here — kids tables live in elite_kids after migration.
 const kidsSequelize = new Sequelize(
   process.env.KIDS_DB_NAME || 'elite_kids',
   process.env.DB_USERNAME,
@@ -204,7 +198,7 @@ fs.readdirSync(__dirname)
   .forEach((file) => {
     try {
       let target = sequelize;
-      if (KIDS_CONTENT_MODEL_FILES.includes(file)) target = contentSequelize;
+      if (KIDS_CONTENT_MODEL_FILES.includes(file)) target = kidsSequelize;
       else if (KIDS_AI_MODEL_FILES.includes(file)) target = aiSequelize;
       const model = require(path.join(__dirname, file))(target, Sequelize.DataTypes);
       db[model.name] = model;
@@ -219,18 +213,18 @@ Object.keys(db).forEach((modelName) => {
 });
 
 db.sequelize = sequelize;
-db.content = contentSequelize;
+db.content = kidsSequelize;
 db.ai = aiSequelize;
 db.kids = kidsSequelize;
 db.Sequelize = Sequelize;
 
 /**
- * Sync ONLY addon-owned tables (into elite_content + the AI DB).
+ * Sync ONLY addon-owned tables (into elite_kids + the AI DB).
  * Shared tables (users, students, parents, school_setup, …) already exist in the
  * main school DB — we must never create or alter them here.
  */
 db.syncKidsTables = async () => {
-  const contentModels = Object.values(db).filter(
+  const kidsModels = Object.values(db).filter(
     (m) => m && typeof m.getTableName === 'function' && KIDS_CONTENT_TABLES.includes(m.getTableName())
   );
   const aiModels = Object.values(db).filter(
@@ -281,7 +275,7 @@ db.syncKidsTables = async () => {
     'kids_predictions',
   ];
   const ordered = SYNC_ORDER
-    .map((name) => contentModels.find((m) => m.getTableName() === name))
+    .map((name) => kidsModels.find((m) => m.getTableName() === name))
     .filter(Boolean);
 
   const synced = [];
@@ -306,7 +300,7 @@ db.syncKidsTables = async () => {
   }
 
   console.log(
-    `✅ Kids tables synced into ${contentSequelize.config.database} (${synced.join(', ')})`
+    `✅ Kids tables synced into ${kidsSequelize.config.database} (${synced.join(', ')})`
   );
   if (failed.length) {
     console.warn(`⚠️  Failed tables: ${failed.join(', ')}`);

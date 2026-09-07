@@ -12,7 +12,7 @@ const { Sequelize, Op } = require('sequelize');
 const DRY_RUN = process.argv.includes('--dry-run');
 
 const sequelize = new Sequelize(
-  process.env.CONTENT_DB_NAME || 'elite_content',
+  process.env.KIDS_DB_NAME || 'elite_kids',
   process.env.DB_USER || 'elite',
   process.env.DB_PASSWORD,
   {

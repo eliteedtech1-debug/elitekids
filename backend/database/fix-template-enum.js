@@ -12,7 +12,7 @@ async function fix() {
     host: process.env.DB_HOST || '127.0.0.1',
     user: process.env.DB_USERNAME || process.env.DB_USER || 'elite',
     password: process.env.DB_PASSWORD || process.env.DB_PASS,
-    database: process.env.CONTENT_DB_NAME || 'elite_content',
+    database: process.env.KIDS_DB_NAME || 'elite_kids',
   });
 
   const NEW_ENUM = "'matching','tap-recognition','drag-sort','quiz','fill-in-blank','puzzle-split','memory-pairs','label-diagram','stage-sequence','game-chain','speech-letter','speech-word','speech-sentence','speech-story','speech-count'";
@@ -21,7 +21,7 @@ async function fix() {
   const [cols] = await conn.query(
     `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'kids_game_configs' AND COLUMN_NAME = 'template'`,
-    [process.env.CONTENT_DB_NAME || 'elite_content']
+    [process.env.KIDS_DB_NAME || 'elite_kids']
   );
 
   if (cols.length === 0) {

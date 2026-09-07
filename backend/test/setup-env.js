@@ -35,7 +35,7 @@ const legacyTestDb = process.env.TEST_DB_NAME === 'elite_kids_test' ? undefined 
 process.env.DB_NAME = process.env.TEST_SHARED_DB_NAME || legacyTestDb || 'elite_db_test';
 process.env.CONTENT_DB_NAME = process.env.TEST_CONTENT_DB_NAME || 'elite_content_test';
 process.env.AI_DB_NAME = process.env.TEST_AI_DB_NAME || process.env.TEST_CONTENT_DB_NAME || 'elite_content_test';
-process.env.KIDS_DB_NAME = process.env.TEST_KIDS_DB_NAME || process.env.TEST_CONTENT_DB_NAME || 'elite_content_test';
+process.env.KIDS_DB_NAME = process.env.TEST_KIDS_DB_NAME || 'elite_kids_test';
 
 // Production-safety guard (deploy-gate incident fix, 2026-09-06): the resolved
 // DB names below become the connections the app-under-test uses. A stray env

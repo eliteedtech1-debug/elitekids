@@ -7,62 +7,69 @@ const { ensureGlobalCatalog } = require('./seeders/globalCatalogSeed');
 const DENYLIST_SEED = require('./seeders/denylistSeed');
 
 /**
- * Additive schema migrations for addon-owned tables + shared-DB columns.
- * sync() only creates missing tables (never alters); new columns are added
- * idempotently via information_schema existence checks.
+ * Check for missing columns and log a WARNING if any are missing.
+ * Does NOT alter anything — safe to run at boot.
+ * When missing columns are detected, run:
+ *   node database/migrate.js --apply
+ * from the backend directory to apply them safely (with backups).
  */
-async function ensureSchemaMigrations() {
+async function auditMissingColumns() {
   const { sequelize, content, ai } = models;
 
-  // Shared DB: module gate column (additive, default 0 = off)
+  // Shared DB columns to check (school_setup)
+  const SHARED_COLS = [
+    ['kids_stand_alone', 'TINYINT(1) NOT NULL DEFAULT 0'],
+    ['kids_url', 'VARCHAR(50) NULL DEFAULT NULL'],
+  ];
   try {
     const [cols] = await sequelize.query(
       `SELECT COLUMN_NAME FROM information_schema.COLUMNS
        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'school_setup'`
     );
     const existing = new Set(cols.map((c) => c.COLUMN_NAME));
-    const additions = [
-      ['kids_stand_alone', 'TINYINT(1) NOT NULL DEFAULT 0'],
-      ['kids_url', 'VARCHAR(50) NULL DEFAULT NULL'],
-    ];
-    for (const [name, ddl] of additions) {
-      if (!existing.has(name)) {
-        await sequelize.query(`ALTER TABLE school_setup ADD COLUMN ${name} ${ddl}`);
-        console.log(`🧱 Added column school_setup.${name}`);
-      }
+    const missing = SHARED_COLS.filter(([name]) => !existing.has(name));
+    if (missing.length) {
+      console.log(`⚠️  DB AUDIT: ${missing.length} column(s) missing from school_setup (main DB):`);
+      missing.forEach(([name, ddl]) => console.log(`     ${name} — ${ddl}`));
+      console.log('   → Run: cd backend && node database/migrate.js --apply');
     }
   } catch (err) {
-    console.error('⚠️ school_setup column migration skipped:', err.message);
+    console.error('⚠️  DB audit (school_setup):', err.message);
   }
 
-  // Content DB + AI DB additive column reconciles (kids_* tables)
-  const CONTENT_COLUMN_PLAN = [
+  // Content DB columns to check
+  const CONTENT_COL_PLAN = [
     ['kids_lessons', 'duration_target_sec', 'INT NULL DEFAULT NULL'],
     ['kids_lessons', 'published_at', 'DATETIME NULL DEFAULT NULL'],
     ['kids_lessons', 'nerdc_code', 'VARCHAR(100) NULL DEFAULT NULL'],
     ['kids_lessons', 'nerdc_strand', 'VARCHAR(100) NULL DEFAULT NULL'],
     ['kids_lessons', 'nerdc_sub_strand', 'VARCHAR(100) NULL DEFAULT NULL'],
     ['kids_session_state', 'session_id', 'VARCHAR(50) NULL DEFAULT NULL'],
-    // Q3 Parent Intelligence: anonymous-comparison opt-in (additive on kids_children)
     ['kids_children', 'allow_anonymous_comparison', 'TINYINT(1) NOT NULL DEFAULT 0'],
   ];
   try {
-    for (const [table, col, ddl] of CONTENT_COLUMN_PLAN) {
+    const missingContent = [];
+    for (const [table, col, ddl] of CONTENT_COL_PLAN) {
       const [tblCols] = await content.query(
         `SELECT COLUMN_NAME FROM information_schema.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${table}'`
       );
       if (!tblCols.length) continue; // table not created yet — sync() will make it
       const existing = new Set(tblCols.map((c) => c.COLUMN_NAME));
-      if (existing.has(col)) continue;
-      await content.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${ddl}`);
-      console.log(`➕ Added column ${table}.${col}`);
+      if (!existing.has(col)) {
+        missingContent.push([table, col, ddl]);
+      }
+    }
+    if (missingContent.length) {
+      console.log(`⚠️  DB AUDIT: ${missingContent.length} column(s) missing from content DB tables:`);
+      missingContent.forEach(([table, col, ddl]) => console.log(`     ${table}.${col} — ${ddl}`));
+      console.log('   → Run: cd backend && node database/migrate.js --apply');
     }
   } catch (err) {
-    console.error('⚠️ kids content column reconcile skipped:', err.message);
+    console.error('⚠️  DB audit (content DB):', err.message);
   }
 
-  // AI DB audit table columns
+  // AI DB audit table column check
   try {
     const [auditCols] = await ai.query(
       `SELECT COLUMN_NAME FROM information_schema.COLUMNS
@@ -70,40 +77,25 @@ async function ensureSchemaMigrations() {
     );
     const existing = new Set(auditCols.map((c) => c.COLUMN_NAME));
     if (!existing.has('denylist_result')) {
-      await ai.query(
-        `ALTER TABLE kids_content_generation_audit ADD COLUMN denylist_result VARCHAR(20) NULL DEFAULT NULL`
-      );
-      console.log('➕ Added column kids_content_generation_audit.denylist_result');
+      console.log('⚠️  DB AUDIT: kids_content_generation_audit missing column: denylist_result (VARCHAR(20) NULL DEFAULT NULL)');
+      console.log('   → Run: cd backend && node database/migrate.js --apply');
     }
   } catch (err) {
-    console.error('⚠️ kids AI column reconcile skipped:', err.message);
+    console.error('⚠️  DB audit (AI DB):', err.message);
   }
 }
 
 // ─── Database sync + server start ─────────────────────────────────────────────
 const port = process.env.PORT || 34600;
+console.log('DEBUG: process.env.PORT =', process.env.PORT, '→ binding port:', port);
 
-// KIDS_SKIP_DB_SYNC=1 → boot without touching any database schema (local smoke
-// tests against a live DB, or read-only debugging). Routes still work; the
-// kids_* tables are expected to already exist (or be absent). Schema changes
-// only ever happen through database/migrate.js.
-const SKIP_DB_SYNC = process.env.KIDS_SKIP_DB_SYNC === '1' || process.env.KIDS_SKIP_DB_SYNC === 'true';
-
-if (SKIP_DB_SYNC) {
-  console.log('⚠️ KIDS_SKIP_DB_SYNC=1 — skipping schema migrations/sync (read-only boot)');
-  const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`🚀 elite-kids-api listening on port ${port} (read-only boot)`);
-    require('./controllers/e3fLive').attach(server);
-    try { require('./sockets/chat').attach(server); } catch (e) { console.warn('⚠️ Chat socket skipped:', e.message); }
-    try { require('./sockets/collaboration').attach(server); } catch (e) { console.warn('⚠️ Collab socket skipped:', e.message); }
-  });
-  server.timeout = 120000;
-  return;
-}
-
-// Migrations FIRST, then model sync, then idempotent seeds.
-ensureSchemaMigrations()
-  .then(() => models.syncKidsTables())
+// Boot sequence: sync tables (CREATE IF NOT EXISTS — safe) → audit columns
+// (detect missing, log warning, DO NOT ALTER) → seeds → listen.
+//
+// DDL changes (ALTER TABLE) are deliberately NOT done at boot.
+// Use database/migrate.js --apply for controlled, backed-up schema changes.
+models.syncKidsTables()
+  .then(() => auditMissingColumns())
   .then(() => ensureFlagshipKidsSchool())
   .then((fs) => {
     if (fs?.created) console.log('🏫 Flagship kids school created:', fs.school_id);

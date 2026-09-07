@@ -21,7 +21,7 @@ const KIDS_TABLES = [
 
 async function main() {
   const sequelize = new Sequelize(
-    process.env.CONTENT_DB_NAME || 'elite_content',
+    process.env.KIDS_DB_NAME || 'elite_kids',
     process.env.DB_USERNAME,
     process.env.DB_PASSWORD,
     {
@@ -33,7 +33,7 @@ async function main() {
     }
   );
 
-  console.log(`Connected to ${process.env.CONTENT_DB_NAME || 'elite_content'} at ${process.env.DB_HOST}`);
+  console.log(`Connected to ${process.env.KIDS_DB_NAME || 'elite_kids'} at ${process.env.DB_HOST}`);
   let added = 0;
   let skipped = 0;
 
@@ -43,7 +43,7 @@ async function main() {
       const [rows] = await sequelize.query(
         `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
          WHERE TABLE_SCHEMA = :db AND TABLE_NAME = :table AND COLUMN_NAME = 'createdAt'`,
-        { replacements: { db: process.env.CONTENT_DB_NAME || 'elite_content', table } }
+        { replacements: { db: process.env.KIDS_DB_NAME || 'elite_kids', table } }
       );
 
       if (rows.length > 0) {
