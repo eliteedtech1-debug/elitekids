@@ -12,7 +12,19 @@ const app = require('../src/app');
 const { closeConnections } = require('./helpers/teardown');
 const { testQuery } = require('./helpers/test-db');
 
+async function cleanupFixtures() {
+  // Remove the OWNED NUR-009 fixture so it never leaks into sibling suites:
+  // jest's default size-ordered sequencer is not stable across runs, so a
+  // leftover U2-linked child would intermittently break exact-count list
+  // assertions elsewhere (e.g. children.test.js school/parent lists).
+  await testQuery(`DELETE FROM students WHERE admission_no = 'NUR-009'`);
+  await testQuery(`DELETE FROM kids_children WHERE admission_no = 'NUR-009'`);
+  await testQuery(`DELETE FROM kids_progress WHERE id = 'PROG-FP-1'`);
+  await testQuery(`DELETE FROM kids_parental_controls WHERE student_id = 'NUR-009'`);
+}
+
 afterAll(async () => {
+  await cleanupFixtures(); // shared hermetic DB — leave it as found
   await closeConnections();
 });
 

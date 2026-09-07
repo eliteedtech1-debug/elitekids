@@ -201,6 +201,18 @@ describe('POST /kids/progress/game-complete', () => {
 });
 
 describe('GET /kids/progress/child/:admissionNo', () => {
+  // C-DEBT-05: re-seed NUR-001's base PROG-1 row (idempotent — delete-by-id
+  // then insert) because jest's default size-ordered sequencer may run
+  // e6-boss-battles BEFORE this suite, and e6 DELETEs NUR-001/LESSON-1
+  // progress — which would zero the shared fixture and fail the >= asserts.
+  beforeAll(async () => {
+    await testQuery(`DELETE FROM kids_progress WHERE id = 'PROG-1'`);
+    await testQuery(
+      `INSERT INTO kids_progress (id, school_id, branch_id, child_admission_no, lesson_id, score, stars_earned, xp, completed_at)
+       VALUES ('PROG-1', 'SCH-TEST', 'BR-TEST', 'NUR-001', 'LESSON-1', 80, 3, 10, NOW())`
+    );
+  });
+
   it('returns the progress summary for NUR-001', async () => {
     const token = await loginAs('admin@kids.test', 'Admin@123');
     const res = await request(app)

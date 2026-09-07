@@ -18,7 +18,18 @@ const app = require('../src/app');
 const { closeConnections } = require('./helpers/teardown');
 const { testQuery } = require('./helpers/test-db');
 
+async function cleanupFixtures() {
+  // Leave the shared hermetic DB as found (q1/b3 house style): remove the
+  // NUR-008 owned fixture + endpoint-created NUR-004/NUR-006 profiles and
+  // restore NUR-005 (soft-deleted by the DELETE describe) to Active, so no
+  // sibling suite ever sees this suite's residue regardless of ordering.
+  await testQuery(`DELETE FROM kids_children WHERE admission_no IN ('NUR-008', 'NUR-004', 'NUR-006')`);
+  await testQuery(`DELETE FROM kids_progress WHERE id = 'PROG-OWNED-1'`);
+  await testQuery(`UPDATE kids_children SET status = 'Active' WHERE admission_no = 'NUR-005'`);
+}
+
 afterAll(async () => {
+  await cleanupFixtures();
   await closeConnections();
 });
 
