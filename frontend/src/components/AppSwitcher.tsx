@@ -17,13 +17,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { LayoutGrid, Lock, ExternalLink } from 'lucide-react';
-import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { STORAGE_KEYS, ELITE_API_URL } from '@/lib/utils/constants';
 import PopoverPanel from '@/components/PopoverPanel';
-
-/** Shared elite-api base — single source of truth for cross-app access. */
-const ELITE_API_URL =
-  (import.meta.env.VITE_ELITE_API_URL as string | undefined) ||
-  'https://server.brainstorm.ng/elite-api';
 
 interface EliteApp {
   key: string; // module key in school_setup / /api/apps/access

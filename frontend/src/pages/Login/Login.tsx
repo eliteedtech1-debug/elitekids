@@ -8,7 +8,7 @@ import { User, Lock, GraduationCap, Users, Eye, EyeOff, Sparkles, BookOpen, Star
 import { short_name, hasKidsAccess, getSchoolShortName, createAuthHeaders } from '@/lib/utils/school';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import apiClient from '@/lib/api/client';
-import { STORAGE_KEYS, FLAGSHIP_SHORT_NAMES } from '@/lib/utils/constants';
+import { STORAGE_KEYS, FLAGSHIP_SHORT_NAMES, ELITE_API_URL } from '@/lib/utils/constants';
 import PublicLoginSwitcher from '@/components/PublicLoginSwitcher';
 import LoginAppsPanel from '@/components/LoginAppsPanel';
 import LoginUpsell, { verifyPendingSubscription, type LoginUpsellPayload } from '@/components/LoginUpsell';
@@ -89,8 +89,14 @@ export default function Login() {
 
     (async () => {
       try {
-        const res = await apiClient.post('/api/apps/kids/redeem-ticket', { ticket });
-        const data = res.data as any;
+        // Redeem against the shared elite-api (same-origin apiClient points at
+        // this app's own backend, not the handoff issuer). Mirrors elite-cbt.
+        const res = await fetch(`${ELITE_API_URL}/api/apps/kids/redeem-ticket`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket }),
+        });
+        const data = await res.json().catch(() => null);
         if (data?.ok && (data?.user_id || data?.user)) {
           const user: any = data.user || { id: data.user_id, school_id: data.school_id, user_type: data.user_type || '' };
           if (data.token) {

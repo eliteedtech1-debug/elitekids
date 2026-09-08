@@ -5,6 +5,16 @@ export const API_CONFIG = {
   TIMEOUT: 30000,
 } as const;
 
+/**
+ * Shared elite-api base — single source of truth for cross-app access
+ * (handoff ticket mint/redeem, /api/apps/access, etc.). Mirrors elite-cbt and
+ * elitefin. Never points at this app's own origin: elite-api is a separate
+ * backend proxied by the central nginx.
+ */
+export const ELITE_API_URL =
+  (import.meta.env.VITE_ELITE_API_URL as string | undefined) ||
+  'https://server.brainstorm.ng/elite-api';
+
 // Storage Keys — must match the ecosystem (@@auth_token etc.) so a shared
 // session works across elite-core / elite-cbt / elite-kids.
 // Parent and student use SEPARATE keys so both can be logged in simultaneously
