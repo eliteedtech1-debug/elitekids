@@ -99,15 +99,15 @@ VITE_APP_DOMAIN=elitekids.com.ng
 
 ## 3. Deploy
 
-Same playbook as elite-cbt (PM2 or Docker — see `elite-cbt-api` for the PM2 pattern,
-`lms-stack` for Docker):
+Same playbook as elite-cbt (systemd user units behind nginx — see
+`elite-cbt-api.service` for the unit pattern):
 
 1. `git pull` on the server
 2. `cd backend && npm install --production` (or `pnpm install`)
 3. **DRY-RUN migrations first**: `node database/migrate.js` — review the plan
 4. `node database/migrate.js --apply` (takes mysqldump backups first)
 5. `npm run build` (frontend) → serve dist on `<school>.elitekids.com.ng`
-6. Restart PM2 process (`pm2 restart elite-kids-api`), confirm `/health`
+6. Restart the systemd service (`systemctl --user restart elite-kids-api`), confirm `/health`
 7. Verify CORS + subdomain school resolution with a browser smoke test
 
 ### DNS
