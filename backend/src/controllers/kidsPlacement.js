@@ -15,8 +15,16 @@
  */
 
 const dbm = () => require('../models');
-const { isFlagshipSchool } = require('../services/lessonBridgeContext');
 const { PLATFORM_BANDS, platformBandToNerdc, nerdcBandToPlatform } = require('../services/ageBand');
+
+/** The flagship (model) schools allowed to take the placement exam. Kept
+ *  local so this controller has no dependency on the optional EliteSMS
+ *  bridge module — same set as its isFlagshipSchool(). */
+const FLAGSHIP_SCHOOL_IDS = new Set(['SCH-ELITE', 'SCH-KIDS']);
+
+function isFlagshipSchool(schoolId) {
+  return FLAGSHIP_SCHOOL_IDS.has(String(schoolId || '').trim());
+}
 
 const QUIZ_MAX_QUESTIONS = 10;
 const QUIZ_REUSE_WINDOW_MS = 12 * 60 * 60 * 1000;
