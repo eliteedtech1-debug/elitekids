@@ -94,6 +94,12 @@ function matchingGeminiResponse() {
         { id: 'b1', image: 'media/LESSON-TEST/moo.webp', matches: 'a1' },
         { id: 'a2', image: 'media/LESSON-TEST/cat.webp', matches: 'b2' },
         { id: 'b2', image: 'media/LESSON-TEST/meow.webp', matches: 'a2' },
+        { id: 'a3', image: 'media/LESSON-TEST/dog.webp', matches: 'b3' },
+        { id: 'b3', image: 'media/LESSON-TEST/woof.webp', matches: 'a3' },
+        { id: 'a4', image: 'media/LESSON-TEST/duck.webp', matches: 'b4' },
+        { id: 'b4', image: 'media/LESSON-TEST/quack.webp', matches: 'a4' },
+        { id: 'a5', image: 'media/LESSON-TEST/lion.webp', matches: 'b5' },
+        { id: 'b5', image: 'media/LESSON-TEST/roar.webp', matches: 'a5' },
       ],
     },
     rewards: { starsOnComplete: 3, xp: 30 },
@@ -139,6 +145,24 @@ function quizGeminiResponse() {
           { id: 'o9', label: 'Quack', image: 'media/quack.webp' },
         ],
         correctIndex: 2,
+      },
+      {
+        id: 'q4', prompt: 'What sound does a dog make?',
+        options: [
+          { id: 'o10', label: 'Moo', image: 'media/moo.webp' },
+          { id: 'o11', label: 'Woof', image: 'media/woof.webp' },
+          { id: 'o12', label: 'Quack', image: 'media/quack.webp' },
+        ],
+        correctIndex: 1,
+      },
+      {
+        id: 'q5', prompt: 'Which animal says roar?',
+        options: [
+          { id: 'o13', label: 'Lion', image: 'media/lion.webp' },
+          { id: 'o14', label: 'Cat', image: 'media/cat.webp' },
+          { id: 'o15', label: 'Fish', image: 'media/fish.webp' },
+        ],
+        correctIndex: 0,
       },
     ],
     rewards: { starsOnComplete: 3, xp: 25 },
@@ -186,7 +210,7 @@ describe('validateConfig', () => {
 
   it('accepts a valid quiz config', () => {
     const result = validateConfig('quiz', quizGeminiResponse());
-    expect(result.questions).toHaveLength(3);
+    expect(result.questions).toHaveLength(5);
   });
 
   it('accepts a valid scene-script config', () => {
@@ -264,6 +288,14 @@ describe('generateGameConfig', () => {
         items: [
           { id: 'a1', image: 'm.webp', matches: 'b1' },
           { id: 'b1', image: 'n.webp', matches: 'a1' },
+          { id: 'a2', image: 'm.webp', matches: 'b2' },
+          { id: 'b2', image: 'n.webp', matches: 'a2' },
+          { id: 'a3', image: 'm.webp', matches: 'b3' },
+          { id: 'b3', image: 'n.webp', matches: 'a3' },
+          { id: 'a4', image: 'm.webp', matches: 'b4' },
+          { id: 'b4', image: 'n.webp', matches: 'a4' },
+          { id: 'a5', image: 'm.webp', matches: 'b5' },
+          { id: 'b5', image: 'n.webp', matches: 'a5' },
         ],
       },
     };
@@ -294,6 +326,8 @@ describe('cross-modal defaults', () => {
           { id: 'a1', image: 'media/cat.webp' },
           { id: 'a2', image: 'media/dog.webp' },
           { id: 'a3', image: 'media/fish.webp' },
+          { id: 'a4', image: 'media/bird.webp' },
+          { id: 'a5', image: 'media/cow.webp' },
         ],
         correctId: 'a1',
       },
