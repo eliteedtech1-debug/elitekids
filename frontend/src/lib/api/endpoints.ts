@@ -100,6 +100,12 @@ export const ENDPOINTS = {
     STATUS: '/kids/placement/status',
   },
 
+  // EliteSMS school-context bridge (teacher authoring — verify class/subject/
+  // term/week against the school before generating lessons)
+  SMS_CONTEXT: {
+    LESSON_CONTEXT: '/kids/sms/lesson-context',
+  },
+
   // Retry / Adaptive Difficulty (Doc 16)
   RETRY: {
     TEST_COMPLETE: '/kids/retry/test-complete',

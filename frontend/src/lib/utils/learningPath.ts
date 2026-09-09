@@ -161,6 +161,53 @@ export function filterInBand<T extends { age_level?: string }>(lessons: T[], ban
   });
 }
 
+/* ── NERDC canonical labels (mirror backend services/ageBand.js) ──────
+   The five legacy storage values above are what lesson rows carry; the NERDC
+   six-band ladder (Crèche … Primary) is what the placement exam, learning
+   path and API output use. Kids never see the legacy labels — these helpers
+   translate placement results into the storage domain and legacy values into
+   the NERDC names shown on cards. */
+
+/** Canonical NERDC Early-Childhood labels in ascending order (backend AGE_BANDS). */
+export const NERDC_AGE_BANDS = ['Crèche', 'Playgroup', 'Nursery 1', 'Nursery 2', 'Kindergarten', 'Primary'] as const;
+
+/** Canonical NERDC band → legacy storage label (backend NERDC_TO_PLATFORM). */
+const NERDC_TO_LEGACY: Record<string, AgeBand> = {
+  'Crèche': 'Creche',
+  Playgroup: 'Creche',
+  'Nursery 1': 'Nursery',
+  'Nursery 2': 'KG1',
+  Kindergarten: 'KG2',
+  Primary: 'Primary',
+};
+
+/** Map a canonical NERDC band (placement result) to the legacy storage label
+ *  the in-band ceiling expects. Passthrough when already a storage value. */
+export function nerdcBandToAgeLevel(band: string | null | undefined): AgeBand | null {
+  if (!band) return null;
+  const value = String(band).trim();
+  if (AGE_BANDS.includes(value as AgeBand)) return value as AgeBand;
+  return NERDC_TO_LEGACY[value] || null;
+}
+
+/** Kid-facing NERDC class name — legacy storage values never leak to the UI. */
+export function ageLevelLabel(ageLevel: string | null | undefined): string {
+  const value = String(ageLevel || '').trim();
+  const labels: Record<string, string> = {
+    Creche: 'Crèche',
+    'Crèche': 'Crèche',
+    Playgroup: 'Playgroup',
+    Nursery: 'Nursery 1',
+    'Nursery 1': 'Nursery 1',
+    'Nursery 2': 'Nursery 2',
+    KG1: 'Nursery 2',
+    KG2: 'Kindergarten',
+    Kindergarten: 'Kindergarten',
+    Primary: 'Primary',
+  };
+  return labels[value] || value;
+}
+
 /* ── Path-state decision helpers ──────────────────────────────────── */
 
 export interface FlattenedUnit {

@@ -37,6 +37,52 @@ const BAND_RANKS = {
   'Primary': 5,
 };
 
+/**
+ * The game/content tables still use the legacy five-value technical ladder.
+ * These aliases are storage compatibility only; class_name and API output use
+ * the six canonical NERDC labels above. Crèche + Playgroup share `Creche`.
+ */
+const PLATFORM_BANDS = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'];
+const PLATFORM_TO_NERDC = {
+  Creche: 'Crèche',
+  Nursery: 'Nursery 1',
+  KG1: 'Nursery 2',
+  KG2: 'Kindergarten',
+  Primary: 'Primary',
+};
+const NERDC_TO_PLATFORM = {
+  'Crèche': 'Creche',
+  Playgroup: 'Creche',
+  'Nursery 1': 'Nursery',
+  'Nursery 2': 'KG1',
+  Kindergarten: 'KG2',
+  Primary: 'Primary',
+};
+
+function platformBandToNerdc(band) {
+  return PLATFORM_TO_NERDC[String(band || '').trim()] || null;
+}
+
+function nerdcBandToPlatform(band) {
+  const value = String(band || '').trim();
+  return NERDC_TO_PLATFORM[value] || (PLATFORM_BANDS.includes(value) ? value : null);
+}
+
+/** Rank a canonical NERDC band or a legacy technical storage value. */
+function rankForBand(band) {
+  const value = String(band || '').trim();
+  if (rankOf(value) !== -1) return rankOf(value);
+  const canonical = platformBandToNerdc(value);
+  return canonical ? rankOf(canonical) : -1;
+}
+
+/** Legacy storage age_level values visible at-or-below a canonical band. */
+function platformLevelsForNerdc(band) {
+  const max = rankForBand(band);
+  if (max === -1) return [];
+  return PLATFORM_BANDS.filter((value) => rankForBand(value) <= max);
+}
+
 function bandIndexOf(band) {
   return AGE_BANDS.indexOf(band);
 }
@@ -186,7 +232,9 @@ function visibleLevels(band) {
 function resolveChildBand(childRow) {
   if (!childRow) return null;
   const mapped = classToAgeLevel(childRow.class_code);
-  const level = AGE_BANDS.includes(childRow.age_level) ? childRow.age_level : null;
+  const level = AGE_BANDS.includes(childRow.age_level)
+    ? childRow.age_level
+    : platformBandToNerdc(childRow.age_level);
   const candidates = [mapped, level].filter((b) => b && rankOf(b) !== -1);
   if (candidates.length === 0) return null;
   return candidates.reduce((narrowest, b) =>
@@ -225,30 +273,42 @@ async function resolveBandForAdmission(admissionNo) {
   if (!admission) return null;
   // Lazy require: models/index.js is heavy and ageBand is imported early.
   const db = require('../models');
-  // 0. Placement quiz result — explicit measurement beats every other source.
+  let student = null;
+  let child = null;
+
+  // Load authoritative identity first. This prevents a stale flagship placement
+  // row from overriding a real school's class_name for the same admission no.
+  try { student = await db.Student.findOne({ where: { admission_no: admission } }); } catch { /* optional shared mirror */ }
+  try { child = await db.KidChild.findOne({ where: { admission_no: admission } }); } catch { /* optional local profile */ }
+  const identitySchoolId = String(student?.school_id || child?.school_id || '').trim();
+
+  // 0. Placement measurement is accepted only for the same flagship identity.
   try {
     const { content } = db;
     const [rows] = await content.query(
-      'SELECT band FROM kids_band_placements WHERE child_admission_no = ? LIMIT 1',
+      'SELECT band, school_id FROM kids_band_placements WHERE child_admission_no = ? LIMIT 1',
       { replacements: [admission] }
     );
-    const placed = rows && rows[0] ? rows[0].band : null;
-    if (placed && rankOf(placed) !== -1) return placed;
+    const placement = rows && rows[0] ? rows[0] : null;
+    const placementSchool = String(placement?.school_id || '').trim();
+    const placementAllowed = ['SCH-ELITE', 'SCH-KIDS'].includes(identitySchoolId)
+      && placementSchool === identitySchoolId;
+    const placed = placementAllowed ? placement.band : null;
+    const placedNerdc = AGE_BANDS.includes(placed) ? placed : platformBandToNerdc(placed);
+    if (placedNerdc && rankOf(placedNerdc) !== -1) return placedNerdc;
   } catch { /* table may not exist yet — fall through */ }
-  // 1. kids_children row.
-  try {
-    const child = await db.KidChild.findOne({ where: { admission_no: admission } });
-    const direct = resolveChildBand(child);
-    if (direct) return direct;
-  } catch { /* kids_children unavailable — fall through */ }
-  // 2. SMS students row — class mapping wins over a young tour declaration.
-  try {
-    const st = await db.Student.findOne({ where: { admission_no: admission } });
-    if (st) {
-      const band = classToAgeLevel(st.class_name) || classToAgeLevel(st.class_code);
-      if (band) return band;
-    }
-  } catch { /* students mirror unavailable — fall through */ }
+
+  // 1. SMS students row — class_name is authoritative for every real school.
+  // current_class/class_code are compatibility fallbacks for older mirrors.
+  if (student) {
+    const band = classToAgeLevel(student.class_name)
+      || classToAgeLevel(student.current_class)
+      || classToAgeLevel(student.class_code);
+    if (band) return band;
+  }
+  // 2. kids_children row for flagship/self-service children with no SMS row.
+  const direct = resolveChildBand(child);
+  if (direct) return direct;
   // 3. Tour declaration.
   try {
     const { content } = db;
@@ -265,8 +325,15 @@ async function resolveBandForAdmission(admissionNo) {
 module.exports = {
   AGE_BANDS,
   BAND_RANKS,
+  PLATFORM_BANDS,
+  PLATFORM_TO_NERDC,
+  NERDC_TO_PLATFORM,
+  platformBandToNerdc,
+  nerdcBandToPlatform,
   bandIndexOf,
   rankOf,
+  rankForBand,
+  platformLevelsForNerdc,
   classToAgeLevel,
   visibleLevels,
   resolveChildBand,

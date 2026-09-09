@@ -34,29 +34,44 @@ interface PlacementResult {
 
 const BAND_EMOJI: Record<string, string> = {
   Creche: '🐣',
+  'Crèche': '🐣',
+  Playgroup: '🎨',
   Nursery: '🎈',
+  'Nursery 1': '🎈',
   KG1: '🧩',
+  'Nursery 2': '🧩',
   KG2: '🚀',
+  Kindergarten: '🚀',
   Primary: '🌟',
 };
 
-/** User-friendly class labels — the raw ENUM values (Creche, Nursery, …)
- *  are internal storage labels; children and parents see the equivalent
- *  class name used in their school (Northern-Nigeria vocabulary). */
+/** User-friendly class labels — the raw ENUM values (Creche, Nursery, KG1, …)
+ *  are internal storage labels. Children and parents see the equivalent NERDC
+ *  class name (Crèche → Primary); the legacy KG* storage labels never leak. */
 const BAND_LABEL: Record<string, string> = {
-  Creche: 'Pre-Nursery',
+  Creche: 'Crèche',
+  'Crèche': 'Crèche',
+  Playgroup: 'Playgroup',
   Nursery: 'Nursery 1',
-  KG1: 'KG1',
-  KG2: 'Nursery 2',
+  'Nursery 1': 'Nursery 1',
+  'Nursery 2': 'Nursery 2',
+  KG1: 'Nursery 2',
+  KG2: 'Kindergarten',
+  Kindergarten: 'Kindergarten',
   Primary: 'Primary',
 };
 
-/** TTS-friendly spoken form — includes the equivalence for audio clarity. */
+/** TTS-friendly spoken form — canonical NERDC names only (audio clarity). */
 const BAND_SPEAK: Record<string, string> = {
-  Creche: 'Pre-Nursery',
-  Nursery: 'Nursery 1, also known as KG1',
-  KG1: 'KG1, also known as Nursery 1',
-  KG2: 'Nursery 2, also known as KG2',
+  Creche: 'Crèche',
+  'Crèche': 'Crèche',
+  Playgroup: 'Playgroup',
+  Nursery: 'Nursery 1',
+  'Nursery 1': 'Nursery 1',
+  'Nursery 2': 'Nursery 2',
+  KG1: 'Nursery 2',
+  KG2: 'Kindergarten',
+  Kindergarten: 'Kindergarten',
   Primary: 'Primary',
 };
 

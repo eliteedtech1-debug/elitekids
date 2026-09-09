@@ -45,6 +45,7 @@ import StudentFestival from '@/components/StudentFestival';
 import StudentLiveBar from '@/components/StudentLiveBar';
 import StudentQuickNav from '@/components/StudentQuickNav';
 import PlacementQuiz from '@/components/PlacementQuiz';
+import PlacementIntro from '@/components/PlacementIntro';
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
 import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
@@ -61,6 +62,8 @@ import GoalCard from '@/components/GoalCard';
 import {
   classToAgeLevel,
   filterInBand,
+  ageLevelLabel,
+  nerdcBandToAgeLevel,
   type GameMode,
   type LearningPathData,
   type WeeklyGoal,
@@ -170,6 +173,14 @@ export default function StudentHome() {
   const [showShop, setShowShop] = useState(false);
   // Q4: placement quiz — offered on empty catalog (elder/unmapped classes).
   const [showPlacementQuiz, setShowPlacementQuiz] = useState(false);
+  // Flagship placement gate: flagship kids measure + place BEFORE the dashboard
+  // (backend outranks class_name for them). Non-flagship → denied → dashboard.
+  const [placement, setPlacement] = useState<{
+    loaded: boolean;
+    denied: boolean;
+    placed: boolean;
+    nerdc_band: string | null;
+  }>({ loaded: false, denied: true, placed: false, nerdc_band: null });
   // Sequential board: level/streak DETAILS stay collapsed until the kid taps
   // the summary chip (the 4-stat row already shows streak+XP — no dupe text).
   const [showProgressDetail, setShowProgressDetail] = useState(false);
@@ -209,6 +220,24 @@ export default function StudentHome() {
           const nextStudent = { ...decoded, team_id: team.id, class_code: team.class_id || decoded?.class_code };
           decoded = nextStudent;
           setStudent(nextStudent);
+        }
+      }
+
+      // Flagship placement gate decision (student users only — the server
+      // denies placement for non-flagship schools, which clears the gate).
+      if (admissionNo && String(decoded?.user_type || '').toLowerCase() === 'student') {
+        try {
+          const plRes = await apiClient.get(ENDPOINTS.PLACEMENT.STATUS);
+          const pl = plRes.data?.data;
+          setPlacement({
+            loaded: true,
+            denied: false,
+            placed: Boolean(pl?.placed),
+            nerdc_band: pl?.nerdc_band ?? null,
+          });
+        } catch {
+          // Non-flagship or unreachable — never block the dashboard on it.
+          setPlacement({ loaded: true, denied: true, placed: false, nerdc_band: null });
         }
       }
 
@@ -392,7 +421,21 @@ export default function StudentHome() {
     navigate('/login');
   }, [navigate]);
 
-  const studentBand = useMemo(() => classToAgeLevel(student?.class_name), [student?.class_name]);
+  // Band source depends on the student type (mirrors the server):
+  //   flagship kids — the placement result is the measure (outranks class_name);
+  //   every other kid — class_name → classToAgeLevel, exactly as before.
+  const studentBand = useMemo(() => {
+    if (placement.placed && placement.nerdc_band) {
+      const legacy = nerdcBandToAgeLevel(placement.nerdc_band);
+      if (legacy) return legacy;
+    }
+    return classToAgeLevel(student?.class_name);
+  }, [placement.placed, placement.nerdc_band, student?.class_name]);
+
+  const isStudent = String(student?.user_type || '').toLowerCase() === 'student';
+  const isFlagshipStudent = isStudent && placement.loaded && !placement.denied;
+  // No placement-gate for non-flagship kids — their level comes from class_name.
+  const showPlacementGate = isFlagshipStudent && !placement.placed;
 
   // A "returning" student has at least one completed game or any prior
   // progress row. New students see the OnboardingTour + CompanionSelect +
@@ -473,6 +516,28 @@ export default function StudentHome() {
   const displayName = student?.student_name || student?.name || student?.admission_no || t('student.home.defaultName');
   const summary = progress || { total_xp: 0, total_stars: 0, games_completed: 0, game_stats: {} } as ProgressData;
   const gameStats = progress?.game_stats || {};
+
+  // Flagship children without a completed placement result get a dedicated,
+  // isolated "find your level" screen instead of the dashboard (no skip).
+  if (showPlacementGate) {
+    return (
+      <div className="min-h-screen relative overflow-x-clip">
+        <PlacementIntro
+          onStart={() => setShowPlacementQuiz(true)}
+          onSignOut={handleLogout}
+        />
+        {/* The quiz itself stays an overlay so a mid-quiz close returns to
+            the intro, never to the dashboard. */}
+        <PlacementQuiz
+          open={showPlacementQuiz}
+          onClose={() => setShowPlacementQuiz(false)}
+          onPlaced={() => {
+            void loadData();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     // overflow-x-clip: no page-level horizontal scroll on mobile (decorative
@@ -933,7 +998,7 @@ export default function StudentHome() {
                 {/* Placement quiz CTA — measure the child, place the child.
                     Offered whenever a tab looks empty and the platform is
                     reachable (never offline — the quiz needs the catalog). */}
-                {!offlineMode && (
+                {!offlineMode && isFlagshipStudent && (
                   <button
                     onClick={() => { playTap(); setShowPlacementQuiz(true); }}
                     className="mx-auto mt-5 flex items-center gap-2 rounded-xl bg-[#0F4D92] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-[#0D3F7A] active:scale-95"
@@ -1005,7 +1070,7 @@ export default function StudentHome() {
                       <h3 className="relative font-bold text-gray-800">{lesson.title}</h3>
                       <div className="relative mt-2 flex items-center gap-2">
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ageColor}`}>
-                          {lesson.age_level}
+                          {ageLevelLabel(lesson.age_level)}
                         </span>
                         <span className="text-xs text-gray-400 font-medium">{lesson.subject}</span>
                       </div>
