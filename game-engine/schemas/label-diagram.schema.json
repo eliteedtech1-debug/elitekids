@@ -30,11 +30,16 @@
     "ageLevel": {
       "type": "string",
       "enum": [
+        "Crèche",
+        "Playgroup",
+        "Nursery 1",
+        "Nursery 2",
+        "Kindergarten",
+        "Primary",
         "Creche",
         "Nursery",
         "KG1",
-        "KG2",
-        "Primary"
+        "KG2"
       ]
     },
     "category": {
@@ -62,12 +67,21 @@
     },
     "promptMode": {
       "type": "string",
-      "enum": ["text", "image", "audio", "context"],
+      "enum": [
+        "text",
+        "image",
+        "audio",
+        "context"
+      ],
       "description": "How the target-part prompt is presented (default text)"
     },
     "responseMode": {
       "type": "string",
-      "enum": ["text", "image", "audio"],
+      "enum": [
+        "text",
+        "image",
+        "audio"
+      ],
       "description": "How the child responds (default image: tapping the part)"
     },
     "characters": {
@@ -75,12 +89,24 @@
       "description": "Recurring child-friendly characters. Image > Emoji > Text.",
       "items": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
-          "emoji": { "type": "string", "description": "Character emoji fallback" },
-          "personality": { "type": "string" }
+          "name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "description": "Character image URL (preferred over emoji)"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Character emoji fallback"
+          },
+          "personality": {
+            "type": "string"
+          }
         }
       }
     },
@@ -103,7 +129,9 @@
     },
     "diagram": {
       "type": "object",
-      "required": ["image"],
+      "required": [
+        "image"
+      ],
       "properties": {
         "image": {
           "type": "string",
@@ -121,11 +149,17 @@
     "hotspots": {
       "type": "array",
       "minItems": 5,
-      "maxItems": 20,
+      "maxItems": 10,
       "description": "Each hotspot is one tappable part of the diagram, positioned by PERCENT of the diagram bounds. One round per hotspot.",
       "items": {
         "type": "object",
-        "required": ["id", "label", "x", "y", "r"],
+        "required": [
+          "id",
+          "label",
+          "x",
+          "y",
+          "r"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -169,7 +203,11 @@
     },
     "mode": {
       "type": "string",
-      "enum": ["label-to-part", "part-to-label", "mixed"]
+      "enum": [
+        "label-to-part",
+        "part-to-label",
+        "mixed"
+      ]
     },
     "rounds": {
       "type": "integer",
@@ -178,11 +216,16 @@
     },
     "inputMode": {
       "type": "string",
-      "enum": ["tap"]
+      "enum": [
+        "tap"
+      ]
     },
     "rewards": {
       "type": "object",
-      "required": ["starsOnComplete", "xp"],
+      "required": [
+        "starsOnComplete",
+        "xp"
+      ],
       "properties": {
         "starsOnComplete": {
           "type": "integer",

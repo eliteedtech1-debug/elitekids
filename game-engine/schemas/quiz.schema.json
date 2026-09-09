@@ -27,11 +27,16 @@
     "ageLevel": {
       "type": "string",
       "enum": [
+        "Crèche",
+        "Playgroup",
+        "Nursery 1",
+        "Nursery 2",
+        "Kindergarten",
+        "Primary",
         "Creche",
         "Nursery",
         "KG1",
-        "KG2",
-        "Primary"
+        "KG2"
       ]
     },
     "category": {
@@ -59,12 +64,21 @@
     },
     "promptMode": {
       "type": "string",
-      "enum": ["text", "image", "audio", "context"],
+      "enum": [
+        "text",
+        "image",
+        "audio",
+        "context"
+      ],
       "description": "How the question is presented"
     },
     "responseMode": {
       "type": "string",
-      "enum": ["text", "image", "audio"],
+      "enum": [
+        "text",
+        "image",
+        "audio"
+      ],
       "description": "How options are displayed and how the learner responds"
     },
     "context": {
@@ -76,7 +90,9 @@
       "description": "Recurring child-friendly characters. Image > Emoji > Text: provide an image URL for best visual, emoji as fallback, name as last resort.",
       "items": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -99,7 +115,7 @@
     },
     "questions": {
       "type": "array",
-      "minItems": 3,
+      "minItems": 5,
       "maxItems": 10,
       "items": {
         "type": "object",

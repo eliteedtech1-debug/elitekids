@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "GameChainConfig",
   "type": "object",
-  "description": "Heterogeneous game-chain — ONE lesson that plays an ORDERED sequence of whole sub-game rounds (e.g. drag-sort → label-diagram → memory-pairs) as a single scored session. Rounds always run in array order (simple → complex, never shuffled). Each round carries its own template + full sub-game config; rounds may not nest game-chain (no recursion) and puzzle-split is excluded (its difficulty-ladder scoring does not fit a linear chain).",
+  "description": "Heterogeneous game-chain — ONE lesson/unit container that delivers an ORDERED sequence of two or more complete game-type components (for example matching → puzzle-split → tap-recognition → drag-sort → quiz) as one coherent objective. Components always run in array order (concrete/simple → complex/application, never shuffled). Each component carries its own full sub-game config; components may not nest game-chain. The 5–10 playable-item rule applies to each component; the chain may contain more than 10 total items because it is a lesson container, not one homogeneous game.",
   "required": [
     "gameId",
     "template",
@@ -21,7 +21,7 @@
     "lessonId": { "type": "string" },
     "ageLevel": {
       "type": "string",
-      "enum": ["Creche", "Nursery", "KG1", "KG2", "Primary"]
+      "enum": ["Crèche", "Playgroup", "Nursery 1", "Nursery 2", "Kindergarten", "Primary", "Creche", "Nursery", "KG1", "KG2"]
     },
     "category": { "type": "string" },
     "tier": { "type": "integer", "minimum": 0, "maximum": 3 },
@@ -52,7 +52,7 @@
       "type": "array",
       "minItems": 2,
       "maxItems": 10,
-      "description": "Ordered heterogeneous rounds — each is a WHOLE sub-game. Renderers MUST play them in array order; the order is the pedagogy.",
+      "description": "Ordered heterogeneous components — each is a WHOLE sub-game for one lesson/unit objective. Renderers MUST play them in array order; the order is the pedagogy. Each component independently contains 5–10 playable items.",
       "items": {
         "type": "object",
         "required": ["id", "template", "config"],
@@ -69,9 +69,10 @@
               "fill-in-blank",
               "memory-pairs",
               "label-diagram",
-              "stage-sequence"
+              "stage-sequence",
+              "puzzle-split"
             ],
-            "description": "Sub-game template for this round. game-chain (no nesting) and puzzle-split (difficulty-ladder scoring) are excluded."
+            "description": "Sub-game template for this component. game-chain (no nesting) is excluded; puzzle-split is allowed as a complete component."
           },
           "config": {
             "type": "object",

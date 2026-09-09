@@ -3,7 +3,8 @@
 /**
  * B3b: age-declaration fallback ("How old are you?" tour step) — locks:
  *
- *   1. ageToBand ladder: 3→Creche, 4→Nursery, 5→KG1, 6→KG2, ≥7→Primary.
+ *   1. ageToBand ladder: 1-2→Crèche, 3→Playgroup, 4→Nursery 1, 5→Nursery 2,
+ *      6→Kindergarten, ≥7→Primary (Q44 NERDC bands).
  *   2. resolveBandForAdmission chain: kids_children → kids_age_declarations →
  *      elite_db.students. An SMS-imported kid (no kids_children row, unmappable
  *      class) is unresolvable (400) until they declare their age — then the
@@ -30,10 +31,11 @@ async function cleanupFixtures() {
 beforeAll(async () => {
   await cleanupFixtures();
   // SMS-imported student: class_name intentionally unmappable → without the
-  // age declaration the band chain must resolve to null.
+  // age declaration the band chain must resolve to null. (Was 'PRE NURSERY',
+  // but the Q44 vocabulary maps that to Playgroup — use a truly unknown name.)
   await testQuery(
     `INSERT INTO students (id, admission_no, school_id, branch_id, student_name, class_code, class_name, password, user_type, status)
-     VALUES ('B3B-ID', ?, ?, 'BR-TEST', 'B3b Imported Kid', 'CLS0610', 'PRE NURSERY', ?, 'Student', 'Active')`,
+     VALUES ('B3B-ID', ?, ?, 'BR-TEST', 'B3b Imported Kid', 'CLS0610', 'PLANET X', ?, 'Student', 'Active')`,
     [ADM, SCHOOL, bcrypt.hashSync('Nursery@123', 10)]
   );
 });
@@ -60,10 +62,11 @@ async function studentToken(admission) {
 
 describe('B3b: ageToBand ladder', () => {
   it('maps declared ages to the documented bands', () => {
-    expect(ageToBand(3)).toBe('Creche');
-    expect(ageToBand(4)).toBe('Nursery');
-    expect(ageToBand(5)).toBe('KG1');
-    expect(ageToBand(6)).toBe('KG2');
+    expect(ageToBand(2)).toBe('Crèche');
+    expect(ageToBand(3)).toBe('Playgroup');
+    expect(ageToBand(4)).toBe('Nursery 1');
+    expect(ageToBand(5)).toBe('Nursery 2');
+    expect(ageToBand(6)).toBe('Kindergarten');
     expect(ageToBand(7)).toBe('Primary');
     expect(ageToBand(12)).toBe('Primary');
     expect(ageToBand(0)).toBeNull();
@@ -114,8 +117,8 @@ describe('B3b: declaration fallback unlocks the learning path', () => {
     expect(res.body.data.age).toBe(4);
   });
 
-  it('learning-path resolves from the declaration alone (Nursery ceiling)', async () => {
+  it('learning-path resolves from the declaration alone (Nursery 1 ceiling)', async () => {
     const band = await resolveBandForAdmission(ADM);
-    expect(band).toBe('Nursery'); // age 4 → Nursery, students row never needed
+    expect(band).toBe('Nursery 1'); // age 4 → Nursery 1, students row never needed
   });
 });

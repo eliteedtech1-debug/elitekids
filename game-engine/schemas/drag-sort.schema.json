@@ -27,11 +27,16 @@
     "ageLevel": {
       "type": "string",
       "enum": [
+        "Crèche",
+        "Playgroup",
+        "Nursery 1",
+        "Nursery 2",
+        "Kindergarten",
+        "Primary",
         "Creche",
         "Nursery",
         "KG1",
-        "KG2",
-        "Primary"
+        "KG2"
       ]
     },
     "category": {
@@ -62,12 +67,24 @@
       "description": "Recurring child-friendly characters. Image > Emoji > Text.",
       "items": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
-          "emoji": { "type": "string", "description": "Character emoji fallback" },
-          "personality": { "type": "string" }
+          "name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "description": "Character image URL (preferred over emoji)"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Character emoji fallback"
+          },
+          "personality": {
+            "type": "string"
+          }
         }
       }
     },
@@ -104,8 +121,8 @@
         },
         "items": {
           "type": "array",
-          "minItems": 2,
-          "maxItems": 12,
+          "minItems": 5,
+          "maxItems": 10,
           "items": {
             "type": "object",
             "required": [

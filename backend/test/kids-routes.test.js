@@ -33,7 +33,7 @@ describe('POST /kids/lessons (create lesson + enqueue generation)', () => {
       .post('/kids/lessons')
       .set('authorization', token)
       .set(SCHOOL_HEADER)
-      .send({ title: 'Animal Sounds', subject: 'Music', age_level: 'Nursery' });
+      .send({ title: 'Animal Sounds', subject: 'Music', age_level: 'Nursery 1' });
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
@@ -56,7 +56,7 @@ describe('POST /kids/lessons (create lesson + enqueue generation)', () => {
   it('rejects requests without auth', async () => {
     const res = await request(app)
       .post('/kids/lessons')
-      .send({ title: 'No Auth', subject: 'X', age_level: 'Nursery' });
+      .send({ title: 'No Auth', subject: 'X', age_level: 'Nursery 1' });
 
     expect(res.status).toBe(401);
   });

@@ -1,0 +1,159 @@
+BASIC 1
+BASIC 1 NS
+BASIC 2
+BASIC 2 NS
+BASIC 3
+BASIC 3 NS
+BASIC 4
+BASIC 4 NS
+BASIC 5
+BASIC 5 NS
+BASIC 6
+BASIC 6 NS
+BASIC 7 NS
+Crech
+Kindergarten
+LKG A
+LKG B
+LOWER KG
+LOWER KG NS
+Nursery 1
+Nursery 1 A
+Nursery 1 A2
+Nursery 1 B
+Nursery 1 B2
+Nursery 1 Blue 
+Nursery 1 C
+Nursery 1 D
+Nursery 1 Green 
+Nursery 1 Orange 
+Nursery 1 Red
+Nursery 1 Yellow 
+Nursery 1A
+Nursery 1B
+Nursery 2
+Nursery 2 A
+Nursery 2 B
+Nursery 2 blue 
+Nursery 2 C
+Nursery 2 D
+Nursery 2 green 
+Nursery 2 orange 
+Nursery 2 red 
+Nursery 2 yellow 
+Nursery 2A
+Nursery 2B
+Nursery 3
+Nursery 3 A
+Nursery 3 B
+Nursery 3 C
+PG A
+PG B
+Play Group
+Playgroup
+Playgroup A
+Playgroup A2
+Playgroup B
+Playgroup B2
+Pre nursery
+Pre Nursery A
+Pre Nursery B
+Pre Nursery Blue 
+Pre Nursery Green 
+Pre Nursery Orange 
+Pre Nursery Purple 
+Pre Nursery Red 
+Pre Nursery Yellow 
+Pre-Kindergarten
+Pre-Nursery
+Pre-Nursery 1A
+Pre-Nursery B
+Preparatory A
+Preparatory B
+Primary 1
+Primary 1 A
+Primary 1 B
+Primary 1 Blue
+Primary 1 C
+Primary 1 Dala
+Primary 1 Fagge
+Primary 1 Green
+Primary 1 Lions
+Primary 1 Lions A
+Primary 1 Lions B
+Primary 1 Lions C
+Primary 1 Orange
+Primary 1 purple
+Primary 1 Red
+Primary 1 Yellow
+Primary 1A
+Primary 1B
+Primary 2
+Primary 2 A
+Primary 2 B
+Primary 2 Blue
+Primary 2 C
+Primary 2 Green
+Primary 2 Orange
+Primary 2 Red
+Primary 2 Yellow
+Primary 2A
+Primary 2B
+Primary 3
+Primary 3 A
+Primary 3 B
+Primary 3 Blue
+Primary 3 C
+Primary 3 Green
+Primary 3 Orange
+Primary 3 Red
+Primary 3 Yellow
+Primary 3A
+Primary 3B
+Primary 4
+Primary 4 A
+Primary 4 B
+Primary 4 Blue
+Primary 4 C
+Primary 4 Green
+Primary 4 Orange
+Primary 4 Red
+Primary 4 Yellow
+Primary 4A
+Primary 4B
+Primary 5
+Primary 5 A
+Primary 5 B
+Primary 5 Blue
+Primary 5 C
+Primary 5 Green
+Primary 5 Orange
+Primary 5 Red
+Primary 6
+Primary 6 A
+Primary 6 B
+PRY 1A
+PRY 1B
+PRY 2A
+PRY 2B
+PRY 3A
+PRY 3B
+PRY 4A
+PRY 4B
+PRY 5A
+PRY 5B
+Tamheed
+Tamheed A
+Tamheed B
+Tamheed C
+Tamheed D
+UKG A
+UKG B
+UPPER KG
+UPPER KG NS
+Year 1
+Year 2
+Year 3
+Year 4
+Year 5
+Year 6

@@ -62,33 +62,34 @@ async function studentToken(admission, password = 'Nursery@123') {
 
 describe('B3: ageBand mapping + visible levels', () => {
   it('maps the documented class keywords exactly', () => {
-    expect(AGE_BANDS).toEqual(['Creche', 'Nursery', 'KG1', 'KG2', 'Primary']);
-    expect(classToAgeLevel('Creche')).toBe('Creche');
-    expect(classToAgeLevel('Pre-Nursery')).toBe('Creche');
-    expect(classToAgeLevel('Nursery 2')).toBe('KG2');
+    expect(AGE_BANDS).toEqual(['Crèche', 'Playgroup', 'Nursery 1', 'Nursery 2', 'Kindergarten', 'Primary']);
+    expect(classToAgeLevel('Crèche')).toBe('Crèche');
+    expect(classToAgeLevel('Pre-Nursery')).toBe('Playgroup');
+    expect(classToAgeLevel('Nursery 2')).toBe('Nursery 2');
+    expect(classToAgeLevel('KG2')).toBe('Nursery 2');
+    expect(classToAgeLevel('UPPER KG')).toBe('Nursery 2');
     expect(classToAgeLevel('Year 3')).toBe('Primary');
     expect(classToAgeLevel('Year 4')).toBe('Primary');
     expect(classToAgeLevel('Year 5')).toBe('Primary');
     expect(classToAgeLevel('Primary 2')).toBe('Primary'); // keyword beats bare-number fallback
     expect(classToAgeLevel('Basic 3')).toBe('Primary');
-    expect(classToAgeLevel('KG2')).toBe('KG2');
-    expect(classToAgeLevel('kindergarten 1')).toBe('KG1');
+    expect(classToAgeLevel('kindergarten 1')).toBe('Nursery 1');
     expect(classToAgeLevel(null)).toBeNull();
     expect(classToAgeLevel('')).toBeNull();
   });
 
   it('visible levels = band + everything below (strict ceiling)', () => {
-    expect(visibleLevels('Creche')).toEqual(['Creche']);
-    expect(visibleLevels('Nursery')).toEqual(['Creche', 'Nursery', 'KG1']);
-    expect(visibleLevels('KG2')).toEqual(['Creche', 'Nursery', 'KG1', 'KG2']);
+    expect(visibleLevels('Crèche')).toEqual(['Crèche']);
+    expect(visibleLevels('Nursery 1')).toEqual(['Crèche', 'Playgroup', 'Nursery 1']);
+    expect(visibleLevels('Kindergarten')).toEqual(['Crèche', 'Playgroup', 'Nursery 1', 'Nursery 2', 'Kindergarten']);
     expect(visibleLevels('Bogus')).toBeNull();
   });
 
   it('resolves the NARROWEST known band when class_code and age_level disagree', () => {
-    // class "Nursery A" maps to Nursery but the row says KG1 → Nursery (never wider).
-    expect(resolveChildBand({ class_code: 'Nursery A', age_level: 'KG1' })).toBe('Nursery');
-    expect(resolveChildBand({ class_code: 'NUR-A', age_level: 'KG1' })).toBe('KG1'); // NUR-A unmappable → age_level wins
-    expect(resolveChildBand({ class_code: null, age_level: 'KG2' })).toBe('KG2');
+    // class "Nursery A" maps to Nursery 1 but the row says Nursery 2 → Nursery 1 (never wider).
+    expect(resolveChildBand({ class_code: 'Nursery A', age_level: 'Nursery 2' })).toBe('Nursery 1');
+    expect(resolveChildBand({ class_code: 'NUR-A', age_level: 'Nursery 2' })).toBe('Nursery 2'); // NUR-A unmappable → age_level wins
+    expect(resolveChildBand({ class_code: null, age_level: 'Kindergarten' })).toBe('Kindergarten');
     expect(resolveChildBand({ class_code: 'Primary 1', age_level: 'Primary' })).toBe('Primary');
     expect(resolveChildBand(null)).toBeNull();
   });
@@ -112,9 +113,10 @@ describe('B3: weekly goal period math (Monday start, UTC)', () => {
 
 const SERIES_ID = 'B3-SERIES';
 const UNITS = [
-  // unit_number, id, age, lesson id
-  [1, 'B3-U1', 'Nursery', 'B3-L1'],
-  [2, 'B3-U2', 'KG1', 'B3-L2'],
+  // unit_number, id, age, lesson id — rank structure mirrors the old
+  // Nursery/KG1/Primary fixture under the 6-band NERDC model.
+  [1, 'B3-U1', 'Nursery 1', 'B3-L1'],
+  [2, 'B3-U2', 'Nursery 2', 'B3-L2'],
   [3, 'B3-U3', 'Primary', 'B3-L3'],
 ];
 
@@ -144,10 +146,10 @@ async function seedLearningPathFixtures() {
   }
   await testQuery(
     `INSERT INTO kids_children (id, admission_no, school_id, branch_id, full_name, age_level, class_code, status) VALUES
-     ('B3-CHILD-NUR', 'B3-NUR-ADM', 'SCH-TEST', 'BR-TEST', 'B3 Nursery Kid', 'Nursery', NULL, 'Active'),
-     ('B3-CHILD-KG1', 'B3-KG1-ADM', 'SCH-TEST', 'BR-TEST', 'B3 KG1 Kid', 'KG1', NULL, 'Active'),
-     ('B3-CHILD-KG2', 'B3-KG2-ADM', 'SCH-TEST', 'BR-TEST', 'B3 KG2 Kid', 'KG2', NULL, 'Active'),
-     ('B3-CHILD-GOAL', 'B3-GOAL-ADM', 'SCH-TEST', 'BR-TEST', 'B3 Goal Kid', 'KG1', NULL, 'Active')
+     ('B3-CHILD-NUR', 'B3-NUR-ADM', 'SCH-TEST', 'BR-TEST', 'B3 Nursery Kid', 'Nursery 1', NULL, 'Active'),
+     ('B3-CHILD-KG1', 'B3-KG1-ADM', 'SCH-TEST', 'BR-TEST', 'B3 KG1 Kid', 'Nursery 2', NULL, 'Active'),
+     ('B3-CHILD-KG2', 'B3-KG2-ADM', 'SCH-TEST', 'BR-TEST', 'B3 KG2 Kid', 'Kindergarten', NULL, 'Active'),
+     ('B3-CHILD-GOAL', 'B3-GOAL-ADM', 'SCH-TEST', 'BR-TEST', 'B3 Goal Kid', 'Nursery 1', NULL, 'Active')
      ON DUPLICATE KEY UPDATE age_level = VALUES(age_level)`
   );
 }
@@ -185,7 +187,7 @@ describe('B3: learning-path age isolation (hard ceiling)', () => {
     const unitNumbers = p.units.map((u) => u.unit_number).sort();
     expect(unitNumbers).toEqual([1]); // only U1 (Nursery) survives
     const ages = p.units.flatMap((u) => u.lessons.map((l) => l.age_level));
-    expect(ages.every((a) => ['Creche', 'Nursery'].includes(a))).toBe(true);
+    expect(ages.every((a) => ['Crèche', 'Playgroup', 'Nursery 1'].includes(a))).toBe(true);
     // zero leaks: no above-band lesson ids anywhere in the payload
     const serialized = JSON.stringify(p.units);
     expect(serialized).not.toContain('B3-L2');
@@ -224,7 +226,7 @@ describe('B3: learning-path age isolation (hard ceiling)', () => {
     expect(l1.state).toBe('passed');
   });
 
-  it('a KG2 child still cannot see the Primary unit', async () => {
+  it('a Kindergarten child still cannot see the Primary unit', async () => {
     const p = await pathFor('B3-KG2-ADM');
     expect(p).toBeDefined();
     const unitNumbers = p.units.map((u) => u.unit_number).sort();

@@ -27,11 +27,16 @@
     "ageLevel": {
       "type": "string",
       "enum": [
+        "Crèche",
+        "Playgroup",
+        "Nursery 1",
+        "Nursery 2",
+        "Kindergarten",
+        "Primary",
         "Creche",
         "Nursery",
         "KG1",
-        "KG2",
-        "Primary"
+        "KG2"
       ]
     },
     "category": {
@@ -59,12 +64,20 @@
     },
     "promptMode": {
       "type": "string",
-      "enum": ["text", "image", "audio"],
+      "enum": [
+        "text",
+        "image",
+        "audio"
+      ],
       "description": "How the left side of the match is presented"
     },
     "responseMode": {
       "type": "string",
-      "enum": ["text", "image", "audio"],
+      "enum": [
+        "text",
+        "image",
+        "audio"
+      ],
       "description": "How the right side (response) is presented"
     },
     "characters": {
@@ -72,12 +85,24 @@
       "description": "Recurring child-friendly characters. Image > Emoji > Text.",
       "items": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
-          "emoji": { "type": "string", "description": "Character emoji fallback" },
-          "personality": { "type": "string" }
+          "name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "description": "Character image URL (preferred over emoji)"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Character emoji fallback"
+          },
+          "personality": {
+            "type": "string"
+          }
         }
       }
     },
@@ -113,8 +138,8 @@
         },
         "items": {
           "type": "array",
-          "minItems": 2,
-          "maxItems": 16,
+          "minItems": 10,
+          "maxItems": 20,
           "items": {
             "type": "object",
             "required": [

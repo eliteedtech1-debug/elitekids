@@ -39,7 +39,7 @@ function stageConfig(overrides = {}) {
     gameId: 'b2-stage-gc',
     template: 'stage-sequence',
     lessonId: 'b2-stage-lesson',
-    ageLevel: 'Nursery',
+    ageLevel: 'Nursery 1',
     category: 'Numeracy',
     tier: 1,
     item_id: 'b2-stage-item',
@@ -53,6 +53,8 @@ function stageConfig(overrides = {}) {
       { id: 's1', label: 'One', kind: 'emoji', emoji: '1️⃣', narration: 'Step one.' },
       { id: 's2', label: 'Two', kind: 'emoji', emoji: '2️⃣', narration: 'Step two.' },
       { id: 's3', label: 'Three', kind: 'emoji', emoji: '3️⃣', narration: 'Step three.' },
+      { id: 's4', label: 'Four', kind: 'emoji', emoji: '4️⃣', narration: 'Step four.' },
+      { id: 's5', label: 'Five', kind: 'emoji', emoji: '5️⃣', narration: 'Step five.' },
     ],
     assessment: [
       { id: 'a1', kind: 'text', prompt: 'Which comes after two?', options: ['Three', 'One'], correctIndex: 0 },
@@ -67,7 +69,7 @@ function labelConfig(overrides = {}) {
     gameId: 'b2-label-gc',
     template: 'label-diagram',
     lessonId: 'b2-label-lesson',
-    ageLevel: 'Nursery',
+    ageLevel: 'Nursery 1',
     category: 'Science',
     tier: 1,
     item_id: 'b2-label-item',
@@ -107,7 +109,7 @@ describe('B2: manual lesson scenes — canonical type → scene_type column', ()
       .send({
         title: 'B2 Story Scene Roundtrip',
         subject: 'Literacy',
-        age_level: 'Nursery',
+        age_level: 'Nursery 1',
         template: 'stage-sequence',
         config_json: stageConfig({ gameId: 'b2-roundtrip-gc', lessonId: 'b2-roundtrip-lesson', item_id: 'b2-roundtrip-item' }),
         scenes: [
@@ -145,7 +147,7 @@ describe('B2: manual lesson scenes — canonical type → scene_type column', ()
       .send({
         title: 'B2 Bad Scene Type',
         subject: 'Literacy',
-        age_level: 'Nursery',
+        age_level: 'Nursery 1',
         template: 'stage-sequence',
         config_json: stageConfig(),
         scenes: [{ type: 'banana', text: 'oops', durationSec: 8 }],
@@ -175,7 +177,7 @@ describe('B2: game_checkpoint scene must resolve to a lesson with a game config'
       .send({
         title: 'B2 Broken Checkpoint',
         subject: 'Literacy',
-        age_level: 'Nursery',
+        age_level: 'Nursery 1',
         template: 'stage-sequence',
         config_json: stageConfig(),
         scenes: [{ type: 'game_checkpoint', gameId: 'NO-SUCH-LESSON-9', durationSec: 10 }],
@@ -194,7 +196,7 @@ describe('B2: game_checkpoint scene must resolve to a lesson with a game config'
       .send({
         title: 'B2 Good Checkpoint',
         subject: 'Literacy',
-        age_level: 'Nursery',
+        age_level: 'Nursery 1',
         template: 'stage-sequence',
         config_json: stageConfig({ gameId: 'b2-checkpoint-gc', lessonId: 'b2-checkpoint-lesson', item_id: 'b2-checkpoint-item' }),
         scenes: [{ type: 'game_checkpoint', gameId: 'LESSON-1', durationSec: 10 }],
@@ -229,7 +231,7 @@ describe('B2: manual save schema gate for stage-sequence + label-diagram', () =>
       .send({
         title: 'B2 Short Stage',
         subject: 'Numeracy',
-        age_level: 'Nursery',
+        age_level: 'Nursery 1',
         template: 'stage-sequence',
         config_json: stageConfig({ steps: stageConfig().steps.slice(0, 2) }),
       });
@@ -245,6 +247,8 @@ describe('B2: manual save schema gate for stage-sequence + label-diagram', () =>
         { id: 'c1', label: "One o'clock", kind: 'analog-clock', time: '1:00', narration: "One o'clock." },
         { id: 'c2', label: "Two o'clock", kind: 'analog-clock', time: '2:00' }, // missing narration
         { id: 'c3', label: "Three o'clock", kind: 'analog-clock', time: '3:00', narration: "Three o'clock." },
+        { id: 'c4', label: "Four o'clock", kind: 'analog-clock', time: '4:00', narration: "Four o'clock." },
+        { id: 'c5', label: "Five o'clock", kind: 'analog-clock', time: '5:00', narration: "Five o'clock." },
       ],
     });
     const res = await request(app)
@@ -253,7 +257,7 @@ describe('B2: manual save schema gate for stage-sequence + label-diagram', () =>
       .send({
         title: 'B2 Silent Clock',
         subject: 'Numeracy',
-        age_level: 'Nursery',
+        age_level: 'Nursery 1',
         template: 'stage-sequence',
         config_json: bad,
       });
@@ -271,7 +275,7 @@ describe('B2: manual save schema gate for stage-sequence + label-diagram', () =>
       .send({
         title: 'B2 Dup Labels',
         subject: 'Science',
-        age_level: 'Nursery',
+        age_level: 'Nursery 1',
         template: 'label-diagram',
         config_json: dup,
       });
@@ -287,7 +291,7 @@ describe('B2: manual save schema gate for stage-sequence + label-diagram', () =>
       .send({
         title: 'B2 Valid Stage',
         subject: 'Numeracy',
-        age_level: 'Nursery',
+        age_level: 'Nursery 1',
         template: 'stage-sequence',
         config_json: stageConfig({ gameId: 'b2-valid-gc', lessonId: 'b2-valid-lesson', item_id: 'b2-valid-item' }),
       });

@@ -29,11 +29,16 @@
     "ageLevel": {
       "type": "string",
       "enum": [
+        "Crèche",
+        "Playgroup",
+        "Nursery 1",
+        "Nursery 2",
+        "Kindergarten",
+        "Primary",
         "Creche",
         "Nursery",
         "KG1",
-        "KG2",
-        "Primary"
+        "KG2"
       ]
     },
     "category": {
@@ -104,8 +109,8 @@
     },
     "steps": {
       "type": "array",
-      "minItems": 3,
-      "maxItems": 30,
+      "minItems": 5,
+      "maxItems": 10,
       "description": "The ordered queue — step graphics from SIMPLE to COMPLEX. Renderers MUST play them in array order; order is the pedagogy.",
       "items": {
         "type": "object",

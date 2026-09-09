@@ -3,6 +3,11 @@
 # scripts/ci-gate.sh — CI quality gate against the phase-C baseline-4 (Q5).
 #
 # WHAT IT DOES
+#   0. Runs backend/scripts/q46-verify-class-mapping.js — maps EVERY distinct
+#      elite_db.classes (class_name, section) through ageBand.classToAgeLevel
+#      and fails the gate on any drift (unmapped/invalid band). Read-only
+#      (SELECT DISTINCT). Skippable with SKIP_CLASS_MAPPING_CHECK=1 for
+#      environments without DB access (self-test mode skips it regardless).
 #   1. Runs the backend jest suite via scripts/run-tests.sh (hermetic env,
 #      --runInBand; see usage docs atop that script) with `--json` output.
 #   2. Extracts the exact fail-set as "<test file> :: <full test title>" ids.
@@ -19,9 +24,10 @@
 #      now fails in a different file — is a NEW failure.
 #
 # EXIT CODES
-#   0  green, or fail-set ⊆ baseline-4        → gate PASSES
-#   1  at least one NEW failure               → gate FAILS (list printed)
-#   2  harness error (.env missing, jest produced no usable results) → gate FAILS
+#   0  green, fail-set ⊆ baseline-4, and class-mapping drift-free → gate PASSES
+#   1  at least one NEW failure, or class-mapping drift (unmapped class names)
+#   2  harness error (.env missing, jest produced no usable results,
+#      class-mapping DB unreachable) → gate FAILS
 #
 # USAGE
 #   scripts/ci-gate.sh                        # gate the FULL suite (default)
@@ -52,6 +58,26 @@ if [[ -n "${GATE_JSON:-}" ]]; then
   JSON="$GATE_JSON"
   echo "[gate] self-test mode: comparing saved artifact $JSON (no run)"
 else
+  # STEP 0 — class-mapping drift check (Q46). elite_db.classes class names
+  # must all resolve to valid NERDC bands before the suite is worth running.
+  if [[ "${SKIP_CLASS_MAPPING_CHECK:-0}" != "1" ]]; then
+    CM_LOG="$REPORTS/q46-class-mapping-$TS.log"
+    echo "[gate] step0: class-mapping drift check -> $CM_LOG"
+    node "$ROOT/backend/scripts/q46-verify-class-mapping.js" >"$CM_LOG" 2>&1
+    CM_RC=$?
+    if [[ $CM_RC -eq 1 ]]; then
+      tail -10 "$CM_LOG"
+      echo "GATE=FAIL reason=class-mapping-drift artifact=$CM_LOG"
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | GATE=FAIL(1) reason=class-mapping-drift | artifact=$CM_LOG" >>"$REPORTS/q5-ci-gate-history.txt"
+      exit 1
+    elif [[ $CM_RC -ne 0 ]]; then
+      tail -10 "$CM_LOG"
+      echo "GATE=FAIL reason=class-mapping-harness(rc=$CM_RC) artifact=$CM_LOG"
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | GATE=FAIL(2) reason=class-mapping-harness rc=$CM_RC | artifact=$CM_LOG" >>"$REPORTS/q5-ci-gate-history.txt"
+      exit 2
+    fi
+    echo "[gate] step0: all class names map to valid NERDC bands"
+  fi
   echo "[gate] running suite -> $LOG"
   # --forceExit: media/generation worker handles keep the event loop alive
   # after results are written; without it jest hangs post-summary (same flag

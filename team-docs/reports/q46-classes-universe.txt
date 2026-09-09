@@ -1,0 +1,199 @@
+Islamiyya	Abdulrahman Ibn Awf
+Islamiyya	Abu Ubaidah Ibn Aljarrah
+Islamiyya	Abubakar Assiddiq
+Islamiyya	Ali Ibn Abi Tallib
+Islamiyya	Faslul Awwal Al-Ibtida'i
+Islamiyya	Faslul Khamis Al-Ibtida'i
+Islamiyya	Faslul Rabi' Al-Ibtida'i
+Islamiyya	Faslul Thalith Al-Ibtida'i
+Islamiyya	Faslul Thani Al-I'idadi
+Islamiyya	Faslul Thani Al-Ibtida'i
+Islamiyya	HADANA A
+Islamiyya	HADANA B
+Islamiyya	HADANA C
+Islamiyya	HALKATUL HUFFAZ
+Islamiyya	Islamiyya 1
+Islamiyya	Islamiyya 2
+Islamiyya	Islamiyya 3
+Islamiyya	Jabir bin Abdullah
+Islamiyya	KHATMA A
+Islamiyya	KHATMA B
+Islamiyya	Raudah
+Islamiyya	Raudah Thaniyah
+Islamiyya	RAUDATUL SANIYA A
+Islamiyya	RAUDATUL SANIYA B
+Islamiyya	RAUDATUL ULA A
+Islamiyya	RAUDATUL ULA B
+Islamiyya	Sa'ad Ibn Abi Waqqas
+Islamiyya	Sa'id Ibn Zayd
+Islamiyya	SAFFUL AWWAL
+Islamiyya	SAFFUL KHAMIS
+Islamiyya	SAFFURRABI'U A
+Islamiyya	SAFFURRABI'U B
+Islamiyya	SAFFUS SALIS
+Islamiyya	SAFFUS SANI
+Islamiyya	Talha Ibn Ubaidullah
+Islamiyya	TAMHEED A
+Islamiyya	TAMHEED B
+Islamiyya	TAMHEED C
+Islamiyya	Umar Ibn Khattab
+Islamiyya	Uthman Ibn Affan
+Islamiyya	Zubayr Ibn Awwam
+JSS	JSS 1
+JSS	JSS 1 A
+JSS	JSS 1 B
+JSS	JSS 2
+JSS	JSS 2 A
+JSS	JSS 2 B
+JSS	JSS 2 C
+JSS	JSS 3
+JSS	JSS 3 A
+JSS	JSS 3 B
+JSS	JSS1
+JSS	JSS1 A
+JSS	JSS1 B
+JSS	JSS1 C
+JSS	JSS1 D
+JSS	JSS2
+JSS	JSS2 A
+JSS	JSS2 B
+JSS	JSS2 C
+JSS	JSS2 D
+JSS	JSS3
+JSS	JSS3 A
+JSS	JSS3 B
+JSS	JSS3 C
+JSS	JSS3 D
+JUNIOR SECONDARY	JSS 1
+JUNIOR SECONDARY	JSS 1 NS
+JUNIOR SECONDARY	JSS 2
+JUNIOR SECONDARY	JSS 2 NS
+JUNIOR SECONDARY	JSS 3
+JUNIOR SECONDARY	JSS 3 NS
+NURSERY	BASIC 7 NS
+Nursery	Crech
+Nursery	Kindergarten
+Nursery	LKG A
+Nursery	LKG B
+NURSERY	LOWER KG
+NURSERY	LOWER KG NS
+Nursery	Nursery 1
+Nursery	Nursery 1 A
+Nursery	Nursery 1 A2
+Nursery	Nursery 1 B
+Nursery	Nursery 1 B2
+Nursery	Nursery 1 Blue 
+Nursery	Nursery 1 C
+Nursery	Nursery 1 D
+Nursery	Nursery 1 Green 
+Nursery	Nursery 1 Orange 
+Nursery	Nursery 1 Red
+Nursery	Nursery 1 Yellow 
+Nursery	Nursery 1A
+Nursery	Nursery 1B
+Nursery	Nursery 2
+Nursery	Nursery 2 A
+Nursery	Nursery 2 B
+Nursery	Nursery 2 blue 
+Nursery	Nursery 2 C
+Nursery	Nursery 2 D
+Nursery	Nursery 2 green 
+Nursery	Nursery 2 orange 
+Nursery	Nursery 2 red 
+Nursery	Nursery 2 yellow 
+Nursery	Nursery 2A
+Nursery	Nursery 2B
+Nursery	Nursery 3
+Nursery	Nursery 3 A
+Nursery	Nursery 3 B
+Nursery	Nursery 3 C
+Nursery	PG A
+Nursery	PG B
+Nursery	Play Group
+Nursery	Playgroup
+Nursery	Playgroup A
+Nursery	Playgroup A2
+Nursery	Playgroup B
+Nursery	Playgroup B2
+Nursery	Pre nursery
+Nursery	Pre Nursery A
+Nursery	Pre Nursery B
+Nursery	Pre Nursery Blue 
+Nursery	Pre Nursery Green 
+Nursery	Pre Nursery Orange 
+Nursery	Pre Nursery Purple 
+Nursery	Pre Nursery Red 
+Nursery	Pre Nursery Yellow 
+Nursery	Pre-Kindergarten
+Nursery	Pre-Nursery
+Nursery	Pre-Nursery 1A
+Nursery	Pre-Nursery B
+Nursery	Preparatory A
+Nursery	Preparatory B
+Nursery	Tamheed
+Nursery	Tamheed A
+Nursery	Tamheed B
+Nursery	Tamheed C
+Nursery	Tamheed D
+Nursery	UKG A
+Nursery	UKG B
+NURSERY	UPPER KG
+NURSERY	UPPER KG NS
+PRIMARY	BASIC 1
+PRIMARY	BASIC 1 NS
+PRIMARY	BASIC 2
+PRIMARY	BASIC 2 NS
+PRIMARY	BASIC 3
+PRIMARY	BASIC 3 NS
+PRIMARY	BASIC 4
+PRIMARY	BASIC 4 NS
+PRIMARY	BASIC 5
+PRIMARY	BASIC 5 NS
+PRIMARY	BASIC 6
+PRIMARY	BASIC 6 NS
+Primary	Primary 1
+Primary	Primary 1 A
+Primary	Primary 1 B
+Primary	Primary 1 Blue
+Primary	Primary 1 C
+Primary	Primary 1 Dala
+Primary	Primary 1 Fagge
+Primary	Primary 1 Green
+Primary	Primary 1 Lions
+Primary	Primary 1 Lions A
+Primary	Primary 1 Lions B
+Primary	Primary 1 Lions C
+Primary	Primary 1 Orange
+Primary	Primary 1 purple
+Primary	Primary 1 Red
+Primary	Primary 1 Yellow
+Primary	Primary 1A
+Primary	Primary 1B
+Primary	Primary 2
+Primary	Primary 2 A
+Primary	Primary 2 B
+Primary	Primary 2 Blue
+Primary	Primary 2 C
+Primary	Primary 2 Green
+Primary	Primary 2 Orange
+Primary	Primary 2 Red
+Primary	Primary 2 Yellow
+Primary	Primary 2A
+Primary	Primary 2B
+Primary	Primary 3
+Primary	Primary 3 A
+Primary	Primary 3 B
+Primary	Primary 3 Blue
+Primary	Primary 3 C
+Primary	Primary 3 Green
+Primary	Primary 3 Orange
+Primary	Primary 3 Red
+Primary	Primary 3 Yellow
+Primary	Primary 3A
+Primary	Primary 3B
+Primary	Primary 4
+Primary	Primary 4 A
+Primary	Primary 4 B
+Primary	Primary 4 Blue
+Primary	Primary 4 C
+P

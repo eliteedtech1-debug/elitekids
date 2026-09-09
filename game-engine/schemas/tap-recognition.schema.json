@@ -27,11 +27,16 @@
     "ageLevel": {
       "type": "string",
       "enum": [
+        "Crèche",
+        "Playgroup",
+        "Nursery 1",
+        "Nursery 2",
+        "Kindergarten",
+        "Primary",
         "Creche",
         "Nursery",
         "KG1",
-        "KG2",
-        "Primary"
+        "KG2"
       ]
     },
     "category": {
@@ -59,16 +64,25 @@
     },
     "prompt": {
       "type": "string",
-      "description": "e.g. 'Tap the red apple' \u2014 must be understandable without reading (audio hint optional)"
+      "description": "e.g. 'Tap the red apple' — must be understandable without reading (audio hint optional)"
     },
     "promptMode": {
       "type": "string",
-      "enum": ["text", "image", "audio", "context"],
+      "enum": [
+        "text",
+        "image",
+        "audio",
+        "context"
+      ],
       "description": "How the concept is presented: text prompt, image to identify, audio to listen, or context/riddle"
     },
     "responseMode": {
       "type": "string",
-      "enum": ["text", "image", "audio"],
+      "enum": [
+        "text",
+        "image",
+        "audio"
+      ],
       "description": "How the learner responds: tap text labels, tap images, or speak the answer"
     },
     "context": {
@@ -80,12 +94,24 @@
       "description": "Recurring child-friendly characters. Image > Emoji > Text.",
       "items": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "image": { "type": "string", "description": "Character image URL (preferred over emoji)" },
-          "emoji": { "type": "string", "description": "Character emoji fallback" },
-          "personality": { "type": "string" }
+          "name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "description": "Character image URL (preferred over emoji)"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Character emoji fallback"
+          },
+          "personality": {
+            "type": "string"
+          }
         }
       }
     },
@@ -122,8 +148,8 @@
         },
         "objects": {
           "type": "array",
-          "minItems": 2,
-          "maxItems": 8,
+          "minItems": 5,
+          "maxItems": 10,
           "items": {
             "type": "object",
             "required": [
