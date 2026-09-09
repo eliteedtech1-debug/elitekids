@@ -319,7 +319,7 @@ function buildPilotRows() {
         description: `Flagship annual pilot progression for ${band.classLabel}, ${subject.displayName}; ${PLAN.academicYear}; 3 terms × 10 weeks.`,
         created_by: SCHOOL.created_by,
         subject_code: subject.id,
-        term_hint: 'First Term; Second Term; Third Term',
+        term_hint: '1st;2nd;3rd',
       });
       for (const term of TERMS) {
         for (let week = 1; week <= PLAN.weeksPerTerm; week += 1) {
@@ -338,7 +338,7 @@ function buildPilotRows() {
             content_state: state,
             lesson_type: 'game',
             duration_target_sec: built.config.durationTargetSec,
-            is_global: 0,
+            is_global: 1,
             nerdc_code: `ECCE-${subject.id}`,
             nerdc_strand: subject.displayName,
             nerdc_sub_strand: `${PLAN.academicYear} · ${term.name} Week ${week}`,

@@ -23,14 +23,17 @@ const q = (id, prompt, labels, correctIndex) => ({
   correctIndex,
 });
 
-// One lesson + one published quiz game per rank (labels are the legacy enum
-// values; ranks: 0 Creche≡Pre-Nursery, 1 Nursery≡KG1, 2 KG2≡Nursery 2, 3 Primary).
+// One lesson + one published quiz game per platform age_level value.
+// Both tables store the legacy technical values used by their MySQL contracts:
+// Creche, Nursery, KG1, KG2, Primary. API band classification/reporting uses
+// the canonical NERDC labels and converts at the boundary.
 const CATALOG = [
   {
     lessonId: 'GLESSON-RANK0-COLORS',
     title: 'Colors Around Us',
     subject: 'Art',
-    age_level: 'Creche', // rank 0
+    lesson_age_level: 'Creche',
+    game_age_level: 'Creche',
     questions: [
       q('c1', 'Which one is RED?', ['🍎 Apple', '🥬 Leaf', '🌊 Sea', '☁️ Cloud'], 0),
       q('c2', 'Which one is GREEN?', ['🍎 Apple', '🥬 Leaf', '🌞 Sun', '🍌 Banana'], 1),
@@ -40,10 +43,25 @@ const CATALOG = [
     ],
   },
   {
+    lessonId: 'GLESSON-RANK1-SOUNDS',
+    title: 'Listening and Sounds',
+    subject: 'Music',
+    lesson_age_level: 'Creche',
+    game_age_level: 'Creche',
+    questions: [
+      q('pg1', 'Which sound is LOUD? 🔊', ['Whisper', 'Thunder', 'Murmur', 'Tick'], 1),
+      q('pg2', 'Clap your hands — which is TWO claps? 👏👏', ['👏', '👏👏', '👏👏👏', '👏👏👏👏'], 1),
+      q('pg3', 'Which one makes a sound? 🔇', ['A stone', 'A drum', 'A feather', 'Cotton'], 1),
+      q('pg4', 'Listen: 🐶 — that is a…', ['Cat', 'Dog', 'Bird', 'Fish'], 1),
+      q('pg5', 'Which is QUIETER? 🤫', ['Shout', 'Whisper', 'Scream', 'Bang'], 1),
+    ],
+  },
+  {
     lessonId: 'GLESSON-RANK1-COUNT',
     title: 'Counting Fun 1-5',
     subject: 'Math',
-    age_level: 'Nursery', // rank 1 (≡ KG1 ≡ Nursery 1)
+    lesson_age_level: 'Nursery 1',
+    game_age_level: 'Nursery',
     questions: [
       q('n1', 'How many fingers on ONE hand? ✋', ['3', '4', '5', '6'], 2),
       q('n2', 'Count the ducks: 🦆🦆🦆', ['1', '2', '3', '4'], 2),
@@ -56,7 +74,8 @@ const CATALOG = [
     lessonId: 'GLESSON-RANK1-LETTERS',
     title: 'First Letters A-E',
     subject: 'English',
-    age_level: 'KG1', // rank 1 (≡ Nursery ≡ Nursery 1)
+    lesson_age_level: 'Nursery 1',
+    game_age_level: 'Nursery',
     questions: [
       q('l1', 'Which letter says "ah"?', ['A', 'B', 'C', 'D'], 0),
       q('l2', '🍎 Apple starts with…', ['Z', 'B', 'A', 'M'], 2),
@@ -69,7 +88,8 @@ const CATALOG = [
     lessonId: 'GLESSON-RANK2-SHAPES',
     title: 'Shapes and Patterns',
     subject: 'Math',
-    age_level: 'KG2', // rank 2 (≡ Nursery 2)
+    lesson_age_level: 'KG1',
+    game_age_level: 'KG1',
     questions: [
       q('s1', 'How many sides does a SQUARE have?', ['3', '4', '5', '6'], 1),
       q('s2', 'Which shape is round?', ['🔺 Triangle', '⚪ Circle', '⬛ Square', '⭐ Star'], 1),
@@ -79,10 +99,25 @@ const CATALOG = [
     ],
   },
   {
+    lessonId: 'GLESSON-RANK3-BONDS',
+    title: 'Number Bonds within 10',
+    subject: 'Math',
+    lesson_age_level: 'KG2',
+    game_age_level: 'KG2',
+    questions: [
+      q('kb1', 'What is 3 + 4?', ['5', '6', '7', '8'], 2),
+      q('kb2', '5 + ? = 8', ['2', '3', '4', '5'], 1),
+      q('kb3', 'What is 6 + 2?', ['6', '7', '8', '9'], 2),
+      q('kb4', 'Which makes 10? 7 + …', ['1', '2', '3', '4'], 2),
+      q('kb5', 'What is 2 + 2?', ['3', '4', '5', '6'], 1),
+    ],
+  },
+  {
     lessonId: 'GLESSON-RANK3-NUMBERS',
     title: 'Everyday Numbers',
     subject: 'Math',
-    age_level: 'Primary', // rank 3 (Primary 1-6 / elder remedial)
+    lesson_age_level: 'Primary',
+    game_age_level: 'Primary',
     questions: [
       q('p1', 'What is 7 + 5?', ['10', '11', '12', '13'], 2),
       q('p2', 'What is 9 − 4?', ['3', '4', '5', '6'], 2),
@@ -95,7 +130,8 @@ const CATALOG = [
     lessonId: 'GLESSON-RANK3-WORDS',
     title: 'Reading Practice',
     subject: 'English',
-    age_level: 'Primary', // rank 3
+    lesson_age_level: 'Primary',
+    game_age_level: 'Primary',
     questions: [
       q('w1', 'Which word names an animal?', ['Chair', 'Table', 'Goat', 'Spoon'], 2),
       q('w2', 'Complete: The sun is ___ today.', ['hot', 'edible', 'wooden', 'asleep'], 0),
@@ -122,7 +158,7 @@ async function ensureGlobalCatalog() {
         branch_id: SCHOOL.branch_id,
         title: entry.title,
         subject: entry.subject,
-        age_level: entry.age_level,
+        age_level: entry.lesson_age_level,
         lesson_type: 'game',
         content_state: 'published',
         is_global: 1,
@@ -130,8 +166,12 @@ async function ensureGlobalCatalog() {
         published_at: new Date(),
       });
       createdLessons += 1;
-    } else if (existing.content_state !== 'published' || Number(existing.is_global) !== 1) {
-      await existing.update({ content_state: 'published', is_global: 1, published_at: existing.published_at || new Date() });
+    } else {
+      const updates = {};
+      if (existing.content_state !== 'published') updates.content_state = 'published';
+      if (Number(existing.is_global) !== 1) updates.is_global = 1;
+      if (existing.age_level !== entry.lesson_age_level) updates.age_level = entry.lesson_age_level;
+      if (Object.keys(updates).length > 0) await existing.update(updates);
     }
 
     // ── Quiz game config (one per lesson) ──
@@ -143,7 +183,7 @@ async function ensureGlobalCatalog() {
         id: gameId,
         lesson_id: entry.lessonId,
         template: 'quiz',
-        age_level: entry.age_level,
+        age_level: entry.game_age_level,
         config_json,
         content_state: 'published',
         created_by: SCHOOL.created_by,
@@ -151,8 +191,11 @@ async function ensureGlobalCatalog() {
         approved_at: new Date(),
       });
       createdGames += 1;
-    } else if (gameExisting.content_state !== 'published') {
-      await gameExisting.update({ content_state: 'published' });
+    } else {
+      const updates = {};
+      if (gameExisting.content_state !== 'published') updates.content_state = 'published';
+      if (gameExisting.age_level !== entry.game_age_level) updates.age_level = entry.game_age_level;
+      if (Object.keys(updates).length > 0) await gameExisting.update(updates);
     }
   }
 
