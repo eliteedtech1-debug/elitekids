@@ -4,6 +4,7 @@ const app = require('./app');
 const models = require('./models');
 const { ensureFlagshipKidsSchool, ensureFlagshipKidsAdmin } = require('./seeders/flagshipKidsSeed');
 const { ensureGlobalCatalog } = require('./seeders/globalCatalogSeed');
+const { seedFlagshipAnnualPilot } = require('./seeders/flagshipAnnualPilotSeed');
 const DENYLIST_SEED = require('./seeders/denylistSeed');
 
 /**
@@ -109,6 +110,21 @@ models.syncKidsTables()
         await models.KidDenylistRule.create({ rule: rule.rule, category: rule.category, active: 1, added_by: 'seed' }).catch(() => {});
       }
       console.log(`🚫 Seeded ${DENYLIST_SEED.length} denylist rules`);
+    }
+    return null;
+  })
+  .then(async () => {
+    // Explicit annual pilot seed: opt-in only, never enabled by ordinary boot.
+    // Rows remain pending_human_review until the adult approval workflow runs.
+    if (process.env.KIDS_ANNUAL_PILOT_SEED === 'true' && process.env.KIDS_ANNUAL_PILOT_SEED_CONFIRM === 'true') {
+      try {
+        const seeded = await seedFlagshipAnnualPilot({ db: models });
+        console.log(`📚 Annual pilot seeded: ${seeded.counts.games} games in pending_human_review.`);
+      } catch (e) {
+        console.warn('⚠️ Annual pilot seed skipped:', e.message);
+      }
+    } else if (process.env.KIDS_ANNUAL_PILOT_SEED === 'true') {
+      console.warn('⚠️ Annual pilot seed requested but not confirmed; set KIDS_ANNUAL_PILOT_SEED_CONFIRM=true to write it.');
     }
     return null;
   })

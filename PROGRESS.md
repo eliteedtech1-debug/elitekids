@@ -3,7 +3,7 @@
 **Single source of truth for "where are we." Read fully before doing anything; update
 before ending every session.**
 
-**Last updated:** 2026-08-28
+**Last updated:** 2026-09-09
 **Git sync:** Local ↔ Prod both at commit `1545b36`
 **Sync method:** `git push production main` / `git pull production main`
 
@@ -53,6 +53,7 @@ before ending every session.**
 | NERDC curriculum mapping | ✅ LIVE | Nigerian education standard alignment | Built + deployed |
 | Weekend Challenge | ✅ LIVE | Engagement spike on idle days | 6/6 |
 | Animals/Numbers expansion seeds | ✅ LIVE | Content depth beyond U1-U4 | 50-char IDs |
+| Complete annual pilot seed | ✅ VALIDATED | 5 bands × 9 subjects × 3 terms × 10 weeks; Numbers, Letters and PHONIX included | 1,350 rows |
 | Curriculum points renumber | ⏳ TODO | Cosmetic: old PA-U{1..5} references | — |
 
 ### Engagement Layer (Phase 2+3)
@@ -217,7 +218,7 @@ Full log in `01-PLANNING/09-DECISIONS-LOG.md`. Summary:
 
 - [ ] Deploy i18n frontend bundle to prod (local has it, prod doesn't)
 - [ ] E4 Phase 2: Install coturn TURN server (needs sudo)
-- [ ] Animals/Numbers 10-week ladder (supervisor authorization pending)
+- [x] Annual Numbers/Letters/PHONIX pilot source and idempotent seed validated; adult approval still required before publication
 - [ ] Curriculum points renumber (cosmetic: old PA-U{1..5} refs)
 - [ ] Add SSH key to GitHub for origin push
 - [ ] Clean up 47 .bak files on prod
@@ -309,4 +310,9 @@ _(append one short entry per work session — do not delete old entries, this is
   StickerButton, ParentDashboard, BossBattleOverlay, category field, expanded Hausa).
   Pulled 51 reports + 12 briefs. Git bidirectional sync established.
   Fixed deploy.sh path, production remote, .gitignore.
+
+2026-09-09 — Annual pilot curriculum handover: added the 2026/2027 idempotent source-driven
+  seed for 5 bands × 9 subjects × 3 terms × 10 weeks (1,350 schema-validated rows).
+  Numbers are age-banded; Letters carry PHONIX sound-first metadata. Seed remains pending
+  adult review by default; dry run, focused Jest test and frontend build passed.
 ```

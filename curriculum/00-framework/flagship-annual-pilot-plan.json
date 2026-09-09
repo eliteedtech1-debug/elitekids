@@ -1,0 +1,126 @@
+{
+  "version": "flagship-annual-pilot-v1",
+  "academicYear": "2026/2027",
+  "pilotScope": "Complete one academic year for all canonical subjects, with Numbers, Letters and PHONIX explicitly covered.",
+  "tracks": [
+    { "id": "numbers", "subjectId": "numeracy", "category": "Numbers", "coverage": "30 weeks per class" },
+    { "id": "letters", "subjectId": "comm-literacy", "category": "Letters", "coverage": "30 weeks per class" },
+    { "id": "phonix", "subjectId": "comm-literacy", "category": "Letters", "coverage": "PHONIX metadata and sound-first speech on every Letters game" }
+  ],
+  "schoolId": "SCH-ELITE",
+  "branchId": "BR-MAIN",
+  "terms": [
+    { "name": "First Term", "slug": "first-term" },
+    { "name": "Second Term", "slug": "second-term" },
+    { "name": "Third Term", "slug": "third-term" }
+  ],
+  "weeksPerTerm": 10,
+  "subjects": [
+    { "id": "comm-literacy", "displayName": "Communication and Early Literacy", "category": "Letters & Phonics", "emoji": "🔤" },
+    { "id": "writing", "displayName": "Pre-writing / Writing Skill", "category": "Writing", "emoji": "✏️" },
+    { "id": "numeracy", "displayName": "Numeracy / Mathematics Skill", "category": "Numbers", "emoji": "🔢" },
+    { "id": "science-nature", "displayName": "Pre-science and Nature", "category": "Science", "emoji": "🌱" },
+    { "id": "social-habits", "displayName": "Social-Emotional Learning / Social Habits", "category": "Social Habits", "emoji": "🤝" },
+    { "id": "health-selfcare", "displayName": "Health, Safety and Self-care", "category": "Health and Safety", "emoji": "🧼" },
+    { "id": "movement", "displayName": "Physical Development and Movement", "category": "Movement", "emoji": "🏃" },
+    { "id": "creative-arts", "displayName": "Creative Arts, Music, Rhymes and Pretend Play", "category": "Creative Arts", "emoji": "🎨" },
+    { "id": "digital", "displayName": "Digital Readiness", "category": "Digital Readiness", "emoji": "🎮" }
+  ],
+  "bands": [
+    {
+      "id": "creche",
+      "classLabel": "Crèche",
+      "ageBand": "Crèche",
+      "gameAgeLevel": "Creche",
+      "tier": 0,
+      "themes": ["settling, attachment and sensory noticing", "family, water, weather and repeated routines", "food, transport, nature and familiar home routines"],
+      "objectives": {
+        "comm-literacy": "Respond to a familiar voice, name, song or picture through gaze, gesture or sound.",
+        "writing": "Explore grasp, release and large mark-making movements with safe materials.",
+        "numeracy": "Explore one, more, in, out, big and small through real objects and action songs.",
+        "science-nature": "Notice safe textures, light, sound, water, leaves and familiar living things.",
+        "social-habits": "Seek a trusted adult, accept a brief turn and communicate more or finished.",
+        "health-selfcare": "Participate in handwashing, feeding, rest and tidy-up with close adult support.",
+        "movement": "Practise reaching, grasping, crawling, walking, balance and safe pause signals.",
+        "creative-arts": "Respond to a voice, beat, colour, scarf, song or mark-making invitation.",
+        "digital": "Attend briefly with an adult to one large, calm reveal and stop when finished."
+      }
+    },
+    {
+      "id": "playgroup",
+      "classLabel": "Playgroup",
+      "ageBand": "Playgroup",
+      "gameAgeLevel": "Creche",
+      "tier": 1,
+      "themes": ["names, colours, shapes and classroom routines", "family, animals, weather, feelings and turn-taking", "stories, transport, food, community and independent routines"],
+      "objectives": {
+        "comm-literacy": "Point to or name a familiar picture, join a rhyme and order a two-picture story.",
+        "writing": "Copy a large line, curve or circle through movement, tracing or finger play.",
+        "numeracy": "Count actions or small groups from 1 to 3 and compare same, different, big and small.",
+        "science-nature": "Match a familiar animal, sound, body part, weather picture or plant feature.",
+        "social-habits": "Greet, share, identify a simple feeling and follow a short classroom routine.",
+        "health-selfcare": "Recognise and join simple handwashing, food, water and safe-boundary routines.",
+        "movement": "Imitate walk, run, jump, roll, balance and stop/go movements safely.",
+        "creative-arts": "Copy a clap pattern, choose a colour or texture and join pretend play.",
+        "digital": "Tap a large target, listen, retry calmly and hand the device back to an adult."
+      }
+    },
+    {
+      "id": "nursery-1",
+      "classLabel": "Nursery 1",
+      "ageBand": "Nursery 1",
+      "gameAgeLevel": "Nursery",
+      "tier": 1,
+      "themes": ["listening, rhyme, colours, counting 1–5 and classroom care", "letters, patterns, family, animals, food and healthy routines", "picture-to-word links, story order, community, safety and independence"],
+      "objectives": {
+        "comm-literacy": "Recognise a familiar sound, rhyme, picture word or selected letter through oral play.",
+        "writing": "Make controlled lines, curves, circles, name marks and purposeful marks.",
+        "numeracy": "Count and match groups from 1 to 5, compare more or fewer and sort by a visible feature.",
+        "science-nature": "Observe a body part, sense, animal, plant, weather event or material and describe it.",
+        "social-habits": "Name a family or class role, cooperate, ask for help and follow a shared rule.",
+        "health-selfcare": "Demonstrate handwashing, tooth care, healthy choice, rest and stop/go safety.",
+        "movement": "Coordinate a simple movement route, balance, roll, throw and manipulate safely.",
+        "creative-arts": "Extend a rhythm or colour pattern and participate in song, collage or role play.",
+        "digital": "Tap, match, replay audio and recognise gentle feedback without needing to read."
+      }
+    },
+    {
+      "id": "nursery-2",
+      "classLabel": "Nursery 2",
+      "ageBand": "Nursery 2",
+      "gameAgeLevel": "KG1",
+      "tier": 2,
+      "themes": ["oral blending, numbers 1–10, patterns, living things and routines", "familiar words, comparison, shapes, materials, community and self-care", "shared reading, number order, weather, transport and school readiness"],
+      "objectives": {
+        "comm-literacy": "Blend an oral sound, match a familiar word to a picture and retell a short sequence.",
+        "writing": "Form selected letters, copy a pattern and label a familiar picture with support.",
+        "numeracy": "Represent, order and compare quantities from 1 to 10 using objects, groups and numerals.",
+        "science-nature": "Classify, observe, predict and describe living things, materials, weather or growth.",
+        "social-habits": "Sequence a social repair, identify a safe choice and participate in a community role.",
+        "health-selfcare": "Explain and sequence hygiene, nutrition, exercise, rest and trusted-adult steps.",
+        "movement": "Follow a balance, throw, catch, cut, thread, build or dance sequence.",
+        "creative-arts": "Describe an art choice, sequence a song or story and use a local craft safely.",
+        "digital": "Drag with support, follow progress cues and use retry, pause and exit safely."
+      }
+    },
+    {
+      "id": "kindergarten",
+      "classLabel": "Kindergarten",
+      "ageBand": "Kindergarten",
+      "gameAgeLevel": "KG2",
+      "tier": 2,
+      "themes": ["oral sentences, familiar reading, joining groups within 5 and classroom responsibility", "sentence meaning, number bonds, measurement, nature inquiry and cooperation", "transfer to short reading and writing, reasoning, safety and primary readiness"],
+      "objectives": {
+        "comm-literacy": "Read or build a familiar word, answer a story question and compose a short sentence orally.",
+        "writing": "Write a name, familiar label or short meaningful sentence with developing control.",
+        "numeracy": "Model joining groups, number bonds and simple addition within 5 before extending when ready.",
+        "science-nature": "Observe materials, weather, living things or health phenomena and explain a simple result.",
+        "social-habits": "Explain a fair turn, solve a simple social problem and identify a responsibility or safety action.",
+        "health-selfcare": "Apply a body-care or safety rule and explain a healthy routine with support.",
+        "movement": "Plan and perform a safe movement sequence, adapting it for comfort and access.",
+        "creative-arts": "Compose or extend a pattern, perform, retell a cultural story and reflect on a choice.",
+        "digital": "Choose a safe mode, complete a short game chain, pause and exit independently or with support."
+      }
+    }
+  ]
+}
