@@ -279,7 +279,22 @@ async function resolveBandForAdmission(admissionNo) {
   // Load authoritative identity first. This prevents a stale flagship placement
   // row from overriding a real school's class_name for the same admission no.
   try { student = await db.Student.findOne({ where: { admission_no: admission } }); } catch { /* optional shared mirror */ }
-  try { child = await db.KidChild.findOne({ where: { admission_no: admission } }); } catch { /* optional local profile */ }
+  try {
+    child = await db.KidChild.findOne({ where: { admission_no: admission } });
+  } catch (err) {
+    // Optional local profile. Sequelize falls over on schemas that predate the
+    // model's newest columns (e.g. allow_anonymous_comparison) — fall back to a
+    // raw read of just the columns the band resolver needs so isolation still
+    // works without forcing a schema ALTER.
+    try {
+      const { content } = db;
+      const [rows] = await content.query(
+        'SELECT admission_no, school_id, branch_id, class_code, age_level FROM kids_children WHERE admission_no = ? LIMIT 1',
+        { replacements: [admission] }
+      );
+      child = rows && rows[0] ? rows[0] : null;
+    } catch { child = null; }
+  }
   const identitySchoolId = String(student?.school_id || child?.school_id || '').trim();
 
   // 0. Placement measurement is accepted only for the same flagship identity.
