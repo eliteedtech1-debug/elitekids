@@ -23,6 +23,7 @@ import {
   Mic,
   ChevronDown,
   Users,
+  Home,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -125,6 +126,7 @@ const TABS: Tab[] = [
   { key: 'festival', labelKey: 'student.tab.festival', icon: <Swords className="h-4 w-4" />, view: 'special', filter: () => true },
   { key: 'leaderboard', labelKey: 'student.tab.leaderboard', icon: <Trophy className="h-4 w-4" />, view: 'special', filter: () => true },
   { key: 'teams', labelKey: 'collab.myTeam', icon: <Users className="h-4 w-4" />, view: 'special', filter: () => true },
+  { key: 'home', labelKey: 'student.tab.home', icon: <Home className="h-4 w-4" />, view: 'special', filter: () => true },
 ];
 
 /* ── Age-level badge colors (from accessibility palette) ── */
@@ -897,20 +899,9 @@ export default function StudentHome() {
                   />
                 )}
               </div>
-            ) : activeTab === 'path' ? (
+            ) : activeTab === 'home' ? (
               <>
-                {/* Path header + refresh */}
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-gray-800">{t('student.tab.path')}</h2>
-                  <button
-                    onClick={loadData}
-                    disabled={loading}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-white/80 backdrop-blur-sm border border-[#0F4D92]/15 px-3 py-1.5 text-sm font-medium text-[#0F4D92] transition hover:bg-[#0F4D92]/5 hover:shadow-md disabled:opacity-50 active:scale-95"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
-
+                {/* ── Starts panel: welcome + streak + no-game UI ── */}
                 {/* Weekly goal banner — RETURNING students only (≥1 game
                     played). New students see a friendly "let's start your
                     first lesson" hint card instead so the path is the very
@@ -945,6 +936,54 @@ export default function StudentHome() {
                     </div>
                   </div>
                 )}
+
+                {/* Quick-nav scroll anchor for the 'Jump to Games' shortcut */}
+                <div id="games-grid-anchor" className="scroll-mt-4" />
+
+                {/* No-games fallback (shown when every subject tab is empty) */}
+                {!catalogEmpty ? (
+                  <div className="relative overflow-hidden rounded-3xl border-2 border-dashed border-[#0F4D92]/20 bg-white/80 backdrop-blur-xl p-10 text-center shadow-lg">
+                    <FloatingDeco className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-[#0F4D92]/15 to-[#0d9488]/15" />
+                    <Gamepad2 className="mx-auto mb-3 h-10 w-10 text-[#0F4D92]/40" />
+                    <h3 className="font-bold text-gray-700">
+                      {offlineMode ? t('offline.mode.noGamesTitle') : t('student.home.noGamesTitle')}
+                    </h3>
+                    <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
+                      {offlineMode
+                        ? t('offline.mode.noGamesDesc')
+                        : catalogEmpty
+                          ? t('student.home.noGamesBodySoon', {
+                              defaultValue: 'Check back soon — your teacher is preparing fun games!',
+                            })
+                          : t('student.home.noGamesBody')}
+                    </p>
+                    {/* Placement quiz CTA — measure the child, place the child.
+                        Offered whenever a tab looks empty and the platform is
+                        reachable (never offline — the quiz needs the catalog). */}
+                    {!offlineMode && isFlagshipStudent && (
+                      <button
+                        onClick={() => { playTap(); setShowPlacementQuiz(true); }}
+                        className="mx-auto mt-5 flex items-center gap-2 rounded-xl bg-[#0F4D92] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-[#0D3F7A] active:scale-95"
+                      >
+                        🎯 {t('placement.cta')}
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+              </>
+            ) : activeTab === 'path' ? (
+              <>
+                {/* Path header + refresh */}
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-gray-800">{t('student.tab.path')}</h2>
+                  <button
+                    onClick={loadData}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-white/80 backdrop-blur-sm border border-[#0F4D92]/15 px-3 py-1.5 text-sm font-medium text-[#0F4D92] transition hover:bg-[#0F4D92]/5 hover:shadow-md disabled:opacity-50 active:scale-95"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
 
                 {/* The journey — server-ordered, band-capped, locked-gated */}
                 <div id="welcome-learning-path">

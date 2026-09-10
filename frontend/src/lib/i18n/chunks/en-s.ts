@@ -206,6 +206,7 @@ export const enS: Record<string, string> = {
   'student.tab.numbers': 'Numbers',
   'student.tab.path': 'Learning Path',
   'student.tab.shapes': 'Shapes',
+  'student.tab.home': 'Home',
   'student.welcome.body': 'Tap the Set button to pick how many games you want to finish this week. Your garden grows as you reach your target!',
   'student.welcome.firstBody': 'Pick your first lesson below to start earning XP. A weekly goal will unlock after your first game!',
   'student.welcome.firstTitle': 'Welcome to EliteKids! 🌟',
