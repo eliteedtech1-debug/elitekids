@@ -440,26 +440,22 @@ export default function Login() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#0F4D92]">{school.school_name}</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSchool(null);
-                        setSchoolError('');
-                        setShortNameInput('');
-                        setForm((p) => ({ ...p, school_id: '' }));
-                        setForceSchoolPicker(true);
-                      }}
-                      className="shrink-0 text-xs font-bold whitespace-nowrap text-[#0d9488] hover:underline underline-offset-2"
-                    >
-                      {t('login.changeSchool')}
-                    </button>
+                    {!short_name && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSchool(null);
+                          setSchoolError('');
+                          setShortNameInput('');
+                          setForm((p) => ({ ...p, school_id: '' }));
+                          setForceSchoolPicker(true);
+                        }}
+                        className="shrink-0 text-xs font-bold whitespace-nowrap text-[#0d9488] hover:underline underline-offset-2"
+                      >
+                        {t('login.changeSchool')}
+                      </button>
+                    )}
                   </div>
-                  <p className="mt-0.5 flex items-center gap-1 text-xs font-bold leading-snug text-emerald-700">
-                    <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                    </svg>
-                    <span className="min-w-0">{t('login.schoolResolved')}</span>
-                  </p>
                 </div>
               </div>
             )}
