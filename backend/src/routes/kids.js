@@ -482,6 +482,12 @@ module.exports = (app) => {
   app.get('/kids/lesson-bridges/:id', auth, requireStaff, bridgeCtrl.getBridge);
   app.patch('/kids/lesson-bridges/:id', auth, requireStaff, bridgeCtrl.updateBridge);
   app.post('/kids/lesson-bridges/:id/submit-review', auth, requireStaff, bridgeCtrl.submitBridgeReview);
+  // Review → approval → child visibility. Admin-gated inside the controller, so
+  // the author can never approve or publish their own bridge.
+  app.get('/kids/lesson-bridges/:id/publish-gate', auth, requireStaff, bridgeCtrl.getBridgePublishGate);
+  app.post('/kids/lesson-bridges/:id/approve', auth, requireStaff, bridgeCtrl.approveBridge);
+  app.post('/kids/lesson-bridges/:id/publish', auth, requireStaff, bridgeCtrl.publishBridge);
+  app.post('/kids/lesson-bridges/:id/recall', auth, requireStaff, bridgeCtrl.recallBridge);
 
   // ── ECCE outcome→game bridge: teacher observations ───────────────────────
   // Dated professional evidence, recorded against a published lesson bridge.

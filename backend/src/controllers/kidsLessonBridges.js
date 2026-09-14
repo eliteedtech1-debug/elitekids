@@ -11,7 +11,13 @@
 
 const { v4: uuidv4 } = require('uuid');
 const db = require('../models');
+const { isAdminRole } = require('../config/config');
 const { AGE_BANDS } = require('../services/ageBand');
+const {
+  PLAYABLE_ITEM_MIN,
+  PLAYABLE_ITEM_MAX,
+  PLAYABLE_ITEM_MAX_PRIMARY,
+} = require('../services/gameConfigRules');
 const {
   resolveBridgeContext,
   bridgeContextFields,
@@ -19,6 +25,12 @@ const {
 } = require('../services/lessonBridgeContext');
 
 const TERM_NAMES = ['First Term', 'Second Term', 'Third Term'];
+// Review state machine (SRS §4.1). Only these transitions are reachable through
+// the API; the API — never the browser — is authoritative (data contracts §7).
+const BRIDGE_STATUSES = ['draft', 'ready_for_review', 'approved', 'published', 'recalled'];
+const APPROVE_FROM = ['ready_for_review'];
+const PUBLISH_FROM = ['approved'];
+const RECALL_FROM = ['approved', 'published'];
 const EVIDENCE_ROUTES = ['point', 'gesture', 'movement', 'speech', 'home_language', 'sign', 'AAC', 'drawing', 'mark-making', 'mixed'];
 const FOLLOW_UP_TYPES = ['new-skill', 'new-representation', 'reinforcement', 'transfer', 'extension'];
 const MAX_TEXT = 5000;
@@ -40,6 +52,19 @@ function plain(row) {
 function isStaff(req) {
   const role = String(req.user?.user_type || req.user?.role || '').toLowerCase();
   return role.includes('admin') || role.includes('branchadmin') || role.includes('teacher') || role.includes('superadmin') || role.includes('developer');
+}
+
+/**
+ * Review and publish are admin-level decisions, never the author's own call:
+ * a teacher drafts and submits, a school/ECCE reviewer approves and publishes.
+ */
+function isAdmin(req) {
+  return isAdminRole(req.user?.user_type || req.user?.role || '');
+}
+
+/** Item-load cap per band — Primary may carry up to 15 (user directive). */
+function itemCapForBand(ageBand) {
+  return String(ageBand || '').trim() === 'Primary' ? PLAYABLE_ITEM_MAX_PRIMARY : PLAYABLE_ITEM_MAX;
 }
 
 function text(value, field, required = false) {
@@ -366,7 +391,166 @@ async function submitBridgeReview(req, res) {
   }
 }
 
+async function loadBridgeForActor(req, res) {
+  const row = await db.KidLessonBridge.findOne({ where: { id: req.params.id, school_id: schoolIdOf(req) } });
+  if (!row) {
+    res.status(404).json({ success: false, message: 'Lesson bridge not found.' });
+    return null;
+  }
+  return row;
+}
+
+function statusConflict(res, row, allowed, action) {
+  return res.status(409).json({
+    success: false,
+    message: `${action} requires a bridge in ${allowed.join(' or ')}; this bridge is '${row.status}'.`,
+    error_code: 'BRIDGE_STATUS_CONFLICT',
+    status: row.status,
+  });
+}
+
+/**
+ * Publish gate — SRS FR-13 / ECCE-GAME-BRIDGE-DATA-CONTRACTS §7.
+ *
+ * Evaluated from the stored row only, so a caller can never assert a gate. The
+ * response shape is the contract's: gates, publishable, blocking_reasons.
+ * `not_evaluated` names the contract gates owned by the content-review phase
+ * (safety/schema review of the lesson and its game, story alignment). They are
+ * not claimed as passing, and they are not silently treated as blockers.
+ */
+async function bridgePublishGate(row) {
+  const body = plain(row);
+  const gates = {};
+  const blocking_reasons = [];
+  const block = (gate, reason) => { gates[gate] = false; blocking_reasons.push(reason); };
+
+  const schemaErrors = validateBridge(body);
+  if (Object.keys(schemaErrors).length) block('schema_passed', `schema_passed: ${Object.values(schemaErrors)[0]}`);
+  else gates.schema_passed = true;
+
+  if (body.objective && body.outcome_id) gates.objective_present = true;
+  else block('objective_present', 'objective_present: the bridge needs one objective and one reviewed outcome.');
+
+  if (body.concrete_experience) gates.concrete_experience_present = true;
+  else block('concrete_experience_present', 'concrete_experience_present: a concrete activity is required before a lesson can be child-visible.');
+
+  // FR-04: a scene or story alone never satisfies the weekly game requirement,
+  // so the lesson needs a planned component list *and* a real game config.
+  const components = Array.isArray(body.game_plan?.components) ? body.game_plan.components : [];
+  const gameConfig = body.lesson_id
+    ? await db.KidGameConfig.findOne({ where: { lesson_id: body.lesson_id }, order: [['createdAt', 'DESC']] })
+    : null;
+  if (!components.length) block('game_present', 'game_present: game_plan needs at least one game component.');
+  else if (!gameConfig) block('game_present', 'game_present: the lesson has no game yet — author the game before publishing.');
+  else gates.game_present = true;
+
+  const cap = itemCapForBand(body.age_band);
+  const badCount = components.find((component) => {
+    const count = Number(component?.item_count ?? component?.playable_item_count);
+    return !Number.isInteger(count) || count < PLAYABLE_ITEM_MIN || count > cap;
+  });
+  if (components.length && !badCount) gates.item_load_valid = true;
+  else block('item_load_valid', `item_load_valid: every component needs ${PLAYABLE_ITEM_MIN}-${cap} playable items.`);
+
+  // FR-07: a new representation must say what it re-teaches and in what order.
+  const hasReinforcement = Array.isArray(body.reinforcement_of) && body.reinforcement_of.length > 0;
+  const hasSequence = Array.isArray(body.representation_sequence) && body.representation_sequence.length > 0;
+  if (body.follow_up_type !== 'new-representation' || (hasReinforcement && hasSequence)) gates.series_metadata_valid = true;
+  else block('series_metadata_valid', 'series_metadata_valid: a new representation needs reinforcement_of and representation_sequence.');
+
+  // The human gate is recorded on approval, not asserted by the caller.
+  if (['approved', 'published'].includes(body.status) && body.approved_by) gates.ece_reviewed = true;
+  else block('ece_reviewed', 'ece_reviewed: a school/ECCE reviewer must approve before child visibility.');
+
+  gates.bridge_complete = ['schema_passed', 'objective_present', 'concrete_experience_present', 'game_present', 'item_load_valid', 'series_metadata_valid']
+    .every((gate) => gates[gate] === true);
+
+  return {
+    content_id: body.lesson_id,
+    bridge_id: body.id,
+    status: body.status,
+    gates,
+    not_evaluated: ['safety_passed', 'story_alignment_reviewed'],
+    publishable: blocking_reasons.length === 0,
+    blocking_reasons,
+  };
+}
+
+/** GET /kids/lesson-bridges/:id/publish-gate — read-only blocker list (FR-13). */
+async function getBridgePublishGate(req, res) {
+  try {
+    if (!isStaff(req)) return res.status(403).json({ success: false, message: 'Staff access required.' });
+    const row = await loadBridgeForActor(req, res);
+    if (!row) return null;
+    return res.json({ success: true, data: await bridgePublishGate(row) });
+  } catch (err) {
+    console.error('getBridgePublishGate error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/**
+ * POST /kids/lesson-bridges/:id/approve — the ECCE/school review decision.
+ * Admin-level: the author cannot approve their own bridge.
+ */
+async function approveBridge(req, res) {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin review access required.' });
+    const row = await loadBridgeForActor(req, res);
+    if (!row) return null;
+    if (!APPROVE_FROM.includes(row.status)) return statusConflict(res, row, APPROVE_FROM, 'Approval');
+    await row.update({ status: 'approved', approved_by: actorIdOf(req), approved_at: new Date() });
+    return res.json({ success: true, data: plain(row), gate: await bridgePublishGate(row), message: 'Bridge approved.' });
+  } catch (err) {
+    console.error('approveBridge error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/**
+ * POST /kids/lesson-bridges/:id/publish — child visibility, gated.
+ * Refuses with the full blocker list when any gate fails.
+ */
+async function publishBridge(req, res) {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin review access required.' });
+    const row = await loadBridgeForActor(req, res);
+    if (!row) return null;
+    if (!PUBLISH_FROM.includes(row.status)) return statusConflict(res, row, PUBLISH_FROM, 'Publishing');
+    const gate = await bridgePublishGate(row);
+    if (!gate.publishable) {
+      return res.status(409).json({ success: false, message: 'Publish gate failed.', error_code: 'BRIDGE_PUBLISH_GATE_FAILED', ...gate });
+    }
+    await row.update({ status: 'published' });
+    return res.json({ success: true, data: plain(row), gate, message: 'Bridge published.' });
+  } catch (err) {
+    console.error('publishBridge error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
+/**
+ * POST /kids/lesson-bridges/:id/recall — withdraw child visibility. The only
+ * path out of `published`, so unsafe or superseded content can be pulled
+ * without editing history.
+ */
+async function recallBridge(req, res) {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin review access required.' });
+    const row = await loadBridgeForActor(req, res);
+    if (!row) return null;
+    if (!RECALL_FROM.includes(row.status)) return statusConflict(res, row, RECALL_FROM, 'Recall');
+    await row.update({ status: 'recalled' });
+    return res.json({ success: true, data: plain(row), message: 'Bridge recalled — no longer child-visible.' });
+  } catch (err) {
+    console.error('recallBridge error:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+}
+
 module.exports = {
+  BRIDGE_STATUSES,
+  bridgePublishGate,
   AGE_BANDS,
   TERM_NAMES,
   EVIDENCE_ROUTES,
@@ -379,4 +563,8 @@ module.exports = {
   getBridge,
   updateBridge,
   submitBridgeReview,
+  getBridgePublishGate,
+  approveBridge,
+  publishBridge,
+  recallBridge,
 };

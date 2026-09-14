@@ -20,6 +20,7 @@ export const enAC: Record<string, string> = {
   'admin.signOut': 'Sign out',
   'adminNav.analytics': 'Analytics',
   'adminNav.assets': 'Assets',
+  'adminNav.bridge': 'Lesson bridge',
   'adminNav.create': 'Create',
   'adminNav.dashboard': 'Dashboard',
   'adminNav.lessons': 'Lessons',

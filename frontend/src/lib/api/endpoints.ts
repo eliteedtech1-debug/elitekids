@@ -106,6 +106,22 @@ export const ENDPOINTS = {
     LESSON_CONTEXT: '/kids/sms/lesson-context',
   },
 
+  // ECCE outcome→game bridge: one reviewed outcome → one weekly lesson bridge,
+  // then review → approval → child visibility. The publish gate is evaluated by
+  // the API, never by this client.
+  BRIDGES: {
+    OUTCOMES: '/kids/learning-outcomes',
+    LIST: '/kids/lesson-bridges',
+    CREATE: '/kids/lesson-bridges',
+    GET: (id: string) => `/kids/lesson-bridges/${encodeURIComponent(id)}`,
+    UPDATE: (id: string) => `/kids/lesson-bridges/${encodeURIComponent(id)}`,
+    SUBMIT_REVIEW: (id: string) => `/kids/lesson-bridges/${encodeURIComponent(id)}/submit-review`,
+    PUBLISH_GATE: (id: string) => `/kids/lesson-bridges/${encodeURIComponent(id)}/publish-gate`,
+    APPROVE: (id: string) => `/kids/lesson-bridges/${encodeURIComponent(id)}/approve`,
+    PUBLISH: (id: string) => `/kids/lesson-bridges/${encodeURIComponent(id)}/publish`,
+    RECALL: (id: string) => `/kids/lesson-bridges/${encodeURIComponent(id)}/recall`,
+  },
+
   // Retry / Adaptive Difficulty (Doc 16)
   RETRY: {
     TEST_COMPLETE: '/kids/retry/test-complete',

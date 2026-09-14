@@ -25,6 +25,7 @@ const GamePlay = lazy(() => import('@/pages/Student/GamePlay'));
 const SpeechPractice = lazy(() => import('@/pages/Student/SpeechPractice'));
 const DrawingPractice = lazy(() => import('@/pages/Student/DrawingPractice'));
 const TeacherLessons = lazy(() => import('@/pages/Teacher/TeacherLessons'));
+const BridgeAuthoring = lazy(() => import('@/pages/Teacher/BridgeAuthoring'));
 const TeacherApprovals = lazy(() => import('@/pages/Teacher/TeacherApprovals'));
 const TeacherArena = lazy(() => import('@/pages/Teacher/TeacherArena'));
 const TeacherLive = lazy(() => import('@/pages/Teacher/TeacherLive'));
@@ -183,6 +184,14 @@ export default function App() {
         element={
           <AuthGuard>
             <LazyRoute element={<TeacherLessons />} />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/teacher/bridge"
+        element={
+          <AuthGuard>
+            <LazyRoute element={<BridgeAuthoring />} />
           </AuthGuard>
         }
       />
