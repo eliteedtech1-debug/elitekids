@@ -229,6 +229,91 @@ CREATE TABLE IF NOT EXISTS kids_lessons (
   KEY idx_kids_lessons_age (age_level)
 );
 
+-- ECCE game bridge: one planning bridge per reviewed outcome + weekly lesson.
+-- Columns mirror src/models/KidLessonBridge.js (JSON stays JSON so the
+-- controller's field-level contract is exercised as it is in production).
+-- The grouping column is a MySQL keyword, hence the escaped quoting.
+CREATE TABLE IF NOT EXISTS kids_lesson_bridges (
+  id VARCHAR(50) PRIMARY KEY,
+  lesson_id VARCHAR(50) NOT NULL,
+  outcome_id VARCHAR(50) NOT NULL,
+  school_id VARCHAR(40) NOT NULL,
+  branch_id VARCHAR(40) NULL,
+  class_code VARCHAR(100) NULL,
+  class_label VARCHAR(100) NOT NULL,
+  age_band VARCHAR(40) NOT NULL,
+  academic_year VARCHAR(20) NULL,
+  term_name VARCHAR(20) NOT NULL,
+  week_number INT NOT NULL,
+  subject_id VARCHAR(100) NOT NULL,
+  subject_code VARCHAR(100) NULL,
+  sms_lesson_id VARCHAR(50) NULL,
+  context_source VARCHAR(40) NOT NULL DEFAULT 'flagship-local',
+  context_version VARCHAR(20) NOT NULL DEFAULT 'flagship-local-v1',
+  context_snapshot JSON NULL,
+  strand VARCHAR(100) NULL,
+  sub_strand VARCHAR(100) NULL,
+  objective TEXT NOT NULL,
+  micro_objectives JSON NOT NULL,
+  success_evidence JSON NOT NULL,
+  evidence_routes JSON NOT NULL,
+  previous_experience TEXT NULL,
+  concrete_experience TEXT NOT NULL,
+  guided_play JSON NULL,
+  transfer_activity TEXT NULL,
+  differentiation JSON NULL,
+  vocabulary JSON NULL,
+  home_connection TEXT NULL,
+  assessment_plan JSON NOT NULL,
+  follow_up_type VARCHAR(40) NULL,
+  reinforcement_of JSON NULL,
+  representation_sequence JSON NULL,
+  \`grouping\` JSON NULL,
+  item_range VARCHAR(100) NULL,
+  game_plan JSON NOT NULL,
+  scene_plan JSON NULL,
+  status ENUM('draft','ready_for_review','approved','published','recalled') NOT NULL DEFAULT 'draft',
+  created_by VARCHAR(50) NOT NULL,
+  approved_by VARCHAR(50) NULL,
+  approved_at DATETIME NULL,
+  createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_kids_lesson_bridges_lesson (lesson_id),
+  KEY idx_kids_lesson_bridges_school (school_id, branch_id),
+  KEY idx_kids_lesson_bridges_cell (school_id, class_label, term_name, week_number, subject_id),
+  KEY idx_kids_lesson_bridges_context (school_id, class_code, academic_year, term_name, week_number, subject_code),
+  KEY idx_kids_lesson_bridges_outcome (outcome_id),
+  KEY idx_kids_lesson_bridges_status (status)
+);
+
+-- Dated professional evidence, separate from game scores (may be recorded
+-- without digital play). Mirrors src/models/KidTeacherObservation.js.
+CREATE TABLE IF NOT EXISTS kids_teacher_observations (
+  id VARCHAR(50) PRIMARY KEY,
+  child_admission_no VARCHAR(64) NOT NULL,
+  lesson_bridge_id VARCHAR(50) NOT NULL,
+  lesson_id VARCHAR(50) NOT NULL,
+  outcome_id VARCHAR(50) NOT NULL,
+  school_id VARCHAR(40) NOT NULL,
+  class_id VARCHAR(100) NULL,
+  observer_id VARCHAR(50) NOT NULL,
+  observation_level ENUM('independent','with_prompt','emerging','not_yet_observed','not_applicable') NOT NULL,
+  response_route ENUM('point','gesture','movement','speech','home_language','sign','AAC','drawing','mark-making','mixed') NOT NULL,
+  prompt_level ENUM('none','model','gesture','verbal_clue','two_choices','full_support') NOT NULL,
+  context VARCHAR(120) NULL,
+  note TEXT NULL,
+  next_step TEXT NOT NULL,
+  work_sample_ref VARCHAR(255) NULL,
+  observed_at DATETIME NOT NULL,
+  idempotency_key VARCHAR(100) NULL,
+  createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_kids_teacher_observations_child (child_admission_no, observed_at),
+  KEY idx_kids_teacher_observations_bridge (lesson_bridge_id, observed_at),
+  KEY idx_kids_teacher_observations_school (school_id, observed_at),
+  UNIQUE KEY idx_kids_teacher_observations_idempotency (observer_id, idempotency_key)
+);
+
 CREATE TABLE IF NOT EXISTS kids_game_configs (
   id VARCHAR(50) PRIMARY KEY,
   lesson_id VARCHAR(50) NOT NULL,

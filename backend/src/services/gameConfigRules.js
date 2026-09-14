@@ -27,8 +27,9 @@ const ajv = new Ajv({ allErrors: true, strict: false });
 const SCHEMA_GATED_TEMPLATES = ['label-diagram', 'stage-sequence', 'game-chain'];
 
 // Sub-game templates allowed inside a game-chain round. game-chain itself is
-// excluded (no nesting) and puzzle-split is excluded (its difficulty-ladder
-// scoring is not a linear chain round).
+// excluded (no nesting); puzzle-split IS allowed — its canonical playable-item
+// count is the piece count of one difficulty level, validated independently
+// like every other round (curriculum/00-framework/game-size-and-module-standard.md).
 const CHAIN_ROUND_TEMPLATES = [
   'matching',
   'tap-recognition',
@@ -38,7 +39,139 @@ const CHAIN_ROUND_TEMPLATES = [
   'memory-pairs',
   'label-diagram',
   'stage-sequence',
+  'puzzle-split',
 ];
+
+/* ── Playable-item contract ────────────────────────────────────────────────
+ * curriculum/00-framework/game-size-and-module-standard.md:
+ *   5 ≤ playable items ≤ 10 for early years, ≤ 15 for the Primary band.
+ * A "playable item" is the learner's assessable content unit for the template
+ * (matching = logical pairs, not the two visual sides; puzzle-split = the piece
+ * count of a difficulty level; quiz = questions; fill-in-blank = blanks;
+ * label-diagram = assessable hotspots; stage-sequence = assessed steps).
+ * A game-chain is a container: every round is a complete component validated
+ * independently — round counts are never summed into one cap.
+ */
+const PLAYABLE_ITEM_MIN = 5;
+const PLAYABLE_ITEM_MAX = 10;
+const PLAYABLE_ITEM_MAX_PRIMARY = 15;
+
+/** Primary band = its own item ceiling (Basic/P1–P6 share one age class). */
+function isPrimaryBand(ageLevel) {
+  const v = String(ageLevel || '').trim();
+  return /^p(rimary|[1-6])$/i.test(v) || /primary/i.test(v);
+}
+
+/** Playable-item ceiling for a config (Primary may go to 15, others 10). */
+function playableItemCap(config) {
+  const band = config && typeof config === 'object' ? config.ageLevel || config.age_level : null;
+  return isPrimaryBand(band) ? PLAYABLE_ITEM_MAX_PRIMARY : PLAYABLE_ITEM_MAX;
+}
+
+function asList(value) {
+  return Array.isArray(value) ? value : null;
+}
+
+/** First non-empty list among the given candidates (config shapes vary by era). */
+function firstList(...candidates) {
+  for (const c of candidates) if (Array.isArray(c) && c.length) return c;
+  return null;
+}
+
+/**
+ * Logical pair count for a match/memory set: the two visual sides of one pair
+ * are ONE playable item, so `[a1,b1,a2,b2,…]` counts as 2, not 4.
+ */
+function logicalPairCount(items) {
+  const pairs = new Set();
+  for (const item of items) {
+    const id = String((item && item.id) || '').trim();
+    const match = String((item && item.matches) || '').trim();
+    if (id && match) pairs.add([id, match].sort().join('\u0000'));
+    else if (id) pairs.add(id);
+  }
+  return pairs.size;
+}
+
+/**
+ * The learner's assessable item count for a template, or null when the config
+ * carries no countable set (callers then skip the size rule rather than guess).
+ */
+function playableItemCount(template, rawConfig) {
+  const { config } = parseConfig(rawConfig);
+  if (!config || typeof config !== 'object') return null;
+  const assets = config.assets && typeof config.assets === 'object' ? config.assets : {};
+
+  switch (template) {
+    case 'matching': {
+      const items = firstList(asList(assets.items), asList(config.items));
+      return items ? logicalPairCount(items) : null;
+    }
+    case 'memory-pairs': {
+      const items = firstList(asList(assets.items), asList(config.items));
+      if (!items) return null;
+      // Cards may be 2× the pair count; `matches` wins when present.
+      return items.some((i) => i && i.matches) ? logicalPairCount(items) : Math.floor(items.length / 2);
+    }
+    case 'tap-recognition': {
+      const objects = firstList(
+        asList(assets.objects),
+        asList(config.objects),
+        asList(assets.items),
+        asList(config.items),
+      );
+      return objects ? objects.length : null;
+    }
+    case 'drag-sort': {
+      const items = firstList(asList(assets.items), asList(config.items));
+      return items ? items.length : null;
+    }
+    case 'quiz': {
+      const questions = firstList(asList(config.questions), asList(config.items));
+      return questions ? questions.length : null;
+    }
+    case 'fill-in-blank': {
+      const blanks = firstList(asList(config.blanks), asList(config.items), asList(config.questions));
+      return blanks ? blanks.length : null;
+    }
+    case 'label-diagram': {
+      const hotspots = asList(config.hotspots);
+      return hotspots ? hotspots.length : null;
+    }
+    case 'stage-sequence': {
+      const steps = asList(config.steps);
+      return steps ? steps.length : null;
+    }
+    case 'puzzle-split': {
+      // Canonical count = the piece count of a difficulty level. Levels in a
+      // ladder are normally uniform; take the first level as canonical.
+      const levels =
+        config.difficulties && typeof config.difficulties === 'object'
+          ? Object.values(config.difficulties).filter((l) => l && Array.isArray(l.pieces) && l.pieces.length)
+          : [];
+      if (levels.length) return levels[0].pieces.length;
+      const pieces = asList(config.pieces);
+      return pieces ? pieces.length : null;
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Errors for a standalone component's playable-item count. Empty when the
+ * template has no countable set — the size rule never invents a number.
+ */
+function playableItemErrors(template, rawConfig) {
+  const { config } = parseConfig(rawConfig);
+  const count = playableItemCount(template, rawConfig);
+  if (count === null) return [];
+  const cap = playableItemCap(config);
+  if (count >= PLAYABLE_ITEM_MIN && count <= cap) return [];
+  return [
+    `${template} needs ${PLAYABLE_ITEM_MIN}-${cap} logical playable items (found ${count})`,
+  ];
+}
 
 const _schemaCache = {};
 
@@ -196,6 +329,13 @@ function gameChainErrors(cfg) {
       return;
     }
 
+    // Each round is independently a valid game: a chain is a lesson container,
+    // so round item counts are validated per component and NEVER summed into
+    // one 5–10 cap (game-size-and-module-standard.md).
+    for (const e of playableItemErrors(round.template, round.config)) {
+      errors.push(`${pos} ("${round.id}" · ${round.template}): ${e}`);
+    }
+
     const sub = validateManualConfig(round.template, round.config);
     if (!sub.valid) {
       for (const e of sub.errors) errors.push(`${pos} ("${round.id}" · ${round.template}): ${e}`);
@@ -302,6 +442,11 @@ module.exports = {
   SCENE_TRANSITIONS,
   SCHEMA_GATED_TEMPLATES,
   CHAIN_ROUND_TEMPLATES,
+  PLAYABLE_ITEM_MIN,
+  PLAYABLE_ITEM_MAX,
+  PLAYABLE_ITEM_MAX_PRIMARY,
+  playableItemCount,
+  playableItemErrors,
   loadSchema,
   validateManualConfig,
   gameChainErrors,

@@ -124,6 +124,12 @@ const KIDS_CONTENT_MODEL_FILES = [
   'KidContentSuggestion.js',
   // Q4 2027: Analytics Intelligence
   'KidPrediction.js',
+  // ECCE outcome→game bridge (team-docs/SRS-ECCE-OUTCOME-GAME-BRIDGE.md).
+  // These two are bound to the Kids DB but are deliberately absent from
+  // KIDS_CONTENT_TABLES, so the server never runs their DDL at boot — create
+  // them with database/ecce-bridge-tables-migration.js (run separately).
+  'KidLessonBridge.js',
+  'KidTeacherObservation.js',
 ];
 
 // Model files bound to the AI DB (AI_DB_NAME; elite_bot on the prod server)

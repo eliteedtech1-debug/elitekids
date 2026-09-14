@@ -467,4 +467,29 @@ module.exports = (app) => {
   app.post('/kids/teacher/auto-assign', auth, requireStaff, teacherCtrl.autoAssign);
   app.get('/kids/teacher/weekly-report', auth, requireStaff, teacherCtrl.getWeeklyReport);
   app.get('/kids/teacher/struggling', auth, requireStaff, teacherCtrl.getStruggling);
+
+  // ── ECCE outcome→game bridge: professional planning ──────────────────────
+  // Teacher authoring path, end to end: resolve the SMS-authoritative class
+  // context → pick a reviewed outcome → draft the bridge → submit for review.
+  // Bridge rows live in kids_lesson_bridges (KIDS_DB_NAME); the tables are
+  // created by database/ecce-bridge-tables-migration.js, never at boot.
+  const bridgeCtrl = require('../controllers/kidsLessonBridges');
+  const lessonContextCtrl = require('../controllers/kidsLessonContext');
+  app.get('/kids/sms/lesson-context', auth, requireStaff, lessonContextCtrl.getLessonContext);
+  app.get('/kids/learning-outcomes', auth, requireStaff, bridgeCtrl.listOutcomes);
+  app.get('/kids/lesson-bridges', auth, requireStaff, bridgeCtrl.listBridges);
+  app.post('/kids/lesson-bridges', auth, requireStaff, bridgeCtrl.createBridge);
+  app.get('/kids/lesson-bridges/:id', auth, requireStaff, bridgeCtrl.getBridge);
+  app.patch('/kids/lesson-bridges/:id', auth, requireStaff, bridgeCtrl.updateBridge);
+  app.post('/kids/lesson-bridges/:id/submit-review', auth, requireStaff, bridgeCtrl.submitBridgeReview);
+
+  // ── ECCE outcome→game bridge: teacher observations ───────────────────────
+  // Dated professional evidence, recorded against a published lesson bridge.
+  // Rows live in kids_teacher_observations (KIDS_DB_NAME) — see
+  // database/ecce-bridge-tables-migration.js.
+  const obsCtrl = require('../controllers/kidsObservations');
+  app.post('/kids/observations', auth, requireStaff, obsCtrl.createObservation);
+  app.get('/kids/observations', auth, requireStaff, obsCtrl.listObservations);
+  app.patch('/kids/observations/:id', auth, requireStaff, obsCtrl.updateObservation);
+  app.get('/kids/learning-summary/:childAdmissionNo', auth, requireStaff, obsCtrl.getLearningSummary);
 };

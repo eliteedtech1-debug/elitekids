@@ -8,6 +8,7 @@ node_modules/
 *.bak*
 coverage/
 dist/
+dist
 dist.staging/
 releases/
 uploads/
