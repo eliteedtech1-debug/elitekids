@@ -4,6 +4,7 @@ import {
   Flame,
   Gamepad2,
   Loader2,
+  Lock,
   LogOut,
   RefreshCw,
   ShoppingBag,
@@ -11,11 +12,6 @@ import {
   Star,
   Zap,
   BookOpen,
-  Shapes,
-  Palette,
-  Hash,
-  PawPrint,
-  Apple,
   Trophy,
   RotateCcw,
   Swords,
@@ -24,6 +20,7 @@ import {
   ChevronDown,
   Users,
   Home,
+  TrendingUp,
 } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -63,6 +60,7 @@ import GoalCard from '@/components/GoalCard';
 import {
   classToAgeLevel,
   filterInBand,
+  flattenUnits,
   ageLevelLabel,
   nerdcBandToAgeLevel,
   type GameMode,
@@ -115,19 +113,51 @@ interface Tab {
   filter: (l: LessonCard) => boolean;
 }
 
+// Home is the games grid AND the landing tab: one flat list of every in-band
+// game, with subject chips narrowing it in place — no per-subject tabs, so
+// nothing competes with the games for a child's attention. All numeric
+// feedback (streak / stars / XP / games, level chip, per-game bests) belongs to
+// the Progress tab instead of sitting on top of the games.
 const TABS: Tab[] = [
+  { key: 'home', labelKey: 'student.tab.home', icon: <Home className="h-4 w-4" />, view: 'grid', filter: () => true },
   { key: 'path', labelKey: 'student.tab.path', icon: <Route className="h-4 w-4" />, view: 'path', filter: () => false },
-  { key: 'numbers', labelKey: 'student.tab.numbers', icon: <Hash className="h-4 w-4" />, view: 'grid', filter: (l) => /count|number|math|drag-sort/i.test(l.subject + l.title) },
-  { key: 'letters', labelKey: 'student.tab.letters', icon: <BookOpen className="h-4 w-4" />, view: 'grid', filter: (l) => /abc|letter|english|phon/i.test(l.subject + l.title) },
-  { key: 'colors', labelKey: 'student.tab.colors', icon: <Palette className="h-4 w-4" />, view: 'grid', filter: (l) => /color|art|creati/i.test(l.subject + l.title) },
-  { key: 'shapes', labelKey: 'student.tab.shapes', icon: <Shapes className="h-4 w-4" />, view: 'grid', filter: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
-  { key: 'animals', labelKey: 'student.tab.animals', icon: <PawPrint className="h-4 w-4" />, view: 'grid', filter: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
-  { key: 'food', labelKey: 'student.tab.food', icon: <Apple className="h-4 w-4" />, view: 'grid', filter: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
+  { key: 'progress', labelKey: 'student.tab.progress', icon: <TrendingUp className="h-4 w-4" />, view: 'special', filter: () => true },
   { key: 'festival', labelKey: 'student.tab.festival', icon: <Swords className="h-4 w-4" />, view: 'special', filter: () => true },
   { key: 'leaderboard', labelKey: 'student.tab.leaderboard', icon: <Trophy className="h-4 w-4" />, view: 'special', filter: () => true },
   { key: 'teams', labelKey: 'collab.myTeam', icon: <Users className="h-4 w-4" />, view: 'special', filter: () => true },
-  { key: 'home', labelKey: 'student.tab.home', icon: <Home className="h-4 w-4" />, view: 'special', filter: () => true },
 ];
+
+/**
+ * Subject chips for the Home grid — the old per-subject tabs, minus the tabs.
+ * Same predicates, so every in-band game stays reachable from one screen.
+ */
+const SUBJECT_FILTERS: Array<{ key: string; labelKey: string; test: (l: LessonCard) => boolean }> = [
+  { key: 'all', labelKey: 'student.filter.all', test: () => true },
+  { key: 'numbers', labelKey: 'student.tab.numbers', test: (l) => /count|number|math|drag-sort/i.test(l.subject + l.title) },
+  { key: 'letters', labelKey: 'student.tab.letters', test: (l) => /abc|letter|english|phon/i.test(l.subject + l.title) },
+  { key: 'colors', labelKey: 'student.tab.colors', test: (l) => /color|art|creati/i.test(l.subject + l.title) },
+  { key: 'shapes', labelKey: 'student.tab.shapes', test: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
+  { key: 'animals', labelKey: 'student.tab.animals', test: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
+  { key: 'food', labelKey: 'student.tab.food', test: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
+];
+
+/** Home grid sections — the progression order a child is meant to meet them in. */
+const HOME_SECTION_LABEL: Record<string, string> = {
+  next: 'student.home.sectionNext',
+  open: 'student.home.sectionUnlocked',
+  locked: 'student.home.sectionLocked',
+};
+
+type HomeGridItem =
+  | { kind: 'section'; key: string; count: number }
+  | {
+      kind: 'lesson';
+      lesson: LessonCard;
+      locked: boolean;
+      lockedReason: string | null;
+      passed: boolean;
+      isNext: boolean;
+    };
 
 /* ── Age-level badge colors (from accessibility palette) ── */
 
@@ -163,7 +193,9 @@ export default function StudentHome() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('path');
+  const [activeTab, setActiveTab] = useState('home');
+  // Subject chip on the Home grid — 'all' lists every in-band game.
+  const [subjectFilter, setSubjectFilter] = useState('all');
   const [pathData, setPathData] = useState<LearningPathData | null>(null);
   const [showBossRaid, setShowBossRaid] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -461,8 +493,86 @@ export default function StudentHome() {
   const bandLessons = useMemo(() => filterInBand(lessons, studentBand), [lessons, studentBand]);
   const gridLessons = useMemo(() => {
     const tab = TABS.find((x) => x.key === activeTab);
-    return tab && tab.view === 'grid' ? bandLessons.filter(tab.filter) : bandLessons;
-  }, [bandLessons, activeTab]);
+    const base = tab && tab.view === 'grid' ? bandLessons.filter(tab.filter) : bandLessons;
+    if (activeTab !== 'home') return base;
+    const chip = SUBJECT_FILTERS.find((f) => f.key === subjectFilter);
+    return chip ? base.filter(chip.test) : base;
+  }, [bandLessons, activeTab, subjectFilter]);
+
+  /**
+   * Lesson lock state, straight from the server path: the lock lives on the
+   * UNIT (E3f gate — a unit opens once every prerequisite lesson has practice
+   * AND a passed test) and its lessons inherit it. Lessons the path doesn't
+   * cover (e.g. an offline catalog) are treated as open so nothing silently
+   * disappears from the child's screen.
+   */
+  const lessonLock = useMemo(() => {
+    const map = new Map<string, { locked: boolean; reason: string | null; passed: boolean; order: number }>();
+    let order = 0;
+    for (const { unit } of flattenUnits(pathData)) {
+      for (const l of unit.lessons) {
+        map.set(l.lesson_id, {
+          locked: unit.locked,
+          reason: unit.locked_reason,
+          passed: l.state === 'passed',
+          order: order++,
+        });
+      }
+    }
+    return map;
+  }, [pathData]);
+
+  /**
+   * Home lists the games by progression rather than as one flat dump:
+   * Up Next (the game the path says is due) → Unlocked → Locked (with the
+   * prerequisite reason), all still narrowed by the subject chip.
+   */
+  const homeItems = useMemo<HomeGridItem[]>(() => {
+    const decorated = gridLessons
+      .map((lesson) => {
+        const p = lessonLock.get(lesson.id);
+        return {
+          lesson,
+          locked: p?.locked ?? false,
+          lockedReason: p?.reason ?? null,
+          passed: p?.passed ?? false,
+          order: p?.order ?? Number.MAX_SAFE_INTEGER,
+        };
+      })
+      // Path order first (what the child is actually up to), then any game the
+      // path doesn't cover. Stable, so the grid never reshuffles between renders.
+      .sort((a, b) => a.order - b.order);
+
+    // No path data (offline / first paint) → plain list, no lock furniture.
+    if (lessonLock.size === 0) {
+      return decorated.map((d) => ({
+        kind: 'lesson' as const,
+        lesson: d.lesson,
+        locked: false,
+        lockedReason: null,
+        passed: d.passed,
+        isNext: false,
+      }));
+    }
+
+    const next = decorated.filter((d) => !d.locked && !d.passed).slice(0, 1);
+    const nextIds = new Set(next.map((d) => d.lesson.id));
+    const open = decorated.filter((d) => !d.locked && !nextIds.has(d.lesson.id));
+    const locked = decorated.filter((d) => d.locked);
+
+    const items: HomeGridItem[] = [];
+    const section = (key: string, cards: typeof decorated) => {
+      if (!cards.length) return;
+      items.push({ kind: 'section', key, count: cards.length });
+      for (const d of cards) {
+        items.push({ kind: 'lesson', ...d, isNext: key === 'next' });
+      }
+    };
+    section('next', next);
+    section('open', open);
+    section('locked', locked);
+    return items;
+  }, [gridLessons, lessonLock]);
 
   /** Open a lesson from the path in the mode its state calls for. */
   const openLesson = useCallback((lessonId: string, mode: GameMode) => {
@@ -518,6 +628,15 @@ export default function StudentHome() {
   const displayName = student?.student_name || student?.name || student?.admission_no || t('student.home.defaultName');
   const summary = progress || { total_xp: 0, total_stars: 0, games_completed: 0, game_stats: {} } as ProgressData;
   const gameStats = progress?.game_stats || {};
+  // Per-game progress now lives on the Progress tab instead of on every card.
+  const playedLessons = useMemo(
+    () =>
+      bandLessons
+        .map((lesson) => ({ lesson, stat: gameStats[lesson.id] }))
+        .filter((x): x is { lesson: LessonCard; stat: GameStat } => !!x.stat && (x.stat.times_played || 0) > 0)
+        .sort((a, b) => (b.stat.times_played || 0) - (a.stat.times_played || 0)),
+    [bandLessons, gameStats],
+  );
 
   // Flagship children without a completed placement result get a dedicated,
   // isolated "find your level" screen instead of the dashboard (no skip).
@@ -704,7 +823,9 @@ export default function StudentHome() {
           <GardenScene compact equippedDecorations={equippedItems} />
         </div>
 
-        {/* Progress summary + streak — game-style gradient cards with glassmorphism */}
+        {/* Progress summary + streak — Progress tab only; the home screen is the
+            games grid and nothing else. */}
+        {activeTab === 'progress' && (<>
         <div className="relative mb-5 grid grid-cols-4 gap-2.5 overflow-hidden rounded-3xl bg-white/80 backdrop-blur-xl p-4 shadow-xl shadow-[#0F4D92]/5 border border-white/60">
           <FloatingDeco className="-right-6 -top-6 h-20 w-20 bg-gradient-to-br from-orange-400/20 to-amber-400/20" />
           <FloatingDeco className="-left-4 -bottom-4 h-16 w-16 bg-gradient-to-br from-[#0F4D92]/15 to-indigo-400/15" />
@@ -786,6 +907,7 @@ export default function StudentHome() {
             )}
           </div>
         )}
+        </>)}
 
         {/* Boss Battle Overlay */}
         <div className="mb-5">
@@ -834,11 +956,11 @@ export default function StudentHome() {
               </button>
             </div>
 
-            {/* Tabs — game-style pill navigation (Learning Path is the default) */}
+            {/* Tabs — game-style pill navigation (Home / the games grid is the default) */}
             <div className="mb-5 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-              {/* Keep at least ONE subject pill visible even when every subject
-                  has 0 in-band lessons, so the LearningPath empty-state shortcut
-                  ('explore subject games') never dead-ends. */}
+              {/* Keep the Home (games) pill visible even with 0 in-band lessons,
+                  so the LearningPath empty-state shortcut ('explore subject
+                  games') never dead-ends. */}
               {(() => {
                 const anyGridLesson = bandLessons.length > 0;
                 let gridShown = 0;
@@ -899,9 +1021,12 @@ export default function StudentHome() {
                   />
                 )}
               </div>
-            ) : activeTab === 'home' ? (
+            ) : activeTab === 'progress' ? (
               <>
-                {/* ── Starts panel: welcome + streak + no-game UI ── */}
+                {/* ── Progress overview: weekly goal + per-game feedback. The
+                    streak / stars / XP / games cards and the level chip for this
+                    tab render above the tab bar; Home carries the games grid and
+                    nothing else. ── */}
                 {/* Weekly goal banner — RETURNING students only (≥1 game
                     played). New students see a friendly "let's start your
                     first lesson" hint card instead so the path is the very
@@ -939,6 +1064,42 @@ export default function StudentHome() {
 
                 {/* Quick-nav scroll anchor for the 'Jump to Games' shortcut */}
                 <div id="games-grid-anchor" className="scroll-mt-4" />
+
+                {/* Per-game progress — moved off the game cards so the Home grid
+                    stays a plain list of games. */}
+                <div className="mb-4 rounded-3xl border border-white/60 bg-white/80 p-4 shadow-lg backdrop-blur-xl">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-gray-700">
+                    <TrendingUp className="h-4 w-4 text-[#0d9488]" />
+                    {t('student.progress.perGame')}
+                  </h3>
+                  {playedLessons.length === 0 ? (
+                    <p className="text-xs font-medium text-gray-500">{t('student.progress.empty')}</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {playedLessons.map(({ lesson, stat }) => (
+                        <li
+                          key={lesson.id}
+                          className="flex items-center gap-3 rounded-2xl border border-gray-100/70 bg-white/70 px-3 py-2.5"
+                        >
+                          <Gamepad2 className="h-4 w-4 flex-shrink-0 text-[#0F4D92]" />
+                          <span className="flex-1 truncate text-sm font-bold text-gray-700">{lesson.title}</span>
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-gray-500">
+                            <RotateCcw className="h-3 w-3" />
+                            {tN('student.home.plays', stat.times_played || 0)}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600">
+                            <Trophy className="h-3 w-3" />
+                            {stat.best_score || 0}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-gray-600">
+                            <Star className="h-3 w-3" />
+                            {stat.total_stars || 0}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
 
                 {/* No-games fallback (shown when every subject tab is empty) */}
                 {!catalogEmpty ? (
@@ -992,7 +1153,7 @@ export default function StudentHome() {
                     loading={loading}
                     offline={offlineMode}
                     onOpenLesson={openLesson}
-                    onExploreSubjects={() => setActiveTab('numbers')}
+                    onExploreSubjects={() => { playTap(); setSubjectFilter('all'); setActiveTab('home'); }}
                     onRefresh={loadData}
                     catalogEmpty={catalogEmpty}
                   />
@@ -1002,10 +1163,36 @@ export default function StudentHome() {
             <>
             {/* Quick-nav scroll anchor for the 'Jump to Games' shortcut */}
             <div id="games-grid-anchor" className="scroll-mt-4" />
+            {/* Subject chips — the old per-subject tabs, as a filter row so every
+                game stays on one screen. */}
+            <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              {SUBJECT_FILTERS.map((f) => {
+                const count = bandLessons.filter(f.test).length;
+                if (count === 0 && f.key !== 'all') return null;
+                const on = subjectFilter === f.key;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => { playTap(); setSubjectFilter(f.key); }}
+                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-bold transition-all ${
+                      on
+                        ? 'bg-[#0F4D92] text-white shadow-md shadow-[#0F4D92]/20'
+                        : 'bg-white/80 text-gray-600 border border-gray-100 hover:bg-white hover:shadow-md backdrop-blur-sm'
+                    }`}
+                  >
+                    {t(f.labelKey)}
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${on ? 'bg-white/20' : 'bg-gray-100'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Section header */}
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800">
-                {t(TABS.find((tb) => tb.key === activeTab)!.labelKey)}
+                {t('student.home.gamesTitle', { defaultValue: 'Games' })}
                 <span className="ml-2 text-sm font-normal text-gray-400">({gridLessons.length})</span>
               </h2>
               <button
@@ -1048,19 +1235,34 @@ export default function StudentHome() {
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {gridLessons.map((lesson, cardIdx) => {
+                {homeItems.map((item, cardIdx) => {
+                  if (item.kind === 'section') {
+                    return (
+                      <div
+                        key={`section-${item.key}`}
+                        className="col-span-full mt-1 flex items-center gap-2"
+                      >
+                        <h3 className="text-sm font-extrabold text-gray-700">{t(HOME_SECTION_LABEL[item.key])}</h3>
+                        <span className="text-xs font-medium text-gray-400">({item.count})</span>
+                        <span className="h-px flex-1 bg-gray-200/70" />
+                      </div>
+                    );
+                  }
+                  const { lesson, locked, lockedReason, passed, isNext } = item;
                   const ageColor = getAgeColor(lesson.age_level, colorblindMode);
                   const stat = gameStats[lesson.id];
                   const played = stat?.times_played || 0;
-                  const avgScore = stat?.avg_score || 0;
-                  const bestScore = stat?.best_score || 0;
                   return (
                     <div
                       key={lesson.id}
-                      className={`game-card-hover relative overflow-hidden rounded-3xl border p-5 shadow-lg animate-game-slide-up stagger-${Math.min(cardIdx + 1, 12)} transition-all hover:shadow-xl hover:scale-[1.02] ${
-                        played > 0
-                          ? 'border-green-200/60 bg-gradient-to-br from-white via-green-50/30 to-emerald-50/40'
-                          : 'border-white/60 bg-white/80 backdrop-blur-xl'
+                      className={`game-card-hover relative overflow-hidden rounded-3xl border p-5 shadow-lg animate-game-slide-up stagger-${Math.min(cardIdx + 1, 12)} transition-all ${
+                        locked
+                          ? 'border-gray-200 bg-gray-50/70'
+                          : isNext
+                            ? 'border-[#0d9488]/40 bg-white shadow-xl ring-2 ring-[#0d9488]/25 hover:shadow-2xl hover:scale-[1.02]'
+                            : played > 0
+                              ? 'border-green-200/60 bg-gradient-to-br from-white via-green-50/30 to-emerald-50/40 hover:shadow-xl hover:scale-[1.02]'
+                              : 'border-white/60 bg-white/80 backdrop-blur-xl hover:shadow-xl hover:scale-[1.02]'
                       }`}
                     >
                       {played > 0 && (
@@ -1092,7 +1294,20 @@ export default function StudentHome() {
                             </span>
                           )}
                         </div>
-                        {played > 0 ? (
+                        {locked ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-200/80 px-2.5 py-1 text-[11px] font-bold text-gray-600 shadow-sm">
+                            <Lock className="h-3 w-3" />
+                            {t('student.home.locked')}
+                          </span>
+                        ) : isNext ? (
+                          <span className="inline-flex items-center rounded-full bg-[#0d9488] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+                            {t('student.home.nextUp')}
+                          </span>
+                        ) : passed ? (
+                          <span className="inline-flex items-center rounded-full bg-green-100/80 px-2.5 py-1 text-[11px] font-bold text-green-700 shadow-sm">
+                            {t('student.home.passed')}
+                          </span>
+                        ) : played > 0 ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-100/80 px-2.5 py-1 text-[11px] font-bold text-green-700 shadow-sm">
                             {t('student.home.playedCount', { count: played })}
                           </span>
@@ -1107,6 +1322,11 @@ export default function StudentHome() {
                         )}
                       </div>
                       <h3 className="relative font-bold text-gray-800">{lesson.title}</h3>
+                      {locked && (
+                        <p className="relative mt-1 text-[11px] font-medium text-gray-500">
+                          {lockedReason || t('student.home.lockedHint')}
+                        </p>
+                      )}
                       <div className="relative mt-2 flex items-center gap-2">
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ageColor}`}>
                           {ageLevelLabel(lesson.age_level)}
@@ -1127,25 +1347,10 @@ export default function StudentHome() {
                           )}
                         </div>
                       )}
-                      {/* Per-game stats */}
-                      {played > 0 && (
-                        <div className="relative mt-3 flex items-center gap-3 border-t border-green-100/60 pt-2.5">
-                          <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                            <RotateCcw className="h-3 w-3" />
-                            <span className="font-bold text-gray-700">{tN('student.home.plays', played)}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                            <Trophy className="h-3 w-3" />
-                            <span className="font-bold text-amber-600">{bestScore}</span> {t('student.home.best')}
-                          </div>
-                          <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                            <Star className="h-3 w-3" />
-                            <span className="font-bold text-gray-700">{stat?.total_stars || 0}</span> ★
-                          </div>
-                        </div>
-                      )}
+                      {/* Per-game stats (plays / best / stars) now live on the
+                          Progress tab — the card stays a game card. */}
                       {/* Quick mode select */}
-                      {lesson.has_games && (
+                      {lesson.has_games && !locked && (
                         <div className="relative mt-3 flex gap-1.5 border-t border-gray-100/60 pt-3">
                           <Link
                             to={`/student/game/${lesson.id}?mode=learning`}
