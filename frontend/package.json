@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc && vite build && node scripts/check-compat-css.mjs",
+    "build:staging": "tsc && vite build --outDir dist.staging && node scripts/check-compat-css.mjs dist.staging",
     "guard:bundle": "node scripts/check-bundle.mjs",
     "guard:compat": "node scripts/check-compat-css.mjs",
     "preview": "vite preview",

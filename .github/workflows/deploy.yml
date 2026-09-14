@@ -6,7 +6,10 @@ name: Deploy EliteKids (live)
 # Live layout contract (verified against the running service):
 #   • code dir    = /var/www/html/elite/elite-kids  (a git checkout of this repo)
 #   • backend     = systemd USER unit `elite-kids-api` on :8484 (nginx proxy)
-#   • frontend    = built `frontend/dist` (nginx docroot detected from nginx config)
+#   • frontend    = `scripts/rebuild-frontend.sh` (shared with the post-receive
+#     hook): staging build → publish gate → atomic release swap onto the nginx
+#     docroot. The docroot is NEVER the build output dir, so a failed/aborted
+#     build cannot wipe the live shell.
 #   • game-engine = inside the git checkout (updated by the backend git
 #     reset below — no separate rsync; a stale runner workspace once
 #     re-copied an old scene-script.schema.json over the live tree)
@@ -141,33 +144,66 @@ jobs:
             fi
           fi
 
-      - name: Deploy frontend (build + rsync to nginx docroot, non-fatal)
+      # Delegates to scripts/rebuild-frontend.sh so the CI deploy and the
+      # post-receive hook publish identically. That script enforces the three
+      # hard rules: the docroot is never the build output dir, nothing is
+      # published until the staged tree passes the gate, and the swap is a single
+      # symlink flip onto a versioned release dir.
+      # 2026-09-14 incident: an in-place vite build emptied `frontend/dist`
+      # (== docroot), the run died, and the old `rsync --delete dist/` mirrored
+      # the shell-less tree into production → 403 Forbidden on every route,
+      # silently (the step was non-fatal and the verify step never failed).
+      - name: Deploy frontend (staging build + gate + release swap via rebuild-frontend.sh)
         run: |
-          set +e
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
           source ~/.nvm/nvm.sh && nvm use 22
           LIVE=/var/www/html/elite/elite-kids
-          cd "$LIVE/frontend" || exit 0
+          cd "$LIVE/frontend"
           DOCROOT=$(grep -rhoE '/var/www[^ ;]+elite-kids[^ ;]*' /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -1)
           [ -n "$DOCROOT" ] || DOCROOT=/var/www/html/elite/elite-kids/frontend/dist
           echo "frontend docroot: $DOCROOT"
           npm ci --no-audit --no-fund 2>&1 | tail -2
-          npm run build 2>&1 | tail -4
-          mkdir -p "$DOCROOT"
-          rsync -a --delete dist/ "$DOCROOT/"
-          echo "frontend deployed to $DOCROOT (exit $?)"
-          echo "(frontend step is non-fatal by design — backend deploy already completed)"
 
-      - name: Verify externally
+          LOG="/tmp/elitekids-frontend-publish-$(date +%Y%m%dT%H%M%SZ).log"
+          if ! DOCROOT="$DOCROOT" bash "$LIVE/scripts/rebuild-frontend.sh" > "$LOG" 2>&1; then
+            echo "❌ frontend build/publish FAILED — docroot NOT touched. Last 40 lines of $LOG:"
+            tail -40 "$LOG"
+            exit 1
+          fi
+          tail -12 "$LOG"
+
+      # Fails the job on ANY non-200, or on a shell served without no-cache. A
+      # deploy that leaves production at 403 (missing/partial shell) must show up
+      # as a red build, not a green one with a quiet "403" line in the log — that
+      # is how the 2026-09-14 outage sat unnoticed from Sep 11. The cache-header
+      # assertion guards the other half of that incident class: a heuristic-cached
+      # shell keeps pointing at assets a later release deleted.
+      - name: Verify externally (non-200 or cacheable shell fails the deploy)
         run: |
           set +e
+          FAILED=0
           for url in \
             "http://127.0.0.1:8484/health" \
+            "https://kids.elitekids.com.ng/" \
             "https://kids.elitekids.com.ng/schools/get-details?query_type=select-by-short-name&short_name=elite" \
             "https://demo.elitekids.com.ng/"; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url")
-            echo "$code  $url"
+            if [ "$code" = "200" ]; then
+              echo "✅ $code  $url"
+            else
+              echo "❌ $code  $url  (expected 200)"
+              FAILED=$((FAILED + 1))
+            fi
           done
           echo "--- shell cache headers (must be no-cache) ---"
-          curl -sI --max-time 15 https://kids.elitekids.com.ng/ | grep -iE '^(HTTP|cache-control|pragma)'
-          echo "==== DONE ===="
+          SHELL_HEADERS=$(curl -sI --max-time 15 https://kids.elitekids.com.ng/ | tr -d '\r')
+          echo "$SHELL_HEADERS" | grep -iE '^(HTTP|cache-control|pragma)'
+          if ! echo "$SHELL_HEADERS" | grep -iq '^cache-control:.*no-cache'; then
+            echo "❌ shell served without 'Cache-Control: no-cache' — a cached shell can reference assets a later release deleted (stuck boot loader)"
+            FAILED=$((FAILED + 1))
+          fi
+          if [ "$FAILED" -ne 0 ]; then
+            echo "==== FAILED: $FAILED external check(s) failed — see the ❌ lines above (non-200 or cacheable shell) ===="
+            exit 1
+          fi
+          echo "==== DONE — all external checks passed (200 + no-cache shell) ===="

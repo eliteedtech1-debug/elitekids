@@ -8,11 +8,19 @@ import { buildCompatCss } from './scripts/compat-css.mjs';
 // Emit a Chrome-47-safe downleveled stylesheet (see scripts/compat-css.mjs).
 // Old WebViews can't parse @layer/oklch, so the modern sheet renders as nothing.
 function compatCssPlugin(): Plugin {
+  // Honour the resolved outDir instead of hardcoding `dist` — the deploy builds
+  // into `dist.staging` and publishes that only after validation (see
+  // .github/workflows/deploy.yml). Hardcoding `dist` made a staging build write
+  // its compat sheet into the LIVE docroot (or silently skip it).
+  let outDir = 'dist';
   return {
     name: 'elitekids-compat-css',
     apply: 'build',
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
     closeBundle() {
-      buildCompatCss(path.resolve(__dirname, 'dist'));
+      buildCompatCss(path.resolve(__dirname, outDir));
     },
   };
 }
