@@ -69,6 +69,7 @@ used by both deploy paths (the deploy workflow and the post-receive hook):
 | `.github/workflows/deploy.yml` | `Verify externally` fails the job on **any non-200**, and additionally asserts the shell is served with `Cache-Control: no-cache` (a cacheable shell referencing later-deleted assets is the other half of this incident class). |
 | `frontend/package.json` | New `build:staging` script (`vite build --outDir dist.staging` + compat guard against that dir). |
 | `frontend/vite.config.ts` | `compatCssPlugin` honours the resolved `build.outDir` instead of hardcoding `dist` — hardcoded, a staging build wrote its compat sheet into the live docroot (my first probe run skipped it entirely). |
+| `frontend/vite.config.ts` | New `guardLiveDocrootPlugin`: a plain `vite build` **throws** when the resolved outDir is a symlink (i.e. the live docroot) rather than emptying the live release through it. |
 | `.gitignore` | Ignore `dist.staging/` and `releases/`. |
 
 ### Layout after the change
@@ -86,12 +87,20 @@ tree that was live before the migration.
 | Workflow | YAML parses, all four `run:` blocks pass `bash -n` |
 | Live routes | `/` 200 · `/login` 200 · hashed asset 200 · `demo.*` 200 · `/health` 200 |
 
+## Follow-up: retired scripts and the local-build guard
+- `deploy.sh` and `deploy-multimodal.sh` are **deleted**. Both rsynced straight
+  into a remote `frontend/dist` with no gate, bypassing everything above, and
+  `deploy-multimodal.sh` even restarted **pm2** (the repo runs systemd).
+  AGENTS.md rule 2 — "no manual deployments, use GitHub Actions" — is now
+  enforced by the absence of the scripts.
+- `deploy-git.sh` is left in place but is inert: it only pushes `origin main`
+  (which is now the sanctioned path) and then runs a remote `git-deploy.sh` that
+  does not exist in this repo.
+- `npm run build` now **refuses to run in the live checkout** — the docroot is a
+  symlink into `releases/`, so the default outDir would empty the live release.
+  The guard is in `vite.config.ts` (`guardLiveDocrootPlugin`) because it keys off
+  the *resolved* outDir, so it catches `npx vite build` too, not just npm scripts.
+
 ## Still open (not in scope)
-- `deploy.sh` and `deploy-multimodal.sh` are legacy dev-machine→VPS rsync scripts
-  that still push straight into a remote `frontend/dist` with no gate; they should
-  be retired or pointed at the script.
 - The gate proves a release is *self-consistent*, not that its content is correct;
   a post-publish content check would catch a "successful but wrong" build.
-- `frontend/dist` being a symlink into `releases/` means a stray `npm run build`
-  in this checkout would empty the live release. The script prints a warning; a
-  pre-commit/pre-build guard would be stronger.

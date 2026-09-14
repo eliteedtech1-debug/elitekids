@@ -3,7 +3,38 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import legacy from '@vitejs/plugin-legacy';
 import path from 'path';
+import { lstatSync } from 'node:fs';
 import { buildCompatCss } from './scripts/compat-css.mjs';
+
+// Refuse to build straight into the live nginx docroot.
+// Deploys publish via scripts/rebuild-frontend.sh, which builds into
+// `dist.staging` and flips the docroot symlink onto a versioned release. A plain
+// `npm run build` defaults to outDir `dist` — which IS the docroot symlink, so
+// vite would empty the live release out from under nginx (the 2026-09-14
+// outage). Fail loudly instead of silently destroying production.
+function guardLiveDocrootPlugin(): Plugin {
+  return {
+    name: 'elitekids-guard-live-docroot',
+    apply: 'build',
+    configResolved(config) {
+      if (config.command !== 'build') return;
+      const outDir = path.resolve(__dirname, config.build.outDir);
+      let isLink = false;
+      try {
+        isLink = lstatSync(outDir).isSymbolicLink();
+      } catch {
+        return; // not built yet — nothing to protect
+      }
+      if (isLink) {
+        throw new Error(
+          `refusing to build: ${outDir} is a symlink (the live nginx docroot).\n` +
+            `A plain build would empty the live release. Publish with:\n` +
+            `  bash scripts/rebuild-frontend.sh   # staging build + gate + release swap`,
+        );
+      }
+    },
+  };
+}
 
 // Emit a Chrome-47-safe downleveled stylesheet (see scripts/compat-css.mjs).
 // Old WebViews can't parse @layer/oklch, so the modern sheet renders as nothing.
@@ -31,6 +62,7 @@ export default defineConfig({
   // login. plugin-legacy transpiles an ES2015 bundle + core-js polyfills and
   // auto-negotiates module vs legacy per browser (covers Android 5+/Chrome 47+).
   plugins: [
+    guardLiveDocrootPlugin(),
     react(),
     tailwindcss(),
     legacy({
