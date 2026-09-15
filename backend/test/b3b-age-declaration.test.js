@@ -121,4 +121,20 @@ describe('B3b: declaration fallback unlocks the learning path', () => {
     const band = await resolveBandForAdmission(ADM);
     expect(band).toBe('Nursery 1'); // age 4 → Nursery 1, students row never needed
   });
+
+  // Resolving the band is NOT the same as the endpoint working. The response
+  // builder used to dereference `child.class_code` while `child` is null for
+  // any SMS-imported kid, so this path 500'd in production (found live
+  // 2026-09-15: "Cannot read properties of null (reading 'class_code')").
+  // The test above only called the resolver directly, which is why it missed.
+  it('GET /kids/learning-path answers 200 for a child with no kids_children row', async () => {
+    const token = await studentToken(ADM);
+    const res = await request(app)
+      .get('/kids/learning-path')
+      .query({ student_id: ADM })
+      .set('authorization', token);
+    expect(res.status).toBe(200);
+    expect(res.body.data.student.age_band).toBe('Nursery 1');
+    expect(res.body.data.student.class_name).toBeNull();
+  });
 });

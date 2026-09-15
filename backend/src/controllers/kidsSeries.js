@@ -769,7 +769,11 @@ async function getLearningPath(req, res) {
     return res.json({
       success: true,
       data: {
-        student: { age_band: band, class_name: child.class_code || null },
+        // SMS-imported children have no kids_children row, so `child` is null
+        // here even when the band resolved from the tour declaration or the
+        // students row. Dereferencing it 500'd every one of them (found live
+        // 2026-09-15: "Cannot read properties of null (reading 'class_code')").
+        student: { age_band: band, class_name: child?.class_code || null },
         goal,
         path,
       },
