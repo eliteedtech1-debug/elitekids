@@ -60,6 +60,73 @@ Kids needs exactly three shapes; all read-only, service-to-service, shared
 Notes: no new secrets (shared JWT + an `x-internal-service: elite-kids` header),
 rate-limited, and the response deliberately excludes `password`.
 
+## 2b. DELIVERED — elite-sms side (2026-09-15)
+
+Endpoint code exists, is syntax-checked and covered by tests. **Not deployed and not
+configured yet** (see the blockers below).
+
+| File (in `../elite-sms/backend`) | What |
+|---|---|
+| `src/controllers/internalStudentController.js` | `getStudent`, `lookupStudents`, `authenticateStudent`. Explicit public-column list; the hash is compared in-process and never returned; unknown child still runs a bcrypt compare against a dummy hash so timing cannot enumerate admission numbers |
+| `src/routes/internalStudents.js` | Router, mounted at `/api/internal/students` |
+| `src/index.js` | `+2` lines: `app.use('/api/internal/students', …)` next to `/api/shared` |
+| `src/__tests__/internalStudents.test.js` | **10 jest+supertest tests, all green** — auth/scoping, single, batch (+`missing`), oversized/empty batch, authenticate (ok / wrong password / unknown child), and assertions that `password` is neither selected nor returned |
+
+Auth reuses the existing `middleware/sharedServiceAuth.js` — no new secret scheme:
+JWT signed with `ELITEKIDS_SHARED_JWT_SECRET`, `aud: 'elitekids'`, `scope: ['shared:read']`,
+`school_id` claim. A school mismatch is **403**; a token carrying `kids:students:all` may
+read across schools (that scope is SMS's to grant — the flagship deployment needs it
+because a child's school is not known before lookup).
+
+```
+GET  /api/internal/students/:admission_no?school_id=…
+POST /api/internal/students/lookup       { school_id, admission_nos: [≤200] }
+POST /api/internal/students/authenticate { school_id, admission_no, password }
+```
+
+### 2c. VERIFIED end-to-end (2026-09-15) — `team-docs/browser-walk/sms-api-verify.mjs`
+
+Run over real HTTP against the real Express stack, the real Sequelize models and the
+**production** database (`elite_db`) — no mocks. Evidence: `sms-api-verify.json`.
+
+| Call | Result |
+|---|---|
+| no token | **401** |
+| `GET /Demo5` | **200** — the real child (David Emmanuel Johnson, SCH/25, “Nursery 1”); `password` absent from the row |
+| wrong school (`?school_id=SCH/OTHER`) | **403** — the token's school claim is enforced |
+| unknown admission no | **404** |
+| `POST /lookup` | **200**, `data: [Demo5]`, `missing: [NOT-A-REAL-ADMISSION-NO]` |
+| `POST /authenticate` (wrong password) | **401 INVALID_CREDENTIALS** — a real bcrypt compare against the live hash, which is what lets Kids retire its own copy |
+| platform-scope token, other school | **404, not 403** — the scope is honoured and the lookup is simply empty there |
+| the running :8383 process | **404** for the new path — the route is not live (see below) |
+
+**The E2E run found a bug the 10 mock tests could not**: the controller asked for
+`other_names`, which does not exist in every `students` schema, and one unknown column
+fails the whole SELECT → 500 on the happy path. Fixed by intersecting the requested
+columns with the loaded model's `rawAttributes`.
+
+**The running EliteSMS is a different tree.** `elite-sms-api.service` runs
+`/var/www/html/elite/backend` (NODE_ENV=production, `DB_NAME=elite_db`); the git working
+copy I edited is `/var/www/html/elite/elite-sms/backend`, whose `.env` is
+`NODE_ENV=development` + `DB_NAME=elite_db_test` — and `shouldIsolateDatabases()`
+**force-suffixes `_test`** in development/test, so these endpoints can only be exercised
+against production data with `NODE_ENV=production DB_NAME=elite_db`. Nothing was copied
+into the live tree and the service was **not restarted**.
+
+### Blockers before phase 2 can start
+
+1. `ELITEKIDS_SHARED_JWT_SECRET` is **not set** in `../elite-sms/backend/.env` — until it is,
+   the middleware answers `503 SHARED_SERVICE_NOT_CONFIGURED`.
+2. `ELITE_SMS_API_URL` is **not set** in `elite-kids/backend/.env`. The SMS API listens on
+   **:8383** (`elite-sms-api.service`), Kids on :8484, so the client base is
+   `http://127.0.0.1:8383/api/internal/students`.
+3. This is a **second repo**, and the **live code is a separate deployment target**
+   (`/var/www/html/elite/backend`, not the `elite-sms` working copy). The new files must
+   reach that tree through whatever process deploys EliteSMS, then the service must
+   restart — both production actions needing MASTER's go-ahead. The SMS checkout also has
+   unrelated modified files (`routes/publicWebsiteApi.js`, `frontend/pnpm-lock.yaml`)
+   that are not mine — leave them.
+
 ## 3. Phased migration (each phase independently deployable)
 
 1. **Kids-side client** — `backend/src/services/smsStudents.js`: cached, timeboxed
@@ -86,9 +153,8 @@ of student primary data from Kids.
 
 ## 4. Open questions for MASTER
 
-1. Which elite-sms router file should host the internal endpoints (naming
-   convention for internal/service routes)?
-2. Is `ELITE_SMS_API_URL` an internal loopback (`127.0.0.1:<sms port>`) or the
-   public origin?
+1. Grant the SMS service token the `kids:students:all` scope, or issue one token
+   per school (the middleware's secure default)?
+2. Seed both env keys above (which value, and by whom)?
 3. Sequencing: land phase 1+2 before the Kids-side `kids_profiles` split (safer),
    or in parallel?
