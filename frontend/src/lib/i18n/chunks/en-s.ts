@@ -137,6 +137,7 @@ export const enS: Record<string, string> = {
   'student.home.speak': 'Speak',
   'student.home.speakDesc': 'Practice saying words out loud',
   'student.home.starsEarned': 'Stars Earned',
+  'student.home.subjectUnits': '{done}/{total} units',
   'student.home.test': '📝 Test',
   'student.home.xpPoints': 'XP Points',
   'student.leaderboard.badgeHint': 'Finish in the top 3 with a great score to win gold, silver or bronze!',

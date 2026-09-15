@@ -346,6 +346,93 @@ export function currentPositionIndex(data: LearningPathData | null | undefined):
   return null;
 }
 
+/* ── PLAY grouping (subject sections) ─────────────────────────────── */
+
+export interface SeriesGroup<T> {
+  series: PathSeries;
+  /** Units of this series that carry at least one of the given cards, in path order. */
+  units: PathUnit[];
+  /** This series' cards, in path/unit order. */
+  items: T[];
+}
+
+export interface LessonGrouping<T> {
+  groups: SeriesGroup<T>[];
+  /** Cards the path does not cover (global catalog floor / offline list). */
+  uncovered: T[];
+}
+
+/**
+ * Group the PLAY grid by SUBJECT, each subject's cards in path/unit order.
+ *
+ * PLAY hands the child a flat catalog capped by band. Unit-level sections are
+ * NOT the answer: live content ships roughly one game per unit in the early
+ * years and two in Primary, so a "Unit N" header per unit would be a header per
+ * card for a Nursery 2 child (~1080 of them), which is worse than the flat grid.
+ * Subject sections are the grain that actually folds the grid down while
+ * keeping the order the child is taught in.
+ *
+ * Driven entirely by the SERVER's path (`pathData.path[].units[]`), so it holds
+ * whatever unit:card cadence the content turns out to have — the client never
+ * assumes a cadence (and repo and prod have drifted on exactly this point).
+ *
+ * Cards the path does not cover come back separately so the caller can keep
+ * them on screen instead of silently dropping them.
+ */
+export function groupBySeries<
+  T extends { id: string; age_level?: string | null; title?: string | null },
+>(
+  lessons: T[],
+  data: LearningPathData | null | undefined,
+  band?: string | null,
+): LessonGrouping<T> {
+  // lesson_id → which series owns it, where its unit sits in that series, and
+  // the unit itself (needed to report which units actually carry a card).
+  const owner = new Map<string, { seriesId: string; unitIndex: number; unit: PathUnit }>();
+  const groups: SeriesGroup<T>[] = (data?.path || []).map((series) => {
+    series.units.forEach((unit, unitIndex) => {
+      for (const l of unit.lessons) {
+        owner.set(String(l.lesson_id), { seriesId: series.series_id, unitIndex, unit });
+      }
+    });
+    return { series, units: [], items: [] };
+  });
+  const byId = new Map(groups.map((g) => [g.series.series_id, g]));
+
+  const uncovered: T[] = [];
+  for (const lesson of lessons) {
+    const hit = owner.get(String(lesson.id));
+    const group = hit ? byId.get(hit.seriesId) : undefined;
+    if (group) group.items.push(lesson);
+    else uncovered.push(lesson);
+  }
+
+  for (const group of groups) {
+    // Path/unit order first — the order the child is taught in. Anything the
+    // path did not place falls back to curriculum order (own band, term, week),
+    // never the API's createdAt order (which led with Week 9).
+    group.items.sort((a, b) => {
+      const ua = owner.get(String(a.id))?.unitIndex ?? Number.MAX_SAFE_INTEGER;
+      const ub = owner.get(String(b.id))?.unitIndex ?? Number.MAX_SAFE_INTEGER;
+      return ua - ub || compareCurriculum(a, b, band);
+    });
+    // Covered units = the ones that actually contribute a card, first sighting
+    // order after the sort, so units the chip filtered out never pad the count.
+    const seen = new Set<string>();
+    group.units = [];
+    for (const item of group.items) {
+      const hit = owner.get(String(item.id));
+      if (hit && !seen.has(String(hit.unit.unit_id))) {
+        seen.add(String(hit.unit.unit_id));
+        group.units.push(hit.unit);
+      }
+    }
+  }
+  uncovered.sort((a, b) => compareCurriculum(a, b, band));
+
+  return { groups: groups.filter((g) => g.items.length > 0), uncovered };
+}
+
 /** A unit's lesson nodes are playable only when the unit itself is open
  *  (never locked). Locked units (and every lesson inside) are not clickable. */
 export function isUnitOpen(unit: PathUnit): boolean {

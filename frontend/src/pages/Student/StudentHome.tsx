@@ -46,10 +46,11 @@ import { offlineContent, isPrefetchRateLimited, markRateLimited } from '@/lib/of
 import { t } from '@/lib/i18n';
 import {
   classToAgeLevel,
-  compareCurriculum,
   filterInBand,
   flattenUnits,
+  groupBySeries,
   normalizeBand,
+  unitStats,
   type GameMode,
   type LearningPathData,
   type WeeklyGoal,
@@ -577,12 +578,9 @@ export default function StudentHome() {
         reason: string | null;
         passed: boolean;
         exempt: boolean;
-        order: number;
-        seriesId: string | null;
       }
     >();
-    let order = 0;
-    for (const { series, unit } of flattenUnits(pathData)) {
+    for (const { unit } of flattenUnits(pathData)) {
       for (const l of unit.lessons) {
         map.set(l.lesson_id, {
           locked: unit.locked,
@@ -591,8 +589,6 @@ export default function StudentHome() {
           // card gets its own badge rather than a green tick.
           passed: l.state === 'passed',
           exempt: l.state === 'tested_out',
-          order: order++,
-          seriesId: series.series_id ?? null,
         });
       }
     }
@@ -600,29 +596,30 @@ export default function StudentHome() {
   }, [pathData]);
 
   /**
-   * Home lists the games by progression rather than as one flat dump:
-   * Up Next (the game the path says is due) → Unlocked → Locked (with the
-   * prerequisite reason), all still narrowed by the subject chip.
+   * PLAY is sectioned by SUBJECT, in the order the child is taught: each
+   * subject's games in path/unit order, the subject's progress and lock state on
+   * its header, and the jump-ahead offer on a subject that still has a locked
+   * unit (one assessment covers every unfinished unit of that subject).
+   *
+   * Deliberately NOT sectioned by unit: the content ships about one game per
+   * unit in the early years, so a per-unit header would be a header per card
+   * (~1080 of them for a Nursery 2 child) — worse than the flat grid. See
+   * `groupBySeries` in lib/utils/learningPath.ts, which also owns the ordering.
+   * Still narrowed by the subject chip: a chip that empties a subject drops the
+   * whole section, header and all.
    */
   const homeItems = useMemo<HomeGridItem[]>(() => {
-    const decorated = gridLessons
-      .map((lesson) => {
-        const p = lessonLock.get(lesson.id);
-        return {
-          lesson,
-          locked: p?.locked ?? false,
-          lockedReason: p?.reason ?? null,
-          passed: p?.passed ?? false,
-          exempt: p?.exempt ?? false,
-          seriesId: p?.seriesId ?? null,
-          order: p?.order ?? Number.MAX_SAFE_INTEGER,
-        };
-      })
-      // Path order first (what the child is actually up to), then any game the
-      // path doesn't cover in curriculum order (own band first, then term/week)
-      // — NOT the API's createdAt order, which led with Week 9. Stable, so the
-      // grid never reshuffles between renders.
-      .sort((a, b) => a.order - b.order || compareCurriculum(a.lesson, b.lesson, studentBand));
+    const decorated = gridLessons.map((lesson) => {
+      const p = lessonLock.get(lesson.id);
+      return {
+        lesson,
+        locked: p?.locked ?? false,
+        lockedReason: p?.reason ?? null,
+        passed: p?.passed ?? false,
+        exempt: p?.exempt ?? false,
+      };
+    });
+    const byId = new Map(decorated.map((d) => [d.lesson.id, d]));
 
     // No path data (offline / first paint) → plain list, no lock furniture.
     if (lessonLock.size === 0) {
@@ -633,50 +630,86 @@ export default function StudentHome() {
         lockedReason: null,
         passed: d.passed,
         exempt: d.exempt,
-        seriesId: d.seriesId,
         isNext: false,
       }));
     }
 
-    // A tested-out game is not the child's next step — they have just jumped
-    // past it. It stays visible and playable, just never 'Up Next'.
-    const next = decorated.filter((d) => !d.locked && !d.passed && !d.exempt).slice(0, 1);
-    const nextIds = new Set(next.map((d) => d.lesson.id));
-    const open = decorated.filter((d) => !d.locked && !nextIds.has(d.lesson.id));
-    const locked = decorated.filter((d) => d.locked);
+    const { groups, uncovered } = groupBySeries(gridLessons, pathData, studentBand);
+
+    // "Up Next" is the first game the path says is due, walking the subjects in
+    // section order. A tested-out game is not the child's next step — they have
+    // just jumped past it — so it never claims the badge.
+    let nextId: string | null = null;
+    for (const g of groups) {
+      const due = g.items.find((l) => {
+        const d = byId.get(l.id);
+        return d && !d.locked && !d.passed && !d.exempt;
+      });
+      if (due) {
+        nextId = due.id;
+        break;
+      }
+    }
 
     const items: HomeGridItem[] = [];
-    const section = (key: string, cards: typeof decorated) => {
-      if (!cards.length) return;
-      // The locked group is where a jump-ahead belongs: offer it per subject so
-      // an advanced child can challenge exactly the chain that is holding them.
-      const seriesIds =
-        key === 'locked'
-          ? [...new Set(cards.map((d) => d.seriesId).filter((id): id is string => !!id))]
-          : undefined;
-      items.push({ kind: 'section', key, count: cards.length, seriesIds });
-      for (const d of cards) {
-        items.push({ kind: 'lesson', ...d, isNext: key === 'next' });
+    const pushCards = (cards: LessonCard[]) => {
+      for (const lesson of cards) {
+        const d = byId.get(lesson.id);
+        if (!d) continue;
+        items.push({
+          kind: 'lesson',
+          lesson: d.lesson,
+          locked: d.locked,
+          lockedReason: d.lockedReason,
+          passed: d.passed,
+          exempt: d.exempt,
+          isNext: d.lesson.id === nextId,
+        });
       }
     };
-    section('next', next);
-    section('open', open);
-    section('locked', locked);
+
+    for (const g of groups) {
+      const totals = g.units.reduce(
+        (acc, u) => {
+          const s = unitStats(u);
+          return { done: acc.done + s.done, total: acc.total + s.total };
+        },
+        { done: 0, total: 0 },
+      );
+      const lockedUnit = g.units.find((u) => u.locked) || null;
+      items.push({
+        kind: 'series',
+        series: {
+          seriesId: g.series.series_id,
+          name: g.series.name,
+          category: g.series.category ?? null,
+          count: g.items.length,
+          unitsTotal: g.units.length,
+          unitsDone: g.units.filter((u) => u.done).length,
+          lessonsDone: totals.done,
+          lessonsTotal: totals.total,
+          locked: !!lockedUnit,
+          lockedReason: lockedUnit?.locked_reason ?? null,
+        },
+      });
+      pushCards(g.items);
+    }
+
+    // Games the path does not cover (the global catalog floor, or an offline
+    // list) keep a plain group of their own so nothing silently disappears.
+    if (uncovered.length) {
+      items.push({ kind: 'section', key: 'open', count: uncovered.length });
+      pushCards(uncovered);
+    }
+
     return items;
-  }, [gridLessons, lessonLock, studentBand]);
+  }, [gridLessons, lessonLock, pathData, studentBand]);
 
   /** Open a lesson from the path in the mode its state calls for. */
   const openLesson = useCallback((lessonId: string, mode: GameMode) => {
     playTap();
     navigate(`/student/game/${lessonId}?mode=${mode}`);
   }, [navigate]);
-
-  /** Subject names for the test-out offers, keyed by series id. */
-  const seriesNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of pathData?.path || []) map.set(s.series_id, s.name);
-    return map;
-  }, [pathData]);
 
   /** Re-read the path after a test-out unlocks the chain. */
   const refreshPath = useCallback(async () => {
@@ -1011,7 +1044,6 @@ export default function StudentHome() {
                   isFlagshipStudent={isFlagshipStudent}
                   colorblindMode={colorblindMode}
                   studentId={String(student?.admission_no || student?.id || '')}
-                  seriesNameById={seriesNameById}
                   refreshPath={refreshPath}
                   loadData={loadData}
                   setSubjectFilter={setSubjectFilter}

@@ -14,6 +14,7 @@ import {
   compareCurriculum,
   filterInBand,
   flattenUnits,
+  groupBySeries,
   currentPositionIndex,
   unitStats,
   isUnitOpen,
@@ -273,5 +274,105 @@ describe('goal + band divider', () => {
     expect(isBandStart(data, data.path[0].units[1])).toBe(true);
     expect(isBandStart(data, data.path[0].units[2])).toBe(false);
     expect(isBandStart(data, unit({ unit_id: 'x', relation: 'current' }))).toBe(false);
+  });
+});
+
+/* PLAY sectioning. The grid is a flat band-capped catalog; these pin the
+   subject grouping that folds it down without losing a card. */
+describe('groupBySeries (PLAY sections)', () => {
+  const makeMulti = (
+    series: Array<{ id: string; name: string; category?: string; units: PathUnit[] }>,
+  ): LearningPathData => ({
+    student: { age_band: 'Nursery 2', class_name: 'Nursery 2' },
+    goal: null,
+    path: series.map((s) => ({
+      series_id: s.id,
+      name: s.name,
+      category: s.category ?? null,
+      units: s.units,
+    })),
+  });
+
+  const card = (id: string, title: string, age_level = 'Nursery 2') => ({ id, age_level, title });
+
+  it('groups the grid by subject and restores path/unit order inside it', () => {
+    const data = makeMulti([
+      {
+        id: 'num',
+        name: 'Numeracy',
+        units: [
+          unit({ unit_id: 'n1', unit_number: 1, lessons: [lesson('L-n1')] }),
+          unit({ unit_id: 'n2', unit_number: 2, lessons: [lesson('L-n2')] }),
+        ],
+      },
+      { id: 'sci', name: 'Science', units: [unit({ unit_id: 's1', lessons: [lesson('L-s1')] })] },
+    ]);
+    // The API hands rows back createdAt DESC — newest first, i.e. backwards.
+    const cards = [card('L-s1', 'Science W1'), card('L-n2', 'Numeracy W2'), card('L-n1', 'Numeracy W1')];
+
+    const { groups, uncovered } = groupBySeries(cards, data, 'Nursery 2');
+
+    expect(groups.map((g) => g.series.series_id)).toEqual(['num', 'sci']);
+    expect(groups[0].items.map((c) => c.id)).toEqual(['L-n1', 'L-n2']);
+    expect(groups[1].items.map((c) => c.id)).toEqual(['L-s1']);
+    expect(uncovered).toEqual([]);
+  });
+
+  it('reports only the units that carry a visible card (no padding for filtered ones)', () => {
+    const data = makeMulti([
+      {
+        id: 'num',
+        name: 'Numeracy',
+        units: [
+          unit({ unit_id: 'n1', unit_number: 1, lessons: [lesson('L-n1')] }),
+          unit({ unit_id: 'n2', unit_number: 2, lessons: [lesson('L-n2')] }),
+        ],
+      },
+    ]);
+    // A subject chip that kept only Week 2 must not claim Unit 1 as covered.
+    const { groups } = groupBySeries([card('L-n2', 'Numeracy W2')], data, 'Nursery 2');
+    expect(groups[0].units.map((u) => u.unit_id)).toEqual(['n2']);
+  });
+
+  it('returns games the path does not cover instead of dropping them', () => {
+    const data = makeMulti([
+      { id: 'num', name: 'Numeracy', units: [unit({ unit_id: 'n1', lessons: [lesson('L-n1')] })] },
+    ]);
+    const { groups, uncovered } = groupBySeries(
+      [card('L-n1', 'Numeracy W1'), card('GLESSON-RANK3-1', 'Global catalog floor game')],
+      data,
+      'Nursery 2',
+    );
+    expect(groups).toHaveLength(1);
+    expect(uncovered.map((c) => c.id)).toEqual(['GLESSON-RANK3-1']);
+  });
+
+  it('drops a subject whose every card was filtered out', () => {
+    const data = makeMulti([
+      { id: 'num', name: 'Numeracy', units: [unit({ unit_id: 'n1', lessons: [lesson('L-n1')] })] },
+      { id: 'sci', name: 'Science', units: [unit({ unit_id: 's1', lessons: [lesson('L-s1')] })] },
+    ]);
+    const { groups } = groupBySeries([card('L-s1', 'Science W1')], data, 'Nursery 2');
+    expect(groups.map((g) => g.series.series_id)).toEqual(['sci']);
+  });
+
+  it('orders two cards of one unit by curriculum (Primary ships two per unit)', () => {
+    const data = makeMulti([
+      {
+        id: 'num',
+        name: 'Numeracy',
+        units: [unit({ unit_id: 'n1', unit_number: 1, lessons: [lesson('L-w06'), lesson('L-w01')] })],
+      },
+    ]);
+    const cards = [card('L-w06', 'Primary W6 — Numeracy', 'Primary'), card('L-w01', 'Primary W1 — Numeracy', 'Primary')];
+    const { groups } = groupBySeries(cards, data, 'Primary');
+    expect(groups[0].items.map((c) => c.id)).toEqual(['L-w01', 'L-w06']);
+  });
+
+  it('returns everything as uncovered when there is no path (offline / first paint)', () => {
+    const cards = [card('a', 'A'), card('b', 'B')];
+    const { groups, uncovered } = groupBySeries(cards, null, 'Nursery 2');
+    expect(groups).toEqual([]);
+    expect(uncovered.map((c) => c.id)).toEqual(['a', 'b']);
   });
 });

@@ -28,17 +28,42 @@ export interface ProgressData {
   games: any[];
 }
 
+/**
+ * A SUBJECT section of the PLAY grid.
+ *
+ * PLAY is sectioned by subject rather than by unit: live content ships roughly
+ * one game per unit in the early years, so a per-unit section would be a header
+ * per card. See `groupBySeries` in lib/utils/learningPath.ts.
+ */
+export interface HomeSeriesGroup {
+  seriesId: string;
+  name: string;
+  category: string | null;
+  /** Cards of this subject, after the subject chip filter. */
+  count: number;
+  /** Units of this subject that carry a visible card. */
+  unitsTotal: number;
+  /** Of those units, how many the child has finished. */
+  unitsDone: number;
+  /** Lessons passed vs the subject's lessons on screen. */
+  lessonsDone: number;
+  lessonsTotal: number;
+  /** True while the subject still has a locked unit — where the jump-ahead
+   *  offer belongs (one assessment covers every unfinished unit of a subject). */
+  locked: boolean;
+  lockedReason: string | null;
+}
+
 export interface HomeGridItem {
-  kind: 'section' | 'lesson';
+  kind: 'section' | 'series' | 'lesson';
   key?: string;
   count?: number;
-  seriesIds?: string[];
+  series?: HomeSeriesGroup;
   lesson?: LessonCard;
   locked?: boolean;
   lockedReason?: string | null;
   passed?: boolean;
   exempt?: boolean;
-  seriesId?: string | null;
   isNext?: boolean;
 }
 

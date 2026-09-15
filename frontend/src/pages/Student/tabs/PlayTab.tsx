@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { Gamepad2, Lock, BookOpen, RefreshCw } from 'lucide-react';
+import { Gamepad2, Lock, BookOpen, Flag, RefreshCw } from 'lucide-react';
 import CheckpointTestOut from '@/components/CheckpointTestOut';
 import { playTap } from '@/lib/utils/sound';
 import { ageLevelLabel } from '@/lib/utils/learningPath';
@@ -21,7 +21,6 @@ interface PlayTabProps {
   isFlagshipStudent: boolean;
   colorblindMode: boolean;
   studentId: string;
-  seriesNameById: Map<string, string>;
   refreshPath: () => Promise<void>;
   loadData: () => Promise<void>;
   setSubjectFilter: (filter: string) => void;
@@ -42,7 +41,6 @@ export default function PlayTab({
   isFlagshipStudent,
   colorblindMode,
   studentId,
-  seriesNameById,
   refreshPath,
   loadData,
   setSubjectFilter,
@@ -128,6 +126,58 @@ export default function PlayTab({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {homeItems.map((item, cardIdx) => {
+            // A SUBJECT section — the child's games for one subject, in
+            // teaching order. The jump-ahead offer hangs here, on a subject that
+            // still has a locked unit: one assessment covers every unfinished
+            // unit of that subject, so it belongs to the subject, not the unit.
+            if (item.kind === 'series' && item.series) {
+              const s = item.series;
+              return (
+                <Fragment key={`series-${s.seriesId}`}>
+                  <div className="col-span-full mt-3 flex flex-wrap items-center gap-2">
+                    <Flag className="h-4 w-4 shrink-0 text-[#0d9488]/70" />
+                    <h3 className="text-sm font-extrabold text-gray-800">{s.name}</h3>
+                    {s.category && (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                        {s.category}
+                      </span>
+                    )}
+                    <span className="text-xs font-bold text-gray-400">
+                      {t('student.home.subjectUnits', {
+                        done: s.unitsDone,
+                        total: s.unitsTotal,
+                      })}
+                    </span>
+                    <span className="text-xs font-medium text-gray-400">({s.count})</span>
+                    {s.locked ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-200/80 px-2.5 py-1 text-[10px] font-bold text-gray-600">
+                        <Lock className="h-3 w-3" />
+                        {t('student.home.sectionLocked')}
+                      </span>
+                    ) : (
+                      s.unitsTotal > 0 &&
+                      s.unitsDone === s.unitsTotal && (
+                        <span className="inline-flex items-center rounded-full bg-green-100/80 px-2.5 py-1 text-[10px] font-bold text-green-700">
+                          ✓ {t('student.home.passed')}
+                        </span>
+                      )
+                    )}
+                    <span className="h-px flex-1 bg-gray-200/70" />
+                  </div>
+                  {s.locked && (
+                    <CheckpointTestOut
+                      studentId={studentId}
+                      seriesId={s.seriesId}
+                      seriesName={s.name}
+                      onUnlocked={refreshPath}
+                    />
+                  )}
+                </Fragment>
+              );
+            }
+
+            // Games the path does not cover (the global catalog floor, or an
+            // offline list) — they keep a plain group so they stay reachable.
             if (item.kind === 'section') {
               return (
                 <Fragment key={`section-${item.key}`}>
@@ -136,15 +186,6 @@ export default function PlayTab({
                     <span className="text-xs font-medium text-gray-400">({item.count})</span>
                     <span className="h-px flex-1 bg-gray-200/70" />
                   </div>
-                  {(item.seriesIds || []).map((seriesId) => (
-                    <CheckpointTestOut
-                      key={`checkpoint-${seriesId}`}
-                      studentId={studentId}
-                      seriesId={seriesId}
-                      seriesName={seriesNameById.get(seriesId)}
-                      onUnlocked={refreshPath}
-                    />
-                  ))}
                 </Fragment>
               );
             }
