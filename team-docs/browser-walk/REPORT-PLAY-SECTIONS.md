@@ -61,6 +61,38 @@ Each chip's card total equals its badge count. `Animals` has no chip because it 
 PlayTab hides a chip whose count is 0. So a chip that empties a subject takes its header with it
 rather than leaving a header promising content that is not there.
 
+## MID-BAND walk — the assertion a top-band child cannot make
+
+`EK-Q4-TEST-001` is a **Primary** child, and Primary is the *top* band, so the client ceiling
+filters nothing: every catalog row passes and the walk only ever proved "51 sections render". The
+ceiling itself was untested. Re-run against **`Demo5` @ SCH/25 (Nursery 2)** on live, after the
+`Q66` fix made a mid-band child obtainable at all:
+
+| | rendered | expected | match |
+|---|---|---|---|
+| cards | **1085** | 1085 catalog rows, all at-or-below the band | ✅ |
+| sections | **37** | 36 series with a surviving card + 1 path-less group | ✅ |
+| offers | **9** | 9 locked subjects | ✅ |
+
+Sections by band: **Crèche 9 · Playgroup 9 · Nursery 1 9 · Nursery 2 9 · Unlocked 1** — and
+**no Kindergarten or Primary section at all**, which is the whole point: the ceiling genuinely
+excluded the two higher bands. Card distribution **{5, 30}**: 36 × 30 = 1080 plus 5 path-less
+= 1085, so nothing is lost or duplicated.
+
+- All **9 Nursery 2 headers carry `Locked`**, each with one jump-ahead offer — and the 27
+  earlier-band (spillover) sections correctly carry none and no offer, matching the 9 locked
+  series the API reports.
+- **0 console errors, 0 uncaught exceptions, 0 failed requests, 0 non-2xx.**
+- `readOnly: true` — the streak write was attempted and blocked (see the production-write
+  section below), so this ran against a real child's session without writing.
+
+**No application bug was found on the mid-band walk either.**
+
+One correction to the harness it forced: `expectedFromApi` compared cards against the raw
+catalog, which is right for a top-band child and wrong for every other band — a *correct*
+mid-band render would have been reported as a failure. It now applies the band ceiling (and
+counts a series as sectioned only when a card survives it), mirroring the client's `BAND_RANKS`.
+
 ## PRODUCTION WRITE FOUND — the dashboard is not read-only
 
 The first live run reported `readOnly: false`: opening the student dashboard issued
@@ -113,6 +145,11 @@ All in the **walk harness**, not the app; all fixed.
    badge, so `textContent` is `"All1718"` — the `\b` in `^(All|…)\b` never fires between `l` and
    `1`. Fixed by normalising whitespace and matching `label\d*`.
 3. **The walk was writing to production** (see above). Fixed by aborting the streak write.
+4. **The expectation ignored the band ceiling** (found when the walk was first pointed at a
+   mid-band child). `expectedFromApi` asserted `cards === catalog rows`, which holds only for a
+   top-band child; for Nursery 2 the grid must show strictly fewer rows than the catalog, and a
+   series whose units are all above the band must get no section. A correct render would have
+   been reported as broken. The expectation now applies the same ceiling the client uses.
 
 **No application bug was found by this walk.**
 

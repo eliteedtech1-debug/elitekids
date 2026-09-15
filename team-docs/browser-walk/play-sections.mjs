@@ -105,20 +105,64 @@ class Cdp {
   }
 }
 
-/** What the grid is *supposed* to show — read from the live API with the same JWT. */
+/**
+ * Mirrors the client's BAND_RANKS (lib/utils/learningPath.ts), which itself mirrors
+ * the server ladder: NERDC labels plus the five legacy storage aliases.
+ */
+const BAND_RANKS = {
+  'Crèche': 0, Creche: 0, Playgroup: 1, 'Nursery 1': 2, 'Nursery 2': 3, Kindergarten: 4, Primary: 5,
+  Nursery: 2, KG1: 3, KG2: 4,
+};
+const bandRank = (b) => {
+  const r = BAND_RANKS[String(b || '').trim()];
+  return Number.isInteger(r) ? r : -1;
+};
+
+/**
+ * What the grid is *supposed* to show — read from the live API with the same JWT,
+ * and capped by the child's band exactly as the client does.
+ *
+ * The ceiling matters: for a top-band child (Primary) every row passes and this is
+ * just the catalog, but for a mid-band child the grid must show strictly fewer rows
+ * than the catalog, and a series whose units are all above the band must not get a
+ * section at all. Asserting against the raw catalog would therefore "fail" on a
+ * correct mid-band render.
+ */
 async function expectedFromApi() {
   const H = { Authorization: `Bearer ${JWT}` };
   const catalog = await (await fetch(`${APP}/kids/lessons?content_state=published`, { headers: H })).json();
   const path = await (await fetch(`${APP}/kids/learning-path?student_id=${encodeURIComponent(process.env.ADMISSION || 'EK-Q4-TEST-001')}`, { headers: H })).json();
   const rows = Array.isArray(catalog?.data) ? catalog.data : [];
   const series = Array.isArray(path?.data?.path) ? path.data.path : [];
+  const band = path?.data?.student?.age_band ?? null;
+  const max = bandRank(band);
+
+  // An unresolvable band does NOT filter (the never-blank-PLAY rule).
+  const visible = max === -1
+    ? rows
+    : rows.filter((r) => {
+        const rk = bandRank(r.age_level);
+        return rk !== -1 && rk <= max;
+      });
+  const visibleIds = new Set(visible.map((r) => String(r.id)));
+
   const pathLessonIds = new Set();
   for (const s of series) for (const u of s.units) for (const l of u.lessons) pathLessonIds.add(String(l.lesson_id));
+
+  // A series only gets a section if at least one of its lessons survives the ceiling.
+  const seriesWithCards = series.filter((s) => {
+    for (const u of s.units) for (const l of u.lessons) if (visibleIds.has(String(l.lesson_id))) return true;
+    return false;
+  });
+
   return {
+    band,
     catalogRows: rows.length,
+    visibleRows: visible.length,
     seriesCount: series.length,
+    seriesWithCards: seriesWithCards.length,
     pathLessons: pathLessonIds.size,
-    pathLess: rows.filter((r) => !pathLessonIds.has(String(r.id))).length,
+    pathLessVisible: visible.filter((r) => !pathLessonIds.has(String(r.id))).length,
     lockedSeries: series.filter((s) => s.units.some((u) => u.locked)).map((s) => s.name),
     series: series.map((s) => ({ name: s.name, units: s.units.length, lessons: s.units.reduce((n, u) => n + u.lessons.length, 0) })),
   };
@@ -190,7 +234,7 @@ async function main() {
   for (let i = 0; i < 40; i++) {
     await sleep(500);
     cards = await cdp.eval(`document.querySelectorAll('.game-card-hover').length`);
-    if (cards >= expected.catalogRows) break;
+    if (cards >= expected.visibleRows) break;
   }
   await sleep(1200);
 
@@ -308,8 +352,8 @@ async function main() {
     rendered: { cards, sections: sections.length, offers: offers.length },
     expected,
     matches: {
-      cardCount: cards === expected.catalogRows,
-      sectionCount: sections.length === expected.seriesCount + (expected.pathLess > 0 ? 1 : 0),
+      cardCount: cards === expected.visibleRows,
+      sectionCount: sections.length === expected.seriesWithCards + (expected.pathLessVisible > 0 ? 1 : 0),
       offerCount: offers.length === expected.lockedSeries.length,
     },
     sections: sections.map((s) => ({ name: s.name, cards: s.cards, badges: s.badges, firstCards: s.firstCards })),
