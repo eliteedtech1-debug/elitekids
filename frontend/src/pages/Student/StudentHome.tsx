@@ -926,6 +926,16 @@ export default function StudentHome() {
               headerTheme={headerTheme}
               showWelcomeSpotlight={showWelcomeSpotlight}
             />
+
+            {/* Daily & Weekly Revision */}
+            <div className="mb-5">
+              <RevisionCard />
+            </div>
+
+            {/* Review Zone (spaced repetition) — ReviewDueBadge scrolls here */}
+            <div id="review-zone" className="mb-5 scroll-mt-4">
+              <ReviewZone />
+            </div>
           </Suspense>
         )}
 
@@ -952,16 +962,6 @@ export default function StudentHome() {
 
         {/* Offline Indicator */}
         <OfflineIndicator silent />
-
-        {/* Daily & Weekly Revision */}
-        <div className="mb-5">
-          <RevisionCard />
-        </div>
-
-        {/* Review Zone (spaced repetition) — ReviewDueBadge scrolls here */}
-        <div id="review-zone" className="mb-5 scroll-mt-4">
-          <ReviewZone />
-        </div>
 
         {error && !offlineMode && (
           <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-md">{error}</div>
