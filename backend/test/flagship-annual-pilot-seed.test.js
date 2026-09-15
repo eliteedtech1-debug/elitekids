@@ -21,6 +21,9 @@ const {
   subjectsForBand,
   gamesPerWeekForBand,
   templateFor,
+  assessmentModeForBand,
+  ADULT_OBSERVATION,
+  GAME_EVIDENCE,
 } = require('../src/seeders/flagshipAnnualPilotSeed');
 
 const expectedCounts = {
@@ -151,6 +154,70 @@ describe('flagship annual pilot seed', () => {
       Array.from({ length: 15 }, (_, index) => String(index + 1)),
     );
     expect(count(primaryMath)).toBe(15);
+  });
+
+  test('declares the ASSESSMENT MODE per band — the exposure tier has no child-facing test (Q73)', () => {
+    const rows = buildPilotRows();
+
+    // Declared in the plan, not inferred from tier: Crèche is tier 0 and Playgroup
+    // is tier 1, yet BOTH are observation-led (game-ready-curriculum-contract §3/§7,
+    // year-plan-and-game-authoring-standard "For Crèche/Playgroup, set test: null",
+    // game-size-and-module-standard unitPassed()).
+    const declared = Object.fromEntries(PLAN.bands.map((band) => [band.id, band.assessment]));
+    expect(declared).toEqual({
+      creche: ADULT_OBSERVATION,
+      playgroup: ADULT_OBSERVATION,
+      'nursery-1': GAME_EVIDENCE,
+      'nursery-2': GAME_EVIDENCE,
+      kindergarten: GAME_EVIDENCE,
+      primary: GAME_EVIDENCE,
+    });
+
+    const exposure = new Set(['Crèche', 'Playgroup']);
+    for (const config of rows.configs) {
+      const cfg = config.config_json;
+      if (exposure.has(cfg.classLabel)) {
+        // No child-facing test, no score gate, adult observation — including the
+        // quiz weeks, whose closure test Playgroup used to inherit from its tier.
+        expect(cfg.gamePlan.test).toBeNull();
+        expect(cfg.pilot.assessment).toBe(ADULT_OBSERVATION);
+        expect(cfg.successThresholdPct).toBe(0);
+      } else {
+        expect(cfg.gamePlan.test).toMatchObject({ choices: 4, requiredAfterPractice: true });
+        expect(cfg.pilot.assessment).toBe(GAME_EVIDENCE);
+        expect(cfg.successThresholdPct).toBe(60);
+      }
+    }
+
+    // 270 games per early-years band — Crèche and Playgroup are the testless ones.
+    const testless = rows.configs.filter((config) => config.config_json.gamePlan.test === null);
+    expect(testless).toHaveLength(540);
+    expect(new Set(testless.map((config) => config.config_json.classLabel))).toEqual(exposure);
+  });
+
+  test('refuses a band that does not declare its assessment mode', () => {
+    const rows = buildPilotRows();
+    const undeclared = PLAN.bands.find((band) => band.id === 'playgroup');
+    const saved = undeclared.assessment;
+    try {
+      delete undeclared.assessment;
+      const report = validatePilotRows(rows);
+      expect(report.valid).toBe(false);
+      expect(report.errors.some((error) => error.includes('Playgroup must declare assessment'))).toBe(true);
+    } finally {
+      undeclared.assessment = saved;
+    }
+    // Restored: the tree is valid again.
+    expect(validatePilotRows(buildPilotRows()).valid).toBe(true);
+  });
+
+  test('assessmentModeForBand keeps every band one of the two declared modes', () => {
+    for (const band of PLAN.bands) {
+      const mode = assessmentModeForBand(band);
+      expect(mode.assessment).toBe(band.assessment);
+      expect(mode.successThresholdPct).toBe(mode.observed ? 0 : 60);
+      expect(assessmentModeForBand({ ...band, assessment: 'nonsense' }).assessment).toBe(GAME_EVIDENCE);
+    }
   });
 
   test('uses editable canonical term/week metadata in the served lesson text', () => {

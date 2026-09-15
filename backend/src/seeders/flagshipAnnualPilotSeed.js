@@ -174,6 +174,38 @@ function subjectById(id) {
   return subject;
 }
 
+/** Assessment mode of the exposure tier (Crèche + Playgroup): teacher observation. */
+const ADULT_OBSERVATION = 'adult observation';
+/** Assessment mode of every assessed band (Nursery 1 → Primary). */
+const GAME_EVIDENCE = 'low-stakes practical and game evidence';
+
+/**
+ * A band's ASSESSMENT MODE is declared in the plan (`assessment`), never inferred
+ * from `tier` — `tier` is a learning-difficulty knob (choices, prompt mode, xp).
+ *
+ * The exposure tier is observation-led, not test-led, and that is written down in
+ * four framework documents: `game-ready-curriculum-contract.md` §3/§7 ("For Crèche
+ * and Playgroup, adult observation is the assessment and `test` should not be
+ * surfaced"), `year-plan-and-game-authoring-standard.md` ("For Crèche/Playgroup,
+ * set `test: null` and use `assessment: "adult observation"`"), `subject-game-
+ * blueprint.md` and `game-size-and-module-standard.md`, whose `unitPassed()`
+ * pseudocode requires an ADULT OBSERVATION RECORD for the exposure tier and a
+ * passing test only for the bands above it. Until 2026-09-15 (QUEUE Q73) the
+ * derivation was `band.tier === 0`, so Playgroup — tier 1 — was served a 4-option
+ * scored quiz test on its quiz weeks, contradicting its own scheme
+ * ("observation-led") and every document above.
+ */
+function assessmentModeForBand(band) {
+  const observed = band.assessment === ADULT_OBSERVATION;
+  return {
+    observed,
+    assessment: observed ? ADULT_OBSERVATION : GAME_EVIDENCE,
+    // Exposure play has no wrong state (`successThresholdPct: 0` on the Crèche
+    // row), so an observation-led band carries no score gate to pass either.
+    successThresholdPct: observed ? 0 : 60,
+  };
+}
+
 /** Bands may declare their own subject set — Primary uses the NERDC primary six. */
 function subjectsForBand(band) {
   return band.subjectSet === 'primarySubjects' ? PRIMARY_SUBJECTS : SUBJECTS;
@@ -295,6 +327,7 @@ function baseConfig({ gameId, lessonId, itemId, band, subject, termName, week, o
   const category = CATEGORY_BY_SUBJECT[subject.id];
   const gamesPerWeek = gamesPerWeekForBand(band);
   const itemsPerGame = itemsPerGameForBand(band);
+  const assessmentMode = assessmentModeForBand(band);
   return {
     gameId,
     template,
@@ -326,7 +359,9 @@ function baseConfig({ gameId, lessonId, itemId, band, subject, termName, week, o
       itemsPerGame: itemsPerGame === 15 ? 'up to 15 logical playable items' : '5 logical playable items',
       learning: { template, tier: band.tier, choices: band.tier === 0 ? 2 : 4 },
       practice: { template, tier: band.tier, choices: band.tier === 0 ? 2 : 4 },
-      test: band.tier === 0 ? null : { template, tier: band.tier, choices: 4, requiredAfterPractice: true },
+      // No child-facing test for the observation-led tier (Q73): the closure
+      // contract the gate reads (services/closureContract.js) is declared here.
+      test: assessmentMode.observed ? null : { template, tier: band.tier, choices: 4, requiredAfterPractice: true },
     },
     assetPlan: { source: 'local inline fallback art', reviewRequired: true },
     scenePlan: ['intro', 'teach', 'game_checkpoint', 'reinforce', 'recap'],
@@ -337,13 +372,13 @@ function baseConfig({ gameId, lessonId, itemId, band, subject, termName, week, o
     feedbackWrong: 'That is a try. Let us look and try together.',
     characters: [{ name: 'Tobi', emoji: '🧒', personality: 'curious' }],
     rewards: { starsOnComplete: 3, xp: 10 + band.tier * 5 },
-    successThresholdPct: band.tier === 0 ? 0 : 60,
+    successThresholdPct: assessmentMode.successThresholdPct,
     durationTargetSec: band.tier === 0 ? 60 : 120,
     pilot: {
       schoolId: PLAN.schoolId,
       branchId: PLAN.branchId,
       adultValidationRequired: true,
-      assessment: band.tier === 0 ? 'adult observation' : 'low-stakes practical and game evidence',
+      assessment: assessmentMode.assessment,
       offlineEquivalent: 'Use the same objective with safe household or classroom objects before screen play.',
     },
   };
@@ -594,6 +629,29 @@ function validatePilotRows(rows = buildPilotRows()) {
   if (!rows.configs.filter((config) => config.config_json.subjectId === 'comm-literacy').every((config) => config.config_json.phonix && config.config_json.phonix.engine === 'PHONIX')) {
     errors.push('comm-literacy annual games must carry PHONIX metadata');
   }
+  // Assessment mode is DECLARED per band (QUEUE Q73) — a band that forgets the
+  // field must fail loudly rather than silently inherit a test from its tier.
+  for (const band of PLAN.bands) {
+    if (band.assessment !== ADULT_OBSERVATION && band.assessment !== GAME_EVIDENCE) {
+      errors.push(`${band.classLabel} must declare assessment: "${ADULT_OBSERVATION}" or "${GAME_EVIDENCE}"`);
+    }
+  }
+  // The exposure tier is observation-led and the rest are test-led: both halves are
+  // enforced, so neither can silently spread to the other.
+  const exposureLabels = PLAN.bands
+    .filter((band) => band.assessment === ADULT_OBSERVATION)
+    .map((band) => band.classLabel);
+  for (const config of rows.configs) {
+    const label = config.config_json.classLabel;
+    const exposure = exposureLabels.includes(label);
+    if (exposure) {
+      if (config.config_json.gamePlan.test !== null) errors.push(`${config.id}: ${label} is observation-led and must declare gamePlan.test: null`);
+      if (!config.config_json.pilot || config.config_json.pilot.assessment !== ADULT_OBSERVATION) errors.push(`${config.id}: ${label} must use assessment "${ADULT_OBSERVATION}"`);
+      if (config.config_json.successThresholdPct !== 0) errors.push(`${config.id}: ${label} must not carry a score gate`);
+    } else if (!config.config_json.gamePlan || !config.config_json.gamePlan.test) {
+      errors.push(`${config.id}: ${label} must declare a child-facing test`);
+    }
+  }
   // The one-class-fits-all ladder must be present on every Playgroup + Primary game.
   for (const band of PLAN.bands.filter((candidate) => candidate.ladder)) {
     const bandConfigs = rows.configs.filter((config) => config.config_json.classLabel === band.classLabel);
@@ -686,5 +744,8 @@ module.exports = {
   gamesPerWeekForBand,
   itemsPerGameForBand,
   templateFor,
+  assessmentModeForBand,
+  ADULT_OBSERVATION,
+  GAME_EVIDENCE,
   seedFlagshipAnnualPilot,
 };

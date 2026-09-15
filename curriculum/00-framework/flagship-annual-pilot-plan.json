@@ -47,6 +47,7 @@
       "ageBand": "Crèche",
       "gameAgeLevel": "Creche",
       "tier": 0,
+      "assessment": "adult observation",
       "themes": ["settling, attachment and sensory noticing", "family, water, weather and repeated routines", "food, transport, nature and familiar home routines"],
       "objectives": {
         "comm-literacy": "Respond to a familiar voice, name, song or picture through gaze, gesture or sound.",
@@ -66,6 +67,7 @@
       "ageBand": "Playgroup",
       "gameAgeLevel": "Creche",
       "tier": 1,
+      "assessment": "adult observation",
       "ladder": {
         "levels": 6,
         "unitsPerLevel": 5,
@@ -102,6 +104,7 @@
       "ageBand": "Nursery 1",
       "gameAgeLevel": "Nursery",
       "tier": 1,
+      "assessment": "low-stakes practical and game evidence",
       "themes": ["listening, rhyme, colours, counting 1–5 and classroom care", "letters, patterns, family, animals, food and healthy routines", "picture-to-word links, story order, community, safety and independence"],
       "objectives": {
         "comm-literacy": "Recognise a familiar sound, rhyme, picture word or selected letter through oral play.",
@@ -121,6 +124,7 @@
       "ageBand": "Nursery 2",
       "gameAgeLevel": "KG1",
       "tier": 2,
+      "assessment": "low-stakes practical and game evidence",
       "themes": ["oral blending, numbers 1–10, patterns, living things and routines", "familiar words, comparison, shapes, materials, community and self-care", "shared reading, number order, weather, transport and school readiness"],
       "objectives": {
         "comm-literacy": "Blend an oral sound, match a familiar word to a picture and retell a short sequence.",
@@ -140,6 +144,7 @@
       "ageBand": "Kindergarten",
       "gameAgeLevel": "KG2",
       "tier": 2,
+      "assessment": "low-stakes practical and game evidence",
       "themes": ["oral sentences, familiar reading, joining groups within 5 and classroom responsibility", "sentence meaning, number bonds, measurement, nature inquiry and cooperation", "transfer to short reading and writing, reasoning, safety and primary readiness"],
       "objectives": {
         "comm-literacy": "Read or build a familiar word, answer a story question and compose a short sentence orally.",
@@ -159,6 +164,7 @@
       "ageBand": "Primary",
       "gameAgeLevel": "Primary",
       "tier": 3,
+      "assessment": "low-stakes practical and game evidence",
       "subjectSet": "primarySubjects",
       "ladder": {
         "levels": 6,
