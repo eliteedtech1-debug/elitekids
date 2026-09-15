@@ -201,6 +201,19 @@ session-close followups ("PLAY by unit").
   [the POST], blockedWrites = [same], escaped = []** — attempted and aborted before leaving the
   browser. A live walk is now provably read-only.
 
+- 2026-09-15T15:18Z | DOCS | Stale-docs sync (separate brief, no code): added **Q48–Q60** to
+  `team-docs/QUEUE.md` covering the 09-10 → 09-15 work that lived only in `reports/*-progress.md`
+  (Primary pilot, 5-tab restructure, Play-0, data-ownership audit, jump-ahead checkpoints, PLAY
+  sections, ECCE bridge, deploy hardening, crèche commit, crèche audit) plus three OPEN rows —
+  **Q58** dashboard-load write, **Q59** server-side band cap, **Q60** repo/prod drift. Rewrote
+  `PROGRESS.md` (Last updated 2026-09-15, git sync, a new "Student Experience & Deploy" matrix,
+  S9 sprint history, refreshed Next Up ordered by production risk, session-log entries).
+  Corrected three claims PROGRESS.md had stale, each VERIFIED not assumed: coturn is `active`
+  (was "BLOCKED — needs sudo"), live serves `en-XLaQ_gOp.js`/`ha-COH7dJaP.js` 200 (was "English
+  locale NOT DEPLOYED"), and GitHub push works over HTTPS (was "Can't push"). Also verified live
+  that the checkpoint + bridge routes answer **401 (mounted)** — they 404'd before `eb9b527`
+  reached origin, so the jump-ahead row now reads DEPLOYED rather than schema-ready-only.
+
 STATUS: done + DEPLOYED — PLAY is sectioned by subject in unit order; tsc clean,
 267/267 tests, staging build + compat-css guard green, and a browser walk of BOTH the staging
 confirms 1718 cards / 52 sections / 6 offers with 0 errors and 0 empty sections on every subject

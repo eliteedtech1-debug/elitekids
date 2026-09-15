@@ -3,8 +3,10 @@
 **Single source of truth for "where are we." Read fully before doing anything; update
 before ending every session.**
 
-**Last updated:** 2026-09-09
-**Git sync:** Local ↔ Prod both at commit `1545b36`
+**Last updated:** 2026-09-15
+**Git sync:** `origin/main` = `8fc1e11` (live release `20260915T151254Z-8fc1e11`); local is
+**ahead 1** with `b8fef89` (read-only walk harness) deliberately unpushed — pushing it would
+re-run the full gate + publish for a docs/harness-only change.
 **Sync method:** `git push origin main` / `git pull origin main` — pushing `main` IS the
  deploy (`.github/workflows/deploy.yml`); there is no `production` remote
 
@@ -30,6 +32,22 @@ before ending every session.**
 | Kids routes (lessons, progress, approvals) | ✅ LIVE | Content delivery | 80/80 |
 | Media pipeline (B2 + BullMQ) | ✅ LIVE | Asset storage + processing | 124/124 |
 | Frontend app shell (Vite + Tailwind v4) | ✅ LIVE | SPA foundation | Build green |
+
+### Student Experience & Deploy (2026-09-10 → 09-15)
+
+| Feature | Status | Rationale | Evidence |
+|---|---|---|---|
+| 5-tab student dashboard (HOME/PLAY/LEARN/REVIEW/ME) | ✅ DEPLOYED | Zero overlap: one branch per tab key, no fallback `else` | 22 AST tests, live walk 0 errors (`ad6dbbb`, `7120fbe`) |
+| PLAY sectioned by subject in unit order | ✅ DEPLOYED | Flat 1718-card grid → 52 sections; unit-level rejected on data (1350 of 1530 units hold ONE game) | live walk 1718/52/6, 0 errors (`8fc1e11`) |
+| Play-0 fix — canonical NERDC band ladder | ✅ DEPLOYED | Nursery children saw `Play 0`: client ranked on the old 5-value legacy ladder, so every NERDC row ranked −1 and was dropped | Demo5 0 → 814 (`dd78174`) |
+| Class-safe load budget | ✅ DEPLOYED | ~40 → 15 API calls/load, 1 when idle | (`ad6dbbb`); class-sized gap still flagged below |
+| Jump-ahead checkpoints ("test out" of a locked chain) | ✅ DEPLOYED | Prove the prerequisite instead of grinding; a skip is EXEMPT, never mastery | 66/66 · 761/761 (`eb9b527`); migration applied + independently verified |
+| ECCE game bridge — DB binding, mounted routes, review/publish/recall, teacher screen | ✅ DEPLOYED | 2 of the 3 failing suites were real production defects, not test defects | (`0176bdc`, `535a91e`) |
+| Crèche content + placement implementation committed | ✅ DEPLOYED | Seeder entry point guarded so a test cannot trigger seeding | gate 65/65 · 724/724 (`5fda5ba`) |
+| Deploy hardening — staging gate + atomic release swap | ✅ DEPLOYED | After the 403 incident: the nginx docroot had no `index.html` | (`ef46cbb`, `65d86e3`) |
+| **Server-side band cap** | ⚠️ OPEN | The client ceiling is currently the only thing keeping higher-band content out | Q59 |
+| **A dashboard load counts as a play day** | ⚠️ OPEN | Streaks inflate and every dashboard visit is a server write | Q58 |
+| **Flagship pilot reproducible from the repo** | ⚠️ OPEN | Prod serves 6 bands / 1718 lessons; HEAD's plan declares 5 and no `primary` | Q48, Q60 |
 
 ### Game Engine
 
@@ -86,7 +104,7 @@ before ending every session.**
 | WebRTC voice signaling (E4) | ✅ LIVE | Teacher speaks to remote class | 10/10 |
 | Weekend push notifications (E3f) | ✅ LIVE | Re-engagement on idle days | 6/6 |
 | Live class voice (Phase 0) | ✅ LIVE | Async voice notes ≤90s | Built + deployed |
-| TURN server (coturn) | ⏳ BLOCKED | Needs sudo on VPS | Config ready |
+| TURN server (coturn) | ✅ LIVE | Installed + active (verified `systemctl is-active coturn` → active, 2026-09-15); Q18 set it up via `coturn-setup.yml`, 3478 relaying, `LIVE_WEBRTC=1` | 10/10 signaling |
 | 2-way voice (per-child unmute) | ⏳ TODO | Phase 1 after TURN | — |
 
 ### Internationalization (i18n)
@@ -100,7 +118,7 @@ before ending every session.**
 | P3: Locales + RTL + adaptive | ✅ COMPLETE | Hausa + RTL layout | Build green |
 | Expanded Hausa locale (~890 keys) | ✅ DEPLOYED | Full student + parent + gameplay | Merged to prod |
 | Arabic/Yoruba locales | ⏳ TODO | Future localization | — |
-| English locale on prod | ❌ NOT DEPLOYED | i18n commits never pushed until now | — |
+| English locale on prod | ✅ DEPLOYED | Verified 2026-09-15: live serves `en-XLaQ_gOp.js` and `ha-COH7dJaP.js`, both HTTP 200 | Release `20260915T151254Z-8fc1e11` |
 
 ### Phonics TTS
 
@@ -129,9 +147,16 @@ before ending every session.**
 - [x] Redis 8.10 on :6379 — media + generation queues live
 - [x] WebRTC signaling (LIVE_WEBRTC=1)
 - [x] VAPID keys for push notifications
+- [x] TURN server installed — coturn **active** (verified 2026-09-15)
+- [x] CI pipeline configured — `.github/workflows/deploy.yml` on `push: main`, self-hosted
+      runner; backend gate + staging build + atomic release swap
+- [x] Deploy verified end-to-end 2026-09-15: gate 66 suites / 761 tests, publish SUCCESS,
+      `frontend/dist` → `releases/20260915T151254Z-8fc1e11`
+- [x] `elite-kids-api.service` (systemd user unit, :8484) active
 - [ ] B2 application key rotated (old one exposed — see README)
-- [ ] TURN server installed (coturn config ready, needs sudo)
-- [ ] CI pipeline configured (optional)
+- [ ] Checkpoint + ECCE bridge migrations are APPLIED to live `elite_kids` but are
+      migration-only by design (never added to `KIDS_CONTENT_TABLES`), so a fresh
+      environment needs them run explicitly
 
 ---
 
@@ -139,9 +164,16 @@ before ending every session.**
 
 | Blocker | Since | Impact |
 |---|---|---|
-| coturn needs sudo on VPS | Aug 25 | TURN fallback only; WebRTC works with STUN but fails behind CGNAT (Nigerian mobile ISPs) |
-| B2 app key exposed in chat | Aug 17 | Security — needs rotation |
-| GitHub SSH key not registered | Aug 28 | Can't push to GitHub from this machine |
+| B2 app key exposed in chat | Aug 17 | Security — needs rotation. **Only open blocker with a security impact** |
+| Server-side band cap may not hold (Q59) | Sep 15 | `resolveBandForAdmission` resolved no band for two children, so `visibleLevels()` never capped `GET /kids/lessons` and the CLIENT ceiling was the only defence. Needs re-confirmation with a mid-band child |
+| A dashboard load counts as a play day (Q58) | Sep 15 | `POST /kids/economy/streak/record` fires on every mount and UPDATEs `kids_economy`; streaks inflate and every visit is a write |
+| Class-sized load still exceeds the rate limit | Sep 15 | 15 calls/child × 30 children opening at once ≈ 450 req/min against a **300/min per-IP** limit shared by a whole school. Server work, not client work |
+| Flagship pilot not reproducible from the repo (Q48/Q60) | Sep 15 | Prod serves 6 bands / 1718 lessons; HEAD's plan declares 5 and no `primary`, and the seeder writes one game per unit. A rebuild from source cannot reproduce prod |
+
+**Resolved since the last update:** TURN/coturn (installed + active, Q18) · GitHub push
+(works over HTTPS — both deploys today pushed successfully, so the "SSH key not registered"
+blocker is moot) · English locale on prod (verified serving) · the 403 docroot incident
+(Q55).
 
 ---
 
@@ -213,15 +245,42 @@ Full log in `01-PLANNING/09-DECISIONS-LOG.md`. Summary:
 - Git bidirectional sync established
 - Unified PROGRESS.md created
 
+### S9 — Student experience, ECCE bridge, deploy hardening (Sep 10 → Sep 15)
+
+- **Sep 10** — Primary annual pilot: band-count verified against live `elite_kids`, Primary
+  progressive band + Playgroup one-class-fits-all ladder implemented, seed re-run
+  (1,710 games / 6 bands / 51 series). Login subdomain fix. ⚠️ The plan/seeder half of this
+  work is **not in the repo** — see Q48/Q60.
+- **Sep 11** — Crèche game audit (Milestone 1: tap-recognition discovery).
+- **Sep 14** — Deploy hardening after the 403 docroot incident; ECCE bridge model binding +
+  mounted observation routes (2 real production defects); bridge review/publish/recall state
+  machine + teacher authoring screen. A bridge push failed the gate and published nothing,
+  which exposed that CI step 1 runs `git stash create` + `git reset --hard origin/main`.
+- **Sep 15** — Crèche content + placement committed so the gate could pass; jump-ahead
+  checkpoint feature (backend, frontend, policy) with its migration applied to live;
+  5-tab student restructure with a class-safe load budget; the Play-0 production bug fixed
+  (Nursery children saw `Play 0`); PLAY ordered by curriculum then sectioned by subject.
+
 ---
 
 ## Next Up
 
-- [ ] Deploy i18n frontend bundle to prod (local has it, prod doesn't)
-- [ ] E4 Phase 2: Install coturn TURN server (needs sudo)
-- [x] Annual Numbers/Letters/PHONIX pilot source and idempotent seed validated; adult approval still required before publication
+Ordered by what actually protects production, not by what is easiest.
+
+- [ ] **Q58** — stop a dashboard load from counting as a play day (it writes to
+      `kids_economy` and inflates streaks)
+- [ ] **Q59** — make the server-side band cap hold, so `visibleLevels()` is the defence and
+      the client ceiling is only a backstop
+- [ ] **Q60** — reconcile the tracked flagship plan + seeder with the content prod serves
+- [ ] **Q51** — migrate the 42 direct `elite_db.students` reads (17 files) onto elite-sms APIs
+- [ ] **Q55 follow-up** — Decide the PLAY ordering question: a Primary child's own six
+      subjects and their six test-out offers sit ~1350 cards behind early-band review
+- [ ] Rate-limit the API by school/user for authenticated kids (the class-sized gap)
+- [x] Deploy the i18n frontend bundle to prod — done, verified serving
+- [x] Install the coturn TURN server — done, active
+- [x] Annual Numbers/Letters/PHONIX pilot source and idempotent seed validated; adult
+      approval still required before publication
 - [ ] Curriculum points renumber (cosmetic: old PA-U{1..5} refs)
-- [ ] Add SSH key to GitHub for origin push
 - [ ] Clean up 47 .bak files on prod
 - [ ] B2 application key rotation
 
@@ -316,4 +375,38 @@ _(append one short entry per work session — do not delete old entries, this is
   seed for 5 bands × 9 subjects × 3 terms × 10 weeks (1,350 schema-validated rows).
   Numbers are age-banded; Letters carry PHONIX sound-first metadata. Seed remains pending
   adult review by default; dry run, focused Jest test and frontend build passed.
+
+2026-09-10 — Primary annual pilot: band-count verified against LIVE elite_kids (published
+  rows only); Primary progressive band (2 games/subject/week, 15-item cap) and Playgroup
+  one-class-fits-all ladder added to the plan; idempotent seed re-run → 1,710 games across
+  6 bands / 51 series. Login: Change School hidden when the school is auto-detected.
+  NOTE (found 2026-09-15): the plan + seeder changes that would reproduce this are NOT in
+  the repo at HEAD — prod has the content, tracked source cannot generate it. See Q48/Q60.
+
+2026-09-11 — Crèche game audit Milestone 1 (tap-recognition): discovery complete,
+  implementation fix pending.
+
+2026-09-14 — Deploy hardening + ECCE bridge. 403 incident: the nginx docroot had no
+  index.html, and `index index.html` with autoindex off yields 403 (not 404). Fixed by
+  gating frontend publishes behind a staging build + atomic release swap and retiring the
+  manual rsync scripts. ECCE bridge: two of three failing suites were REAL production
+  defects — the bridge/observation models were bound to the shared EliteSMS DB instead of
+  KIDS_DB_NAME, and POST /kids/observations was never mounted (404). Then the
+  review/publish/recall state machine + teacher authoring screen. A push failed the gate and
+  published nothing, exposing that CI step 1 does `git stash create` + `git reset --hard`,
+  which reverts tracked edits and leaves untracked files.
+
+2026-09-15 — Crèche content + placement committed so the gate could pass (gate 65/65 ·
+  724/724); the Jolly Phonics seeder entry point is now guarded so a test cannot trigger
+  seeding or its process.exit. Jump-ahead checkpoints shipped end to end (backend, frontend,
+  policy panel, teacher queue) and the migration was APPLIED to live elite_kids, verified
+  independently via information_schema. Student dashboard restructured into 5 tabs with zero
+  overlap (22 AST contract tests) plus a class-safe API budget (~40 → 15 calls/load, 1 idle).
+  The Play-0 production bug — Nursery children saw "Play 0" because the client ranked lessons
+  on the old 5-value legacy ladder while kids_lessons.age_level stores NERDC labels — fixed
+  and deployed (Demo5 went 0 → 814). PLAY then ordered by curriculum instead of createdAt, and
+  sectioned by subject in unit order (live walk: 1718 cards / 52 sections / 6 offers, 0 errors).
+  Two live-safety findings recorded: a dashboard load writes a streak (Q58), and the
+  server-side band cap may not hold (Q59). Both deploys of the day passed the gate
+  (66/66 · 761/761) and published atomically.
 ```
