@@ -46,6 +46,7 @@ import { offlineContent, isPrefetchRateLimited, markRateLimited } from '@/lib/of
 import { t } from '@/lib/i18n';
 import {
   classToAgeLevel,
+  compareCurriculum,
   filterInBand,
   flattenUnits,
   normalizeBand,
@@ -618,8 +619,10 @@ export default function StudentHome() {
         };
       })
       // Path order first (what the child is actually up to), then any game the
-      // path doesn't cover. Stable, so the grid never reshuffles between renders.
-      .sort((a, b) => a.order - b.order);
+      // path doesn't cover in curriculum order (own band first, then term/week)
+      // — NOT the API's createdAt order, which led with Week 9. Stable, so the
+      // grid never reshuffles between renders.
+      .sort((a, b) => a.order - b.order || compareCurriculum(a.lesson, b.lesson, studentBand));
 
     // No path data (offline / first paint) → plain list, no lock furniture.
     if (lessonLock.size === 0) {
@@ -660,7 +663,7 @@ export default function StudentHome() {
     section('open', open);
     section('locked', locked);
     return items;
-  }, [gridLessons, lessonLock]);
+  }, [gridLessons, lessonLock, studentBand]);
 
   /** Open a lesson from the path in the mode its state calls for. */
   const openLesson = useCallback((lessonId: string, mode: GameMode) => {

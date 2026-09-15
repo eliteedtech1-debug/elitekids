@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   classToAgeLevel,
   bandRank,
+  compareCurriculum,
   filterInBand,
   flattenUnits,
   currentPositionIndex,
@@ -146,6 +147,48 @@ describe('filterInBand', () => {
     // to every band when it cannot read a class either.
     expect(filterInBand(nerdc, null)).toEqual(nerdc);
     expect(filterInBand(nerdc, 'Decorative Class Name')).toEqual(nerdc);
+  });
+});
+
+describe('curriculum order (grids the path does not drive)', () => {
+  // Shape of the real catalog rows: the slot is only in the id and title.
+  const creative = [
+    { id: 'fp-n2-ft-w09-num', age_level: 'Nursery 2', title: 'Nursery 2 W9 — Numeracy / Mathematics Skill' },
+    { id: 'fp-n2-ft-w01-num', age_level: 'Nursery 2', title: 'Nursery 2 W1 — Numeracy / Mathematics Skill' },
+    { id: 'fp-n2-tt-w02-sci', age_level: 'Nursery 2', title: 'Nursery 2 W2 — Pre-science and Nature' },
+    { id: 'fp-n1-ft-w01-dr', age_level: 'Nursery 1', title: 'Nursery 1 W1 — Digital Readiness' },
+    { id: 'fp-creche-ft-w01-col', age_level: 'Crèche', title: 'Crèche W1 — Colours' },
+    { id: 'legacy-row', age_level: 'Nursery 2', title: 'A hand-written lesson' },
+  ];
+
+  const ordered = [...creative].sort((a, b) => compareCurriculum(a, b, 'Nursery 2'));
+
+  it('leads with the child\'s own band, earliest term and week first', () => {
+    expect(ordered[0].id).toBe('fp-n2-ft-w01-num');
+    // Term before week: First Term W9 still precedes Third Term W2.
+    expect(ordered.map((l) => l.id).slice(0, 3)).toEqual([
+      'fp-n2-ft-w01-num',
+      'fp-n2-ft-w09-num',
+      'fp-n2-tt-w02-sci',
+    ]);
+  });
+
+  it('never lets younger-band catch-up push the child\'s own unit 1 down', () => {
+    const ownBand = ordered.findIndex((l) => l.id === 'fp-n2-ft-w01-num');
+    const nursery1 = ordered.findIndex((l) => l.id === 'fp-n1-ft-w01-dr');
+    const creche = ordered.findIndex((l) => l.id === 'fp-creche-ft-w01-col');
+    expect(ownBand).toBeLessThan(nursery1);
+    expect(nursery1).toBeLessThan(creche);
+  });
+
+  it('sinks rows with no parseable slot, stably, within their band', () => {
+    const last = ordered.findIndex((l) => l.id === 'legacy-row');
+    expect(last).toBeGreaterThan(ordered.findIndex((l) => l.id === 'fp-n2-tt-w02-sci'));
+    expect(last).toBeLessThan(ordered.findIndex((l) => l.id === 'fp-n1-ft-w01-dr'));
+  });
+
+  it('falls back to plain band order when the child\'s band is unknown', () => {
+    expect([...creative].sort((a, b) => compareCurriculum(a, b, null))[0].id).toBe('fp-creche-ft-w01-col');
   });
 });
 

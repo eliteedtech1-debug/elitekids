@@ -190,6 +190,47 @@ export function classToAgeLevel(className: string | null | undefined): NerdcBand
   return null;
 }
 
+/** Term position used by the flagship catalog: First → Second → Third. */
+const TERM_ORDER: Record<string, number> = { ft: 0, st: 1, tt: 2, first: 0, second: 1, third: 2 };
+
+/**
+ * Curriculum position of a lesson row, for grids the learning path does not
+ * drive. Rows carry no term/week columns — the slot is in the id
+ * ('fp-n2-ft-w09-num') and the title ('Nursery 2 W9 — …').
+ *
+ * Returns `[bandDistance, term, week, title]` relative to `band`: 0 is the
+ * child's own band, then 1, 2, … for younger bands (catch-up reading), 99 for
+ * an unrankable band. Within a band, term → week → title, so Week 1 leads — the
+ * server hands lessons back `createdAt DESC`, which surfaced Week 9 first.
+ */
+export function curriculumKey(
+  lesson: { id?: string | null; age_level?: string | null; title?: string | null },
+  band?: string | null,
+): [number, number, number, string] {
+  const mine = bandRank(String(band || ''));
+  const rank = bandRank(String(lesson?.age_level || ''));
+  const distance = rank === -1 ? 99 : mine === -1 ? rank : rank <= mine ? mine - rank : 100 + rank;
+
+  const hay = `${lesson?.id || ''} ${lesson?.title || ''}`.toLowerCase();
+  const termMatch = hay.match(/\b(ft|st|tt)\b/) || hay.match(/\b(first|second|third)\s+term\b/);
+  const weekMatch = hay.match(/\bw(?:eek\s*)?(\d{1,2})\b/);
+  const term = termMatch ? TERM_ORDER[termMatch[1]] ?? 9 : 9;
+  const week = weekMatch ? parseInt(weekMatch[1], 10) : 999;
+  return [distance, term, week, String(lesson?.title || '')];
+}
+
+/** Stable curriculum order: band distance, then term, then week, then title. */
+export function compareCurriculum(
+  a: { id?: string | null; age_level?: string | null; title?: string | null },
+  b: { id?: string | null; age_level?: string | null; title?: string | null },
+  band?: string | null,
+): number {
+  const ka = curriculumKey(a, band);
+  const kb = curriculumKey(b, band);
+  for (let i = 0; i < 3; i++) if (ka[i] !== kb[i]) return (ka[i] as number) - (kb[i] as number);
+  return ka[3].localeCompare(kb[3]);
+}
+
 /**
  * Lessons at-or-below the child's band (never above).
  *
