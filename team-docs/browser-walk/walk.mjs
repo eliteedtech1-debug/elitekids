@@ -16,8 +16,9 @@ import { join } from 'node:path';
 
 const APP = process.argv[2] || 'http://127.0.0.1:34777';
 const JWT = process.argv[3] || '';
+const LABEL = process.argv[4] || 'local';
 const CDP = 'http://127.0.0.1:9333';
-const SHOTS = join('/var/www/html/elite/elite-kids/team-docs/browser-walk/shots');
+const SHOTS = join('/var/www/html/elite/elite-kids/team-docs/browser-walk/shots' + (LABEL === 'local' ? '' : `-${LABEL}`));
 
 /** Tab label -> the anchor/DOM signal its panel owns. */
 const TABS = [
@@ -284,6 +285,21 @@ async function main() {
         headings: [...main.querySelectorAll('h2, h3')].map(h => h.textContent.trim()),
         hasEmptyTeamsHeading: /My Team|Teams/i.test(main.innerText) && !/Class Quest|Team Challenge|Peer Teaching/i.test(main.innerText),
       };
+    })()
+  `);
+
+  // Diagnostic: what does the page's own session get back for the catalog
+  // endpoint? (Same call StudentHome makes on load.)
+  report.catalogFromPage = await cdp.eval(`
+    (async () => {
+      try {
+        const tok = localStorage.getItem('@@auth_token') || '';
+        const r = await fetch('/kids/lessons?content_state=published', { headers: { Authorization: 'Bearer ' + tok } });
+        const j = await r.json().catch(() => null);
+        const rows = j && j.data;
+        return { status: r.status, count: Array.isArray(rows) ? rows.length : null,
+                 levels: Array.isArray(rows) ? [...new Set(rows.map(l => l.age_level))] : null };
+      } catch (e) { return { error: String(e) }; }
     })()
   `);
 
