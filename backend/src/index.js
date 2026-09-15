@@ -4,7 +4,7 @@ const app = require('./app');
 const models = require('./models');
 const { ensureFlagshipKidsSchool, ensureFlagshipKidsAdmin } = require('./seeders/flagshipKidsSeed');
 const { ensureGlobalCatalog } = require('./seeders/globalCatalogSeed');
-const { seedFlagshipAnnualPilot } = require('./seeders/flagshipAnnualPilotSeed');
+const { seedFlagshipAnnualPilot, PLAN: PILOT_PLAN } = require('./seeders/flagshipAnnualPilotSeed');
 const DENYLIST_SEED = require('./seeders/denylistSeed');
 
 /**
@@ -115,11 +115,12 @@ models.syncKidsTables()
   })
   .then(async () => {
     // Explicit annual pilot seed: opt-in only, never enabled by ordinary boot.
-    // Rows remain pending_human_review until the adult approval workflow runs.
+    // The published/pending posture is owned by PLAN.publication in
+    // curriculum/00-framework/flagship-annual-pilot-plan.json.
     if (process.env.KIDS_ANNUAL_PILOT_SEED === 'true' && process.env.KIDS_ANNUAL_PILOT_SEED_CONFIRM === 'true') {
       try {
         const seeded = await seedFlagshipAnnualPilot({ db: models });
-        console.log(`📚 Annual pilot seeded: ${seeded.counts.games} games in pending_human_review.`);
+        console.log(`📚 Annual pilot seeded: ${seeded.counts.games} games in ${PILOT_PLAN.publication.contentState} state.`);
       } catch (e) {
         console.warn('⚠️ Annual pilot seed skipped:', e.message);
       }

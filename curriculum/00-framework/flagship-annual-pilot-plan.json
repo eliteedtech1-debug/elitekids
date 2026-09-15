@@ -2,6 +2,12 @@
   "version": "flagship-annual-pilot-v1",
   "academicYear": "2026/2027",
   "pilotScope": "Complete one academic year for all canonical subjects, with Numbers, Letters and PHONIX explicitly covered.",
+  "publication": {
+    "contentState": "published",
+    "approvedBy": "FLAGSHIP-ANNUAL-PILOT",
+    "lessonTextSuffix": "Actively tested and validated for the 2026/2027 pilot.",
+    "note": "Reconciled 2026-09-15 against what elite_kids actually serves (QUEUE Q60). The 2026-09-10 pilot run published every row and its source changes were never committed, so the plan and seeder now describe the published posture directly instead of the pending_human_review gate the seed originally shipped with. Re-introducing adult review means changing contentState here, not editing the seeder."
+  },
   "tracks": [
     { "id": "numbers", "subjectId": "numeracy", "category": "Numbers", "coverage": "30 weeks per class" },
     { "id": "letters", "subjectId": "comm-literacy", "category": "Letters", "coverage": "30 weeks per class" },
@@ -25,6 +31,14 @@
     { "id": "movement", "displayName": "Physical Development and Movement", "category": "Movement", "emoji": "🏃" },
     { "id": "creative-arts", "displayName": "Creative Arts, Music, Rhymes and Pretend Play", "category": "Creative Arts", "emoji": "🎨" },
     { "id": "digital", "displayName": "Digital Readiness", "category": "Digital Readiness", "emoji": "🎮" }
+  ],
+  "primarySubjects": [
+    { "id": "english-studies", "subjectCode": "english-studies", "code": "eng", "displayName": "English Studies", "category": "Letters", "emoji": "📖" },
+    { "id": "mathematics", "subjectCode": "mathematics", "code": "math", "displayName": "Mathematics", "category": "Numbers", "emoji": "➗" },
+    { "id": "basic-science-technology", "subjectCode": "basic-science-technology", "code": "bst", "displayName": "Basic Science and Technology", "category": "Science", "emoji": "🔬" },
+    { "id": "national-values", "subjectCode": "national-values", "code": "nval", "displayName": "National Values", "category": "SocialHabits", "emoji": "🇳🇬" },
+    { "id": "culture-creative-arts", "subjectCode": "culture-creative-arts", "code": "cca", "displayName": "Culture and Creative Arts", "category": "CreativeArts", "emoji": "🎭" },
+    { "id": "pre-vocational", "subjectCode": "pre-vocational", "code": "pvoc", "displayName": "Pre-Vocational Studies", "category": "PreVocational", "emoji": "🧑‍🌾" }
   ],
   "bands": [
     {
@@ -52,6 +66,23 @@
       "ageBand": "Playgroup",
       "gameAgeLevel": "Creche",
       "tier": 1,
+      "ladder": {
+        "levels": 6,
+        "unitsPerLevel": 5,
+        "gamesPerWeek": 1,
+        "itemsPerGame": 5,
+        "contentState": "published",
+        "design": "one entity class for Playgroup; games are linearly progressive across the year and the complexity ladder increases as the learner masters each level",
+        "rewards": { "xp": 15, "starsOnComplete": 3 },
+        "ramp": [
+          { "levels": [1, 2], "application": "specific", "concreteness": "concrete", "cognitiveLoad": "low" },
+          { "levels": [3, 4], "application": "specific", "concreteness": "concrete", "cognitiveLoad": "low" },
+          { "levels": [5, 6], "application": "near-transfer", "concreteness": "representational", "cognitiveLoad": "moderate" }
+        ],
+        "xpPenaltyFromLevel": null,
+        "xpPenaltyOnWrong": 0,
+        "retryPenaltyFromLevel": null
+      },
       "themes": ["names, colours, shapes and classroom routines", "family, animals, weather, feelings and turn-taking", "stories, transport, food, community and independent routines"],
       "objectives": {
         "comm-literacy": "Point to or name a familiar picture, join a rhyme and order a two-picture story.",
@@ -120,6 +151,44 @@
         "movement": "Plan and perform a safe movement sequence, adapting it for comfort and access.",
         "creative-arts": "Compose or extend a pattern, perform, retell a cultural story and reflect on a choice.",
         "digital": "Choose a safe mode, complete a short game chain, pause and exit independently or with support."
+      }
+    },
+    {
+      "id": "primary",
+      "classLabel": "Primary",
+      "ageBand": "Primary",
+      "gameAgeLevel": "Primary",
+      "tier": 3,
+      "subjectSet": "primarySubjects",
+      "ladder": {
+        "levels": 6,
+        "unitsPerLevel": 5,
+        "gamesPerWeek": 2,
+        "itemsPerGame": 15,
+        "contentState": "published",
+        "design": "one entity class for all primary classes; games are linearly progressive and the complexity ladder increases as the learner masters each level",
+        "rewards": { "xp": 25, "starsOnComplete": 3 },
+        "ramp": [
+          { "levels": [1, 2], "application": "specific", "concreteness": "concrete", "cognitiveLoad": "low" },
+          { "levels": [3, 4], "application": "near-transfer", "concreteness": "representational", "cognitiveLoad": "moderate" },
+          { "levels": [5, 6], "application": "generalization", "concreteness": "abstract", "cognitiveLoad": "high" }
+        ],
+        "xpPenaltyFromLevel": 3,
+        "xpPenaltyOnWrong": 5,
+        "retryPenaltyFromLevel": 3
+      },
+      "themes": [
+        "number sense, reading fluency, living things and civic responsibility",
+        "operations, comprehension, materials and community values",
+        "measurement, composition, applied technology and service to others"
+      ],
+      "objectives": {
+        "english-studies": "Read and understand simple passages, write legibly and speak and listen with increasing accuracy and fluency.",
+        "mathematics": "Apply number sense, operations, measurement, geometry and simple data to solve real-life problems with increasing complexity.",
+        "basic-science-technology": "Observe, classify and explain living things, materials, energy and technology, following safe scientific practice.",
+        "national-values": "Demonstrate civic values, respect, responsibility and cooperation at home, in school and in the community.",
+        "culture-creative-arts": "Create and respond to art, music, drama and cultural heritage with developing technique and expression.",
+        "pre-vocational": "Apply basic home-economics and agricultural skills safely: cooking, sewing, growing, cleaning and simple repairs."
       }
     }
   ]

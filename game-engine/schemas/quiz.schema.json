@@ -116,7 +116,8 @@
     "questions": {
       "type": "array",
       "minItems": 5,
-      "maxItems": 10,
+      "maxItems": 15,
+      "description": "Up to 15 items. The structural ceiling is 15 for the Primary band; gameConfigRules.playableItemCap still caps early-years configs at 10 (see curriculum/00-framework/game-size-and-module-standard.md).",
       "items": {
         "type": "object",
         "required": [

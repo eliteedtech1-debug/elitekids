@@ -3,31 +3,38 @@
 /**
  * Flagship Annual Pilot — editable source-to-database seed.
  *
- * Scope: SCH-ELITE / BR-MAIN, five early-years bands, nine canonical subjects,
- * three terms, ten teaching weeks, one playable game per subject/week. The
- * Numbers track is concrete and age-banded; the Letters track is PHONIX-aware.
+ * Scope: SCH-ELITE / BR-MAIN, SIX NERDC bands, three terms, ten teaching weeks.
+ * The five early-years bands run nine early-years subjects with one playable
+ * game per subject/week; the `primary` band runs six NERDC primary subjects
+ * with TWO games per subject/week. The Numbers track is concrete and
+ * age-banded; the Letters track is PHONIX-aware.
  *
  * This file deliberately keeps the source plan in
  * curriculum/00-framework/flagship-annual-pilot-plan.json and generates the
  * repetitive weekly records from that plan. It is idempotent: all primary keys
  * are deterministic and rows are upserted in batches.
  *
- * Safety: the default state is pending_human_review. The seed never invents an
- * adult play-test or approval. A teacher can preview/edit each lesson and the
- * existing approval workflow can publish it after validation. The initial pilot
- * write is deliberately not child-visible until that approval happens.
+ * Published posture: `PLAN.publication` owns the content state and the
+ * approval stamp. The pilot is currently published directly (user directive
+ * 2026-09-10, content already under intense testing/validation) — see the note
+ * in the plan. Re-introducing the pending_human_review gate is a plan change,
+ * not a seeder change.
  *
  * Run from backend/:
  *   node src/seeders/flagshipAnnualPilotSeed.js --dry-run
  *   node src/seeders/flagshipAnnualPilotSeed.js
  *
- * The production write requires explicit `--confirm` in addition to the
+ * The write requires explicit `--confirm` in addition to the
  * `KIDS_ANNUAL_PILOT_SEED=true` boot opt-in. This prevents an accidental bulk
  * curriculum write from a plain node invocation.
  *
- * This is an explicit pilot release operation. It writes all rows in
- * pending_human_review; the normal approval flow must publish them after adult
- * review. Run `npm run seed:flagship-pilot` from backend/ after approval.
+ * RECONCILIATION (2026-09-15, QUEUE Q60): the 2026-09-10 run that produced the
+ * live catalog was made from working-tree changes that were never committed and
+ * were then destroyed by the deploy's `git reset --hard origin/main`, leaving
+ * `elite_kids` serving 1,710 lessons (6 bands) that no tracked source could
+ * reproduce. This file + the plan JSON were rebuilt from the served rows and
+ * are verified against them by `team-docs/tools/diff-pilot-vs-prod.mjs`, which
+ * must report zero drift.
  */
 
 const fs = require('fs');
@@ -40,12 +47,16 @@ const PLAN = JSON.parse(fs.readFileSync(PLAN_PATH, 'utf8'));
 const SCHOOL = Object.freeze({ school_id: PLAN.schoolId, branch_id: PLAN.branchId, created_by: 'FLAGSHIP-ANNUAL-PILOT' });
 const TERMS = Object.freeze(PLAN.terms);
 const SUBJECTS = Object.freeze(PLAN.subjects);
+const PRIMARY_SUBJECTS = Object.freeze(PLAN.primarySubjects || []);
+/** Published posture for the pilot rows (see PLAN.publication). */
+const PUBLICATION = Object.freeze(PLAN.publication || { contentState: 'pending_human_review', approvedBy: null, lessonTextSuffix: 'Adult validation is required before child use.' });
 const BAND_CODES = Object.freeze({
   creche: 'cr',
   playgroup: 'pg',
   'nursery-1': 'n1',
   'nursery-2': 'n2',
   kindergarten: 'kg',
+  primary: 'pr',
 });
 const TERM_CODES = Object.freeze({ 'First Term': 'ft', 'Second Term': 'st', 'Third Term': 'tt' });
 const SUBJECT_CODES = Object.freeze({
@@ -58,6 +69,12 @@ const SUBJECT_CODES = Object.freeze({
   movement: 'move',
   'creative-arts': 'arts',
   digital: 'digital',
+  'english-studies': 'eng',
+  mathematics: 'math',
+  'basic-science-technology': 'bst',
+  'national-values': 'nval',
+  'culture-creative-arts': 'cca',
+  'pre-vocational': 'pvoc',
 });
 const CATEGORY_BY_SUBJECT = Object.freeze({
   'comm-literacy': 'Letters',
@@ -69,6 +86,12 @@ const CATEGORY_BY_SUBJECT = Object.freeze({
   movement: 'Movement',
   'creative-arts': 'CreativeArts',
   digital: 'Digital',
+  'english-studies': 'Letters',
+  mathematics: 'Numbers',
+  'basic-science-technology': 'Science',
+  'national-values': 'SocialHabits',
+  'culture-creative-arts': 'CreativeArts',
+  'pre-vocational': 'PreVocational',
 });
 const TEMPLATE_BY_WEEK = Object.freeze([
   'tap-recognition',
@@ -82,6 +105,13 @@ const TEMPLATE_BY_WEEK = Object.freeze([
   'quiz',
   'stage-sequence',
 ]);
+/**
+ * A two-game week pairs its first game with the template FIVE weeks ahead
+ * (wrapping inside the term). Verified against live for all ten weeks: week 1
+ * pairs tap-recognition with quiz, week 6 pairs quiz with tap-recognition.
+ */
+const SECOND_SLOT_WEEK_OFFSET = 5;
+
 const EMOJIS = Object.freeze({
   'comm-literacy': '🔤',
   writing: '✏️',
@@ -92,7 +122,36 @@ const EMOJIS = Object.freeze({
   movement: '🏃',
   'creative-arts': '🎨',
   digital: '🎮',
+  'english-studies': '📖',
+  mathematics: '➗',
+  'basic-science-technology': '🔬',
+  'national-values': '🇳🇬',
+  'culture-creative-arts': '🎭',
+  'pre-vocational': '🧑‍🌾',
 });
+
+/**
+ * NERDC primary subject vocabulary. Fifteen keywords each (the primary ladder
+ * carries 15 playable items per game), rotated by week exactly like the
+ * early-years grapheme track.
+ */
+const PRIMARY_KEYWORDS = Object.freeze({
+  'english-studies': ['read', 'write', 'spell', 'speak', 'listen', 'comprehend', 'compose', 'sentence', 'paragraph', 'vocabulary', 'grammar', 'pronunciation', 'fluency', 'reading', 'summary'],
+  'basic-science-technology': ['living', 'non-living', 'plant', 'animal', 'energy', 'materials', 'technology', 'health', 'environment', 'safety', 'force', 'light', 'sound', 'water', 'soil'],
+  'national-values': ['respect', 'responsibility', 'cooperation', 'honesty', 'civic', 'community', 'rights', 'duties', 'culture', 'service', 'tolerance', 'unity', 'peace', 'justice', 'patriotism'],
+  'culture-creative-arts': ['draw', 'paint', 'sing', 'dance', 'drama', 'craft', 'rhythm', 'heritage', 'design', 'perform', 'sculpt', 'weave', 'compose', 'narrate', 'celebrate'],
+  'pre-vocational': ['cook', 'sew', 'grow', 'clean', 'repair', 'tools', 'food', 'care', 'craft', 'service', 'hygiene', 'nutrition', 'harvest', 'budget', 'first-aid'],
+});
+/** Early-years numeracy ceiling per band; `null` means no wrap (primary ladder). */
+const NUMERACY_CEILING_BY_BAND = Object.freeze({
+  creche: 3,
+  playgroup: 5,
+  'nursery-1': 5,
+  'nursery-2': 10,
+  kindergarten: 20,
+  primary: null,
+});
+const GRAPHEMES = Object.freeze(['s', 'a', 't', 'i', 'p', 'n', 'c', 'k', 'e', 'h', 'r', 'm', 'd', 'g', 'o', 'u', 'l', 'f', 'b', 'ai', 'oa', 'ie', 'ee', 'or', 'ar', 'sh', 'ch', 'th', 'ng', 'qu']);
 const PHONIX = Object.freeze({
   engine: 'PHONIX',
   version: 'v1',
@@ -100,6 +159,8 @@ const PHONIX = Object.freeze({
   notation: 'grapheme-to-sound',
   category: 'Letters',
 });
+/** Rotating domain of knowledge, continuing across the term (verified against live). */
+const DOMAINS = Object.freeze(['cognitive', 'psychomotor', 'affective']);
 
 function bandById(id) {
   const band = PLAN.bands.find((candidate) => candidate.id === id);
@@ -113,8 +174,30 @@ function subjectById(id) {
   return subject;
 }
 
-function compactId(bandId, termName, week, subjectId) {
-  return `fp-${BAND_CODES[bandId]}-${TERM_CODES[termName]}-w${String(week).padStart(2, '0')}-${SUBJECT_CODES[subjectId]}`;
+/** Bands may declare their own subject set — Primary uses the NERDC primary six. */
+function subjectsForBand(band) {
+  return band.subjectSet === 'primarySubjects' ? PRIMARY_SUBJECTS : SUBJECTS;
+}
+
+/** Games seeded per subject per week for a band (1 for early years, 2 for Primary). */
+function gamesPerWeekForBand(band) {
+  return band.ladder ? band.ladder.gamesPerWeek : 1;
+}
+
+/** Playable items generated per game for a band (5 early years, 15 Primary). */
+function itemsPerGameForBand(band) {
+  return band.ladder ? band.ladder.itemsPerGame : 5;
+}
+
+/** Template for a given week + slot; slot 2 uses the week five ahead. */
+function templateFor(week, slot) {
+  if (slot === 1) return TEMPLATE_BY_WEEK[week - 1];
+  return TEMPLATE_BY_WEEK[(week - 1 + SECOND_SLOT_WEEK_OFFSET) % TEMPLATE_BY_WEEK.length];
+}
+
+function compactId(bandId, termName, week, subjectId, slot = 1) {
+  const base = `fp-${BAND_CODES[bandId]}-${TERM_CODES[termName]}-w${String(week).padStart(2, '0')}-${SUBJECT_CODES[subjectId]}`;
+  return slot === 1 ? base : `${base}-s2`;
 }
 
 function safeText(value) {
@@ -127,21 +210,34 @@ function fallbackImage(label, emoji) {
   return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200"><rect width="320" height="200" rx="24" fill="#EAF3FF"/><text x="160" y="92" text-anchor="middle" font-size="44">${safeText(emoji)}</text><text x="160" y="145" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#123">${text}</text></svg>`)}`;
 }
 
-function itemLabels(subjectId, objective, week, bandId, termIndex) {
+function itemLabels(subjectId, objective, week, bandId, termIndex, band) {
+  const count = itemsPerGameForBand(band);
+  const shift = termIndex * PLAN.weeksPerTerm + (week - 1);
+
   // Letters are real graphemes for the phonics track, not generic placeholder
   // words. The frontend's category-aware TTS routes these through PHONIX.
   if (subjectId === 'comm-literacy' && bandId !== 'creche') {
-    const graphemes = ['s', 'a', 't', 'i', 'p', 'n', 'c', 'k', 'e', 'h', 'r', 'm', 'd', 'g', 'o', 'u', 'l', 'f', 'b', 'ai', 'oa', 'ie', 'ee', 'or', 'ar', 'sh', 'ch', 'th', 'ng', 'qu'];
-    const start = ((termIndex * 10 + week - 1) * 5) % graphemes.length;
-    return Array.from({ length: 5 }, (_, index) => graphemes[(start + index) % graphemes.length]);
+    const start = (shift * 5) % GRAPHEMES.length;
+    return Array.from({ length: count }, (_, index) => GRAPHEMES[(start + index) % GRAPHEMES.length]);
   }
 
-  // Numbers stay concrete and age-banded so the year does not repeat a
-  // generic one-to-five list for every class.
-  if (subjectId === 'numeracy') {
-    const max = bandId === 'creche' ? 3 : bandId === 'playgroup' ? 5 : bandId === 'nursery-1' ? 5 : bandId === 'nursery-2' ? 10 : 20;
-    const start = ((termIndex * 10 + week - 1) * 3) % max;
-    return Array.from({ length: 5 }, (_, index) => String(((start + index) % max) + 1));
+  // Primary vocabulary rotates like the grapheme track (15 keywords, eased in
+  // five at a time so neighbouring weeks share half their items).
+  if (PRIMARY_KEYWORDS[subjectId]) {
+    const list = PRIMARY_KEYWORDS[subjectId];
+    const start = (shift * 5) % list.length;
+    return Array.from({ length: count }, (_, index) => `${list[(start + index) % list.length]} — ${objective}`.slice(0, 180));
+  }
+
+  // Numbers stay concrete and age-banded so the year does not repeat a generic
+  // one-to-five list for every class. The primary ladder has no ceiling: the
+  // sequence just keeps climbing (1-15, then 16-30, … 88-102).
+  if (subjectId === 'numeracy' || subjectId === 'mathematics') {
+    // `null` is a meaningful ceiling (the primary ladder never wraps), so it
+    // must not be collapsed into the default by a `||` fallback.
+    const ceiling = Object.prototype.hasOwnProperty.call(NUMERACY_CEILING_BY_BAND, bandId) ? NUMERACY_CEILING_BY_BAND[bandId] : 5;
+    const start = shift * 3;
+    return Array.from({ length: count }, (_, index) => String(ceiling === null ? start + index + 1 : ((start + index) % ceiling) + 1));
   }
 
   const base = {
@@ -157,8 +253,48 @@ function itemLabels(subjectId, objective, week, bandId, termIndex) {
   return base.map((label) => `${label} — ${objective}`.slice(0, 180));
 }
 
-function baseConfig({ gameId, lessonId, itemId, band, subject, termName, week, objective, template, seriesId, unitNumber }) {
+/**
+ * The one-class-fits-all ladder block embedded in every Playgroup and Primary
+ * game (user directive 2026-09-10). The complexity ramp, XP penalty and domain
+ * rotation are all verified against the served configs.
+ */
+function pedagogyFor({ band, subject, objective, unitNumber, week, slot }) {
+  const ladder = band.ladder;
+  const level = Math.min(Math.ceil(unitNumber / ladder.unitsPerLevel), ladder.levels);
+  const rung = ladder.ramp.find((candidate) => candidate.levels.includes(level)) || ladder.ramp[ladder.ramp.length - 1];
+  const penaltyFrom = ladder.xpPenaltyFromLevel;
+  const hasPenalty = Boolean(penaltyFrom) && level >= penaltyFrom;
+  return {
+    ladder: { level, design: ladder.design, weeklyGame: slot },
+    domainOfKnowledge: DOMAINS[(week - 1 + (slot - 1)) % DOMAINS.length],
+    cognitiveLoad: rung.cognitiveLoad,
+    application: rung.application,
+    concreteness: rung.concreteness,
+    learningObjective: objective,
+    measurement: {
+      successEvidence: [
+        'responds correctly with the target skill in the game context',
+        'applies the skill to a fresh problem (near-transfer or generalisation)',
+        'explains or orders the steps in the outcome',
+      ],
+      outcome: `produces the correct result/behaviour for ${subject.displayName} at ladder level ${level}`,
+    },
+    reinforcement: {
+      positive: true,
+      xpReward: ladder.rewards.xp,
+      xpPenaltyOnWrong: hasPenalty ? ladder.xpPenaltyOnWrong : 0,
+      retryPenalty: hasPenalty ? hasPenalty && ladder.retryPenaltyFromLevel !== null && level >= ladder.retryPenaltyFromLevel : false,
+      celebrationOnAttempt: true,
+    },
+    rewards: { xp: ladder.rewards.xp, starsOnComplete: ladder.rewards.starsOnComplete },
+    averageAccumulation: 'weekly games feed the learner average; the ladder unlocks as the average rises',
+  };
+}
+
+function baseConfig({ gameId, lessonId, itemId, band, subject, termName, week, objective, template, seriesId, unitNumber, slot }) {
   const category = CATEGORY_BY_SUBJECT[subject.id];
+  const gamesPerWeek = gamesPerWeekForBand(band);
+  const itemsPerGame = itemsPerGameForBand(band);
   return {
     gameId,
     template,
@@ -186,8 +322,8 @@ function baseConfig({ gameId, lessonId, itemId, band, subject, termName, week, o
     ],
     concreteExperience: `Use safe, familiar ${subject.displayName.toLowerCase()} materials before screen play.`,
     gamePlan: {
-      minimumGames: 1,
-      itemsPerGame: '5 logical playable items',
+      minimumGames: gamesPerWeek,
+      itemsPerGame: itemsPerGame === 15 ? 'up to 15 logical playable items' : '5 logical playable items',
       learning: { template, tier: band.tier, choices: band.tier === 0 ? 2 : 4 },
       practice: { template, tier: band.tier, choices: band.tier === 0 ? 2 : 4 },
       test: band.tier === 0 ? null : { template, tier: band.tier, choices: 4, requiredAfterPractice: true },
@@ -213,44 +349,49 @@ function baseConfig({ gameId, lessonId, itemId, band, subject, termName, week, o
   };
 }
 
-function buildConfig({ bandId, termName, week, subjectId }) {
+function buildConfig({ bandId, termName, week, subjectId, subject, slot = 1 }) {
   const band = bandById(bandId);
-  const subject = subjectById(subjectId);
+  const resolvedSubject = subject || subjectById(subjectId);
   const termIndex = TERMS.findIndex((term) => term.name === termName);
-  const objective = band.objectives[subjectId];
-  const lessonId = compactId(bandId, termName, week, subjectId);
+  const objective = band.objectives[resolvedSubject.id];
+  const lessonId = compactId(bandId, termName, week, resolvedSubject.id, slot);
   const itemId = `${lessonId}-item`;
   const gameId = `${lessonId}-game`;
-  const seriesId = `fp-series-${BAND_CODES[bandId]}-${SUBJECT_CODES[subjectId]}`;
+  const seriesId = `fp-series-${BAND_CODES[bandId]}-${SUBJECT_CODES[resolvedSubject.id]}`;
   const unitNumber = termIndex * PLAN.weeksPerTerm + week;
-  const template = TEMPLATE_BY_WEEK[week - 1];
-  const labels = itemLabels(subjectId, objective, week, bandId, termIndex);
-  const emoji = EMOJIS[subjectId];
-  const config = baseConfig({ gameId, lessonId, itemId, band, subject, termName, week, objective, template, seriesId, unitNumber });
-  if (subjectId === 'comm-literacy') {
+  const template = templateFor(week, slot);
+  const labels = itemLabels(resolvedSubject.id, objective, week, bandId, termIndex, band);
+  const emoji = EMOJIS[resolvedSubject.id];
+  const config = baseConfig({
+    gameId, lessonId, itemId, band, subject: resolvedSubject, termName, week, objective, template, seriesId, unitNumber, slot,
+  });
+  if (resolvedSubject.id === 'comm-literacy') {
     config.phonix = { ...PHONIX, soundFirst: true, adultReplay: true };
     config.speechText = objective;
+  }
+  if (band.ladder) {
+    config.pedagogy = pedagogyFor({ band, subject: resolvedSubject, objective, unitNumber, week, slot });
   }
 
   if (template === 'tap-recognition') {
     const correctIndex = (week + termIndex) % labels.length;
-    config.prompt = `Tap the ${subject.displayName} idea we are exploring.`;
-    config.promptMode = subjectId === 'comm-literacy' ? 'audio' : 'image';
+    config.prompt = `Tap the ${resolvedSubject.displayName} idea we are exploring.`;
+    config.promptMode = resolvedSubject.id === 'comm-literacy' ? 'audio' : 'image';
     config.responseMode = 'image';
     config.assets = {
-      background: fallbackImage(`${band.classLabel} ${subject.displayName}`, '🌈'),
+      background: fallbackImage(`${band.classLabel} ${resolvedSubject.displayName}`, '🌈'),
       objects: labels.map((label, index) => ({ id: `${itemId}-${index + 1}`, image: fallbackImage(label, emoji), audio: label })),
       correctId: `${itemId}-${correctIndex + 1}`,
       promptAudio: objective,
     };
   } else if (template === 'matching') {
-    config.promptMode = subjectId === 'comm-literacy' ? 'audio' : 'image';
+    config.promptMode = resolvedSubject.id === 'comm-literacy' ? 'audio' : 'image';
     config.responseMode = 'text';
     const items = labels.flatMap((label, index) => [
       { id: `${itemId}-left-${index + 1}`, image: fallbackImage(label, emoji), matches: `${itemId}-right-${index + 1}` },
       { id: `${itemId}-right-${index + 1}`, image: fallbackImage(label, '✅'), matches: `${itemId}-left-${index + 1}` },
     ]);
-    config.assets = { background: fallbackImage(subject.displayName, '🧩'), items };
+    config.assets = { background: fallbackImage(resolvedSubject.displayName, '🧩'), items };
   } else if (template === 'quiz') {
     config.promptMode = band.tier === 0 ? 'audio' : 'context';
     config.responseMode = 'image';
@@ -263,7 +404,7 @@ function buildConfig({ bandId, termName, week, subjectId }) {
       return {
         id: `${itemId}-q${index + 1}`,
         prompt: `Which choice helps us practise: ${objective}`,
-        scenario: `An adult is helping with ${subject.displayName}.`,
+        scenario: `An adult is helping with ${resolvedSubject.displayName}.`,
         speechText: objective,
         options,
         correctIndex: index % options.length,
@@ -273,7 +414,7 @@ function buildConfig({ bandId, termName, week, subjectId }) {
     config.promptMode = 'image';
     config.responseMode = 'text';
     config.assets = {
-      background: fallbackImage(subject.displayName, '🗂️'),
+      background: fallbackImage(resolvedSubject.displayName, '🗂️'),
       buckets: [
         { id: `${itemId}-bucket-1`, label: 'Try first', image: fallbackImage('Try first', '1️⃣') },
         { id: `${itemId}-bucket-2`, label: 'Try next', image: fallbackImage('Try next', '2️⃣') },
@@ -287,7 +428,7 @@ function buildConfig({ bandId, termName, week, subjectId }) {
   } else {
     config.promptMode = 'image';
     config.responseMode = 'text';
-    config.topic = subjectId;
+    config.topic = resolvedSubject.id;
     config.steps = labels.map((label, index) => ({
       id: `${itemId}-step-${index + 1}`,
       label,
@@ -304,13 +445,17 @@ function buildConfig({ bandId, termName, week, subjectId }) {
       correctIndex: index % 4,
     }));
   }
-  return { band, subject, objective, lessonId, itemId, gameId, seriesId, unitNumber, template, config };
+  return { band, subject: resolvedSubject, objective, lessonId, itemId, gameId, seriesId, unitNumber, template, slot, config };
 }
 
 function buildPilotRows() {
   const rows = { series: [], units: [], lessons: [], configs: [], points: [], libraryGames: [] };
+  const contentState = PUBLICATION.contentState;
+  const approvedBy = PUBLICATION.approvedBy;
   for (const band of PLAN.bands) {
-    for (const subject of SUBJECTS) {
+    const bandSubjects = subjectsForBand(band);
+    const gamesPerWeek = gamesPerWeekForBand(band);
+    for (const subject of bandSubjects) {
       const seriesId = `fp-series-${BAND_CODES[band.id]}-${SUBJECT_CODES[subject.id]}`;
       rows.series.push({
         id: seriesId,
@@ -318,72 +463,86 @@ function buildPilotRows() {
         category: CATEGORY_BY_SUBJECT[subject.id],
         description: `Flagship annual pilot progression for ${band.classLabel}, ${subject.displayName}; ${PLAN.academicYear}; 3 terms × 10 weeks.`,
         created_by: SCHOOL.created_by,
-        subject_code: subject.id,
+        subject_code: subject.subjectCode || subject.id,
         term_hint: '1st;2nd;3rd',
       });
       for (const term of TERMS) {
         for (let week = 1; week <= PLAN.weeksPerTerm; week += 1) {
-          const built = buildConfig({ bandId: band.id, termName: term.name, week, subjectId: subject.id });
-          const state = 'pending_human_review';
-          rows.lessons.push({
-            id: built.lessonId,
-            ...SCHOOL,
-            title: `${band.classLabel} W${week} — ${subject.displayName}`,
-            subject: subject.displayName,
-            // Lessons use the teacher-facing class enum; game configs use the
-            // platform's technical age band below.
-            age_level: band.classLabel,
-            lesson_text: `${term.name}, Week ${week}. ${built.objective} Adult validation is required before child use.`,
-            created_by: SCHOOL.created_by,
-            content_state: state,
-            lesson_type: 'game',
-            duration_target_sec: built.config.durationTargetSec,
-            is_global: 1,
-            nerdc_code: `ECCE-${subject.id}`,
-            nerdc_strand: subject.displayName,
-            nerdc_sub_strand: `${PLAN.academicYear} · ${term.name} Week ${week}`,
-          });
-          rows.configs.push({
-            id: built.gameId,
-            lesson_id: built.lessonId,
-            template: built.template,
-            age_level: band.gameAgeLevel,
-            config_json: built.config,
-            schema_version: '1.0',
-            item_id: built.itemId,
-            tier: band.tier,
-            category: CATEGORY_BY_SUBJECT[subject.id],
-            content_state: state,
-            model_version: 'flagship-annual-pilot-v1',
-            created_by: SCHOOL.created_by,
-            approved_by: null,
-            approved_at: null,
-          });
-          const pointId = `fp-cp-${built.lessonId}`;
-          rows.points.push({
-            id: pointId,
-            curriculum_source: 'Flagship annual pilot plan v1',
-            age_band: band.classLabel,
-            learning_objective: built.objective,
-            category: CATEGORY_BY_SUBJECT[subject.id],
-            mapped_item_ids: [built.itemId],
-          });
-          rows.libraryGames.push({
-            id: `fp-lib-${built.lessonId}`,
-            curriculum_point_id: pointId,
-            game_config_id: built.gameId,
-            ece_validated: 0,
-            validated_by: null,
-            validated_at: null,
-          });
+          const unitNumber = TERMS.findIndex((candidate) => candidate.name === term.name) * PLAN.weeksPerTerm + week;
+          const unitId = `fp-unit-${BAND_CODES[band.id]}-${SUBJECT_CODES[subject.id]}-${String(unitNumber).padStart(2, '0')}`;
+          const contentItems = [];
+          for (let slot = 1; slot <= gamesPerWeek; slot += 1) {
+            const built = buildConfig({ bandId: band.id, termName: term.name, week, subjectId: subject.id, subject, slot });
+            const titleSuffix = gamesPerWeek > 1 ? ` (${slot}/${gamesPerWeek})` : '';
+            rows.lessons.push({
+              id: built.lessonId,
+              ...SCHOOL,
+              title: `${band.classLabel} W${week} — ${subject.displayName}${titleSuffix}`,
+              subject: subject.displayName,
+              // Lessons use the teacher-facing class enum; game configs use the
+              // platform's technical age band below.
+              age_level: band.classLabel,
+              lesson_text: `${term.name}, Week ${week}. ${built.objective} ${PUBLICATION.lessonTextSuffix}`,
+              created_by: SCHOOL.created_by,
+              content_state: contentState,
+              lesson_type: 'game',
+              duration_target_sec: built.config.durationTargetSec,
+              is_global: 1,
+              nerdc_code: `ECCE-${subject.id}`,
+              nerdc_strand: subject.displayName,
+              nerdc_sub_strand: `${PLAN.academicYear} · ${term.name} Week ${week}`,
+            });
+            rows.configs.push({
+              id: built.gameId,
+              lesson_id: built.lessonId,
+              template: built.template,
+              age_level: band.gameAgeLevel,
+              config_json: built.config,
+              schema_version: '1.0',
+              item_id: built.itemId,
+              tier: band.tier,
+              category: CATEGORY_BY_SUBJECT[subject.id],
+              content_state: contentState,
+              model_version: 'flagship-annual-pilot-v1',
+              created_by: SCHOOL.created_by,
+              approved_by: approvedBy,
+              approved_at: approvedBy ? new Date() : null,
+            });
+            const pointId = `fp-cp-${built.lessonId}`;
+            rows.points.push({
+              id: pointId,
+              curriculum_source: 'Flagship annual pilot plan v1',
+              age_band: band.classLabel,
+              learning_objective: built.objective,
+              category: CATEGORY_BY_SUBJECT[subject.id],
+              mapped_item_ids: [built.itemId],
+            });
+            rows.libraryGames.push({
+              id: `fp-lib-${built.lessonId}`,
+              curriculum_point_id: pointId,
+              game_config_id: built.gameId,
+              ece_validated: 0,
+              validated_by: null,
+              validated_at: null,
+            });
+            contentItems.push({
+              slot,
+              week,
+              item_id: built.itemId,
+              template: built.template,
+              termName: term.name,
+              lesson_id: built.lessonId,
+              game_config_id: built.gameId,
+            });
+          }
           rows.units.push({
-            id: `fp-unit-${BAND_CODES[band.id]}-${SUBJECT_CODES[subject.id]}-${String((TERMS.findIndex((candidate) => candidate.name === term.name) * PLAN.weeksPerTerm) + week).padStart(2, '0')}`,
-            series_id: built.seriesId,
-            unit_number: built.unitNumber,
-            prerequisite_unit_id: built.unitNumber > 1
-              ? `fp-unit-${BAND_CODES[band.id]}-${SUBJECT_CODES[subject.id]}-${String(built.unitNumber - 1).padStart(2, '0')}`
+            id: unitId,
+            series_id: `fp-series-${BAND_CODES[band.id]}-${SUBJECT_CODES[subject.id]}`,
+            unit_number: unitNumber,
+            prerequisite_unit_id: unitNumber > 1
+              ? `fp-unit-${BAND_CODES[band.id]}-${SUBJECT_CODES[subject.id]}-${String(unitNumber - 1).padStart(2, '0')}`
               : null,
-            content_items: [{ lesson_id: built.lessonId, game_config_id: built.gameId, item_id: built.itemId, template: built.template, termName: term.name, week }],
+            content_items: contentItems,
             title: `${term.name} Week ${week} — ${subject.displayName}`,
           });
         }
@@ -395,31 +554,56 @@ function buildPilotRows() {
 
 function validatePilotRows(rows = buildPilotRows()) {
   const errors = [];
-  const expected = PLAN.bands.length * SUBJECTS.length * TERMS.length * PLAN.weeksPerTerm;
+  const expected = PLAN.bands.reduce(
+    (total, band) => total + subjectsForBand(band).length * TERMS.length * PLAN.weeksPerTerm * gamesPerWeekForBand(band),
+    0,
+  );
+  const expectedSeries = PLAN.bands.reduce((total, band) => total + subjectsForBand(band).length, 0);
+  const expectedUnits = PLAN.bands.reduce(
+    (total, band) => total + subjectsForBand(band).length * TERMS.length * PLAN.weeksPerTerm,
+    0,
+  );
   if (rows.lessons.length !== expected) errors.push(`lessons expected ${expected}, found ${rows.lessons.length}`);
   if (rows.configs.length !== expected) errors.push(`configs expected ${expected}, found ${rows.configs.length}`);
   if (rows.points.length !== expected) errors.push(`curriculum points expected ${expected}, found ${rows.points.length}`);
   if (rows.libraryGames.length !== expected) errors.push(`library games expected ${expected}, found ${rows.libraryGames.length}`);
-  if (rows.units.length !== expected) errors.push(`units expected ${expected}, found ${rows.units.length}`);
+  if (rows.units.length !== expectedUnits) errors.push(`units expected ${expectedUnits}, found ${rows.units.length}`);
+  if (rows.series.length !== expectedSeries) errors.push(`series expected ${expectedSeries}, found ${rows.series.length}`);
   const seenLessons = new Set();
   for (const lesson of rows.lessons) {
     if (lesson.id.length > 50) errors.push(`lesson id exceeds 50 characters: ${lesson.id}`);
     if (seenLessons.has(lesson.id)) errors.push(`duplicate lesson id: ${lesson.id}`);
     seenLessons.add(lesson.id);
   }
-  const expectedPerSubject = PLAN.bands.length * TERMS.length * PLAN.weeksPerTerm;
-  const subjectCounts = new Map(SUBJECTS.map((subject) => [subject.id, 0]));
+  // Every band must seed its own subject set for the whole year.
+  const subjectCounts = new Map();
   for (const config of rows.configs) {
-    const subjectId = config.config_json.subjectId;
-    subjectCounts.set(subjectId, (subjectCounts.get(subjectId) || 0) + 1);
+    const key = `${config.config_json.classLabel}:${config.config_json.subjectId}`;
+    subjectCounts.set(key, (subjectCounts.get(key) || 0) + 1);
   }
-  for (const subject of SUBJECTS) {
-    if (subjectCounts.get(subject.id) !== expectedPerSubject) {
-      errors.push(`${subject.id} expected ${expectedPerSubject} annual games, found ${subjectCounts.get(subject.id) || 0}`);
+  for (const band of PLAN.bands) {
+    const games = gamesPerWeekForBand(band);
+    for (const subject of subjectsForBand(band)) {
+      const expectedPerSubject = TERMS.length * PLAN.weeksPerTerm * games;
+      const found = subjectCounts.get(`${band.classLabel}:${subject.id}`) || 0;
+      if (found !== expectedPerSubject) {
+        errors.push(`${band.classLabel}/${subject.id} expected ${expectedPerSubject} annual games, found ${found}`);
+      }
     }
   }
   if (!rows.configs.filter((config) => config.config_json.subjectId === 'comm-literacy').every((config) => config.config_json.phonix && config.config_json.phonix.engine === 'PHONIX')) {
     errors.push('comm-literacy annual games must carry PHONIX metadata');
+  }
+  // The one-class-fits-all ladder must be present on every Playgroup + Primary game.
+  for (const band of PLAN.bands.filter((candidate) => candidate.ladder)) {
+    const bandConfigs = rows.configs.filter((config) => config.config_json.classLabel === band.classLabel);
+    const expectedGames = subjectsForBand(band).length * TERMS.length * PLAN.weeksPerTerm * gamesPerWeekForBand(band);
+    if (bandConfigs.length !== expectedGames) {
+      errors.push(`${band.classLabel} expected ${expectedGames} graph games, found ${bandConfigs.length}`);
+    }
+    if (!bandConfigs.every((config) => config.config_json.pedagogy && config.config_json.pedagogy.ladder)) {
+      errors.push(`${band.classLabel} annual games must carry the learning-parameter ladder`);
+    }
   }
   const seenItems = new Set();
   for (const config of rows.configs) {
@@ -433,6 +617,7 @@ function validatePilotRows(rows = buildPilotRows()) {
   return { valid: errors.length === 0, errors, counts: {
     bands: PLAN.bands.length,
     subjects: SUBJECTS.length,
+    primarySubjects: PRIMARY_SUBJECTS.length,
     terms: TERMS.length,
     weeksPerTerm: PLAN.weeksPerTerm,
     games: rows.configs.length,
@@ -475,7 +660,7 @@ if (require.main === module) {
         const db = require('../models');
         await db.content.authenticate();
         const seeded = await seedFlagshipAnnualPilot({ db });
-        console.log(`Flagship annual pilot seeded: ${seeded.counts.games} games in pending_human_review.`);
+        console.log(`Flagship annual pilot seeded: ${seeded.counts.games} games in ${PUBLICATION.contentState} state.`);
         await db.content.close();
       } catch (error) {
         console.error(`Flagship annual pilot seed failed: ${error.message}`);
@@ -491,9 +676,15 @@ module.exports = {
   PLAN,
   TERMS,
   SUBJECTS,
+  PRIMARY_SUBJECTS,
   TEMPLATE_BY_WEEK,
+  SECOND_SLOT_WEEK_OFFSET,
   buildConfig,
   buildPilotRows,
   validatePilotRows,
+  subjectsForBand,
+  gamesPerWeekForBand,
+  itemsPerGameForBand,
+  templateFor,
   seedFlagshipAnnualPilot,
 };

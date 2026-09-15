@@ -110,8 +110,8 @@
     "steps": {
       "type": "array",
       "minItems": 5,
-      "maxItems": 10,
-      "description": "The ordered queue — step graphics from SIMPLE to COMPLEX. Renderers MUST play them in array order; order is the pedagogy.",
+      "maxItems": 15,
+      "description": "The ordered queue — step graphics from SIMPLE to COMPLEX. Renderers MUST play them in array order; order is the pedagogy. Up to 15 items: the structural ceiling is 15 for the Primary band, while gameConfigRules.playableItemCap still caps early-years configs at 10.",
       "items": {
         "type": "object",
         "required": ["id", "label", "kind"],
@@ -170,7 +170,7 @@
     "assessment": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 10,
+      "maxItems": 15,
       "description": "Closing check questions proving the sequence was learned (simple → complex order). kinds: text/analog-clock/image = chip choice (options + correctIndex); label-diagram = tap-the-part challenge on a real diagram (combines label-diagram with stage-sequence, e.g. plant growth sequence ends with 'tap the parts of the grown plant').",
       "items": {
         "type": "object",
