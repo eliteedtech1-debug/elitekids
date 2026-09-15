@@ -101,6 +101,10 @@ jobs:
               ssl_ciphers         HIGH:!aNULL:!MD5;
 
               client_max_body_size 50m;
+              # Login sets large JWT cookies (lms_session/lms_refresh/lms_user);
+              # the 200 response header is ~4.2k, over nginx's default 4k
+              # proxy buffer -> "upstream sent too big header" -> 502.
+              large_client_header_buffers 4 32k;
 
               location / {
                   proxy_pass http://127.0.0.1:3005;
@@ -112,6 +116,9 @@ jobs:
                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                   proxy_set_header X-Forwarded-Proto $scheme;
                   proxy_cache_bypass $http_upgrade;
+                  proxy_buffer_size        16k;
+                  proxy_buffers            8 16k;
+                  proxy_busy_buffers_size  32k;
               }
           }
           NGINX
@@ -138,6 +145,8 @@ jobs:
           for u in "https://egi.elitecampus.com.ng/login" "https://elitecampus.com.ng/login"; do
             echo "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$u")  $u"
           done
+          echo "--- vhost proxy buffers ---"
+          grep -E 'proxy_buffer_size|large_client_header_buffers' /etc/nginx/sites-enabled/elitecampus || echo "MISSING BUFFERS"
           echo "--- login endpoint (dummy creds: must NOT be 404) ---"
           code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
             -X POST https://egi.elitecampus.com.ng/api/auth/login \
