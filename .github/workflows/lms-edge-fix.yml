@@ -1,0 +1,153 @@
+name: LMS edge fix (EliteCampus nginx)
+
+# One-shot, idempotent repair of the EliteCampus edge on the VPS.
+#
+# Root cause (2026-09-15): the real elitecampus.com.ng + *.elitecampus.com.ng
+# vhost was gone, and a `certbot --nginx -d ...egi.elitecampus.com.ng` run had
+# cloned the generic server.brainstorm.ng block into /etc/nginx/sites-enabled/
+# default under server_name egi.elitecampus.com.ng. That clone has no proxy to
+# lms-web (:3005), so POST /api/auth/login fell through to
+# `location / { try_files $uri $uri/ =404; }` and returned 404. The app itself
+# was healthy: curl -X POST http://127.0.0.1:3005/api/auth/login -> 200.
+#
+# This job runs on the self-hosted runner (same SUDO_PASSWORD secret + guard
+# pattern as deploy.yml) and is surgical:
+#   * removes ONLY the stray trailing egi server block from `default`
+#   * installs /etc/nginx/sites-available/elitecampus (proxy -> 127.0.0.1:3005)
+#   * nginx -t before reload, auto-restore from backup on failure
+# server.brainstorm.ng and every other vhost are left byte-identical (guarded).
+
+on:
+  push:
+    paths:
+      - '.github/workflows/lms-edge-fix.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: elitekids-deploy
+  cancel-in-progress: false
+
+jobs:
+  fix-edge:
+    runs-on: self-hosted
+    steps:
+      - name: Strip stray egi vhost + install elitecampus vhost
+        env:
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          S() { printf '%s\n' "$SUDO_PASSWORD" | sudo -S -p '' "$@"; }
+          if ! printf '%s\n' "$SUDO_PASSWORD" | sudo -S -p '' true 2>/dev/null; then
+            echo "ERROR: sudo auth failed — check the SUDO_PASSWORD Actions secret"; exit 1
+          fi
+
+          ENABLED=/etc/nginx/sites-enabled/default
+          AVAIL=/etc/nginx/sites-available/default
+          CAMPUS_AVAIL=/etc/nginx/sites-available/elitecampus
+          CAMPUS_LINK=/etc/nginx/sites-enabled/elitecampus
+          STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          BK=/tmp/lms-edge-fix-$STAMP
+          mkdir -p "$BK"
+          S cp -a "$ENABLED" "$BK/default.enabled"
+          S cp -a "$AVAIL"   "$BK/default.available" || true
+
+          echo "==== LMS edge fix $STAMP ===="
+          echo "egi server_name before: $(grep -c 'server_name egi\.elitecampus\.com\.ng' "$ENABLED" || true)"
+
+          # --- 1. strip the stray trailing egi server block (position-exact) ---
+          LAST=$(grep -n '^server {' "$ENABLED" | tail -1 | cut -d: -f1)
+          if [ -n "$LAST" ] && sed -n "${LAST},\$p" "$ENABLED" | grep -q 'server_name egi\.elitecampus\.com\.ng'; then
+            head -n $((LAST - 1)) "$ENABLED" > "$BK/default.new"
+            echo "stripped trailing egi block (started at line $LAST)"
+          else
+            cp "$ENABLED" "$BK/default.new"
+            echo "no trailing egi block — default left as-is"
+          fi
+
+          # --- 2. guards: nothing stray left, brainstorm block intact ---
+          if grep -q 'server_name egi\.elitecampus\.com\.ng' "$BK/default.new"; then
+            echo "ERROR: egi server_name still present — aborting"; exit 1
+          fi
+          if [ "$(grep -c 'server_name server\.brainstorm\.ng;' "$BK/default.new")" != "1" ]; then
+            echo "ERROR: server.brainstorm.ng block not intact — aborting"; exit 1
+          fi
+          S cp "$BK/default.new" "$ENABLED"
+          S cp "$BK/default.new" "$AVAIL"
+
+          # --- 3. install the canonical elitecampus vhost ---
+          cat > "$BK/elitecampus.conf" <<'NGINX'
+          # EliteCampus LMS edge — managed by .github/workflows/lms-edge-fix.yml
+          # (elitekids repo). Re-run that workflow to restore this file if a
+          # `certbot --nginx` run ever clones server.brainstorm.ng onto these
+          # names again. Upstream: lms-web (Next standalone) on 127.0.0.1:3005 —
+          # the only public LMS port; the API ports (:31xx) stay loopback-only.
+
+          server {
+              listen 80;
+              listen [::]:80;
+              server_name elitecampus.com.ng www.elitecampus.com.ng *.elitecampus.com.ng;
+              return 301 https://$host$request_uri;
+          }
+
+          server {
+              listen 443 ssl;
+              listen [::]:443 ssl;
+              server_name elitecampus.com.ng www.elitecampus.com.ng *.elitecampus.com.ng;
+
+              ssl_certificate     /etc/letsencrypt/live/elitecampus.com.ng/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/elitecampus.com.ng/privkey.pem;
+              ssl_protocols       TLSv1.2 TLSv1.3;
+              ssl_ciphers         HIGH:!aNULL:!MD5;
+
+              client_max_body_size 50m;
+
+              location / {
+                  proxy_pass http://127.0.0.1:3005;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_cache_bypass $http_upgrade;
+              }
+          }
+          NGINX
+          S cp "$BK/elitecampus.conf" "$CAMPUS_AVAIL"
+          S ln -sfn "$CAMPUS_AVAIL" "$CAMPUS_LINK"
+
+          # --- 4. validate then reload (auto-restore on failure) ---
+          if S nginx -t 2>&1; then
+            S nginx -s reload
+            echo "nginx reloaded"
+          else
+            echo "ERROR: nginx -t failed — restoring backups"
+            S cp -a "$BK/default.enabled" "$ENABLED"
+            S cp -a "$BK/default.available" "$AVAIL" || true
+            S rm -f "$CAMPUS_LINK"
+            S nginx -t || true
+            exit 1
+          fi
+
+      - name: Verify edge + login routing (no secrets)
+        run: |
+          set +e
+          echo "--- pages ---"
+          for u in "https://egi.elitecampus.com.ng/login" "https://elitecampus.com.ng/login"; do
+            echo "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$u")  $u"
+          done
+          echo "--- login endpoint (dummy creds: must NOT be 404) ---"
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+            -X POST https://egi.elitecampus.com.ng/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -H 'Origin: https://egi.elitecampus.com.ng' \
+            --data-raw '{"email":"nobody@example.invalid","password":"x"}')
+          echo "egi /api/auth/login -> $code"
+          echo "--- server.brainstorm.ng must stay up ---"
+          echo "$(curl -sk -o /dev/null -w '%{http_code}' --max-time 15 -H 'Host: server.brainstorm.ng' https://127.0.0.1/)  server.brainstorm.ng"
+          if [ "$code" = "404" ] || [ "$code" = "000" ]; then
+            echo "FAIL: egi login routing still broken"; exit 1
+          fi
+          echo "==== DONE ===="
