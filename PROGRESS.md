@@ -169,6 +169,7 @@ re-run the full gate + publish for a docs/harness-only change.
 | A dashboard load counts as a play day (Q58) | Sep 15 | `POST /kids/economy/streak/record` fires on every mount and UPDATEs `kids_economy`; streaks inflate and every visit is a write |
 | Class-sized load still exceeds the rate limit | Sep 15 | 15 calls/child × 30 children opening at once ≈ 450 req/min against a **300/min per-IP** limit shared by a whole school. Server work, not client work |
 | Flagship pilot not reproducible from the repo (Q48/Q60) | Sep 15 | Prod serves 6 bands / 1718 lessons; HEAD's plan declares 5 and no `primary`, and the seeder writes one game per unit. A rebuild from source cannot reproduce prod |
+| **Unverified schema migration against the SHARED `elite_db` (Q65)** | Sep 10 | `backend/database/migrate.js` left three pre-migration backups of `elite_db.school_setup` (06:10:45Z, 06:11:14Z, 07:09:10Z) and the backup grew 18,291 → 22,155 bytes, so a **shared, non-kids table** changed. No report, no commit, nobody has said what it applied |
 
 **Resolved since the last update:** TURN/coturn (installed + active, Q18) · GitHub push
 (works over HTTPS — both deploys today pushed successfully, so the "SSH key not registered"
@@ -249,17 +250,25 @@ Full log in `01-PLANNING/09-DECISIONS-LOG.md`. Summary:
 
 - **Sep 10** — Primary annual pilot: band-count verified against live `elite_kids`, Primary
   progressive band + Playgroup one-class-fits-all ladder implemented, seed re-run
-  (1,710 games / 6 bands / 51 series). Login subdomain fix. ⚠️ The plan/seeder half of this
-  work is **not in the repo** — see Q48/Q60.
+  (1,710 games / 6 bands / 51 series). ⚠️ The plan/seeder half of this work is **not in the
+  repo** — see Q48/Q60. Also: the student dashboard split tests cards from games
+  (`b142333`), the login hid the Change School button on subdomain auto-detect (`cdd8eae`),
+  and a `migrate.js --apply` run touched the **shared `elite_db.school_setup`** with no report
+  (**Q65 — unverified**).
 - **Sep 11** — Crèche game audit (Milestone 1: tap-recognition discovery).
 - **Sep 14** — Deploy hardening after the 403 docroot incident; ECCE bridge model binding +
   mounted observation routes (2 real production defects); bridge review/publish/recall state
-  machine + teacher authoring screen. A bridge push failed the gate and published nothing,
-  which exposed that CI step 1 runs `git stash create` + `git reset --hard origin/main`.
+  machine + teacher authoring screen; Home made the games grid with games grouped by lock
+  state (`fbc021a`). A bridge push failed the gate and published nothing, which exposed that
+  CI step 1 runs `git stash create` + `git reset --hard origin/main`.
 - **Sep 15** — Crèche content + placement committed so the gate could pass; jump-ahead
   checkpoint feature (backend, frontend, policy) with its migration applied to live;
-  5-tab student restructure with a class-safe load budget; the Play-0 production bug fixed
-  (Nursery children saw `Play 0`); PLAY ordered by curriculum then sectioned by subject.
+  onboarding split (gender/age step out of the tour) + lazy tab panels + live feed badges
+  (`a55be81`); login shows the school logo/name and hides the shortname on a subdomain
+  (`2924984`); 5-tab student restructure with a class-safe load budget; the Play-0 production
+  bug fixed (Nursery children saw `Play 0`); PLAY ordered by curriculum then sectioned by
+  subject. Live band walks were run against real children's sessions (Nursery 2, Kindergarten,
+  Demo5) — they produced the two open findings Q58 and Q59.
 
 ---
 
@@ -272,6 +281,8 @@ Ordered by what actually protects production, not by what is easiest.
 - [ ] **Q59** — make the server-side band cap hold, so `visibleLevels()` is the defence and
       the client ceiling is only a backstop
 - [ ] **Q60** — reconcile the tracked flagship plan + seeder with the content prod serves
+- [ ] **Q65** — establish what the 2026-09-10 `migrate.js` run applied to the SHARED
+      `elite_db.school_setup`, and confirm the kids-only rule was respected
 - [ ] **Q51** — migrate the 42 direct `elite_db.students` reads (17 files) onto elite-sms APIs
 - [ ] **Q55 follow-up** — Decide the PLAY ordering question: a Primary child's own six
       subjects and their six test-out offers sit ~1350 cards behind early-band review
