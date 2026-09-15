@@ -10,8 +10,13 @@ const db = require('../models');
 const { generateGameConfig, persistGameConfig, generateSceneScript, persistSceneScript } = require('../services/contentGeneratorService');
 const { enqueueLessonGeneration } = require('../media/generation.queue');
 const { validateManualConfig, canonicalSceneType, sceneCardErrors } = require('../services/gameConfigRules');
-const { visibleLevels, resolveBandForAdmission } = require('../services/ageBand');
+const { visibleLevels, resolveBandForAdmission, AGE_BANDS } = require('../services/ageBand');
 const sceneAssetsSeed = require('../seeders/sceneAssetsSeed');
+
+/** Narrowest rank on the NERDC ladder — the fail-closed ceiling for an identity
+ *  whose band cannot be resolved. ageBand's risk rule is explicit: "when class
+ *  mapping is ambiguous, fall back to the NARROWEST known rank — never widen". */
+const NARROWEST_BAND = AGE_BANDS[0]; // 'Crèche'
 
 // ── Children (parent + teacher) ────────────────────────────────────────────
 
@@ -587,17 +592,19 @@ async function listLessons(req, res) {
       // rank instead of nowhere.
       admission = String(user.admission_no || user.id || '');
       childBand = admission ? await resolveBandForAdmission(admission) : null;
-      if (childBand) {
-        const levels = visibleLevels(childBand);
-        if (levels) where.age_level = { [Op.in]: levels };
-      } else {
-        // No band ⇒ NO ceiling at all: this child is served the entire catalog
-        // (all six bands) and the /kids/learning-path sibling isolates to an
-        // empty path for the same child. Never silent — the 2026-09-15 live
-        // probe found two real School children uncapped for weeks with nothing
-        // in the log to show for it. Every occurrence means an identity that
-        // the band chain could not read (see ageBand.resolveBandForAdmission).
-        console.warn(`[listLessons] G6 band ceiling NOT applied — no band for admission "${admission || '(none)'}" (user ${user.id}); serving the full catalog`);
+      // A RESOLVED band narrows the catalog; an UNREADABLE identity must not
+      // widen it. Previously the ceiling was skipped entirely when no band
+      // resolved (`if (childBand)`), so such a child was served all six bands —
+      // 647 of 6649 live children (9.7%, measured 2026-09-15) received every
+      // band, silently, which is the opposite of what the ceiling exists for.
+      // Failing closed to the narrowest rank keeps age isolation intact AND the
+      // dashboard non-empty (the youngest band carries 272 published lessons),
+      // so the never-empty rule below stays satisfied.
+      const ceilingBand = childBand || NARROWEST_BAND;
+      const levels = visibleLevels(ceilingBand);
+      if (levels) where.age_level = { [Op.in]: levels };
+      if (!childBand) {
+        console.warn(`[listLessons] no resolvable band for admission "${admission || '(none)'}" (user ${user.id}); capping to the narrowest band "${ceilingBand}" instead of serving every band`);
       }
     }
 

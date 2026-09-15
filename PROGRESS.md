@@ -281,7 +281,11 @@ Ordered by what actually protects production, not by what is easiest.
 - [x] **Q59/Q67** — make the server-side band cap hold — **FIXED + DEPLOYED 2026-09-15**
       (`8b35aa5`). It was never the resolver: `models/Student.js` did not DECLARE `class_name`,
       so no band resolved for any real-school child and the ceiling was skipped entirely.
-      004 1718→1085, 109 1718→1356, Demo5 1085→814; walked on live.
+      004 1718→1085, 109 1718→1356, Demo5 1085→814; walked on live. **Second pass (Q70,
+      NOT deployed)**: 647 children (9.7%) still resolved NO band and were served all six —
+      now fixed by passing the class row's `section` (640 recover), an age-word rule for
+      'Just 2s'-style room names (7), and failing closed to the narrowest band instead of
+      widening; verified read-only against production, 0 left unresolved, gate 67/67 · 778/778.
 - [x] **Q60** — reconcile the tracked flagship plan + seeder with the content prod serves —
       **RESOLVED 2026-09-15**: tracked source now generates prod exactly (1710/1710/1530/51,
       zero drift, gate 67/67 · 772/772). Root cause was that the 09-10 Primary work existed only

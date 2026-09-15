@@ -62,7 +62,7 @@ function assertSafeTestDbName(name, label) {
 assertSafeTestDbName(TEST_DB, 'TEST_DB');
 assertSafeTestDbName(TEST_KIDS_DB, 'TEST_KIDS_DB');
 
-const SHARED_TABLES = new Set(['users', 'parents', 'students', 'school_setup', 'password_reset_tokens']);
+const SHARED_TABLES = new Set(['users', 'parents', 'students', 'classes', 'school_setup', 'password_reset_tokens']);
 const CONFIG = {
   host: process.env.TEST_DB_HOST || '127.0.0.1',
   port: Number(process.env.TEST_DB_PORT || 3306),
@@ -131,6 +131,24 @@ CREATE TABLE IF NOT EXISTS students (
   password VARCHAR(255) NULL,
   user_type VARCHAR(50) NULL DEFAULT 'Student',
   status VARCHAR(20) NULL DEFAULT 'Active',
+  created_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- classes is read by ageBand.resolveBandForAdmission (section-aware band
+-- resolution) — a decorative class name needs its class row's section, and the
+-- denormalized students row does not carry one. Shared-DB table.
+CREATE TABLE IF NOT EXISTS classes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  class_name VARCHAR(191) NOT NULL,
+  class_code VARCHAR(50) NOT NULL,
+  section VARCHAR(50) NOT NULL,
+  school_id VARCHAR(20) NOT NULL,
+  branch_id VARCHAR(20) NULL,
+  capacity INT NULL,
+  level_num INT NULL,
+  status VARCHAR(20) NULL DEFAULT 'Active',
+  class_type VARCHAR(30) NULL DEFAULT 'Regular',
   created_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -779,7 +797,7 @@ async function ensureTestDb() {
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
     // Reset data in the database that owns each table. A table-qualified query
     // is intentionally routed by the same helper used by tests.
-    for (const t of ['users', 'parents', 'students', 'school_setup', 'password_reset_tokens', 'kids_children', 'kids_progress', 'kids_lessons', 'kids_game_configs', 'kids_mode_locks', 'kids_content_approvals', 'kids_generation_jobs', 'kids_scene_scripts', 'kids_prescreen_log', 'kids_denylist_rules', 'kids_content_generation_audit', 'kids_game_series', 'kids_game_units', 'kids_curriculum_points', 'kids_library_games', 'kids_class_game_variants', 'kids_game_item_responses', 'kids_engagement_snapshots', 'kids_mastery_progress', 'kids_test_attempts', 'kids_review_schedule', 'kids_interface_onboarding', 'kids_garden_state', 'kids_companion_state', 'kids_session_state', 'kids_parental_controls', 'kids_badges', 'kids_festival_state']) {
+    for (const t of ['users', 'parents', 'students', 'classes', 'school_setup', 'password_reset_tokens', 'kids_children', 'kids_progress', 'kids_lessons', 'kids_game_configs', 'kids_mode_locks', 'kids_content_approvals', 'kids_generation_jobs', 'kids_scene_scripts', 'kids_prescreen_log', 'kids_denylist_rules', 'kids_content_generation_audit', 'kids_game_series', 'kids_game_units', 'kids_curriculum_points', 'kids_library_games', 'kids_class_game_variants', 'kids_game_item_responses', 'kids_engagement_snapshots', 'kids_mastery_progress', 'kids_test_attempts', 'kids_review_schedule', 'kids_interface_onboarding', 'kids_garden_state', 'kids_companion_state', 'kids_session_state', 'kids_parental_controls', 'kids_badges', 'kids_festival_state']) {
       await conn.query('TRUNCATE TABLE `' + t + '`');
     }
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');

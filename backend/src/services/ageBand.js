@@ -206,6 +206,18 @@ function classToAgeLevel(className, section) {
 
   if (/pre/.test(norm)) return 'Playgroup';
 
+  // ── Age-word room names ──
+  // Nursery rooms are often named for the age they hold: 'Just 2s', '3s room',
+  // 'Twos'. Anchored to the WHOLE name and placed AFTER every keyword rule, so
+  // it can never hijack real vocabulary — 'Nursery 2s' / 'Primary 3s' are
+  // matched by their own rules above and never reach here. Mapped through
+  // ageToBand so this cannot introduce a second, disagreeing ladder.
+  const ageWord = norm.match(/^(?:just\s+)?(\d{1,2})\s*s(?:\s*(?:room|class|group|year))?$/);
+  if (ageWord) return ageToBand(parseInt(ageWord[1], 10));
+  const SPELLED_AGES = { twos: 2, threes: 3, fours: 4, fives: 5 };
+  const spelled = SPELLED_AGES[norm.replace(/^just\s+/, '')];
+  if (spelled) return ageToBand(spelled);
+
   // ── Section fallback for unrecognized decorative names ──
   if (sec === 'nursery') return 'Nursery 1';
   if (/^(primary|jss|junior secondary|senior secondary|ss|islamiyya|tahfiz)$/.test(sec)) return 'Primary';
@@ -254,6 +266,35 @@ function ageToBand(ageYears) {
   if (age === 5) return 'Nursery 2';
   if (age === 6) return 'Kindergarten';
   return 'Primary';
+}
+
+/**
+ * Look up a CLASS ROW in the shared school DB from the child's class code.
+ *
+ * `students.current_class` / `class_code` are synthetic codes ('CLS0629') and
+ * the class's `section` is what the decorative-name fallback in classToAgeLevel
+ * needs — neither the denormalized students row nor kids_children carries it.
+ * Without this the resolver returned null for decorative class names that are
+ * ordinary in Islamiyya and Tahfiz schools ('Umar bin Khaddab', 'TAMHEED B'),
+ * and 647 of 6649 live children (9.7%, measured 2026-09-15) resolved NO band —
+ * so /kids/lessons served them the entire six-band catalog.
+ *
+ * Returns null when the table or row is absent (older mirror schemas), never
+ * throws: band resolution must not fail a listing request.
+ */
+async function lookupClassRow(code) {
+  const key = String(code || '').trim();
+  if (!key) return null;
+  try {
+    const db = require('../models');
+    const [rows] = await db.sequelize.query(
+      'SELECT class_name, section FROM classes WHERE class_code = ? OR class_name = ? ORDER BY (class_code = ?) DESC LIMIT 1',
+      { replacements: [key, key, key] }
+    );
+    return rows && rows[0] ? rows[0] : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -316,10 +357,17 @@ async function resolveBandForAdmission(admissionNo) {
   // 1. SMS students row — class_name is authoritative for every real school.
   // current_class/class_code are compatibility fallbacks for older mirrors.
   if (student) {
-    const band = classToAgeLevel(student.class_name)
-      || classToAgeLevel(student.current_class)
-      || classToAgeLevel(student.class_code);
-    if (band) return band;
+    const byName = classToAgeLevel(student.class_name);
+    if (byName) return byName;
+    // Section-aware retry through the class ROW. A decorative class name carries
+    // no pedagogical signal on its own; `section` is what tells the documented
+    // fallback whether 'TAMHEED B' is a nursery room or an Islamiyya form.
+    const cls = await lookupClassRow(student.current_class || student.class_code);
+    const byClass = cls ? classToAgeLevel(cls.class_name, cls.section) : null;
+    if (byClass) return byClass;
+    // Codes/names as a last compatibility read (classToAgeLevel strips CLS####).
+    const compat = classToAgeLevel(student.current_class) || classToAgeLevel(student.class_code);
+    if (compat) return compat;
   }
   // 2. kids_children row for flagship/self-service children with no SMS row.
   const direct = resolveChildBand(child);
