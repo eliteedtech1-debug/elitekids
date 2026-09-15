@@ -5,6 +5,7 @@ import { playTap, playScore } from '@/lib/game/sound-effects';
 import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { FloatingDeco } from '@/pages/Student/utils/helpers';
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -23,13 +24,6 @@ interface ReviewStats {
   due_today: number;
   streak_days: number;
   avg_accuracy: number;
-}
-
-/* ── Floating decoration for game feel ─────────────────────── */
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-30 ${className}`} />
-  );
 }
 
 export default function ReviewZone() {
@@ -130,8 +124,8 @@ export default function ReviewZone() {
     <div className="space-y-4">
       {/* Header — game-style glassmorphism panel */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0F4D92]/5 via-[#0d9488]/5 to-amber-50/50 backdrop-blur-xl border border-white/60 p-5 shadow-xl shadow-[#0F4D92]/5">
-        <FloatingDeco className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-orange-400 to-amber-400" />
-        <FloatingDeco className="-left-6 -bottom-6 h-20 w-20 bg-gradient-to-br from-pink-400 to-rose-400" />
+        <FloatingDeco opacity={30} className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-orange-400 to-amber-400" />
+        <FloatingDeco opacity={30} className="-left-6 -bottom-6 h-20 w-20 bg-gradient-to-br from-pink-400 to-rose-400" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 via-amber-500 to-yellow-500 shadow-xl shadow-orange-300/50 ring-2 ring-white/50">

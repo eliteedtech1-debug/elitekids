@@ -17,12 +17,13 @@
  * the same approach as the i18n key-integrity gate in lib/i18n/i18n.test.ts.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import * as ts from 'typescript';
 import { en } from '../../../lib/i18n/en';
 
 const STUDENT_DIR = join(__dirname, '..');
+const SRC_DIR = join(__dirname, '../../..');
 
 /** The 5 tabs the restructure promises, in tab-bar order. */
 const EXPECTED_TAB_KEYS = ['home', 'play', 'path', 'review', 'me'];
@@ -130,6 +131,17 @@ function declaredNames(sf: ts.SourceFile): Set<string> {
     else if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name)) names.add(n.name.text);
   });
   return names;
+}
+
+/** Every non-test .ts/.tsx file in the app source tree (src/**). */
+function appSourceFiles(dir: string = SRC_DIR): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...appSourceFiles(full));
+    else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) files.push(full);
+  }
+  return files;
 }
 
 /** The `key` values of the TABS array literal. */
@@ -308,9 +320,7 @@ describe('no component renders in two tabs', () => {
 /* ── 4. Shared helpers live in one place ──────────────────────── */
 
 describe('shared helpers', () => {
-  // Scope: the student dashboard surface. Components outside it (BossBattle
-  // Overlay, GardenScene, ReviewZone, RevisionCard) still carry their own
-  // private blob with a different opacity — untouched by the restructure.
+  // Scope: the student dashboard surface.
   it('are declared once, in utils/helpers.tsx, across the tab surface', () => {
     const scanned = [...STUDENT_FILES, 'utils/helpers.tsx'];
     const definitions = new Map<string, string[]>();
@@ -338,5 +348,17 @@ describe('shared helpers', () => {
         'tabs/StatsTab.tsx',
       ].sort(),
     );
+  });
+
+  // BossBattleOverlay, GardenScene, ReviewZone and RevisionCard each used to
+  // carry a private copy (opacity-30, except GardenScene at 20). They now
+  // import the shared one and pass `opacity` instead — so nothing anywhere in
+  // the app tree is allowed to declare it again.
+  it('is the only FloatingDeco declaration in the app source tree', () => {
+    const declaredIn = appSourceFiles()
+      .filter((f) => readFileSync(f, 'utf8').includes('FloatingDeco')) // cheap prefilter
+      .filter((f) => declaredNames(parseFile(f)).has('FloatingDeco'))
+      .map((f) => relative(SRC_DIR, f));
+    expect(declaredIn).toEqual(['pages/Student/utils/helpers.tsx']);
   });
 });

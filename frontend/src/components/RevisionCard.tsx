@@ -16,6 +16,7 @@ import { playTap } from '@/lib/game/sound-effects';
 import { t, tN } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { FloatingDeco } from '@/pages/Student/utils/helpers';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -33,13 +34,6 @@ interface StatusData {
   failed_items: number;
   nudges: number;
   weekly_completed: boolean;
-}
-
-/* ── Floating decoration for game feel ─────────────────── */
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-30 ${className}`} />
-  );
 }
 
 /* ── Main Component ──────────────────────────────────── */
@@ -111,8 +105,8 @@ export default function RevisionCard() {
     <div className="space-y-3">
       {/* Section header — game-style glassmorphism panel */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0F4D92]/5 via-[#0d9488]/5 to-amber-50/50 backdrop-blur-xl border border-white/60 p-5 shadow-xl shadow-[#0F4D92]/5">
-        <FloatingDeco className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-amber-400 to-orange-400" />
-        <FloatingDeco className="-left-6 -bottom-6 h-20 w-20 bg-gradient-to-br from-red-400 to-pink-400" />
+        <FloatingDeco opacity={30} className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-amber-400 to-orange-400" />
+        <FloatingDeco opacity={30} className="-left-6 -bottom-6 h-20 w-20 bg-gradient-to-br from-red-400 to-pink-400" />
         <div className="relative flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 shadow-xl shadow-orange-300/50 ring-2 ring-white/50">
             <RefreshCw className="h-6 w-6 text-white drop-shadow-lg" />
@@ -132,8 +126,8 @@ export default function RevisionCard() {
       {/* Failed items summary */}
       {failedCount > 0 && (
         <div className="relative overflow-hidden rounded-3xl border-2 border-amber-100 bg-gradient-to-br from-amber-50/80 via-orange-50/50 to-yellow-50/60 p-5 shadow-lg shadow-amber-200/20">
-          <FloatingDeco className="-right-5 -top-5 h-24 w-24 bg-gradient-to-br from-amber-400 to-orange-400" />
-          <FloatingDeco className="-left-3 -bottom-3 h-16 w-16 bg-gradient-to-br from-orange-400 to-red-400" />
+          <FloatingDeco opacity={30} className="-right-5 -top-5 h-24 w-24 bg-gradient-to-br from-amber-400 to-orange-400" />
+          <FloatingDeco opacity={30} className="-left-3 -bottom-3 h-16 w-16 bg-gradient-to-br from-orange-400 to-red-400" />
           <div className="relative">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-md shadow-amber-300/40">
@@ -185,8 +179,8 @@ export default function RevisionCard() {
         disabled={starting}
         className="w-full relative overflow-hidden rounded-3xl border-2 border-[#0F4D92]/10 bg-gradient-to-r from-[#0F4D92]/5 via-indigo-50 to-[#0d9488]/5 p-5 text-left transition-all hover:border-[#0F4D92]/20 hover:shadow-xl hover:shadow-[#0F4D92]/10 hover:scale-[1.01] active:scale-[0.99] group"
       >
-        <FloatingDeco className="-right-5 -top-5 h-24 w-24 bg-gradient-to-br from-[#0F4D92] to-indigo-400" />
-        <FloatingDeco className="-left-3 -bottom-3 h-16 w-16 bg-gradient-to-br from-[#0d9488] to-teal-400" />
+        <FloatingDeco opacity={30} className="-right-5 -top-5 h-24 w-24 bg-gradient-to-br from-[#0F4D92] to-indigo-400" />
+        <FloatingDeco opacity={30} className="-left-3 -bottom-3 h-16 w-16 bg-gradient-to-br from-[#0d9488] to-teal-400" />
         {starting ? (
           <div className="relative flex items-center justify-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin text-[#0F4D92]" />

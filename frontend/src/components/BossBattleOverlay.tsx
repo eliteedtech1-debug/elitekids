@@ -5,6 +5,7 @@ import { playVictory } from '@/lib/game/sound-effects';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { liveEvents } from '@/lib/live/events';
+import { FloatingDeco } from '@/pages/Student/utils/helpers';
 import { t, tN } from '@/lib/i18n';
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -53,13 +54,6 @@ const GUARDIAN_WISDOM: Record<string, string> = {
   mami: 'The waters remember your courage, young one.',
   elena: 'Every path leads to those who seek wisely.',
 };
-
-/* ── Floating decoration for game feel ─────────────────────── */
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-30 ${className}`} />
-  );
-}
 
 export default function BossBattleOverlay({ onDismiss }: Props) {
   const navigate = useNavigate();
@@ -140,8 +134,8 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-8 max-w-sm w-full text-center shadow-2xl border-2 border-amber-300">
-          <FloatingDeco className="-right-8 -top-8 h-32 w-32 bg-gradient-to-br from-amber-400 to-yellow-400" />
-          <FloatingDeco className="-left-6 -bottom-6 h-24 w-24 bg-gradient-to-br from-orange-400 to-red-400" />
+          <FloatingDeco opacity={30} className="-right-8 -top-8 h-32 w-32 bg-gradient-to-br from-amber-400 to-yellow-400" />
+          <FloatingDeco opacity={30} className="-left-6 -bottom-6 h-24 w-24 bg-gradient-to-br from-orange-400 to-red-400" />
           <div className="relative">
             <div className="text-7xl mb-4 animate-bounce">{avatar}</div>
             <h2 className="text-2xl font-extrabold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">{t('bossBattle.guardianDefeated')}</h2>
@@ -166,8 +160,8 @@ export default function BossBattleOverlay({ onDismiss }: Props) {
   /* ── Active Raid ─────────────────────────────────────────── */
   return (
     <div className="relative overflow-hidden rounded-3xl border-2 border-[#C90016]/20 bg-gradient-to-br from-red-50/80 via-orange-50/50 to-amber-50/60 p-5 shadow-xl shadow-red-200/30">
-      <FloatingDeco className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-red-400 to-orange-400" />
-      <FloatingDeco className="-left-6 -bottom-6 h-20 w-20 bg-gradient-to-br from-[#C90016] to-red-600" />
+      <FloatingDeco opacity={30} className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-red-400 to-orange-400" />
+      <FloatingDeco opacity={30} className="-left-6 -bottom-6 h-20 w-20 bg-gradient-to-br from-[#C90016] to-red-600" />
       {/* Boss Header */}
       <div className="relative flex items-center gap-4 mb-4">
         <div className="text-5xl animate-pulse">{avatar}</div>

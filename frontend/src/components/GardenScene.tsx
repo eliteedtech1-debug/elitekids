@@ -4,6 +4,7 @@ import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { t } from '@/lib/i18n';
 import { DECOR_META, sanitizeDecorations, type EquippedDecoration } from '@/lib/game/garden';
+import { FloatingDeco } from '@/pages/Student/utils/helpers';
 
 /* ── Garden element types and visuals ─────────────────────────── */
 
@@ -56,13 +57,6 @@ function GardenPlant({ element, index }: { element: GardenElement; index: number
         {element.item_id.replace(/-/g, ' ').split(' ').slice(-1)[0]}
       </span>
     </div>
-  );
-}
-
-/* ── Floating decoration for game feel ─────────────────────── */
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-20 ${className}`} />
   );
 }
 

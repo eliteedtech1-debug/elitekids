@@ -8,10 +8,18 @@
 import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import type { LessonCard } from '../tabs/types';
 
-/** Soft blurred background blob used for depth on cards and the header. */
-export function FloatingDeco({ className }: { className?: string }) {
+/**
+ * Soft blurred background blob used for depth on cards and the header.
+ *
+ * `opacity` is a prop (not part of `className`) because Tailwind only sees
+ * complete class names: the accepted values map to literal classes below.
+ * Default 20 — BossBattleOverlay / ReviewZone / RevisionCard render 30.
+ */
+const DECO_OPACITY: Record<20 | 30, string> = { 20: 'opacity-20', 30: 'opacity-30' };
+
+export function FloatingDeco({ className, opacity = 20 }: { className?: string; opacity?: 20 | 30 }) {
   return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-20 ${className}`} />
+    <div className={`pointer-events-none absolute rounded-full blur-2xl ${DECO_OPACITY[opacity]} ${className}`} />
   );
 }
 
