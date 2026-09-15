@@ -221,3 +221,23 @@ chip. Design correction to the brief documented above (unit-level sections would
 card — 1350 of 1530 live units hold a single game). Still uncommitted and undeployed. Awaiting a
 decision on the stale-docs sync, the PLAY ordering finding, and the server-side band-cap bug —
 see FLAG.
+
+--- 2026-09-15T15:36Z · Q67 G6 band ceiling (server-side cap) ---
+STEP: root-caused Q59. NOT a data problem and NOT the resolver algorithm —
+  `models/Student.js` never DECLARED `class_name`, so Sequelize never selected it and
+  `ageBand.resolveBandForAdmission` read `undefined` for every real-school child; the next
+  fallback (`class_code` `CLS####`) is deliberately stripped by the normalizer, so no band
+  resolved, `kids.js`'s `if (childBand)` skipped the ceiling, and the child got all 6 bands
+  (1718). `students.class_name` is populated for 6649/6649 rows — the earlier "empty
+  class_name / data problem" diagnosis recorded in Q59 was WRONG and is corrected in QUEUE.md.
+STEP: fixed — declared `class_name` + `current_class` (SELECT widening only) and added a
+  console.warn to the un-capped branch (the failure had been completely silent in the log).
+STEP: new suite test/band-ceiling-sms-students.test.js (5 tests, SMS-school fixture with no
+  kids_children row). Mutation-checked: reverting the model fails exactly 2 of 5 — no band, and
+  Kindergarten/Primary leaking to a Nursery 2 child. Full gate 67/67 suites · 767/767 tests.
+STEP: measured against real data (read-only): 004 null→Nursery 2, 1718→1085; 109 null→Kindergarten,
+  1718→1356; Demo5 Nursery 2(declaration)→Nursery 1(class), 1085→814 (class outranks declaration
+  by design). Both 004 and 109 also stop 400-ing on /kids/learning-path.
+FLAG: NOT DEPLOYED (git push origin main is the deploy; needs an explicit order). Demo5 narrowing
+  1085→814 is the one behaviour change. Never-empty widening still drops the ceiling by design.
+EVIDENCE: team-docs/reports/g6-band-ceiling-model-fix-2026-09-15.md

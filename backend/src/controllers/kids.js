@@ -590,6 +590,14 @@ async function listLessons(req, res) {
       if (childBand) {
         const levels = visibleLevels(childBand);
         if (levels) where.age_level = { [Op.in]: levels };
+      } else {
+        // No band ⇒ NO ceiling at all: this child is served the entire catalog
+        // (all six bands) and the /kids/learning-path sibling isolates to an
+        // empty path for the same child. Never silent — the 2026-09-15 live
+        // probe found two real School children uncapped for weeks with nothing
+        // in the log to show for it. Every occurrence means an identity that
+        // the band chain could not read (see ageBand.resolveBandForAdmission).
+        console.warn(`[listLessons] G6 band ceiling NOT applied — no band for admission "${admission || '(none)'}" (user ${user.id}); serving the full catalog`);
       }
     }
 
