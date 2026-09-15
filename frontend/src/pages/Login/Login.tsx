@@ -354,19 +354,15 @@ export default function Login() {
             <PublicLoginSwitcher />
           </div>
 
-          {/* EliteKids brand — show full crest only when no school selected */}
-          {!school && (
+          {/* School logo + name */}
+          {school && (
             <div className="mb-6 text-center">
-              <div className="relative mx-auto mb-4 h-24 w-24">
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-teal-400 to-emerald-500 opacity-20 blur-xl login-gpu-heavy" />
-                <img
-                  src="/logo.svg"
-                  alt={t('login.brand')}
-                  className="relative h-24 w-24 rounded-3xl object-contain shadow-[0_8px_30px_rgba(13,148,136,0.25)] border-2 border-white/80"
-                />
-              </div>
-              <h2 className="text-2xl font-bold text-[#0F4D92]">{t('login.brand')}</h2>
-              <p className="mt-1 text-sm text-gray-500">{t('login.subtitle')}</p>
+              <img
+                src={school.badge_url || '/logo.svg'}
+                alt={school.school_name}
+                className="mx-auto mb-3 h-20 w-20 rounded-2xl object-contain shadow-lg"
+              />
+              <h2 className="text-xl font-bold text-[#0F4D92]">{school.school_name}</h2>
             </div>
           )}
 
@@ -400,9 +396,9 @@ export default function Login() {
 
           {authView === 'login' && (
           <form onSubmit={handleSubmit} className="space-y-3">
-            {/* School short name — shown until the lookup resolves (typed flow),
-                after Change on a subdomain, or when the auto subdomain lookup failed */}
-            {!school && (forceSchoolPicker || !short_name || short_name === 'localhost' || !!schoolError) && (
+            {/* School short name — hidden when school auto-detected via subdomain,
+                always visible for typed/bare-domain flow */}
+            {(forceSchoolPicker || !short_name || short_name === 'localhost' || !!schoolError) && (
               <div className="group relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-500 group-focus-within:bg-teal-500 group-focus-within:text-white transition-colors duration-200">
@@ -426,37 +422,6 @@ export default function Login() {
                   required
                   className="w-full rounded-2xl border border-gray-200/80 bg-white/70 py-3 pl-14 pr-4 text-sm shadow-[0_2px_10px_rgba(0,0,0,0.04)] focus:border-teal-400 focus:bg-white focus:shadow-[0_4px_20px_rgba(13,148,136,0.1)] focus:outline-none transition-all duration-200"
                 />
-              </div>
-            )}
-
-            {/* Resolved school (input auto-hides after correct data is fetched) */}
-            {school && (
-              <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-3.5 py-2.5 backdrop-blur-sm sm:gap-3 sm:px-4 sm:py-3 login-gpu-heavy">
-                <img
-                  src={school.badge_url || '/logo.svg'}
-                  alt={t('login.schoolLogoAlt')}
-                  className="h-10 w-10 shrink-0 self-start rounded-lg object-contain border border-emerald-100/80 bg-white/70 p-0.5 sm:h-11 sm:w-11 sm:rounded-xl"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#0F4D92]">{school.school_name}</p>
-                    {!short_name && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSchool(null);
-                          setSchoolError('');
-                          setShortNameInput('');
-                          setForm((p) => ({ ...p, school_id: '' }));
-                          setForceSchoolPicker(true);
-                        }}
-                        className="shrink-0 text-xs font-bold whitespace-nowrap text-[#0d9488] hover:underline underline-offset-2"
-                      >
-                        {t('login.changeSchool')}
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
             )}
 
