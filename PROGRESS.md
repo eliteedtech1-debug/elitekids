@@ -535,4 +535,71 @@ _(append one short entry per work session — do not delete old entries, this is
   exposure-tier-testless-2026-09-15.md, reports/exposure-tier-observation-closure-ruling-2026-09-15.md.
   The CODE halves remain undeployed — live release is still `20260915T154251Z-8b35aa5` — so live still
   offers (and the old gate still demands) the Crèche/Playgroup test.
+
+2026-09-15 (cont.) — **Q65 closed, DB isolation audited (Q77), Q57 Gate 1 run, Q78 repaired — and a deploy
+  broken by the repair, which is the important part.**
+
+  ⚠️ NOTE FIRST: at 19:35:12Z a deploy started for `39e379a`, and its step 1 (`git stash create` +
+  `git reset --hard origin/main`) **reverted every TRACKED edit I had made — this file and `QUEUE.md`
+  included** — while my UNTRACKED reports survived. So the checkpoints below were written once,
+  destroyed, and re-written; the durable channel in this checkout is the untracked
+  `team-docs/reports/*.md` files, which is why earlier sessions recorded work there. Treat
+  PROGRESS.md and QUEUE.md as volatile: any deploy can reset them.
+
+  Q65 — CLOSED: **the 2026-09-10 migration applied NOTHING.** Five runs; the only write attempt
+  (06:10:45) FAILED with `Table 'elite_db.kids_lessons' doesn't exist`, and the three later ones are
+  explicit no-ops ("Nothing to do"). The three `school_setup` backups are **byte-identical**
+  (`md5 778fb156…`) because the runner dumps that table unconditionally, even with an empty plan — the
+  backup proves it RAN, not that anything changed. The 18,291→22,155 B growth is EliteKids' own 08-19
+  run (a pre-ALTER dump) plus other Elite apps on the shared DB. The kids-only rule held vacuously, by
+  failure rather than design. No writes, no drift. reports/q65-migration-closeout-2026-09-15.md.
+
+  Q77 — DB ISOLATION: one orphan, one design exception, one LIVE 500. `elite_db_test_test` cannot
+  recur (`ensureTestSuffix` was non-idempotent until `0176bdc` on 09-14; it is guarded and tested now,
+  and nothing references the DB). The two kids tables in the shared `elite_db` are **deliberate** —
+  `kidsLeaderboard.js` creates them on `db.sequelize`, documented in its header. But `kids_badges` is
+  now **two different tables under one name** (shared: position/badge-enum; kids: badge_name/emoji),
+  and that collision already bites: **`kidsAnalytics.js:55` reads `kids_weekly_points` through
+  `dbm().content` — the KIDS DB — where it does not exist** (proven: `elite_kids` → ER_NO_SUCH_TABLE,
+  `elite_db` → OK), and because the handler's single try/catch returns 500 before `res.json`,
+  `GET /kids/analytics/overview` fails **entirely for every school**. One-line fix, not applied (the
+  brief was investigative). reports/db-isolation-audit-2026-09-15.md.
+
+  Q57 — the next open queue row, parked since 09-11 at **Gate 1** (the read-only phase), which was
+  run. **1085 early-years configs in `elite_kids`, ALL published; 1000 fetched, truncated by the hard
+  cap.** (1) the audit tool **mis-attributes 100%** of what it fetched: every id is `fp-*` flagship,
+  but `ownerForRow()` knows only four owners, so 889 are `unknown` and 111 misfiled as jolly-phonics —
+  and since Phase B says unknown ownership is never auto-repaired, the manifest would refuse to repair
+  the platform's own content (a TOOL defect blocking Gate 2); (2) **the Nursery 2 band's configs
+  declare `age_level='KG1'`** — off by one band, the Q67/Q70 class, and why KG1 rows showed up in an
+  early-years query (needs a ruling; not assumed); (3) the Milestone 2–8 source fixes are NOT in the
+  stored rows — `missing-adult-observation` 1000/1000, `missing-tap-options` and
+  `missing-explicit-answer-key` 108 (the tap set), so the array-position-as-answer-key hazard is still
+  live in every published tap game; (4) 1085/1085 are published → Phase C's replacement workflow is the
+  whole job; (5) Phase A needs a keyset continuation. No write, manifest, seeder or migration.
+  reports/q57-gate1-inventory-2026-09-15.md.
+
+  Q78 — THE MIGRATION RUNNER IS REPAIRED. Both defects fixed together: (A) `addContentColumns` was
+  referenced seven times and declared nowhere, so it threw a ReferenceError before printing a plan in
+  either mode; (B) the plan mixed owners, with kids tables checked against `DATABASE()` = the MAIN DB,
+  so the four kids columns were planned on every run and the ALTER always failed. Now `COLUMN_PLAN` is
+  shared-only, `CONTENT_COLUMN_PLAN` is kids-only and gained those four columns, two PURE exported
+  builders (`plannedAlterStatements`, `buildColumnPlan` — the single place both halves are produced)
+  resolve it, `main()` reads the kids columns from the `content` connection and destructures both
+  arrays, and exports plus a `require.main` guard make it testable. Verified: 8 pure specs; an
+  **end-to-end dry-run against the hermetic `_test` DBs prints a plan with ZERO ALTER statements** and
+  exits 0; two mutations each caught; full gate **69/69 · 799/799**.
+
+  ⚠️ AND THE REPAIR BROKE A DEPLOY. `39e379a`'s job **Failed at 19:38:46Z**, the frontend publish never
+  ran, so `origin/main` is ahead of the live release `b3cca8f`. Mechanism: the deploy's reset reverted
+  the uncommitted fix while my **untracked** test survived and then correctly failed 7 of 8 against the
+  broken runner. Two lessons: **an untracked file participates in the deploy gate** (`testMatch` is
+  `backend/test/**`, and the reset does not delete untracked files), so an untracked test can change a
+  deploy's outcome while invisible to history; and a **fix can be split from its test** by the same
+  reset. Mitigated: the test is parked at `team-docs/tools/migration-runner-plan.test.js` (outside
+  Jest's rootDir), the spawnSync case was replaced by pure specs that need no DB and cannot leak past
+  teardown, and the full gate was re-run green on the current tree. **Needs an order: commit the runner
+  and the test TOGETHER (test moved back to `backend/test/`), then re-run the deploy for `39e379a`.**
+  reports/q78-migration-runner-repair-2026-09-15.md.
+
 ```
