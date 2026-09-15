@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Swords, Shield, Zap, Crown, Loader2 } from 'lucide-react';
+import { ChevronDown, Swords, Shield, Zap, Crown, Loader2 } from 'lucide-react';
 import { playTap } from '@/lib/utils/sound';
 import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
@@ -32,16 +32,25 @@ interface FestivalData {
   current_guardian: Guardian | null;
 }
 
-/* ── Floating decoration for game feel ─────────────────────── */
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-25 ${className}`} />
-  );
-}
+/* ── Floating decoration for game feel (shared helper, see utils/helpers) ── */
+import { FloatingDeco } from '@/pages/Student/utils/helpers';
 
-export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void }) {
+export default function StudentFestival({
+  onGoPlay,
+  variant = 'full',
+}: {
+  onGoPlay?: () => void;
+  /**
+   * 'full'   — the whole festival board (default).
+   * 'banner' — a slim seasonal banner for the PLAY tab header that renders
+   *            NOTHING when no festival is live, and expands to the full
+   *            board on tap (the old FESTIVAL tab, merged into PLAY).
+   */
+  variant?: 'full' | 'banner';
+}) {
   const [data, setData] = useState<FestivalData | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let dead = false;
@@ -76,7 +85,12 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
     return () => { dead = true; unsub(); };
   }, []);
 
+  // Banner variant is a decoration on PLAY — stay invisible until there is
+  // something to celebrate, and never show the empty/loading states.
+  const isBanner = variant === 'banner';
+
   if (!loaded) {
+    if (isBanner) return null;
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
@@ -85,6 +99,7 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
   }
 
   if (!data || data.status !== 'active') {
+    if (isBanner) return null;
     return (
       <div className="relative flex min-h-[50vh] flex-col items-center justify-center px-8 text-center">
         <FloatingDeco className="-right-8 -top-8 h-28 w-28 bg-gradient-to-br from-gray-300 to-gray-200" />
@@ -98,6 +113,57 @@ export default function StudentFestival({ onGoPlay }: { onGoPlay?: () => void })
   const currentGuardian = data.current_guardian;
   const hpPct = currentGuardian ? Math.max(0, (currentGuardian.hp / currentGuardian.max_hp) * 100) : 0;
 
+  // Seasonal banner for the PLAY tab header — tap to unfold the full board.
+  if (isBanner) {
+    return (
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => { playTap(); setExpanded((v) => !v); }}
+          aria-expanded={expanded}
+          className="relative flex w-full items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-r from-[#C90016] via-orange-500 to-amber-500 px-4 py-3 text-left text-white shadow-lg shadow-red-300/30 transition hover:shadow-xl active:scale-[0.99]"
+        >
+          <FloatingDeco className="-right-8 -top-8 h-24 w-24 bg-gradient-to-br from-white/20 to-white/10" />
+          <span className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
+            <Swords className="h-5 w-5" />
+          </span>
+          <span className="relative min-w-0 flex-1">
+            <span className="block truncate text-sm font-extrabold">{data.title}</span>
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] font-medium opacity-90">
+              <span>⚔️ {data.total_defeated}/{data.total_guardians}</span>
+              {currentGuardian && !data.all_defeated && (
+                <span>
+                  {currentGuardian.emoji} {t('studentFestival.hpShort', { hp: currentGuardian.hp })}
+                </span>
+              )}
+            </span>
+          </span>
+          <ChevronDown className={`relative h-4 w-4 flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+        {expanded && (
+          <div className="animate-game-slide-down">
+            <FestivalBoard data={data} currentGuardian={currentGuardian} hpPct={hpPct} onGoPlay={onGoPlay} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return <FestivalBoard data={data} currentGuardian={currentGuardian} hpPct={hpPct} onGoPlay={onGoPlay} />;
+}
+
+interface FestivalBoardProps {
+  data: FestivalData;
+  currentGuardian: Guardian | null;
+  hpPct: number;
+  onGoPlay?: () => void;
+}
+
+/**
+ * The full festival board — what the old standalone FESTIVAL tab used to show.
+ * Reachable from the PLAY banner, so the boss raid never needs its own tab.
+ */
+function FestivalBoard({ data, currentGuardian, hpPct, onGoPlay }: FestivalBoardProps) {
   return (
     <div className="mx-auto max-w-md px-4 py-4 space-y-4">
       {/* Header — game-style glassmorphism */}

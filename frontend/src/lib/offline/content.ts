@@ -53,6 +53,39 @@ interface CachedLesson {
   schoolId: string;
 }
 
+/**
+ * A 429 from the API pauses ALL prefetching for a minute. The backend allows
+ * 300 requests/min per IP and a whole school shares one IP, so hammering
+ * through a throttled window only makes the class-wide outage worse.
+ */
+let rateLimitedUntil = 0;
+const RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
+
+/**
+ * How many lessons ONE dashboard visit will pre-download. Every lesson costs
+ * two requests (game + scenes) against an API budget of 300 req/min per IP
+ * that a whole school shares, so this stays small on purpose: offline coverage
+ * builds up walk-forward across visits (a persisted cursor, cached lessons are
+ * skipped) instead of sweeping the catalog on every app open.
+ */
+const PREFETCH_PER_RUN = 6;
+
+/** Where each school's offline sweep left off, so one visit never rescans. */
+const CURSOR_PREFIX = 'elitekids-offline-cursor:';
+
+/** True while the API has asked us to back off. */
+export function isPrefetchRateLimited(): boolean {
+  return Date.now() < rateLimitedUntil;
+}
+
+/**
+ * Record an API 429 seen anywhere in the app (the dashboard's own calls, the
+ * live-feed poll) so every background prefetcher pauses too.
+ */
+export function markRateLimited(): void {
+  rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+}
+
 class OfflineContentManager {
   /**
    * Check if we're within the storage budget.
@@ -106,25 +139,34 @@ class OfflineContentManager {
 
       return true;
     } catch (err: any) {
+      if (err?.response?.status === 429) rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
       console.warn(`⚠️ Failed to prefetch lesson ${lessonId}:`, err?.message);
       return false;
     }
   }
 
   /**
-   * Prefetch all published lessons for a school.
-   * Returns the number of lessons cached.
+   * Prefetch published lessons for a school — walk-forward, bounded.
+   *
+   * @param opts.lessons   reuse the caller's catalog instead of re-fetching it
+   *                       (the dashboard already has it: one call saved per load)
+   * @param opts.maxLessons lessons to scan this visit (default PREFETCH_PER_RUN)
+   * Returns the number of lessons in the catalog (kept for callers/logging).
    */
-  async prefetchAll(schoolId: string): Promise<number> {
+  async prefetchAll(schoolId: string, opts: { lessons?: any[]; maxLessons?: number } = {}): Promise<number> {
     try {
-      const res = await apiClient.get(ENDPOINTS.LESSONS.LIST, {
-        params: { content_state: 'published' },
-      });
-      const lessons = res.data?.data || [];
+      let lessons: any[] = opts.lessons || [];
+      if (!opts.lessons) {
+        const res = await apiClient.get(ENDPOINTS.LESSONS.LIST, {
+          params: { content_state: 'published' },
+        });
+        lessons = res.data?.data || [];
+      }
 
-      // Cache lesson metadata (small — but still respect the budget)
-      for (const lesson of lessons) {
-        if (!(await canPrefetch())) break;
+      // Lesson metadata is written for the lessons this visit actually scans —
+      // NOT the whole catalog. Caching 1700+ rows (each preceded by a storage
+      // quota read) on every app open drowned the sweep it was meant to precede.
+      const cacheLessonMeta = async (lesson: any) => {
         await offlineDB.put<CachedLesson>(STORES.lessons, lesson.id, {
           id: lesson.id,
           title: lesson.title,
@@ -135,20 +177,67 @@ class OfflineContentManager {
           cachedAt: Date.now(),
           schoolId,
         });
-      }
+      };
 
       // Prefetch game configs in parallel (max 5 at a time), checking the
       // quota guard between batches so we never exceed the device budget.
+      //
+      // Bounded on purpose: every lesson costs 2 requests (game + scenes), so a
+      // full Primary catalog sweep = 700+ calls on every dashboard load, which
+      // is over the API's 300/min per-IP limit and 429s the whole class (the
+      // child's own game then fails to open). We skip what is already cached,
+      // stop at the per-visit cap, and stop dead on a 429.
       const gameLessons = lessons.filter((l: any) => l.has_games);
-      const batchSize = 5;
-      for (let i = 0; i < gameLessons.length; i += batchSize) {
+      const batchSize = 3;
+      const maxLessons = opts.maxLessons ?? PREFETCH_PER_RUN;
+
+      // Resume from the previous visit's cursor so the whole catalog is covered
+      // over time without any single load sweeping it.
+      let start = 0;
+      try {
+        start = Number(localStorage.getItem(CURSOR_PREFIX + schoolId) || '0') || 0;
+      } catch { /* storage unavailable — start from the top */ }
+      if (start < 0 || start >= gameLessons.length) start = 0;
+
+      let scanned = 0;
+      let fetched = 0;
+      let skipped = 0;
+      let nextIndex = start;
+      for (let i = start; i < gameLessons.length; i += batchSize) {
+        nextIndex = i + batchSize;
         if (!(await canPrefetch())) {
           console.warn('⚠️ Storage budget reached — stopping game config prefetch');
           break;
         }
-        const batch = gameLessons.slice(i, i + batchSize);
-        await Promise.allSettled(
+        if (isPrefetchRateLimited()) {
+          console.warn('⚠️ API rate limit hit — pausing offline prefetch');
+          break;
+        }
+        if (scanned >= maxLessons) break;
+        const batch: any[] = [];
+        for (const l of gameLessons.slice(i, i + batchSize)) {
+          scanned += 1;
+          // TTL-aware: an expired entry is deleted and needs a refetch.
+          const cached = await this.getGameConfig(l.id);
+          await cacheLessonMeta(l).catch(() => {});
+          if (cached) {
+            skipped += 1;
+            continue;
+          }
+          batch.push(l);
+        }
+        if (batch.length === 0) continue;
+        const results = await Promise.allSettled(
           batch.map((l: any) => this.prefetchLesson(l.id, schoolId))
+        );
+        fetched += results.filter((r) => r.status === 'fulfilled' && r.value === true).length;
+      }
+      try {
+        localStorage.setItem(CURSOR_PREFIX + schoolId, String(nextIndex % Math.max(gameLessons.length, 1)));
+      } catch { /* non-fatal — the sweep just restarts next time */ }
+      if (scanned > 0) {
+        console.log(
+          `[Offline] sweep: scanned ${scanned}/${gameLessons.length} (cap ${maxLessons}), fetched ${fetched}, already cached ${skipped}`,
         );
       }
 

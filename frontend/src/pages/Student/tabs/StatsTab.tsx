@@ -7,13 +7,8 @@ import { playTap } from '@/lib/utils/sound';
 import { getStreakEmoji } from '@/lib/utils/streak';
 import { t, tN } from '@/lib/i18n';
 import type { LearningPathData, WeeklyGoal } from '@/lib/utils/learningPath';
+import { FloatingDeco } from '../utils/helpers';
 import type { LessonCard, GameStat, EconomyData, ProgressData } from './types';
-
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-20 ${className}`} />
-  );
-}
 
 interface StatsTabProps {
   progress: ProgressData | null;

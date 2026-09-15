@@ -1,6 +1,5 @@
 import { RefreshCw } from 'lucide-react';
 import LearningPath from '@/components/LearningPath';
-import { playTap } from '@/lib/utils/sound';
 import { t } from '@/lib/i18n';
 import type { LearningPathData, GameMode } from '@/lib/utils/learningPath';
 
@@ -46,7 +45,9 @@ export default function PathTab({
           loading={loading}
           offline={offlineMode}
           onOpenLesson={openLesson}
-          onExploreSubjects={() => { playTap(); setSubjectFilter('all'); setActiveTab('home'); }}
+          // "Explore subjects" means "look for a game" — that is the PLAY tab
+          // now that the grid no longer shares HOME.
+          onExploreSubjects={() => { setSubjectFilter('all'); setActiveTab('play'); }}
           onRefresh={loadData}
           catalogEmpty={catalogEmpty}
         />

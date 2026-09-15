@@ -1,7 +1,7 @@
 # Student Tab Restructure Plan
 
 **Date:** 2026-09-15
-**Status:** Proposed
+**Status:** Implemented (2026-09-15) — see `team-docs/reports/student-tab-restructure-progress.md`
 **Goal:** Minimize cognitive load for nursery/primary kids, zero component overlap between tabs
 
 ---

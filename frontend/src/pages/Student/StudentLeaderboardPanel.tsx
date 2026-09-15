@@ -3,6 +3,7 @@ import { Loader2, Trophy, Medal, Star, Crown, Sparkles } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { FloatingDeco } from './utils/helpers';
 
 /* FB-17 P2 — weekly Trophy Board: class top-10, my rank, badge shelf, free-week banner.
  * Privacy: server already sanitizes (first name + last initial, emoji avatar). */
@@ -36,13 +37,6 @@ interface BadgeRow {
 }
 
 const BADGE_EMOJI: Record<string, string> = { gold: '🥇', silver: '🥈', bronze: '🥉' };
-
-/* ── Floating decoration for game feel ─────────────────────── */
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-20 ${className}`} />
-  );
-}
 
 export default function StudentLeaderboardPanel() {
   const [entries, setEntries] = useState<BoardEntry[]>([]);

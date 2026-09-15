@@ -1,41 +1,28 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Flame,
   Gamepad2,
   Loader2,
-  Lock,
   LogOut,
-  RefreshCw,
   ShoppingBag,
   Route,
-  Star,
-  Zap,
   BookOpen,
-  Trophy,
-  RotateCcw,
-  Swords,
-  Sparkles,
   Mic,
-  ChevronDown,
   Users,
   Home,
-  TrendingUp,
+  User,
 } from 'lucide-react';
 
 /* ── Lazy-loaded tab components (code-split per tab) ────────── */
 const HomeTab = lazy(() => import('./tabs/HomeTab'));
 const PlayTab = lazy(() => import('./tabs/PlayTab'));
 const PathTab = lazy(() => import('./tabs/PathTab'));
-const StatsTab = lazy(() => import('./tabs/StatsTab'));
-const TeamsTab = lazy(() => import('./tabs/TeamsTab'));
+const ReviewTab = lazy(() => import('./tabs/ReviewTab'));
+const MeTab = lazy(() => import('./tabs/MeTab'));
 import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
-import RevisionCard from '@/components/RevisionCard';
-import CheckpointTestOut from '@/components/CheckpointTestOut';
 import BossBattleOverlay from '@/components/BossBattleOverlay';
-import ReviewZone from '@/components/ReviewZone';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import { playTap } from '@/lib/utils/sound';
 import A11ySettings from '@/components/A11ySettings';
@@ -43,72 +30,32 @@ import SpeechSettings from '@/components/SpeechSettings';
 import AppSwitcher from '@/components/AppSwitcher';
 import OnboardingTour from '@/components/OnboardingTour';
 import WelcomeSpotlight from '@/components/WelcomeSpotlight';
-import CompanionSelect, { CompanionBubble } from '@/components/CompanionSelect';
-import GardenScene from '@/components/GardenScene';
+import CompanionSelect from '@/components/CompanionSelect';
 import KidPageBackground from '@/components/KidPageBackground';
-import StudentLeaderboardPanel from './StudentLeaderboardPanel';
 import StudentFestival from '@/components/StudentFestival';
 import StudentLiveBar from '@/components/StudentLiveBar';
 import StudentQuickNav from '@/components/StudentQuickNav';
 import PlacementQuiz from '@/components/PlacementQuiz';
 import PlacementIntro from '@/components/PlacementIntro';
-import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { useA11yStore } from '@/lib/utils/a11y-store';
-import { recordPlayDay, getStreakLocal, getStreakEmoji } from '@/lib/utils/streak';
-import XPBar from '@/components/XPBar';
-import StreakCounter from '@/components/StreakCounter';
-import StreakReminder, { hasPlayedToday } from '@/components/StreakReminder';
+import { recordPlayDay, getStreakLocal } from '@/lib/utils/streak';
 import Shop, { SKIN_META, THEME_HEADER } from '@/components/Shop';
 import ReviewDueBadge from '@/components/ReviewDueBadge';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
-import { offlineContent } from '@/lib/offline/content';
-import { t, tN } from '@/lib/i18n';
-import LearningPath from '@/components/LearningPath';
-import GoalCard from '@/components/GoalCard';
+import { offlineContent, isPrefetchRateLimited, markRateLimited } from '@/lib/offline/content';
+import { t } from '@/lib/i18n';
 import {
   classToAgeLevel,
   filterInBand,
   flattenUnits,
-  ageLevelLabel,
   nerdcBandToAgeLevel,
   type GameMode,
   type LearningPathData,
   type WeeklyGoal,
 } from '@/lib/utils/learningPath';
-import TeamChallenge from '@/components/TeamChallenge';
-import PeerTeachingBoard from '@/components/PeerTeachingBoard';
-import ClassQuest from '@/components/ClassQuest';
 import CollaborationBadge from '@/components/CollaborationBadge';
-
-/* ── Types ────────────────────────────────────────────────────── */
-
-interface LessonCard {
-  id: string;
-  title: string;
-  subject: string;
-  age_level: string;
-  lesson_type: string;
-  created_at: string;
-  has_games: boolean;
-  nerdc_code?: string;
-  nerdc_strand?: string;
-  nerdc_sub_strand?: string;
-}
-
-interface GameStat {
-  times_played: number;
-  best_score: number;
-  avg_score: number;
-  total_stars: number;
-}
-
-interface ProgressData {
-  total_xp: number;
-  total_stars: number;
-  games_completed: number;
-  game_stats: Record<string, GameStat>;
-  games: any[];
-}
+import { FloatingDeco, SUBJECT_FILTERS } from './utils/helpers';
+import type { LessonCard, ProgressData, HomeGridItem } from './tabs/types';
 
 /* ── Tab definitions ────────────────────────────────────────── */
 
@@ -121,75 +68,48 @@ interface Tab {
   filter: (l: LessonCard) => boolean;
 }
 
-// Home = info dashboard (garden, companion, streak). Play = games grid.
-// Path = learning path. Stats = review stats & per-game progress.
+/**
+ * The 5 tabs (STUDENT-TAB-RESTRUCTURE.md): HOME motivates, PLAY picks a game,
+ * LEARN follows the path, REVIEW revises, ME shows progress & social.
+ * One tab = one job — no component renders in two tabs, and every key below
+ * has its own explicit branch in the render (no fallback `else`).
+ */
 const TABS: Tab[] = [
   { key: 'home', labelKey: 'student.tab.home', icon: <Home className="h-4 w-4" />, view: 'special', filter: () => true },
   { key: 'play', labelKey: 'student.tab.play', icon: <Gamepad2 className="h-4 w-4" />, view: 'grid', filter: () => true },
-  { key: 'path', labelKey: 'student.tab.path', icon: <Route className="h-4 w-4" />, view: 'path', filter: () => false },
-  { key: 'stats', labelKey: 'student.tab.stats', icon: <TrendingUp className="h-4 w-4" />, view: 'special', filter: () => true },
-  { key: 'festival', labelKey: 'student.tab.festival', icon: <Swords className="h-4 w-4" />, view: 'special', filter: () => true },
-  { key: 'leaderboard', labelKey: 'student.tab.leaderboard', icon: <Trophy className="h-4 w-4" />, view: 'special', filter: () => true },
-  { key: 'teams', labelKey: 'collab.myTeam', icon: <Users className="h-4 w-4" />, view: 'special', filter: () => true },
+  { key: 'path', labelKey: 'student.tab.learn', icon: <Route className="h-4 w-4" />, view: 'path', filter: () => false },
+  { key: 'review', labelKey: 'student.tab.review', icon: <BookOpen className="h-4 w-4" />, view: 'special', filter: () => true },
+  { key: 'me', labelKey: 'student.tab.me', icon: <User className="h-4 w-4" />, view: 'special', filter: () => true },
 ];
-
-/**
- * Subject chips for the Home grid — the old per-subject tabs, minus the tabs.
- * Same predicates, so every in-band game stays reachable from one screen.
- */
-const SUBJECT_FILTERS: Array<{ key: string; labelKey: string; test: (l: LessonCard) => boolean }> = [
-  { key: 'all', labelKey: 'student.filter.all', test: () => true },
-  { key: 'numbers', labelKey: 'student.tab.numbers', test: (l) => /count|number|math|drag-sort/i.test(l.subject + l.title) },
-  { key: 'letters', labelKey: 'student.tab.letters', test: (l) => /abc|letter|english|phon/i.test(l.subject + l.title) },
-  { key: 'colors', labelKey: 'student.tab.colors', test: (l) => /color|art|creati/i.test(l.subject + l.title) },
-  { key: 'shapes', labelKey: 'student.tab.shapes', test: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
-  { key: 'animals', labelKey: 'student.tab.animals', test: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
-  { key: 'food', labelKey: 'student.tab.food', test: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
-];
-
-/** Home grid sections — the progression order a child is meant to meet them in. */
-const HOME_SECTION_LABEL: Record<string, string> = {
-  next: 'student.home.sectionNext',
-  open: 'student.home.sectionUnlocked',
-  locked: 'student.home.sectionLocked',
-};
-
-type HomeGridItem =
-  | {
-      kind: 'section';
-      key: string;
-      count: number;
-      /** Subjects present in a locked group — each gets a test-out offer. */
-      seriesIds?: string[];
-    }
-  | {
-      kind: 'lesson';
-      lesson: LessonCard;
-      locked: boolean;
-      lockedReason: string | null;
-      passed: boolean;
-      /** Satisfied by an approved test-out — done for the lock, not mastered. */
-      exempt: boolean;
-      seriesId: string | null;
-      isNext: boolean;
-    };
-
-/* ── Age-level badge colors (from accessibility palette) ── */
-
-function getAgeColor(ageLevel: string, colorblind: boolean): string {
-  const entry = AGE_LEVEL_COLORS[ageLevel];
-  if (!entry) return 'bg-gray-100 text-gray-600';
-  return colorblind ? entry.colorblind : entry.standard;
-}
-
-/* ── Floating decoration for game feel ─────────────────────── */
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-20 ${className}`} />
-  );
-}
 
 /* ── Main Component ─────────────────────────────────────────── */
+
+/**
+ * Warm the assets of ONE lesson — the child's very next game — so offline play
+ * of that game is instant. Warming the whole catalog means hundreds of /media
+ * requests, which are proxied to the same backend and counted by the same
+ * per-IP rate limit (see the class-load budget note in loadData).
+ */
+async function warmNextLessonAssets(lessonId?: string): Promise<void> {
+  if (!lessonId) return;
+  try {
+    const res: any = await apiClient.get(ENDPOINTS.LESSONS.GAME(lessonId)).catch(() => null);
+    const gameData: any = (res?.data as any)?.data || res?.data;
+    if (gameData?.template) {
+      offlineContent.saveGamePayload(lessonId, gameData).catch(() => {});
+    }
+    const urls = gameData?.config_json ? extractCacheableUrls(gameData.config_json).slice(0, 8) : [];
+    if (urls.length > 0) {
+      warmCache(urls)
+        .then((r) => {
+          if (r.cached > 0) console.log(`[AssetCache] Warmed ${r.cached} assets`);
+        })
+        .catch(() => {});
+    }
+  } catch {
+    // Non-blocking — asset warming is optional
+  }
+}
 
 function decodeToken(token: string): Record<string, any> | null {
   try {
@@ -209,7 +129,7 @@ export default function StudentHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('home');
-  // Subject chip on the Home grid — 'all' lists every in-band game.
+  // Subject chip on the PLAY grid — 'all' lists every in-band game.
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [pathData, setPathData] = useState<LearningPathData | null>(null);
   const [showBossRaid, setShowBossRaid] = useState(false);
@@ -230,9 +150,6 @@ export default function StudentHome() {
     placed: boolean;
     nerdc_band: string | null;
   }>({ loaded: false, denied: true, placed: false, nerdc_band: null });
-  // Sequential board: level/streak DETAILS stay collapsed until the kid taps
-  // the summary chip (the 4-stat row already shows streak+XP — no dupe text).
-  const [showProgressDetail, setShowProgressDetail] = useState(false);
   // Q1: equipped shop items (keyed by item_type) — applied to rendering below.
   const [equippedItems, setEquippedItems] = useState<Record<string, any>>({});
   const [reviewDue, setReviewDue] = useState(0);
@@ -245,6 +162,10 @@ export default function StudentHome() {
     title: string | null;
   } | null>(null);
   const { colorblindMode } = useA11yStore();
+  /** Pending deferred offline sweep (cancelled on unmount). */
+  const offlineTimer = useRef<number | null>(null);
+  /** Team lookup is lazy — only the ME tab needs it. */
+  const [teamLoaded, setTeamLoaded] = useState(false);
 
   /* ── Live feed: tabs with new content since last viewed ──────── */
   const [tabFeeds, setTabFeeds] = useState<Record<string, { hasNew: boolean; count: number; viewed?: boolean }>>({});
@@ -257,6 +178,8 @@ export default function StudentHome() {
     let lessonsData: any[] = [];
     let offlineHydrated = false;
     let decoded: Record<string, any> | null = null;
+    /** Progress row already fetched for the returning-student check. */
+    let progressPrefetch: ProgressData | null = null;
     try {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || '';
       decoded = decodeToken(token);
@@ -264,17 +187,10 @@ export default function StudentHome() {
 
       const admissionNo = decoded?.admission_no || decoded?.id;
 
-      // Discover the student's team from the server so the collaboration tab
-      // remains reachable even when the JWT predates Q3 team membership.
-      if (admissionNo && String(decoded?.user_type || '').toLowerCase() === 'student') {
-        const teamRes = await apiClient.get(ENDPOINTS.COLLAB.TEAMS_MINE).catch(() => null);
-        const team = teamRes?.data?.data;
-        if (team) {
-          const nextStudent = { ...decoded, team_id: team.id, class_code: team.class_id || decoded?.class_code };
-          decoded = nextStudent;
-          setStudent(nextStudent);
-        }
-      }
+      // NOTE: team membership is NOT fetched here any more. Only the ME tab's
+      // social board needs it, so it loads when that tab is opened (see the
+      // lazy effect below) — this was one request on every dashboard load for
+      // every child in the school.
 
       // Flagship placement gate decision (student users only — the server
       // denies placement for non-flagship schools, which clears the gate).
@@ -299,10 +215,22 @@ export default function StudentHome() {
       // after login (the tour was previously only triggered if the catalog
       // fetch hydrated fresh, which skipped it for any cache hit).
       if (admissionNo) {
-        const onbRes = await apiClient
-          .get(ENDPOINTS.ONBOARDING.STATUS(admissionNo))
-          .catch(() => ({ data: { data: { completed: false } } }));
-        const completed = Boolean(onbRes.data?.data?.completed);
+        // Onboarding is immutable once completed, so remember it locally and
+        // skip the call on every later load (one request per child per load).
+        const onbKey = `elitekids-onboarding-done:${admissionNo}`;
+        let completed = false;
+        try {
+          completed = localStorage.getItem(onbKey) === '1';
+        } catch { /* storage unavailable */ }
+        if (!completed) {
+          const onbRes = await apiClient
+            .get(ENDPOINTS.ONBOARDING.STATUS(admissionNo))
+            .catch(() => ({ data: { data: { completed: false } } }));
+          completed = Boolean(onbRes.data?.data?.completed);
+          if (completed) {
+            try { localStorage.setItem(onbKey, '1'); } catch { /* non-fatal */ }
+          }
+        }
         if (!completed) {
           setShowOnboarding(true);
         } else {
@@ -313,6 +241,9 @@ export default function StudentHome() {
             .get(ENDPOINTS.PROGRESS.CHILD(admissionNo))
             .catch(() => null);
           const prog = progRes?.data?.data || {};
+          // Hand the progress row to the main fetch below instead of asking the
+          // API for the very same thing twice in one load.
+          progressPrefetch = progRes?.data?.data || null;
           const isReturning =
             Number(prog?.games_completed || 0) > 0 ||
             Number(prog?.total_stars || 0) > 0 ||
@@ -354,8 +285,7 @@ export default function StudentHome() {
 
       if (admissionNo) {
         try {
-          const progressRes = await apiClient.get(ENDPOINTS.PROGRESS.CHILD(admissionNo));
-          const progressData = progressRes.data?.data || {
+          const progressData = progressPrefetch || (await apiClient.get(ENDPOINTS.PROGRESS.CHILD(admissionNo))).data?.data || {
             total_xp: 0,
             total_stars: 0,
             games_completed: 0,
@@ -431,91 +361,137 @@ export default function StudentHome() {
       setLoading(false);
       const admissionNo = student?.admission_no || student?.id || '';
       recordPlayDay(admissionNo).then(setStreak).catch(() => {});
-      try {
-        if (!navigator.onLine) throw new Error('offline — skipping cache warm');
-        const allUrls: string[] = [];
-        for (const lesson of lessonsData) {
-          const gameRes = await apiClient.get(ENDPOINTS.LESSONS.GAME(lesson.id)).catch(() => ({ data: null }));
-          const gameData: any = (gameRes.data as any)?.data || gameRes.data;
-          if (gameData?.template) {
-            offlineContent.saveGamePayload(lesson.id, gameData).catch(() => {});
-          }
-          if (gameData?.config_json) {
-            allUrls.push(...extractCacheableUrls(gameData.config_json));
-          }
-        }
-        if (allUrls.length > 0) {
-          warmCache(allUrls).then((r) => {
-            if (r.cached > 0) console.log(`[AssetCache] Warmed ${r.cached} assets`);
-          });
-        }
-      } catch {
-        // Non-blocking — cache warming is optional
-      }
+      // ── Offline warming: deferred, jittered, tiny ───────────────────────
+      // Nothing here is needed for first paint, and a class that logs in
+      // together must not fire its sweeps in the same second — the API allows
+      // 300 req/min per IP and the whole school shares one. So the sweep waits
+      // 20–60s (jittered), warms ONE lesson's assets (the child's next game),
+      // and lets prefetchAll walk the catalog a few lessons per visit.
       const schoolId = String(decoded?.school_id || '');
-      if (schoolId && navigator.onLine) {
-        offlineContent.prefetchAll(schoolId).then((n) => {
-          if (n > 0) console.log(`[Offline] Prefetched ${n} lessons`);
-        }).catch(() => {});
+      if (schoolId && navigator.onLine && lessonsData.length > 0) {
+        const delay = 20000 + Math.floor(Math.random() * 40000);
+        offlineTimer.current = window.setTimeout(() => {
+          if (isPrefetchRateLimited()) return; // API already asked us to back off
+          void warmNextLessonAssets(lessonsData[0]?.id);
+          offlineContent
+            .prefetchAll(schoolId, { lessons: lessonsData })
+            .then((n) => {
+              if (n > 0) console.log(`[Offline] Prefetched ${n} lessons`);
+            })
+            .catch(() => {});
+        }, delay);
       }
     }
   }, []);
 
+  // Cancel a pending offline sweep when the dashboard unmounts.
+  useEffect(
+    () => () => {
+      if (offlineTimer.current) window.clearTimeout(offlineTimer.current);
+    },
+    [],
+  );
+
   useEffect(() => { loadData(); }, [loadData]);
 
-  /* ── Live feed polling: check for new content every 30s ─────── */
+  /* ── Live feed polling ─────────────────────────────────────────────────
+   * Cheap on purpose. This used to poll three endpoints every 30s — six
+   * requests per minute, per child, from one school IP that the API caps at
+   * 300 req/min in total, i.e. 30 kids watching their badges could throttle
+   * the whole class. Now: one endpoint every 3 minutes, the heavier learning
+   * path every third tick (~9 min), nothing at all while the tab is hidden or
+   * while the API has asked us to back off. Team activity is no longer polled
+   * — it comes from the lazy ME-tab lookup below.
+   */
   useEffect(() => {
     if (!student) return;
     const admissionNo = String(student?.admission_no || student?.id || '');
     if (!admissionNo) return;
 
+    let tick = 0;
     const checkFeeds = async () => {
+      if (document.hidden || isPrefetchRateLimited()) return;
+      tick += 1;
       try {
-        // Check for new reviews due
-        const reviewRes = await apiClient.get(ENDPOINTS.REVIEWS_V2.TODAY).catch(() => null);
+        // New reviews due — the only badge that changes minute to minute.
+        const reviewRes: any = await apiClient
+          .get(ENDPOINTS.REVIEWS_V2.TODAY)
+          .catch((err: any) => ({ status: err?.response?.status, data: null }));
+        if (reviewRes?.status === 429) {
+          markRateLimited();
+          return;
+        }
         const newReviewDue = Number(reviewRes?.data?.data?.due_count) || 0;
-        
-        // Check for new team activity
-        const teamRes = await apiClient.get(ENDPOINTS.COLLAB.TEAMS_MINE).catch(() => null);
-        const hasTeam = Boolean(teamRes?.data?.data);
-        
-        // Check for new path updates (new units unlocked)
-        const pathRes = await apiClient.get(ENDPOINTS.LEARNING_PATH(admissionNo)).catch(() => null);
-        const newPathData = pathRes?.data?.data;
-        const newUnitsUnlocked = newPathData?.path?.some((s: any) => 
-          s.units?.some((u: any) => !u.locked && u.lessons?.some((l: any) => l.state === 'new'))
-        ) || false;
 
-        setTabFeeds(prev => ({
+        // New units unlocked — heavy (the whole path), so every third tick.
+        let newUnitsUnlocked = false;
+        if (tick % 3 === 0) {
+          const pathRes = await apiClient.get(ENDPOINTS.LEARNING_PATH(admissionNo)).catch(() => null);
+          const newPathData = pathRes?.data?.data;
+          newUnitsUnlocked =
+            newPathData?.path?.some((s: any) =>
+              s.units?.some((u: any) => !u.locked && u.lessons?.some((l: any) => l.state === 'new')),
+            ) || false;
+        }
+
+        // Feed keys mirror the tab keys, so the badge lookup stays a plain
+        // `tabFeeds[tab.key]` in the tab bar below.
+        setTabFeeds((prev) => ({
           ...prev,
-          reviews: { 
-            hasNew: newReviewDue > (prev.reviews?.count || 0) && newReviewDue > 0, 
-            count: newReviewDue 
+          review: {
+            hasNew: newReviewDue > (prev.review?.count || 0) && newReviewDue > 0,
+            count: newReviewDue,
           },
-          teams: { 
-            hasNew: hasTeam && !prev.teams?.viewed, 
-            count: hasTeam ? 1 : 0 
-          },
-          path: { 
-            hasNew: newUnitsUnlocked && !prev.path?.viewed, 
-            count: newUnitsUnlocked ? 1 : 0 
-          },
+          ...(tick % 3 === 0
+            ? {
+                path: {
+                  hasNew: newUnitsUnlocked && !prev.path?.viewed,
+                  count: newUnitsUnlocked ? 1 : 0,
+                },
+              }
+            : {}),
         }));
       } catch {
         // Non-blocking — feed updates are optional
       }
     };
 
-    // Initial check after 5s
-    const initialTimer = setTimeout(checkFeeds, 5000);
-    // Then every 30s
-    const interval = setInterval(checkFeeds, 30000);
-    
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(interval);
-    };
+    const interval = setInterval(checkFeeds, 180000);
+    return () => clearInterval(interval);
   }, [student]);
+
+  /* ── ME tab: lazy team lookup ──────────────────────────────────────────
+   * Team membership is only used by the social board on the ME tab, so it is
+   * fetched when that tab is first opened rather than on every dashboard load.
+   */
+  useEffect(() => {
+    if (activeTab !== 'me' || teamLoaded) return;
+    const admissionNo = String(student?.admission_no || student?.id || '');
+    if (!admissionNo) return;
+    let alive = true;
+    apiClient
+      .get(ENDPOINTS.COLLAB.TEAMS_MINE)
+      .then((res) => {
+        if (!alive) return;
+        setTeamLoaded(true);
+        const team = res?.data?.data;
+        if (team) {
+          setStudent((prev) =>
+            prev ? { ...prev, team_id: team.id, class_code: team.class_id || prev.class_code } : prev,
+          );
+          setTabFeeds((prev) => ({
+            ...prev,
+            me: { hasNew: !prev.me?.viewed, count: 1 },
+          }));
+        }
+      })
+      .catch(() => {
+        if (alive) setTeamLoaded(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [activeTab, teamLoaded, student?.admission_no, student?.id]);
 
   // Mark tab as viewed when opened
   const handleTabChange = useCallback((tabKey: string) => {
@@ -712,10 +688,16 @@ export default function StudentHome() {
     setPathData((prev) => (prev ? { ...prev, goal } : prev));
   }, []);
 
+  /**
+   * Review is its own tab now, so "go to review" switches tab first and only
+   * then scrolls — the lazy tab needs a beat to mount its #review-zone anchor.
+   */
   const scrollToReviewZone = useCallback(() => {
-    playTap();
-    document.getElementById('review-zone')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
+    handleTabChange('review');
+    setTimeout(() => {
+      document.getElementById('review-zone')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }, [handleTabChange]);
 
   const handleShopBalance = useCallback((newBalance: number) => {
     setEconomy((prev) => (prev ? { ...prev, xp_total: newBalance } : prev));
@@ -753,17 +735,9 @@ export default function StudentHome() {
   const headerTheme = equippedTheme ? THEME_HEADER[equippedTheme.id] || null : null;
 
   const displayName = student?.student_name || student?.name || student?.admission_no || t('student.home.defaultName');
-  const summary = progress || { total_xp: 0, total_stars: 0, games_completed: 0, game_stats: {} } as ProgressData;
+  // Per-game stats are rendered by the PLAY cards; the ME tab shows the
+  // per-game progress list (StatsTab computes it from `progress`).
   const gameStats = progress?.game_stats || {};
-  // Per-game progress now lives on the Progress tab instead of on every card.
-  const playedLessons = useMemo(
-    () =>
-      bandLessons
-        .map((lesson) => ({ lesson, stat: gameStats[lesson.id] }))
-        .filter((x): x is { lesson: LessonCard; stat: GameStat } => !!x.stat && (x.stat.times_played || 0) > 0)
-        .sort((a, b) => (b.stat.times_played || 0) - (a.stat.times_played || 0)),
-    [bandLessons, gameStats],
-  );
 
   // Flagship children without a completed placement result get a dedicated,
   // isolated "find your level" screen instead of the dashboard (no skip).
@@ -797,19 +771,8 @@ export default function StudentHome() {
       <StudentQuickNav
         onOpenShop={() => setShowShop(true)}
         onOpenGames={() => {
-          setActiveTab('path');
-          document.getElementById('welcome-learning-path')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          const firstGridTab = TABS.find((tb) => tb.view === 'grid' && bandLessons.filter(tb.filter).length > 0);
-          if (firstGridTab) {
-            setActiveTab(firstGridTab.key);
-            document.getElementById('welcome-learning-path')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-
-          const gridEl = document.getElementById('games-grid-anchor');
-          if (gridEl) {
-            setTimeout(() => gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-            return;
-          }
+          // PLAY is the one grid tab — switch to it, then scroll to its grid.
+          handleTabChange('play');
           setTimeout(() => {
             document.getElementById('games-grid-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 80);
@@ -831,7 +794,19 @@ export default function StudentHome() {
       )}
       {/* Returning-student welcome spotlight (post-login hint at the goal) */}
       {showWelcomeSpotlight && !showOnboarding && (
-        <WelcomeSpotlight onClose={() => setShowWelcomeSpotlight(false)} />
+        <WelcomeSpotlight
+          onClose={() => setShowWelcomeSpotlight(false)}
+          onOpenGoal={() => {
+            // The weekly goal card lives in ME — take the child there and let
+            // the card's own picker auto-open (see GoalCard autoOpenPicker).
+            handleTabChange('me');
+            setTimeout(() => {
+              document
+                .getElementById('welcome-goal-card')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 120);
+          }}
+        />
       )}
       {/* Companion Select (first-time choosing) */}
       {showCompanionSelect && (
@@ -910,7 +885,7 @@ export default function StudentHome() {
       <StudentLiveBar />
 
       <main className="mx-auto max-w-5xl px-4 py-6">
-        {/* ── Home (info) tab: companion, streak, garden ── */}
+        {/* ── HOME (special): companion greeting, streak, garden ── */}
         {activeTab === 'home' && (
           <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
             <HomeTab
@@ -925,32 +900,7 @@ export default function StudentHome() {
               skin={skin}
               headerTheme={headerTheme}
               showWelcomeSpotlight={showWelcomeSpotlight}
-            />
-
-            {/* Daily & Weekly Revision */}
-            <div className="mb-5">
-              <RevisionCard />
-            </div>
-
-            {/* Review Zone (spaced repetition) — ReviewDueBadge scrolls here */}
-            <div id="review-zone" className="mb-5 scroll-mt-4">
-              <ReviewZone />
-            </div>
-          </Suspense>
-        )}
-
-        {/* ── Stats tab: progress summary + per-game stats ── */}
-        {activeTab === 'progress' && (
-          <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
-            <StatsTab
-              progress={progress}
-              economy={economy}
-              bandLessons={bandLessons}
-              pathData={pathData}
-              isReturningStudent={isReturningStudent}
-              showWelcomeSpotlight={showWelcomeSpotlight}
-              loading={loading}
-              handleGoalUpdated={handleGoalUpdated}
+              onPickGame={() => handleTabChange('play')}
             />
           </Suspense>
         )}
@@ -984,7 +934,7 @@ export default function StudentHome() {
               />
               <div className="flex-1" />
               <button
-                onClick={() => handleTabChange('teams')}
+                onClick={() => handleTabChange('me')}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-[#0d9488] to-emerald-500 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-[#0d9488]/25 transition hover:shadow-lg hover:scale-105 active:scale-95"
               >
                 <Users className="h-3.5 w-3.5" />
@@ -1036,41 +986,11 @@ export default function StudentHome() {
               })()}
             </div>
 
-            {activeTab === 'festival' ? (
-              <StudentFestival onGoPlay={() => navigate('/student')} />
-            ) : activeTab === 'leaderboard' ? (
-              <StudentLeaderboardPanel />
-            ) : activeTab === 'teams' ? (
-              <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
-                <TeamsTab student={student} />
-              </Suspense>
-            ) : activeTab === 'progress' ? (
-              <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
-                <StatsTab
-                  progress={progress}
-                  economy={economy}
-                  bandLessons={bandLessons}
-                  pathData={pathData}
-                  isReturningStudent={isReturningStudent}
-                  showWelcomeSpotlight={showWelcomeSpotlight}
-                  loading={loading}
-                  handleGoalUpdated={handleGoalUpdated}
-                />
-              </Suspense>
-            ) : activeTab === 'path' ? (
-              <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
-                <PathTab
-                  pathData={pathData}
-                  loading={loading}
-                  offlineMode={offlineMode}
-                  catalogEmpty={catalogEmpty}
-                  loadData={loadData}
-                  setSubjectFilter={setSubjectFilter}
-                  setActiveTab={setActiveTab}
-                  openLesson={openLesson}
-                />
-              </Suspense>
-            ) : (
+            {/* Each tab key has exactly ONE branch — no fallback `else`, so a
+                tab can never render another tab's content. */}
+
+            {/* PLAY — pick a game (subject chips + cards + festival banner) */}
+            {activeTab === 'play' && (
               <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
                 <PlayTab
                   bandLessons={bandLessons}
@@ -1090,6 +1010,54 @@ export default function StudentHome() {
                   loadData={loadData}
                   setSubjectFilter={setSubjectFilter}
                   setShowPlacementQuiz={setShowPlacementQuiz}
+                  festivalBanner={
+                    <StudentFestival
+                      variant="banner"
+                      onGoPlay={() => {
+                        document.getElementById('games-grid-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                    />
+                  }
+                />
+              </Suspense>
+            )}
+
+            {/* LEARN — the structured learning path */}
+            {activeTab === 'path' && (
+              <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
+                <PathTab
+                  pathData={pathData}
+                  loading={loading}
+                  offlineMode={offlineMode}
+                  catalogEmpty={catalogEmpty}
+                  loadData={loadData}
+                  setSubjectFilter={setSubjectFilter}
+                  setActiveTab={handleTabChange}
+                  openLesson={openLesson}
+                />
+              </Suspense>
+            )}
+
+            {/* REVIEW — revision card + spaced-repetition zone */}
+            {activeTab === 'review' && (
+              <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
+                <ReviewTab />
+              </Suspense>
+            )}
+
+            {/* ME — progress, goals, per-game scores, trophy board, teams */}
+            {activeTab === 'me' && (
+              <Suspense fallback={<div className="py-12 text-center text-sm text-gray-400">{t('student.home.loading')}</div>}>
+                <MeTab
+                  progress={progress}
+                  economy={economy}
+                  bandLessons={bandLessons}
+                  pathData={pathData}
+                  isReturningStudent={isReturningStudent}
+                  showWelcomeSpotlight={showWelcomeSpotlight}
+                  loading={loading}
+                  handleGoalUpdated={handleGoalUpdated}
+                  student={student}
                 />
               </Suspense>
             )}

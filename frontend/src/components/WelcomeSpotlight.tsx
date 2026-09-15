@@ -1,26 +1,30 @@
 import { useEffect, useState } from 'react';
-import { Sparkles, Target, Route, X } from 'lucide-react';
+import { Sparkles, Target, User, X } from 'lucide-react';
 import { playTap } from '@/lib/utils/sound';
 import { t } from '@/lib/i18n';
 
 interface WelcomeSpotlightProps {
   /** Anchor id of the goal card section to highlight. */
   goalAnchorId?: string;
-  /** Anchor id of the learning-path section to highlight. */
-  pathAnchorId?: string;
+  /**
+   * Take the child to the goal card. The weekly goal lives in the ME tab
+   * (STUDENT-TAB-RESTRUCTURE.md), so the host switches tabs here; without it
+   * the card is still highlighted for whoever is already on that tab.
+   */
+  onOpenGoal?: () => void;
   onClose: () => void;
 }
 
 /**
  * Lightweight, non-blocking welcome overlay shown on the first login of a
  * returning student (i.e. onboarding already complete on the server). It
- * scrolls the goal card into view, pulses it, and points the child at the
- * Set button so the weekly-goal setup is unmissable. Closes on X, on
- * backdrop tap, or after `autoCloseMs`.
+ * points the child at the weekly goal — which lives on the ME tab — pulses the
+ * goal card once it is on screen, and can take them straight there. Closes on
+ * X, on backdrop tap, or after `autoCloseMs`.
  */
 export default function WelcomeSpotlight({
   goalAnchorId = 'welcome-goal-card',
-  pathAnchorId = 'welcome-learning-path',
+  onOpenGoal,
   onClose,
 }: WelcomeSpotlightProps) {
   const [closing, setClosing] = useState(false);
@@ -37,6 +41,14 @@ export default function WelcomeSpotlight({
     playTap();
     setClosing(true);
     window.setTimeout(onClose, 200);
+  };
+
+  /** Primary action — go and set the goal (stays open so its own ring can
+   *  frame the card, and so GoalCard's auto-open picker still fires). */
+  const handleOpenGoal = () => {
+    playTap();
+    if (onOpenGoal) onOpenGoal();
+    else handleClose();
   };
 
   return (
@@ -88,14 +100,22 @@ export default function WelcomeSpotlight({
               <Target className="h-3 w-3" />
               {t('student.goal.title', { defaultValue: "This week's goal" })}
             </span>
+            {/* The goal card now lives on the ME tab — point the hint there. */}
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0F4D92]/10 px-2.5 py-1 text-[11px] font-bold text-[#0F4D92]">
-              <Route className="h-3 w-3" />
-              {t('student.tab.path', { defaultValue: 'Learning path' })}
+              <User className="h-3 w-3" />
+              {t('student.tab.me', { defaultValue: 'Me' })}
             </span>
             <button
               type="button"
-              onClick={handleClose}
+              onClick={handleOpenGoal}
               className="ml-auto rounded-xl bg-gradient-to-r from-[#0F4D92] to-[#0d9488] px-3 py-1.5 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95"
+            >
+              {t('student.welcome.setGoal', { defaultValue: 'Set my goal' })}
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-500 hover:bg-gray-50 active:scale-95"
             >
               {t('common.gotIt', { defaultValue: "Let's go!" })}
             </button>
@@ -122,12 +142,14 @@ function GoalRing({ anchorId }: { anchorId: string }) {
       });
     };
     measure();
-    const t1 = window.setTimeout(measure, 400);
-    const t2 = window.setTimeout(measure, 900);
+    // The goal card only exists once the ME tab has mounted — keep looking for
+    // a few seconds so the ring lands on it after the tab switch.
+    const poll = window.setInterval(measure, 500);
+    const stop = window.setTimeout(() => window.clearInterval(poll), 6000);
     window.addEventListener('resize', measure);
     return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      window.clearInterval(poll);
+      window.clearTimeout(stop);
       window.removeEventListener('resize', measure);
     };
   }, [anchorId]);

@@ -4,37 +4,9 @@ import { Gamepad2, Lock, BookOpen, RefreshCw } from 'lucide-react';
 import CheckpointTestOut from '@/components/CheckpointTestOut';
 import { playTap } from '@/lib/utils/sound';
 import { ageLevelLabel } from '@/lib/utils/learningPath';
-import { AGE_LEVEL_COLORS } from '@/lib/utils/accessibility';
 import { t } from '@/lib/i18n';
+import { FloatingDeco, getAgeColor, HOME_SECTION_LABEL, SUBJECT_FILTERS } from '../utils/helpers';
 import type { LessonCard, HomeGridItem } from './types';
-
-const SUBJECT_FILTERS: Array<{ key: string; labelKey: string; test: (l: LessonCard) => boolean }> = [
-  { key: 'all', labelKey: 'student.filter.all', test: () => true },
-  { key: 'numbers', labelKey: 'student.tab.numbers', test: (l) => /count|number|math|drag-sort/i.test(l.subject + l.title) },
-  { key: 'letters', labelKey: 'student.tab.letters', test: (l) => /abc|letter|english|phon/i.test(l.subject + l.title) },
-  { key: 'colors', labelKey: 'student.tab.colors', test: (l) => /color|art|creati/i.test(l.subject + l.title) },
-  { key: 'shapes', labelKey: 'student.tab.shapes', test: (l) => /shape|pattern|geom/i.test(l.subject + l.title) },
-  { key: 'animals', labelKey: 'student.tab.animals', test: (l) => /animal|pet|farm/i.test(l.subject + l.title) },
-  { key: 'food', labelKey: 'student.tab.food', test: (l) => /fruit|veggie|food|eat/i.test(l.subject + l.title) },
-];
-
-const HOME_SECTION_LABEL: Record<string, string> = {
-  next: 'student.home.sectionNext',
-  open: 'student.home.sectionUnlocked',
-  locked: 'student.home.sectionLocked',
-};
-
-function FloatingDeco({ className }: { className?: string }) {
-  return (
-    <div className={`pointer-events-none absolute rounded-full blur-2xl opacity-20 ${className}`} />
-  );
-}
-
-function getAgeColor(ageLevel: string, colorblind: boolean): string {
-  const entry = AGE_LEVEL_COLORS[ageLevel];
-  if (!entry) return 'bg-gray-100 text-gray-600';
-  return colorblind ? entry.colorblind : entry.standard;
-}
 
 interface PlayTabProps {
   bandLessons: LessonCard[];
@@ -54,6 +26,8 @@ interface PlayTabProps {
   loadData: () => Promise<void>;
   setSubjectFilter: (filter: string) => void;
   setShowPlacementQuiz: (show: boolean) => void;
+  /** Seasonal festival banner slot (merged in from the old FESTIVAL tab). */
+  festivalBanner?: React.ReactNode;
 }
 
 export default function PlayTab({
@@ -73,11 +47,17 @@ export default function PlayTab({
   loadData,
   setSubjectFilter,
   setShowPlacementQuiz,
+  festivalBanner,
 }: PlayTabProps) {
   return (
     <>
-      {/* Quick-nav scroll anchor */}
+      {/* Seasonal festival banner — only renders while a festival is live */}
+      {festivalBanner}
+
+      {/* Quick-nav scroll anchor (below the banner so "Jump to Games"
+          lands on the subject chips / grid, not on the seasonal banner) */}
       <div id="games-grid-anchor" className="scroll-mt-4" />
+
 
       {/* Subject chips */}
       <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
