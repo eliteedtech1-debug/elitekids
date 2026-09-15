@@ -241,3 +241,23 @@ STEP: measured against real data (read-only): 004 null→Nursery 2, 1718→1085;
 FLAG: NOT DEPLOYED (git push origin main is the deploy; needs an explicit order). Demo5 narrowing
   1085→814 is the one behaviour change. Never-empty widening still drops the ceiling by design.
 EVIDENCE: team-docs/reports/g6-band-ceiling-model-fix-2026-09-15.md
+
+--- 2026-09-15T15:52Z · Q67 deployed + walked on live ---
+STEP: pushed 8b35aa5 (user-authorized). Runner gate 767/767, publish SUCCESS,
+  frontend/dist -> releases/20260915T154251Z-8b35aa5, API restarted 15:42:31Z.
+STEP: live API probe (team-docs/browser-walk/probe-ceiling.mjs, read-only, Bearer sessions):
+  004 Nursery 2 -> 1085 (was 1718); 109 Kindergarten -> 1356 (was 1718); Demo5 Nursery 1 -> 814;
+  EK-Q4-TEST-001 Primary -> 1718 (top band). ALL CHILDREN CAPPED CORRECTLY.
+  004/109 also stopped 400-ing on /kids/learning-path (36 and 45 series now).
+STEP: browser walk of the sectioned PLAY on BOTH real-school mid-band children, against
+  production: 004 -> 1085 cards / 37 sections / 9 offers, sections = Creche 9 Playgroup 9
+  N1 9 N2 9 Unlocked 1 (NO Kindergarten, NO Primary); 109 -> 1356 / 46 / 9, adds Kindergarten,
+  no Primary. 0 console errors / 0 exceptions / 0 failed requests / 0 non-2xx on both; every
+  chip 0 emptyHeaders and totals match badges. readOnly true (streak POST attempted + blocked,
+  escaped []).
+STEP: COVERAGE GAP CLOSED — the earlier PLAY walk used a Primary child, which exercises no
+  ceiling at all; these two are real-school mid-band children.
+FLAG (harness): a raw authorization header 401s on production (needs `Bearer `) though supertest
+  accepts it; and /api/... on prod returns the SPA shell with 200, not JSON — a probe can silently
+  "pass" empty. Both now guarded.
+EVIDENCE: team-docs/reports/g6-band-ceiling-model-fix-2026-09-15.md §7

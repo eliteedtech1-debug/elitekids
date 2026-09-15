@@ -151,13 +151,66 @@ leaking to a Nursery 2 child.
   side of Q66's 400). Both should now resolve a real band and therefore render
   the subject-sectioned PLAY.
 
-## 7. Not done / next
+## 7. Deployed and verified on live
 
-- **Not deployed.** `git push origin main` is the deploy and needs an explicit
-  order.
-- No live walk after deploy. Once shipped, `004` (Nursery 2) and `109`
-  (Kindergarten) become genuine **real-school mid-band children** for the
-  subject-sectioned PLAY walk — the coverage gap from the earlier PLAY report
-  (a Primary child validates nothing about the ceiling).
+Ordered by the user (push + walk). `8b35aa5` → `git push origin main` → runner:
+backend gate **767/767** (the new suite ran on the runner), frontend publish
+SUCCESS, `frontend/dist` → `releases/20260915T154251Z-8b35aa5`, API restarted
+**15:42:31Z**.
+
+### 7.1 Live API — the ceiling now holds (`team-docs/browser-walk/probe-ceiling.mjs`)
+
+Minted read-only sessions, GETs against `https://elitekids.com.ng`:
+
+| admission | band | lessons served | ceiling expected | at-or-below bands returned | path |
+|---|---|---:|---:|---|---|
+| `004` @ SCH/28 | Nursery 2 | **1085** | 1085 ✅ | Crèche, Playgroup, N1, N2 | `200`, 36 series |
+| `109` @ SCH/11 | Kindergarten | **1356** | 1356 ✅ | + Kindergarten | `200`, 45 series |
+| `Demo5` @ SCH/25 | Nursery 1 | **814** | 814 ✅ | Crèche, Playgroup, N1 | `200`, 27 series |
+| `EK-Q4-TEST-001` | Primary | 1718 | 1718 ✅ | all six (top band) | `200`, 51 series |
+
+Before: 004/109 each received **1718** (all six bands). After: 1085 / 1356, with
+no Kindergarten or Primary row in either response.
+
+**`004` and `109` also stopped 400-ing on `/kids/learning-path`** — they now
+return a real band and a 36-/45-series path, so the subject-sectioned PLAY is
+reachable for them at all (they were previously on the empty-isolate branch).
+
+### 7.2 Live browser walk of the sectioned PLAY
+
+Both real-school mid-band children driven over raw CDP against production. This
+closes the coverage gap flagged earlier: the first PLAY walk used a **Primary**
+child, and a top-band child exercises no ceiling whatsoever.
+
+| | `004` (Nursery 2) | `109` (Kindergarten) |
+|---|---|---|
+| band | Nursery 2 | Kindergarten |
+| cards | **1085** = expected 1085 ✅ | **1356** = expected 1356 ✅ |
+| sections | **37** = 36 series + 1 path-less ✅ | **46** = 45 + 1 ✅ |
+| jump-ahead offers | **9** = 9 locked subjects ✅ | **9** ✅ |
+| sections by band | Crèche 9 · Playgroup 9 · N1 9 · **N2 9** · Unlocked 1 — **no KG, no Primary** ✅ | Crèche 9 · Playgroup 9 · N1 9 · N2 9 · **KG 9** · Unlocked 1 — **no Primary** ✅ |
+| cards per section | {5, 30} summing to 1085 | {6, 30} summing to 1356 |
+| chips | 6 chips, `emptyHeaders = 0`, totals match badges | same, 6 chips, 0 |
+| console errors / exceptions / failed requests / non-2xx | **0 / 0 / 0 / 0** | **0 / 0 / 0 / 0** |
+
+`readOnly: true` on both. The only attempted write was
+`POST /kids/economy/streak/record`, **aborted inside the browser** — attempted 1,
+blocked 1, `escaped: []`. So nothing was written to either child's records, and
+their browsers' storage was never touched (throwaway chromium profile). Session
+tokens deleted; temp files removed; chromium torn down by **port**.
+
+### 7.3 Probe bugs found (harness, not app)
+
+- A raw `Authorization: <token>` header **401s on production** while supertest
+  accepts it — the live header must be `Bearer <token>`. Worth knowing: the test
+  suite passes tokens the way production rejects.
+- Production (nginx) serves the API at the **root**; `/api/kids/...` returns the
+  SPA shell with **200 text/html**, which reads as a successful empty result. The
+  probe now asserts against a real JSON body.
+
+## 8. Not done / next
+
 - The never-empty widening (capped query empties ⇒ drop the ceiling ⇒ full
   catalog) remains **by design** and is now asserted rather than accidental.
+- `Demo5`'s narrowing 1085 → 814 was not walked (the band change is intentional;
+  its PLAY should be re-checked whenever it is next inspected).

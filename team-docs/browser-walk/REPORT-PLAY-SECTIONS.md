@@ -177,3 +177,37 @@ every dashboard visit a write.
   `shots-play-sections*/play-top.png`. `*.json` is gitignored repo-wide; screenshots are
   regenerable from the harness.
 - `serve.mjs` / `walk.mjs` reused unchanged from the five-tab walk.
+
+---
+
+## Update 2026-09-15T15:52Z — real-school mid-band children, after the G6 ceiling fix
+
+The walks above used `EK-Q4-TEST-001` (**Primary**). A top-band child exercises **no
+ceiling at all**, so nothing above validated that the server narrows. The G6 ceiling
+fix (Q67, `8b35aa5`) made two **real-school** children walkable — they previously
+400'd on `/kids/learning-path` and, before that, were served the entire 1718-row
+catalog. Re-walked against production:
+
+| | `004` @ SCH/28 | `109` @ SCH/11 |
+|---|---|---|
+| band | Nursery 2 | Kindergarten |
+| cards | **1085** = expected ✅ | **1356** = expected ✅ |
+| sections | **37** (36 series + 1 path-less) ✅ | **46** (45 + 1) ✅ |
+| offers | **9** ✅ | **9** ✅ |
+| sections by band | Crèche 9 · Playgroup 9 · N1 9 · **N2 9** · Unlocked 1 — **no Kindergarten, no Primary** | + **Kindergarten 9** — **no Primary** |
+| cards per section | {5, 30} → 1085 | {6, 30} → 1356 |
+| chips | 6, `emptyHeaders = 0`, totals match badges | 6, `emptyHeaders = 0` |
+| console errors / exceptions / failed requests / non-2xx | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+
+Both `readOnly: true`: the only attempted write was
+`POST /kids/economy/streak/record`, aborted inside the browser (attempted 1,
+blocked 1, `escaped: []`), so nothing was written to either child's records.
+Session tokens deleted; chromium torn down by port; throwaway profile only.
+
+Probe caveats worth keeping: on production a **raw `Authorization:` header 401s —
+it must be `Bearer <token>`**, and `/api/...` returns the SPA shell with **200
+text/html**, so a probe that does not assert on a JSON body can silently "pass"
+with zero rows.
+
+Full detail: `team-docs/reports/g6-band-ceiling-model-fix-2026-09-15.md` §7.
+New tool: `team-docs/browser-walk/probe-ceiling.mjs` (read-only API ceiling probe).
