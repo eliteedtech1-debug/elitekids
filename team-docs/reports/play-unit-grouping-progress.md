@@ -167,8 +167,42 @@ session-close followups ("PLAY by unit").
   ceiling is the only defence; (b) `PROGRESS.md` (2026-09-09) and `QUEUE.md` (stops at Q47b)
   are stale against the 09-10 → 09-15 work, which lives only in `reports/*-progress.md`.
 
-STATUS: done (uncommitted) — PLAY is sectioned by subject in unit order; tsc clean,
-267/267 tests, staging build + compat-css guard green, and a browser walk against the live API
+- 2026-09-15T15:1xZ | DEPLOY | Master authorised the deploy. Committed `8fc1e11` (11 files:
+  6 frontend + the two reports + 3 harness files) and pushed `origin main` (`17c0755..8fc1e11`).
+  Self-hosted runner picked it up: **backend gate 66 suites / 761 tests all passed**, frontend
+  publish SUCCESS, `frontend/dist` → `releases/20260915T151254Z-8fc1e11`, old release pruned.
+  Confirmed on the wire: the served main chunk `assets/index-CMaXNfKy.js` contains the new
+  `{done}/{total} units` string, so live runs the change.
+
+- 2026-09-15T15:2xZ | LIVE-WALK | Walked **https://elitekids.com.ng** itself (not just staging).
+  Same assertions, all pass on the deployed release: 1718 cards / 52 sections / 6 offers; sections
+  by band Crèche 9, Playgroup 9, Nursery 1 9, Nursery 2 9, Kindergarten 9, Primary 6, path-less 1;
+  cards per section ∈ {30,60,8} summing to 1718; Crèche leads `W1→W2→W3`; all 6 Primary headers
+  `Locked` with 60 cards, `W1` open and `W2-W10` locked; 6 offers, one per locked subject; every
+  chip drops its empty sections (`emptyHeaders = 0` for all six). **0 console errors, 0
+  exceptions, 0 failed requests, 0 non-2xx.** No application bug found on live either.
+
+- 2026-09-15T15:2xZ | **WRITE-FOUND** | The first live run was **NOT read-only**: the dashboard
+  fired `POST /kids/economy/streak/record` and it succeeded. That endpoint is real and writes —
+  `streak.ts#recordPlayDay` posts it from `StudentHome.tsx:365` on every dashboard mount, and
+  `kidsEconomy#recordStreak` runs `UPDATE kids_economy SET streak_current, streak_longest,
+  streak_freeze_count, last_play_date, current_multiplier` plus possible `kids_economy_milestones`
+  INSERTs. **This corrects the 09-15 session report**, which claimed recordPlayDay "fell back to
+  localStorage-only after /kids/streak/record was removed — so nothing was written to their
+  records": it checked `/kids/streak/record`; the live path is `/kids/economy/streak/record`,
+  never removed and it persists. That session's band walks used two **real children** (004 @
+  SCH/28, 109 @ SCH/11), so those visits would have advanced their streaks/last_play_date. My run
+  wrote one row for `EK-Q4-TEST-001`, a purpose-built test child. Reported, not buried.
+
+- 2026-09-15T15:2xZ | WRITE-FIX | Harness now aborts that write: `Fetch.enable` intercepts only
+  `*streak/record*` (everything else passes through untouched, so nothing can be left paused) and
+  the paused request is failed inline in the CDP event handler — NOT in `drain()`, which clears the
+  queue and would leave the page stalled. Re-ran live: **`readOnly: true`, attemptedWrites =
+  [the POST], blockedWrites = [same], escaped = []** — attempted and aborted before leaving the
+  browser. A live walk is now provably read-only.
+
+STATUS: done + DEPLOYED — PLAY is sectioned by subject in unit order; tsc clean,
+267/267 tests, staging build + compat-css guard green, and a browser walk of BOTH the staging
 confirms 1718 cards / 52 sections / 6 offers with 0 errors and 0 empty sections on every subject
 chip. Design correction to the brief documented above (unit-level sections would be ~1 header per
 card — 1350 of 1530 live units hold a single game). Still uncommitted and undeployed. Awaiting a

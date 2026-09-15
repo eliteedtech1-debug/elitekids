@@ -42,13 +42,31 @@ async function pageTarget() {
 class Cdp {
   constructor(ws) {
     this.ws = ws; this.id = 0; this.pending = new Map(); this.events = [];
+    this.requests = []; this.blockedWrites = [];
     ws.addEventListener('message', (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.id && this.pending.has(msg.id)) {
         const { resolve, reject } = this.pending.get(msg.id);
         this.pending.delete(msg.id);
         msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result);
-      } else if (msg.method) this.events.push(msg);
+      } else if (msg.method) {
+        // A write the dashboard fires on mount (POST /kids/economy/streak/record,
+        // which UPDATEs kids_economy and can INSERT milestones) is ABORTED before
+        // it leaves the browser. Handled inline, NOT in drain(): drain() clears
+        // the event queue, and a paused request nobody resumes stalls the page.
+        if (msg.method === 'Fetch.requestPaused') {
+          this.blockedWrites.push(`${msg.params.request.method} ${msg.params.request.url}`);
+          this.send('Fetch.failRequest', { requestId: msg.params.requestId, errorReason: 'Aborted' })
+            .catch(() => {});
+          return;
+        }
+        this.events.push(msg);
+        // Every API call this walk attempts, so a run against LIVE can prove it
+        // never wrote. A write to a real child's record is not acceptable.
+        if (msg.method === 'Network.requestWillBeSent' && msg.params?.request) {
+          this.requests.push({ method: msg.params.request.method, url: msg.params.request.url });
+        }
+      }
     });
   }
   send(method, params = {}) {
@@ -118,6 +136,11 @@ async function main() {
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
   await cdp.send('Network.enable');
+  // Only the streak-record POST is intercepted; everything else passes through
+  // untouched, so nothing else can be left paused.
+  await cdp.send('Fetch.enable', {
+    patterns: [{ urlPattern: '*streak/record*', requestStage: 'Request' }],
+  });
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 2, mobile: true });
 
   const nav = async (url) => { await cdp.send('Page.navigate', { url }); await sleep(1500); };
@@ -265,9 +288,23 @@ async function main() {
     else if (it.type === 'offer') offers.push({ after: current?.name || null, text: it.text });
   }
 
+  // Live-safety: this walk must have issued reads only.
+  const API_RE = /\/(kids|schools|users|students|auth|verify-token|media)\/?/;
+  const apiCalls = cdp.requests.filter((r) => API_RE.test(r.url));
+  const attemptedWrites = apiCalls
+    .filter((r) => !/^(GET|HEAD|OPTIONS)$/.test(r.method))
+    .map((r) => `${r.method} ${r.url}`);
+  // `readOnly` means no write reached the server: every attempt was aborted.
+  const escaped = attemptedWrites.filter((w) => !cdp.blockedWrites.includes(w));
+
   const result = {
     app: APP,
     clicked,
+    apiReads: apiCalls.length,
+    attemptedWrites,
+    blockedWrites: cdp.blockedWrites,
+    escaped,
+    readOnly: escaped.length === 0,
     rendered: { cards, sections: sections.length, offers: offers.length },
     expected,
     matches: {
