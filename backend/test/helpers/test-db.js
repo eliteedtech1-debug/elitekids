@@ -314,6 +314,52 @@ CREATE TABLE IF NOT EXISTS kids_teacher_observations (
   UNIQUE KEY idx_kids_teacher_observations_idempotency (observer_id, idempotency_key)
 );
 
+-- Jump-ahead checkpoint ("test out") attempts. TEST FIXTURE ONLY: the model is
+-- deliberately absent from KIDS_CONTENT_TABLES, so the running service never
+-- runs this DDL — production gets the table from
+-- database/kids-checkpoint-exams-migration.js. Mirrors src/models/KidCheckpointExam.js.
+CREATE TABLE IF NOT EXISTS kids_checkpoint_exams (
+  id VARCHAR(50) PRIMARY KEY,
+  school_id VARCHAR(40) NOT NULL DEFAULT '',
+  branch_id VARCHAR(40) NULL,
+  child_admission_no VARCHAR(64) NOT NULL,
+  series_id VARCHAR(50) NOT NULL,
+  band VARCHAR(30) NULL,
+  unit_ids JSON NOT NULL,
+  questions JSON NOT NULL,
+  answers JSON NULL,
+  score_pct INT NULL,
+  per_unit JSON NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'issued',
+  self_approved TINYINT(1) NOT NULL DEFAULT 0,
+  requested_by VARCHAR(64) NULL,
+  submitted_at DATETIME NULL,
+  decided_by VARCHAR(64) NULL,
+  decided_at DATETIME NULL,
+  decision_note VARCHAR(255) NULL,
+  createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY kids_checkpoint_exams_child (child_admission_no),
+  KEY kids_checkpoint_exams_status (status),
+  KEY kids_checkpoint_exams_child_series (child_admission_no, series_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Who may confirm a jump-ahead: child → class → school → platform default.
+-- TEST FIXTURE ONLY (see the note above) — mirrors src/models/KidCheckpointPolicy.js.
+CREATE TABLE IF NOT EXISTS kids_checkpoint_policies (
+  id VARCHAR(64) PRIMARY KEY,
+  scope VARCHAR(10) NOT NULL,
+  scope_id VARCHAR(100) NOT NULL,
+  school_id VARCHAR(40) NOT NULL DEFAULT '',
+  auto_approve TINYINT(1) NOT NULL DEFAULT 0,
+  set_by VARCHAR(64) NULL,
+  note VARCHAR(255) NULL,
+  createdAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY kids_checkpoint_policies_school (school_id),
+  UNIQUE KEY kids_checkpoint_policies_scope (scope, scope_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS kids_game_configs (
   id VARCHAR(50) PRIMARY KEY,
   lesson_id VARCHAR(50) NOT NULL,

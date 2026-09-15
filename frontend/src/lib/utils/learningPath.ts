@@ -10,7 +10,9 @@
 
 /* ── Contract types (backend response shapes) ─────────────────────── */
 
-export type LessonState = 'none' | 'practice_done' | 'passed';
+// 'tested_out' = an approved jump-ahead exemption: the level is satisfied for the
+// purpose of the lock, but it was never played and is NOT mastery.
+export type LessonState = 'none' | 'practice_done' | 'passed' | 'tested_out';
 export type UnitRelation = 'passed_below' | 'spillover' | 'current';
 export type GoalSetter = 'auto' | 'child' | 'teacher';
 
@@ -28,6 +30,8 @@ export interface PathUnit {
   topic: string | null;
   relation: UnitRelation;
   done: boolean;
+  /** Done by an approved test-out rather than by playing every lesson. */
+  exempt?: boolean;
   locked: boolean;
   locked_reason: string | null;
   lessons: PathLesson[];

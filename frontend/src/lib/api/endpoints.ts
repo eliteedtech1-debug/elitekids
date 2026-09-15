@@ -122,6 +122,19 @@ export const ENDPOINTS = {
     RECALL: (id: string) => `/kids/lesson-bridges/${encodeURIComponent(id)}/recall`,
   },
 
+  // Jump-ahead checkpoint ("test out" of a locked chain). One assessment covers
+  // every unfinished level a subject has up to the child's band ceiling.
+  CHECKPOINTS: {
+    ISSUE: '/kids/checkpoint',
+    SUBMIT: (id: string) => `/kids/checkpoint/${encodeURIComponent(id)}/submit`,
+    STATUS: '/kids/checkpoint/status',
+    QUEUE: '/kids/checkpoint/queue',
+    POLICY: '/kids/checkpoint/policy',
+    POLICY_LIST: '/kids/checkpoint/policy/list',
+    APPROVE: (id: string) => `/kids/checkpoint/${encodeURIComponent(id)}/approve`,
+    REJECT: (id: string) => `/kids/checkpoint/${encodeURIComponent(id)}/reject`,
+  },
+
   // Retry / Adaptive Difficulty (Doc 16)
   RETRY: {
     TEST_COMPLETE: '/kids/retry/test-complete',

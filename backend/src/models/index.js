@@ -130,6 +130,11 @@ const KIDS_CONTENT_MODEL_FILES = [
   // them with database/ecce-bridge-tables-migration.js (run separately).
   'KidLessonBridge.js',
   'KidTeacherObservation.js',
+  // Jump-ahead checkpoint ("test out") attempts. Bound to the Kids DB but also
+  // absent from KIDS_CONTENT_TABLES — create it with
+  // database/kids-checkpoint-exams-migration.js (run separately).
+  'KidCheckpointExam.js',
+  'KidCheckpointPolicy.js',
 ];
 
 // Model files bound to the AI DB (AI_DB_NAME; elite_bot on the prod server)

@@ -572,37 +572,70 @@ module.exports.getCurriculum = getCurriculum;
 module.exports.findCrossSeriesItems = findCrossSeriesItems;
 
 /**
- * GET /kids/learning-path?student_id=X — the child's ENTIRE journey in one call
- * (TECH-SPEC-LEARNING-PATH §2.2). Rules enforced server-side:
+ * Units this child has been granted an APPROVED jump-ahead exemption for, from
+ * kids_checkpoint_exams (set J, 'jump ahead').
+ *
+ * A missing table must never break the path — this feature ships its schema via
+ * a separate migration, so until that is applied there are simply no exemptions.
+ */
+async function approvedCheckpointUnitIds(studentId) {
+  const exempt = new Set();
+  if (!db.KidCheckpointExam) return exempt;
+  try {
+    const rows = await db.KidCheckpointExam.findAll({
+      where: { child_admission_no: studentId, status: 'approved' },
+      attributes: ['unit_ids'],
+    });
+    for (const row of rows) {
+      for (const unitId of Array.isArray(row.unit_ids) ? row.unit_ids : []) {
+        if (unitId) exempt.add(String(unitId));
+      }
+    }
+  } catch (err) {
+    console.warn(`approvedCheckpointUnitIds unavailable (run database/kids-checkpoint-exams-migration.js): ${err.message}`);
+  }
+  return exempt;
+}
+
+/** Is this unit exempt by an approved test-out? */
+async function isUnitExempt(studentId, unitId) {
+  if (!unitId) return false;
+  return (await approvedCheckpointUnitIds(studentId)).has(String(unitId));
+}
+
+/**
+ * The child's ENTIRE journey, shared by GET /kids/learning-path and the
+ * jump-ahead checkpoint (TECH-SPEC-LEARNING-PATH §2.2). One implementation is
+ * deliberate: the checkpoint must reason about exactly the chain the path
+ * renders, or an unlock could disagree with the lock that triggered it.
+ *
+ * Rules enforced server-side:
  *  1. Age ceiling: a lesson above the child's band is NEVER returned (units
  *     containing any published higher-band lesson are omitted entirely).
  *  2. Spill-over: lower-band units the child hasn't finished appear first,
  *     flagged spillover/passed_below — never locked (go back & pass).
- *  3. Unit locks: E3f gate semantics (every lesson of an earlier unit needs
- *     Practice done AND Test >= 50) applied cumulatively through the unit chain.
- *  4. Per-lesson state from KidProgress (none/practice_done/passed).
+ *  3. Unit locks: E3f gate semantics (every lesson of an earlier unit needs a
+ *     passing Test) applied cumulatively through the unit chain, OR an approved
+ *     jump-ahead exemption (mode='checkpoint') which marks the unit done but
+ *     never as mastery — exempt lessons report state 'tested_out'.
+ *  4. Per-lesson state from KidProgress (none/practice_done/passed/tested_out).
  * Batched — one KidProgress query, one KidLesson query. No N+1.
  */
-async function getLearningPath(req, res) {
-  try {
-    const studentId = String(req.query.student_id || req.body?.student_id || req.user?.admission_no || '').trim();
-    if (!studentId) return res.status(400).json({ success: false, message: 'student_id is required.' });
-    if (!(await admissionAllowed(req, studentId))) {
-      return res.status(403).json({ success: false, message: 'Not allowed to view this child.' });
-    }
-
-    // Band chain: kids_children → age declaration (tour) → SMS students row.
-    // SMS-imported kids have no kids_children row; without the fallback the
-    // path 400s for them ("games no longer showing" report).
-    const child = await db.KidChild.findOne({ where: { admission_no: studentId } });
-    const band = await resolveBandForAdmission(studentId);
-    if (!band) {
-      // Isolate by default: a child with no resolvable band gets no lessons.
-      return res.status(400).json({ success: false, message: 'Could not resolve the child\'s age band (class/age_level missing).' });
-    }
-    const bandIdx = AGE_BANDS.indexOf(band);
+async function computeLearningPath(studentId) {
+  // Band chain: kids_children → age declaration (tour) → SMS students row.
+  // SMS-imported kids have no kids_children row; without the fallback the
+  // path 400s for them ("games no longer showing" report).
+  const child = await db.KidChild.findOne({ where: { admission_no: studentId } });
+  const band = await resolveBandForAdmission(studentId);
+  if (!band) {
+    // Isolate by default: a child with no resolvable band gets no lessons.
+    return { band: null, child, path: [], exemptUnitIds: new Set() };
+  }
+  const bandIdx = AGE_BANDS.indexOf(band);
     const visible = visibleLevels(band);
     const rankOf = (age) => AGE_BANDS.indexOf(age);
+    const exemptUnitIds = await approvedCheckpointUnitIds(studentId);
+    const isExempt = (unitId) => exemptUnitIds.has(String(unitId));
 
     const [seriesRows, unitRows] = await Promise.all([
       db.KidGameSeries.findAll({ order: [['name', 'ASC']] }),
@@ -656,17 +689,21 @@ async function getLearningPath(req, res) {
         if (!inVisible.length) continue;
         const maxRank = Math.max(...inVisible.map((l) => rankOf(l.age_level)));
         const below = maxRank < bandIdx;
-        const done = inVisible.every((l) => lessonComplete(String(l.id)));
+        // J: an approved test-out marks the whole unit done. It satisfies the
+        // lock while staying distinguishable from a real pass — no lesson is
+        // ever reported as 'passed' on the strength of an exemption alone.
+        const exempt = isExempt(u.id);
+        const done = inVisible.every((l) => lessonComplete(String(l.id))) || exempt;
         const lessonNodes = lessonIds
           .map((lid) => {
             const row = lessonById.get(lid);
             if (!row || rankOf(row.age_level) > bandIdx) return null;
             const st = lessonState[lid] || {};
-            const state = st.testPass ? 'passed' : st.practice ? 'practice_done' : 'none';
+            const state = st.testPass ? 'passed' : exempt ? 'tested_out' : st.practice ? 'practice_done' : 'none';
             return { lesson_id: lid, title: row.title, age_level: row.age_level, state };
           })
           .filter(Boolean);
-        unitOuts.push({ u, below, done, lessonNodes });
+        unitOuts.push({ u, below, done, lessonNodes, exempt });
       }
       if (!unitOuts.length) continue;
 
@@ -680,7 +717,7 @@ async function getLearningPath(req, res) {
       //    are never locked (always allowed back), but an unfinished below-band
       //    unit still gates the current band ("go back & pass to unlock").
       let chainOk = true;
-      const units = unitOuts.map(({ u, below, done, lessonNodes }) => {
+      const units = unitOuts.map(({ u, below, done, lessonNodes, exempt }) => {
         const locked = !done && !chainOk;
         const relation = below ? (done ? 'passed_below' : 'spillover') : 'current';
         const reason = locked
@@ -696,6 +733,7 @@ async function getLearningPath(req, res) {
           topic: u.topic || null,
           relation,
           done,
+          exempt: !!exempt,
           locked: below ? false : locked,
           locked_reason: below ? null : reason,
           lessons: lessonNodes,
@@ -703,6 +741,28 @@ async function getLearningPath(req, res) {
       });
 
       path.push({ series_id: s.id, name: s.name, category: s.category || null, units });
+    }
+
+    return { band, child, path };
+}
+
+/**
+ * GET /kids/learning-path?student_id=X — the child's entire journey in one call.
+ * The permission check lives here; the computation is shared with the
+ * jump-ahead checkpoint so both see the same chain.
+ */
+async function getLearningPath(req, res) {
+  try {
+    const studentId = String(req.query.student_id || req.body?.student_id || req.user?.admission_no || '').trim();
+    if (!studentId) return res.status(400).json({ success: false, message: 'student_id is required.' });
+    if (!(await admissionAllowed(req, studentId))) {
+      return res.status(403).json({ success: false, message: 'Not allowed to view this child.' });
+    }
+
+    const { band, child, path } = await computeLearningPath(studentId);
+    if (!band) {
+      // Isolate by default: a child with no resolvable band gets no lessons.
+      return res.status(400).json({ success: false, message: 'Could not resolve the child\'s age band (class/age_level missing).' });
     }
 
     const goal = await getCurrentGoalData(studentId);
@@ -719,4 +779,6 @@ async function getLearningPath(req, res) {
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 }
+
 module.exports.getLearningPath = getLearningPath;
+module.exports.computeLearningPath = computeLearningPath;

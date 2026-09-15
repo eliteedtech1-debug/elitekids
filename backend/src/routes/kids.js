@@ -44,6 +44,18 @@ const { getLessonNextUp } = require('../controllers/kidsSeries');
 const { getChildGoal, setChildGoal } = require('../controllers/kidsGoals');
 const { getMyAge, setMyAge } = require('../controllers/kidsAge');
 const { getPlacementQuiz, submitPlacement, getPlacementStatus } = require('../controllers/kidsPlacement');
+const {
+  issueCheckpoint,
+  submitCheckpoint,
+  getCheckpointStatus,
+  listCheckpointQueue,
+  getCheckpointPolicy,
+  listCheckpointPolicies,
+  setCheckpointPolicy,
+  clearCheckpointPolicy,
+  approveCheckpoint,
+  rejectCheckpoint,
+} = require('../controllers/kidsCheckpoints');
 const { getMyActivity } = require('../controllers/kidsMeActivity');
 const { domesticateSeries, listDomestications } = require('../controllers/kidsModeLock');
 const {
@@ -88,7 +100,7 @@ const {
   setParentalControls,
   checkPlayAllowed,
 } = require('../controllers/kidsParental');
-const { denyForeignChildData, requireStaff } = require('../services/routesHelper');
+const { denyForeignChildData, requireStaff, requireAdmin } = require('../services/routesHelper');
 const { getModeLock, setModeLock, removeModeLock, listModeLocks, convertTestScores } = require('../controllers/kidsModeLock');
 // Flagship `elite` model school + subscriptions (spec: FLAGSHIP-ELITE-SCHOOL-SPEC.md)
 const subCtrl = require('../controllers/kidsSubscription');
@@ -251,6 +263,28 @@ module.exports = (app) => {
   app.get('/kids/placement/quiz', auth, getPlacementQuiz);
   app.post('/kids/placement/submit', auth, submitPlacement);
   app.get('/kids/placement/status', auth, getPlacementStatus);
+
+  // ── Jump-ahead checkpoint ("test out" of a locked chain) ────────────────────
+  // The child sits ONE assessment covering every unfinished level up to their
+  // band ceiling. Approve/reject are admin-level: a learner may attempt, but not
+  // sign off their own prerequisite. The self-paced flagship schools have no
+  // active teacher, so the service confirms there instead and records
+  // decided_by='self:flagship-self-paced' — a named exception, not a relaxation
+  // of the rule (see services/selfPacedSchools.js).
+  app.get('/kids/checkpoint', auth, issueCheckpoint);
+  app.post('/kids/checkpoint/:id/submit', auth, submitCheckpoint);
+  app.get('/kids/checkpoint/status', auth, getCheckpointStatus);
+  app.get('/kids/checkpoint/queue', auth, requireStaff, listCheckpointQueue);
+  app.post('/kids/checkpoint/:id/approve', auth, requireAdmin, approveCheckpoint);
+  app.post('/kids/checkpoint/:id/reject', auth, requireAdmin, rejectCheckpoint);
+
+  // Who may confirm a jump-ahead: child → class → school → platform default.
+  // Staff READ it (to see why a child resolved the way they did); only an admin
+  // may hand out an unattended unlock, and DELETE reverts to the next scope out.
+  app.get('/kids/checkpoint/policy', auth, requireStaff, getCheckpointPolicy);
+  app.get('/kids/checkpoint/policy/list', auth, requireStaff, listCheckpointPolicies);
+  app.put('/kids/checkpoint/policy', auth, requireAdmin, setCheckpointPolicy);
+  app.delete('/kids/checkpoint/policy', auth, requireAdmin, clearCheckpointPolicy);
 
   // ── Kid self-report: daily activity series for the GitHub-style grid + XP trend ──
   app.get('/kids/me/activity', auth, getMyActivity);

@@ -99,3 +99,33 @@ Matches the convention already used by `moneyTimeBridgeSeed.js` and `flagshipAnn
 - `backend/src/seeders/animalsNumbersExpansionSeed.js` still has an unguarded `process.exit` at its
   foot. Nothing requires it today, so it is latent rather than live, but it is the same defect class
   the Jolly Phonics guard fixes — flagged, not changed (out of the dispatched scope).
+
+## Deploy re-run — PASSED, bridge work is in production
+
+Pushed `535a91e..5fda5ba` and watched the job end to end. The point of interest: the **gate now
+passes in CI on the clean tree**, which is the thing that was impossible before this commit.
+
+| Step | Result |
+|---|---|
+| 1. Backend gate (on the CI-rewritten tree) | **65 suites / 724 tests passed** — log `/tmp/elitekids-backend-gate-20260915T052007Z.log` |
+| 2. Backend deploy | `elite-kids-api` restarted `2026-09-15 05:21:49 UTC` (new routes loaded) |
+| 3. nginx no-cache shell | applied |
+| 4. Frontend staging build + gate + release swap | gate OK (11540 byte shell, 2 css, 58 js) → release `20260915T052209Z-5fda5ba` — log `/tmp/elitekids-frontend-publish-20260915T052209Z.log` |
+| 5. Verify externally | **`Job result after all job steps finish: Succeeded`** (`_diag/Worker_20260915-051953-utc.log`) |
+
+### Bridge work confirmed live in production
+
+| Probe | Result |
+|---|---|
+| `GET /kids/sms/lesson-context`, `/kids/learning-outcomes`, `/kids/lesson-bridges`, `/kids/observations`, `/kids/lesson-bridges/1/publish-gate` | **401 on all five** — unreachable before, so a 401 is the proof the route is mounted |
+| Bridge tables in live `elite_kids` | migration dry-run: `present: kids_lesson_bridges, kids_teacher_observations` · `missing: (none)` · `elite_db` untouched |
+| Teacher authoring screen | `BridgeAuthoring-DC5kmkgY.js` in the live release, `https://kids.elitekids.com.ng/teacher/bridge` → 200 |
+| Served shell entry chunk | `assets/index-D42WoTaO.js` — the chunk built by this release |
+| Shell cache header | `Cache-Control: no-cache, no-store, must-revalidate` |
+| Site / demo / hashed asset / schools endpoint | 200 each |
+| Releases on disk | `20260915T052209Z-5fda5ba` live; rollback is one `ln -sfn` to `20260914T232452Z-fbc021a` |
+
+Note on scope: an earlier bridge commit (`535a91e`, review/approval endpoints + teacher screen) was
+already on `main` but had **never been published** — its deploy died at the gate. This run is the
+first that reaches production with it, which is why the whole bridge chain is now verifiable live
+rather than only in tests.

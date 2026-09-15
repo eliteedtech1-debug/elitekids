@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Flame,
@@ -26,6 +26,7 @@ import apiClient from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import RevisionCard from '@/components/RevisionCard';
+import CheckpointTestOut from '@/components/CheckpointTestOut';
 import BossBattleOverlay from '@/components/BossBattleOverlay';
 import ReviewZone from '@/components/ReviewZone';
 import OfflineIndicator from '@/components/OfflineIndicator';
@@ -149,13 +150,22 @@ const HOME_SECTION_LABEL: Record<string, string> = {
 };
 
 type HomeGridItem =
-  | { kind: 'section'; key: string; count: number }
+  | {
+      kind: 'section';
+      key: string;
+      count: number;
+      /** Subjects present in a locked group — each gets a test-out offer. */
+      seriesIds?: string[];
+    }
   | {
       kind: 'lesson';
       lesson: LessonCard;
       locked: boolean;
       lockedReason: string | null;
       passed: boolean;
+      /** Satisfied by an approved test-out — done for the lock, not mastered. */
+      exempt: boolean;
+      seriesId: string | null;
       isNext: boolean;
     };
 
@@ -507,15 +517,29 @@ export default function StudentHome() {
    * disappears from the child's screen.
    */
   const lessonLock = useMemo(() => {
-    const map = new Map<string, { locked: boolean; reason: string | null; passed: boolean; order: number }>();
+    const map = new Map<
+      string,
+      {
+        locked: boolean;
+        reason: string | null;
+        passed: boolean;
+        exempt: boolean;
+        order: number;
+        seriesId: string | null;
+      }
+    >();
     let order = 0;
-    for (const { unit } of flattenUnits(pathData)) {
+    for (const { series, unit } of flattenUnits(pathData)) {
       for (const l of unit.lessons) {
         map.set(l.lesson_id, {
           locked: unit.locked,
           reason: unit.locked_reason,
+          // 'tested_out' counts as done for the lock, but never as a pass — the
+          // card gets its own badge rather than a green tick.
           passed: l.state === 'passed',
+          exempt: l.state === 'tested_out',
           order: order++,
+          seriesId: series.series_id ?? null,
         });
       }
     }
@@ -536,6 +560,8 @@ export default function StudentHome() {
           locked: p?.locked ?? false,
           lockedReason: p?.reason ?? null,
           passed: p?.passed ?? false,
+          exempt: p?.exempt ?? false,
+          seriesId: p?.seriesId ?? null,
           order: p?.order ?? Number.MAX_SAFE_INTEGER,
         };
       })
@@ -551,11 +577,15 @@ export default function StudentHome() {
         locked: false,
         lockedReason: null,
         passed: d.passed,
+        exempt: d.exempt,
+        seriesId: d.seriesId,
         isNext: false,
       }));
     }
 
-    const next = decorated.filter((d) => !d.locked && !d.passed).slice(0, 1);
+    // A tested-out game is not the child's next step — they have just jumped
+    // past it. It stays visible and playable, just never 'Up Next'.
+    const next = decorated.filter((d) => !d.locked && !d.passed && !d.exempt).slice(0, 1);
     const nextIds = new Set(next.map((d) => d.lesson.id));
     const open = decorated.filter((d) => !d.locked && !nextIds.has(d.lesson.id));
     const locked = decorated.filter((d) => d.locked);
@@ -563,7 +593,13 @@ export default function StudentHome() {
     const items: HomeGridItem[] = [];
     const section = (key: string, cards: typeof decorated) => {
       if (!cards.length) return;
-      items.push({ kind: 'section', key, count: cards.length });
+      // The locked group is where a jump-ahead belongs: offer it per subject so
+      // an advanced child can challenge exactly the chain that is holding them.
+      const seriesIds =
+        key === 'locked'
+          ? [...new Set(cards.map((d) => d.seriesId).filter((id): id is string => !!id))]
+          : undefined;
+      items.push({ kind: 'section', key, count: cards.length, seriesIds });
       for (const d of cards) {
         items.push({ kind: 'lesson', ...d, isNext: key === 'next' });
       }
@@ -579,6 +615,24 @@ export default function StudentHome() {
     playTap();
     navigate(`/student/game/${lessonId}?mode=${mode}`);
   }, [navigate]);
+
+  /** Subject names for the test-out offers, keyed by series id. */
+  const seriesNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of pathData?.path || []) map.set(s.series_id, s.name);
+    return map;
+  }, [pathData]);
+
+  /** Re-read the path after a test-out unlocks the chain. */
+  const refreshPath = useCallback(async () => {
+    const admissionNo = String(student?.admission_no || student?.id || '');
+    if (!admissionNo) return;
+    const res = await apiClient.get(ENDPOINTS.LEARNING_PATH(admissionNo)).catch(() => null);
+    if (res?.data?.data) {
+      setPathData(res.data.data);
+      offlineContent.saveLearningPath(admissionNo, res.data.data).catch(() => {});
+    }
+  }, [student]);
 
   /** Keep the path payload's embedded goal in sync after a child sets it. */
   const handleGoalUpdated = useCallback((goal: WeeklyGoal) => {
@@ -1238,17 +1292,25 @@ export default function StudentHome() {
                 {homeItems.map((item, cardIdx) => {
                   if (item.kind === 'section') {
                     return (
-                      <div
-                        key={`section-${item.key}`}
-                        className="col-span-full mt-1 flex items-center gap-2"
-                      >
-                        <h3 className="text-sm font-extrabold text-gray-700">{t(HOME_SECTION_LABEL[item.key])}</h3>
-                        <span className="text-xs font-medium text-gray-400">({item.count})</span>
-                        <span className="h-px flex-1 bg-gray-200/70" />
-                      </div>
+                      <Fragment key={`section-${item.key}`}>
+                        <div className="col-span-full mt-1 flex items-center gap-2">
+                          <h3 className="text-sm font-extrabold text-gray-700">{t(HOME_SECTION_LABEL[item.key])}</h3>
+                          <span className="text-xs font-medium text-gray-400">({item.count})</span>
+                          <span className="h-px flex-1 bg-gray-200/70" />
+                        </div>
+                        {(item.seriesIds || []).map((seriesId) => (
+                          <CheckpointTestOut
+                            key={`checkpoint-${seriesId}`}
+                            studentId={String(student?.admission_no || student?.id || '')}
+                            seriesId={seriesId}
+                            seriesName={seriesNameById.get(seriesId)}
+                            onUnlocked={refreshPath}
+                          />
+                        ))}
+                      </Fragment>
                     );
                   }
-                  const { lesson, locked, lockedReason, passed, isNext } = item;
+                  const { lesson, locked, lockedReason, passed, exempt, isNext } = item;
                   const ageColor = getAgeColor(lesson.age_level, colorblindMode);
                   const stat = gameStats[lesson.id];
                   const played = stat?.times_played || 0;
@@ -1306,6 +1368,10 @@ export default function StudentHome() {
                         ) : passed ? (
                           <span className="inline-flex items-center rounded-full bg-green-100/80 px-2.5 py-1 text-[11px] font-bold text-green-700 shadow-sm">
                             {t('student.home.passed')}
+                          </span>
+                        ) : exempt ? (
+                          <span className="inline-flex items-center rounded-full bg-teal-100/80 px-2.5 py-1 text-[11px] font-bold text-teal-700 shadow-sm">
+                            {t('student.home.testedOut')}
                           </span>
                         ) : played > 0 ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-100/80 px-2.5 py-1 text-[11px] font-bold text-green-700 shadow-sm">

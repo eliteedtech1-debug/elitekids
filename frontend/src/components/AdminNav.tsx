@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, ShieldCheck, LayoutDashboard, LogOut, GraduationCap, Image, Wand2, BarChart3, Store, Brain, ClipboardList } from 'lucide-react';
+import { BookOpen, ShieldCheck, LayoutDashboard, LogOut, GraduationCap, Image, Wand2, BarChart3, Store, Brain, ClipboardList, FastForward } from 'lucide-react';
 import { useCallback } from 'react';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
 import { t } from '@/lib/i18n';
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', labelKey: 'adminNav.dashboard', icon: LayoutDashboard },
   { to: '/teacher/lessons', labelKey: 'adminNav.lessons', icon: BookOpen },
   { to: '/teacher/bridge', labelKey: 'adminNav.bridge', icon: ClipboardList },
+  { to: '/teacher/checkpoints', labelKey: 'adminNav.checkpoints', icon: FastForward },
   { to: '/teacher/create-game', labelKey: 'adminNav.create', icon: Wand2 },
   { to: '/teacher/approvals', labelKey: 'adminNav.reviews', icon: ShieldCheck },
   { to: '/teacher/analytics', labelKey: 'adminNav.analytics', icon: BarChart3 },

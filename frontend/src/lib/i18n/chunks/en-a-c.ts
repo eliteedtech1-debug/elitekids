@@ -21,6 +21,7 @@ export const enAC: Record<string, string> = {
   'adminNav.analytics': 'Analytics',
   'adminNav.assets': 'Assets',
   'adminNav.bridge': 'Lesson bridge',
+  'adminNav.checkpoints': 'Test-outs',
   'adminNav.create': 'Create',
   'adminNav.dashboard': 'Dashboard',
   'adminNav.lessons': 'Lessons',
