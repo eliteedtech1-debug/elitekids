@@ -354,21 +354,21 @@ export default function Login() {
             <PublicLoginSwitcher />
           </div>
 
-          {/* School crest + brand */}
-          <div className="mb-6 text-center">
-            <div className="relative mx-auto mb-4 h-24 w-24">
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-teal-400 to-emerald-500 opacity-20 blur-xl login-gpu-heavy" />
-              <img
-                src={school?.badge_url || '/logo.svg'}
-                alt={t('login.schoolLogoAlt')}
-                className="relative h-24 w-24 rounded-3xl object-contain shadow-[0_8px_30px_rgba(13,148,136,0.25)] border-2 border-white/80"
-              />
+          {/* EliteKids brand — show full crest only when no school selected */}
+          {!school && (
+            <div className="mb-6 text-center">
+              <div className="relative mx-auto mb-4 h-24 w-24">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-teal-400 to-emerald-500 opacity-20 blur-xl login-gpu-heavy" />
+                <img
+                  src="/logo.svg"
+                  alt={t('login.brand')}
+                  className="relative h-24 w-24 rounded-3xl object-contain shadow-[0_8px_30px_rgba(13,148,136,0.25)] border-2 border-white/80"
+                />
+              </div>
+              <h2 className="text-2xl font-bold text-[#0F4D92]">{t('login.brand')}</h2>
+              <p className="mt-1 text-sm text-gray-500">{t('login.subtitle')}</p>
             </div>
-            <h2 className="text-2xl font-bold text-[#0F4D92]">
-              {school?.school_name ? t('login.welcomeTo', { school: school.school_name }) : t('dashboard.welcomeUser', { role: t('login.brand') })}
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">{t('login.brand')} · {t('login.subtitle')}</p>
-          </div>
+          )}
 
           {/* Teacher / Parent toggle */}
           <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-gray-100/60 p-1">

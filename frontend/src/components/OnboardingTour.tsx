@@ -32,6 +32,12 @@ const STEP_META: Array<Pick<Step, 'id' | 'shape' | 'shapeColor' | 'action'>> = [
     action: 'language',
   },
   {
+    id: 'gender',
+    shape: '🧑',
+    shapeColor: 'bg-gradient-to-br from-purple-400 to-pink-400',
+    action: 'age',
+  },
+  {
     id: 'age',
     shape: '🎈',
     shapeColor: 'bg-gradient-to-br from-pink-400 to-orange-400',
@@ -142,11 +148,60 @@ function LanguageDemo({ onComplete }: { onComplete: () => void }) {
   );
 }
 
+/* ── Gender picker — "Are you a boy or girl?" ─────────────────── */
+
+function GenderDemo({ onComplete, gender, setGender }: { onComplete: () => void; gender: 'm' | 'f' | null; setGender: (g: 'm' | 'f') => void }) {
+  const [picked, setPicked] = useState(false);
+
+  const handlePick = (g: 'm' | 'f') => {
+    if (picked) return;
+    playTap();
+    setGender(g);
+    setPicked(true);
+    playMatch();
+    speak(tEn(`onboarding.gender.${g === 'm' ? 'boy' : 'girl'}`));
+    setTimeout(onComplete, 1200);
+  };
+
+  if (picked && gender) {
+    return (
+      <div className="flex flex-col items-center gap-3 animate-game-pop">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 text-4xl font-black text-white shadow-xl shadow-purple-300/50 ring-4 ring-white">
+          {gender === 'm' ? '🧑' : '🧑‍♀️'}
+        </div>
+        <p className="text-sm font-bold text-purple-600">
+          {gender === 'm' ? t('onboarding.gender.boyConfirm') : t('onboarding.gender.girlConfirm')}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <p className="text-sm text-gray-500 font-medium">{t('onboarding.gender.prompt')}</p>
+      <div className="flex gap-4">
+        {([
+          { g: 'm' as const, emoji: '🧑', label: t('onboarding.age.boy') },
+          { g: 'f' as const, emoji: '🧑‍♀️', label: t('onboarding.age.girl') },
+        ]).map(({ g, emoji, label }) => (
+          <button
+            key={g}
+            onClick={() => handlePick(g)}
+            className="flex h-24 w-28 flex-col items-center justify-center gap-1 rounded-3xl border-4 border-white bg-gradient-to-br from-purple-400 to-pink-400 text-white text-lg font-black shadow-lg shadow-purple-300/40 transition-all hover:scale-105 active:scale-90 animate-game-zoom-in"
+          >
+            <span className="text-3xl">{emoji}</span>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Age picker — "How old are you?" (be frank!) ─────────────── */
 
-function AgeDemo({ onComplete }: { onComplete: () => void }) {
+function AgeDemo({ onComplete, gender }: { onComplete: () => void; gender: 'm' | 'f' | null }) {
   const [savedAge, setSavedAge] = useState<number | null>(null);
-  const [gender, setGender] = useState<'m' | 'f' | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handlePick = async (age: number) => {
@@ -183,23 +238,6 @@ function AgeDemo({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* Hausa has grammatical gender (ka/ki) — let the child say who they
-          are so copy can address them correctly (defaults to neutral/male). */}
-      <div className="flex items-center gap-2">
-        {(['m', 'f'] as const).map((g) => (
-          <button
-            key={g}
-            onClick={() => { playTap(); setGender(g); }}
-            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all active:scale-90 ${
-              gender === g
-                ? 'bg-[#0F4D92] text-white shadow-md'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-          >
-            {g === 'm' ? t('onboarding.age.boy') : t('onboarding.age.girl')}
-          </button>
-        ))}
-      </div>
       <p className="text-sm text-gray-500 font-medium">{t('onboarding.age.prompt')}</p>
       <div className="grid grid-cols-5 gap-2">
         {[3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
@@ -415,6 +453,7 @@ export default function OnboardingTour({ onComplete }: { onComplete: () => void 
   const [stepIdx, setStepIdx] = useState(0);
   const [demoDone, setDemoDone] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [gender, setGender] = useState<'m' | 'f' | null>(null);
   const steps = getSteps();
   const step = steps[stepIdx];
   const isLast = stepIdx === steps.length - 1;
@@ -497,7 +536,14 @@ export default function OnboardingTour({ onComplete }: { onComplete: () => void 
         {/* Interactive demo area */}
         <div className="mb-6 flex justify-center">
           {step.action === 'language' && <LanguageDemo onComplete={() => setDemoDone(true)} />}
-          {step.action === 'age' && <AgeDemo onComplete={() => setDemoDone(true)} />}
+          {step.action === 'age' && step.id === 'gender' && (
+          <GenderDemo
+            onComplete={() => setDemoDone(true)}
+            gender={gender}
+            setGender={setGender}
+          />
+        )}
+        {step.action === 'age' && step.id === 'age' && <AgeDemo onComplete={() => setDemoDone(true)} gender={gender} />}
           {step.action === 'tap' && <TapDemo onComplete={() => setDemoDone(true)} />}
           {step.action === 'drag' && <DragDemo onComplete={() => setDemoDone(true)} />}
           {step.action === 'match' && <MatchDemo onComplete={() => setDemoDone(true)} />}
