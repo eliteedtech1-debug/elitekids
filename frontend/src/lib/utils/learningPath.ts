@@ -363,6 +363,48 @@ export interface LessonGrouping<T> {
 }
 
 /**
+ * Band rank of a PLAY subject section: the HIGHEST rank among the cards it
+ * shows, or -1 when nothing is rankable.
+ *
+ * A series is band-scoped by construction (the content ships one series per
+ * subject per band), so this is the section's own band; taking the maximum
+ * keeps a series that somehow spans two bands from being read as the younger.
+ */
+export function sectionBandRank(items: Array<{ age_level?: string | null }>): number {
+  let rank = -1;
+  for (const item of items) {
+    const r = bandRank(String(item.age_level || ''));
+    if (r > rank) rank = r;
+  }
+  return rank;
+}
+
+/**
+ * Section order for a child: **their own band first**, then the below-band
+ * review ladder nearest-first, and anything unrankable last.
+ *
+ * The server hands the path back series-name ASC, so 'Crèche — …' led for every
+ * child: a Primary child's own six subjects and their six jump-ahead offers sat
+ * ~1350 cards down the page, behind toddler content they had long outgrown.
+ * Presentation only — the path, the lock chain, the checkpoint and the server's
+ * own ordering are untouched.
+ */
+export function compareSectionBand(
+  a: Array<{ age_level?: string | null }>,
+  b: Array<{ age_level?: string | null }>,
+  band?: string | null,
+): number {
+  const mine = bandRank(String(band || ''));
+  const distance = (rank: number) => {
+    if (mine === -1 || rank === -1) return 99; // unknowable → last
+    if (rank === mine) return 0; // the child's own grade first
+    if (rank < mine) return mine - rank; // review ladder, nearest below first
+    return 50 + (rank - mine); // above the band (should not appear at all)
+  };
+  return distance(sectionBandRank(a)) - distance(sectionBandRank(b));
+}
+
+/**
  * Group the PLAY grid by SUBJECT, each subject's cards in path/unit order.
  *
  * PLAY hands the child a flat catalog capped by band. Unit-level sections are
@@ -378,6 +420,10 @@ export interface LessonGrouping<T> {
  *
  * Cards the path does not cover come back separately so the caller can keep
  * them on screen instead of silently dropping them.
+ *
+ * Sections are ordered for the CHILD (see `compareSectionBand`): their own band
+ * leads, below-band review follows nearest-first. Within a section the cards
+ * stay in path/unit order.
  */
 export function groupBySeries<
   T extends { id: string; age_level?: string | null; title?: string | null },
@@ -429,6 +475,11 @@ export function groupBySeries<
     }
   }
   uncovered.sort((a, b) => compareCurriculum(a, b, band));
+
+  // Child-relative section order: own band first, then the review ladder.
+  // `Array#sort` is stable, so sections of equal distance keep the path's own
+  // (series-name) order.
+  groups.sort((a, b) => compareSectionBand(a.items, b.items, band));
 
   return { groups: groups.filter((g) => g.items.length > 0), uncovered };
 }

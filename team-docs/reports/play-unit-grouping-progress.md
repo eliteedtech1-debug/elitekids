@@ -313,3 +313,31 @@ STILL OPEN (decisions, not work): (i) Crèche closure semantics — declared tes
   a test; (ii) `requiredAfterPractice` — drop it from the plan or restore it in the gate.
 EVIDENCE: reports/play-unit-closure-test-verdict-2026-09-15.md,
   tools/probe-closure-test.mjs, tools/diff-pilot-vs-prod.mjs, Q60/Q68 in QUEUE.md
+
+--- 2026-09-15T17:4xZ · Q71 — PLAY now LEADS with the child's own band ---
+
+STEP: the long-standing PLAY-FINDING (the server sends the path series-name ASC, so
+  'Crèche — …' led for every child) is now FIXED, in the client, as presentation only.
+  `learningPath.ts` gained `sectionBandRank` + `compareSectionBand`, and `groupBySeries`
+  sorts its sections child-relatively: **own band first**, then the below-band review ladder
+  nearest-first, anything unrankable last, path order preserved as the stable tie-break.
+  The server's path order, the lock chain, the checkpoint and LEARN are all untouched.
+STEP: measured before/after with the same harness and child (EK-Q4-TEST-001, Primary):
+  LIVE (old build) — own-band section index **45 of 52**, first section 'Crèche — Communication
+  and Early Literacy', the 6 jump-ahead offers at 45+. STAGING (new build) — index **0**,
+  first section 'Primary — Basic Science and Technology', then the other 5 Primary subjects,
+  then Kindergarten → … → Crèche, then the path-less group; all 6 offers now on the first 6
+  sections. Counts identical both sides (1718 cards / 52 sections / 6 offers), so nothing was
+  lost or duplicated, and `readOnly: true` on both.
+STEP: the harness now ASSERTS the order (`matches.firstSectionOwnBand`, plus the index and the
+  first section name, `null` when the child's band has no section so it can never silently
+  pass). It fails on live and passes on the new build — the change is what moved it.
+STEP: frontend gate green — `tsc --noEmit` clean, vitest **270/270** (21 files, +3 tests),
+  `build:staging` OK, compat-css guard passed. Mutation-checked: removing the sort fails
+  exactly the 2 order tests; file verified identical after restore.
+FLAG (not changed): LEARN still renders the server's path order, so its spill-over review
+  units still lead. That was deliberate and the brief was PLAY-only — but PLAY and LEARN now
+  disagree about which end of the journey to lead with, so it is worth an explicit decision.
+FLAG: NOT DEPLOYED (`git push origin main` is the deploy; needs an explicit order).
+EVIDENCE: team-docs/QUEUE.md Q71; browser-walk/play-sections.mjs (the new assertion);
+  browser-walk/REPORT-PLAY-SECTIONS.md

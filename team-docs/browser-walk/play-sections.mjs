@@ -11,6 +11,8 @@
  *   - catalog rows  = path lessons + path-less rows
  *   - one section per series that has visible cards
  *   - cards land under their own subject, in unit order (W1 before W9)
+ *   - the child's OWN band leads the grid (own-band subjects + their test-out
+ *     offers first, then the below-band review ladder nearest-first)
  *   - the jump-ahead offer appears once per LOCKED subject, nowhere else
  *
  * Usage: node team-docs/browser-walk/play-sections.mjs <app-origin> <jwt> [label]
@@ -341,6 +343,16 @@ async function main() {
   // `readOnly` means no write reached the server: every attempt was aborted.
   const escaped = attemptedWrites.filter((w) => !cdp.blockedWrites.includes(w));
 
+  // ORDER: the child's own band must lead. Before the 2026-09-15 change the
+  // server's series-name order put 'Crèche — …' first for EVERY child, so a
+  // Primary child's own subjects and their jump-ahead offers sat ~1350 cards
+  // down the page. `null` = the child's band has no section to lead with, so the
+  // assertion does not apply (never silently "passes").
+  const ownBand = expected.band || null;
+  const ownBandIdx = ownBand
+    ? sections.findIndex((s) => String(s.name || '').startsWith(ownBand))
+    : -1;
+
   const result = {
     app: APP,
     clicked,
@@ -355,6 +367,9 @@ async function main() {
       cardCount: cards === expected.visibleRows,
       sectionCount: sections.length === expected.seriesWithCards + (expected.pathLessVisible > 0 ? 1 : 0),
       offerCount: offers.length === expected.lockedSeries.length,
+      firstSectionOwnBand: ownBandIdx === -1 ? null : ownBandIdx === 0,
+      ownBandSectionIndex: ownBandIdx,
+      firstSectionName: sections.length ? sections[0].name : null,
     },
     sections: sections.map((s) => ({ name: s.name, cards: s.cards, badges: s.badges, firstCards: s.firstCards })),
     offers,

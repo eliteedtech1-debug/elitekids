@@ -298,8 +298,11 @@ Ordered by what actually protects production, not by what is easiest.
 - [ ] **Q65** — establish what the 2026-09-10 `migrate.js` run applied to the SHARED
       `elite_db.school_setup`, and confirm the kids-only rule was respected
 - [ ] **Q51** — migrate the 42 direct `elite_db.students` reads (17 files) onto elite-sms APIs
-- [ ] **Q55 follow-up** — Decide the PLAY ordering question: a Primary child's own six
-      subjects and their six test-out offers sit ~1350 cards behind early-band review
+- [x] **Q71** — PLAY ordering — **FIXED 2026-09-15**: PLAY now leads with the child's own
+      band, then the review ladder nearest-first. Measured live vs the new build on the same
+      child: own-band section index **45 of 52 → 0**, counts unchanged (1718/52/6), harness now
+      asserts it. **LEARN still leads with spill-over** (deliberate, PLAY-only brief) — worth an
+      explicit decision, since PLAY and LEARN now disagree about which end to lead with. Not deployed
 - [ ] Rate-limit the API by school/user for authenticated kids (the class-sized gap)
 - [x] Deploy the i18n frontend bundle to prod — done, verified serving
 - [x] Install the coturn TURN server — done, active

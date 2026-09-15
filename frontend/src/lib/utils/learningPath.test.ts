@@ -375,4 +375,56 @@ describe('groupBySeries (PLAY sections)', () => {
     expect(groups).toEqual([]);
     expect(uncovered.map((c) => c.id)).toEqual(['a', 'b']);
   });
+
+  it("leads with the child's OWN band, then the review ladder nearest-first", () => {
+    // The server hands the path back series-name ASC, so 'Crèche — …' led for
+    // every child: a Primary child's own subjects and their jump-ahead offers sat
+    // ~1350 cards down the page (2026-09-15 live walk).
+    const data = makeMulti([
+      { id: 'cre', name: 'Crèche — Numeracy', units: [unit({ unit_id: 'c1', lessons: [lesson('L-c1')] })] },
+      { id: 'n1', name: 'Nursery 1 — Numeracy', units: [unit({ unit_id: 'a1', lessons: [lesson('L-a1')] })] },
+      { id: 'n2', name: 'Nursery 2 — Numeracy', units: [unit({ unit_id: 'b1', lessons: [lesson('L-b1')] })] },
+      { id: 'pg', name: 'Playgroup — Numeracy', units: [unit({ unit_id: 'p1', lessons: [lesson('L-p1')] })] },
+    ]);
+    const cards = [
+      card('L-c1', 'Crèche W1', 'Crèche'),
+      card('L-p1', 'Playgroup W1', 'Playgroup'),
+      card('L-a1', 'Nursery 1 W1', 'Nursery 1'),
+      card('L-b1', 'Nursery 2 W1', 'Nursery 2'),
+    ];
+
+    const { groups } = groupBySeries(cards, data, 'Nursery 2');
+
+    // own band (rank 3) → nearest below → … → furthest below
+    expect(groups.map((g) => g.series.series_id)).toEqual(['n2', 'n1', 'pg', 'cre']);
+  });
+
+  it('keeps the path order among sections of the SAME band (stable sort)', () => {
+    const data = makeMulti([
+      { id: 'a', name: 'Nursery 2 — Communication', units: [unit({ unit_id: 'a1', lessons: [lesson('L-a1')] })] },
+      { id: 'b', name: 'Nursery 2 — Numeracy', units: [unit({ unit_id: 'b1', lessons: [lesson('L-b1')] })] },
+      { id: 'z', name: 'Crèche — Numeracy', units: [unit({ unit_id: 'z1', lessons: [lesson('L-z1')] })] },
+    ]);
+    const cards = [
+      card('L-a1', 'Nursery 2 W1'),
+      card('L-b1', 'Nursery 2 W2'),
+      card('L-z1', 'Crèche W1', 'Crèche'),
+    ];
+
+    const { groups } = groupBySeries(cards, data, 'Nursery 2');
+
+    expect(groups.map((g) => g.series.series_id)).toEqual(['a', 'b', 'z']);
+  });
+
+  it('sorts an unrankable section last rather than dropping it', () => {
+    const data = makeMulti([
+      { id: 'odd', name: 'Mystery — Numeracy', units: [unit({ unit_id: 'o1', lessons: [lesson('L-o1')] })] },
+      { id: 'n2', name: 'Nursery 2 — Numeracy', units: [unit({ unit_id: 'b1', lessons: [lesson('L-b1')] })] },
+    ]);
+    const cards = [card('L-o1', 'Mystery W1', 'Nowhere'), card('L-b1', 'Nursery 2 W1')];
+
+    const { groups } = groupBySeries(cards, data, 'Nursery 2');
+
+    expect(groups.map((g) => g.series.series_id)).toEqual(['n2', 'odd']);
+  });
 });

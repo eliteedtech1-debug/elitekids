@@ -153,7 +153,15 @@ All in the **walk harness**, not the app; all fixed.
 
 **No application bug was found by this walk.**
 
-## One finding the walk surfaced (not a defect, not changed)
+## One finding the walk surfaced — **FIXED 2026-09-15 (Q71)**
+
+> **Update:** the ordering below was changed the same day. PLAY now sorts its sections
+> child-relatively (`compareSectionBand`): the child's own band leads, then the below-band
+> review ladder nearest-first. Re-measured with this harness on the same Primary child —
+> live (old build) own-band index **45 of 52**, staging (new build) **0**, and the harness
+> now asserts it (`matches.firstSectionOwnBand`). The note below is kept as the original
+> observation.
+
 
 For a Primary child the 45 early-band "review" sections come **first**, so their own six subjects
 and the six jump-ahead offers sit ~1350 cards down the page. This is pre-existing — the old flat
