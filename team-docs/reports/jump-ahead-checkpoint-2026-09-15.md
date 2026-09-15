@@ -121,12 +121,28 @@ node database/kids-checkpoint-exams-migration.js            # DRY-RUN (default)
 node database/kids-checkpoint-exams-migration.js --apply    # create if missing
 ```
 
-Additive only. Live dry-run: **`missing: kids_checkpoint_exams,
-kids_checkpoint_policies`** — `--apply` NOT yet run (needs an explicit order).
-Rollout is safe until then: a missing table degrades to "no exemptions" and "no
-policy", and the checkpoint endpoints answer `503 schema_missing`. Verified live:
-`Table 'elite_kids.kids_checkpoint_exams' doesn't exist` is swallowed by the path
-helper, and `computeLearningPath` stays exported and functional.
+Additive only. **APPLIED 2026-09-15** on an explicit order — the migration is a
+production schema write and was held at dry-run until asked for.
+
+```
+mode      : APPLY
+kids DB   : elite_kids     shared DB : elite_db (untouched)
+  ✓ kids_checkpoint_exams created
+  ✓ kids_checkpoint_policies created
+```
+
+Verified by an independent probe of `information_schema` (not the script's own
+output), and re-confirmed by a dry-run after the fact:
+
+| | `elite_kids` | `elite_db` |
+|---|---|---|
+| `kids_checkpoint_exams` | present · 20 cols · 5 idx · 0 rows | absent |
+| `kids_checkpoint_policies` | present · 9 cols · 4 idx · 0 rows | absent |
+
+Dry-run after → `present: kids_checkpoint_exams, kids_checkpoint_policies` ·
+`missing: (none)`. Existing rows and tables untouched; no other schema changed.
+`kid_progress.mode` is `STRING(20)`, not an ENUM, so `'checkpoint'` needed no DDL
+change.
 
 `kid_progress.mode` is `STRING(20)`, not an ENUM, so `'checkpoint'` needed no DDL
 change.
@@ -139,7 +155,7 @@ change.
 | New suite | `test/checkpoint-jump-ahead.test.js` — 37 assertions |
 | Path-engine regression | `b3-learning-path`, `b3b-age-declaration`, `e3f-practice-test-gate` all green after the refactor |
 | Frontend | `tsc` clean · 229/229 vitest · `build:staging` rc=0 (`CheckpointReviews`, `CheckpointPolicyPanel` chunks) |
-| Migration dry-run | both tables reported missing in `elite_kids`; `elite_db` untouched |
+| Migration | **applied** to `elite_kids` (`--apply`); both tables present, empty; `elite_db` untouched |
 
 The suite pins the parts that are easy to get wrong: the answer key never leaves
 the server (`not.toContain('correctId')`), an unmounted route would 404 so each is
@@ -153,8 +169,6 @@ normal and a self-paced school (deep-equal), and the policy precedence
 
 ## Deliberate omissions
 
-- **Not applied to live** — the migration is a production schema write; it waits
-  for an explicit order (same rule as the ECCE bridge tables).
 - **No publish/audit event stream** for decisions (matches the bridge review gap).
 - `getUnitSuggestedMode` still uses the legacy `KidTestAttempt`/item-id model; it
   was left alone (an exemption does not break it, and changing it is a separate
