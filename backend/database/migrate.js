@@ -81,18 +81,21 @@ if (HELP) {
 }
 
 // ---------------------------------------------------------------------------
-// Migration plan (shared elite DB — additive only)
+// Migration plan (additive only) — SPLIT BY OWNERSHIP
 // ---------------------------------------------------------------------------
-// [table, column, DDL fragment]. A column is only added if it is missing.
+// Each entry is [table, column, DDL fragment]. A column is only added if it is
+// missing from the database that OWNS its table.
+//
+// The split is load-bearing, not cosmetic. A `kids_*` table does not exist in
+// the shared main DB (elite_db), so testing a kids column against the main DB
+// always reports it missing and the ALTER then fails with
+// "Table 'elite_db.kids_lessons' doesn't exist" — which is exactly what happened
+// on 2026-09-10 (Q65/Q78). Kids-owned columns are therefore detected against,
+// and applied to, KIDS_DB_NAME; every other column against the main DB.
 const COLUMN_PLAN = [
   // school_setup: module gate (default 0 = feature off — non-breaking)
   ['school_setup', 'kids_stand_alone', 'TINYINT(1) NOT NULL DEFAULT 0'],
   ['school_setup', 'kids_url', 'VARCHAR(50) NULL DEFAULT NULL'],
-  ['kids_lessons', 'is_global', 'TINYINT(1) NOT NULL DEFAULT 0'],
-  // Docs 12-17: Denormalized tier/category/item_id on game configs for PedagogyValidator queries
-  ['kids_game_configs', 'item_id', 'VARCHAR(50) NULL DEFAULT NULL'],
-  ['kids_game_configs', 'tier', 'INT NULL DEFAULT NULL'],
-  ['kids_game_configs', 'category', 'VARCHAR(50) NULL DEFAULT NULL'],
 ];
 
 // Data-fix UPDATEs — all scoped to NULL/missing values only.
@@ -124,11 +127,44 @@ const KIDS_CONTENT_TABLE_LIST = [
 ];
 const KIDS_AI_TABLE_LIST = ['kids_content_generation_audit'];
 
-// Addon-owned columns are reconciled in the CONTENT DB separately from the
-// shared school DB. A NULL hash preserves shared EliteSMS login by default.
+// Kids-owned columns are reconciled in KIDS_DB_NAME separately from the shared
+// school DB. A NULL hash preserves shared EliteSMS login by default.
 const CONTENT_COLUMN_PLAN = [
   ['kids_children', 'password_hash', 'VARCHAR(255) NULL DEFAULT NULL'],
+  ['kids_lessons', 'is_global', 'TINYINT(1) NOT NULL DEFAULT 0'],
+  // Docs 12-17: Denormalized tier/category/item_id on game configs for PedagogyValidator queries
+  ['kids_game_configs', 'item_id', 'VARCHAR(50) NULL DEFAULT NULL'],
+  ['kids_game_configs', 'tier', 'INT NULL DEFAULT NULL'],
+  ['kids_game_configs', 'category', 'VARCHAR(50) NULL DEFAULT NULL'],
 ];
+
+/**
+ * ALTER statements for the plan entries whose `table.column` is NOT already
+ * present. `existingKeys` is a Set/Map keyed `${table}.${column}` read from the
+ * database that OWNS the plan's tables.
+ *
+ * Pure, and exported so the ownership split is testable without a database.
+ */
+function plannedAlterStatements(plan, existingKeys) {
+  return plan
+    .filter(([table, column]) => !existingKeys.has(`${table}.${column}`))
+    .map(([table, column, ddl]) => `ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${ddl}`);
+}
+
+/**
+ * The whole column plan, resolved from what each database already has:
+ * shared-DB columns against the main DB, kids-DB columns against the kids DB.
+ *
+ * `mainExistingKeys` / `kidsExistingKeys` are Sets/Maps keyed
+ * `${table}.${column}`. Pure — and the single place both halves are produced,
+ * so neither can be referenced without being computed (the Q78 crash).
+ */
+function buildColumnPlan(mainExistingKeys, kidsExistingKeys) {
+  return {
+    addColumns: plannedAlterStatements(COLUMN_PLAN, mainExistingKeys),
+    addContentColumns: plannedAlterStatements(CONTENT_COLUMN_PLAN, kidsExistingKeys),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Main
@@ -190,7 +226,7 @@ async function main() {
   }
   log(`✅ safety check: main DB '${CFG.mainDb}' looks correct (users, school_setup, students present)`);
 
-  // ---- 2. Compute missing columns -----------------------------------------
+  // ---- 2. Compute missing columns (per owner: main DB, then kids DB) -------
   const [allCols] = await sequelize.query(
     `SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, DATA_TYPE
      FROM information_schema.COLUMNS
@@ -200,8 +236,19 @@ async function main() {
   const existing = new Map();
   for (const c of allCols) existing.set(`${c.TABLE_NAME}.${c.COLUMN_NAME}`, c);
 
-  const addColumns = COLUMN_PLAN.filter(([t, c]) => !existing.has(`${t}.${c}`))
-    .map(([t, c, ddl]) => `ALTER TABLE \`${t}\` ADD COLUMN \`${c}\` ${ddl}`);
+  // Kids-owned columns are read from the kids DB — the main DB does not have
+  // these tables at all. Without this second lookup every kids column looks
+  // missing and gets planned against the shared DB, which always fails.
+  const [allKidsCols] = await content.query(
+    `SELECT TABLE_NAME, COLUMN_NAME
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (:tables)`,
+    { replacements: { tables: [...new Set(CONTENT_COLUMN_PLAN.map((c) => c[0]))] } }
+  );
+  const existingKidsColumns = new Map();
+  for (const c of allKidsCols) existingKidsColumns.set(`${c.TABLE_NAME}.${c.COLUMN_NAME}`, c);
+
+  const { addColumns, addContentColumns } = buildColumnPlan(existing, existingKidsColumns);
 
   // ---- 3. Data steps (guard column deps) ----------------------------------
   const dataSteps = SKIP_DATA ? [] : DATA_STEPS.filter(([, , deps]) =>
@@ -351,10 +398,25 @@ async function main() {
   log(`   Log: ${LOG_FILE}`);
 }
 
-main()
-  .then(() => { flushLog(); process.exit(process.exitCode || 0); })
-  .catch((e) => {
-    console.error('Unhandled error:', e);
-    flushLog();
-    process.exit(1);
-  });
+if (require.main === module) {
+  main()
+    .then(() => { flushLog(); process.exit(process.exitCode || 0); })
+    .catch((e) => {
+      console.error('Unhandled error:', e);
+      flushLog();
+      process.exit(1);
+    });
+}
+
+// Exported for the ownership/plan tests. Requiring this module has no side
+// effects beyond loading .env (dotenv never overrides already-set variables).
+module.exports = {
+  COLUMN_PLAN,
+  CONTENT_COLUMN_PLAN,
+  DATA_STEPS,
+  KIDS_CONTENT_TABLE_LIST,
+  KIDS_AI_TABLE_LIST,
+  plannedAlterStatements,
+  buildColumnPlan,
+  CFG,
+};
