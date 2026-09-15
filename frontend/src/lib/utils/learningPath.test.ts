@@ -43,15 +43,36 @@ const unit = (over: Partial<PathUnit> & { unit_id: string }): PathUnit => ({
 });
 
 describe('classToAgeLevel', () => {
+  it('returns the canonical NERDC band, not a legacy storage label', () => {
+    // The whole point of the 2026-09-15 fix: the value returned here is ranked
+    // against kids_lessons.age_level, which stores NERDC labels.
+    expect(classToAgeLevel('Nursery 1')).toBe('Nursery 1');
+    expect(classToAgeLevel('Nursery 2')).toBe('Nursery 2');
+    expect(classToAgeLevel('Crèche')).toBe('Crèche'); // accent-folded, not "cr che"
+    expect(classToAgeLevel('Creche 1')).toBe('Crèche');
+  });
+
+  it('ranks a live Nursery 1 class so the global catalog stays visible', () => {
+    // Live case (2026-09-15): adm_no Demo5, class "Nursery 1", 1085 published
+    // global lessons on the wire, PLAY showed 0.
+    expect(bandRank(classToAgeLevel('Nursery 1') || '')).toBe(2);
+    expect(bandRank(classToAgeLevel('Nursery 2') || '')).toBe(3);
+    expect(bandRank(classToAgeLevel('Kindergarten') || '')).toBe(4);
+    expect(bandRank(classToAgeLevel('Primary 3') || '')).toBe(5);
+  });
+
+  it('never ranks a class above the band the server reads from it', () => {
+    // Nursery 2 must NOT unlock Kindergarten; only a Kindergarten class may.
+    expect(classToAgeLevel('Pre-Nursery A')).toBe('Playgroup');
+    expect(classToAgeLevel('KG1')).toBe('Nursery 1');
+    expect(classToAgeLevel('KG2')).toBe('Nursery 2');
+    expect(classToAgeLevel('Basic 2')).toBe('Primary');
+    expect(classToAgeLevel('Year 3')).toBe('Primary');
+  });
   it('maps Northern Nigeria class spellings to equivalence ranks', () => {
-    expect(classToAgeLevel('Creche 1')).toBe('Creche');
-    expect(classToAgeLevel('Pre-Nursery A')).toBe('Creche');
-    expect(bandRank(classToAgeLevel('Nursery 1') || '')).toBe(1);
-    expect(classToAgeLevel('Nursery 2')).toBe('KG2'); // rank 2
-    expect(bandRank(classToAgeLevel('Year 3') || '')).toBe(3); // 3+ → Primary rank
-    expect(classToAgeLevel('KG2 B')).toBe('KG2');
+    expect(classToAgeLevel('Creche 1')).toBe('Crèche');
+    expect(classToAgeLevel('KG2 B')).toBe('Nursery 2'); // upper KG ≡ Nursery 2
     expect(classToAgeLevel('Year 5')).toBe('Primary');
-    expect(bandRank(classToAgeLevel('Basic 2') || '')).toBe(2);
   });
 
   it('places elder classes on the LAST rank (never an empty dashboard)', () => {
@@ -68,31 +89,63 @@ describe('classToAgeLevel', () => {
 });
 
 describe('filterInBand', () => {
-  const lessons = [
+  // The live shape: the global catalog stores NERDC labels.
+  const nerdc = [
+    { id: 'creche', age_level: 'Crèche' },
+    { id: 'pg', age_level: 'Playgroup' },
+    { id: 'n1', age_level: 'Nursery 1' },
+    { id: 'n2', age_level: 'Nursery 2' },
+    { id: 'kg', age_level: 'Kindergarten' },
+    { id: 'pr', age_level: 'Primary' },
+    { id: 'noage' },
+  ];
+
+  // A catalogs cached by an older build before the NERDC migration.
+  const legacy = [
     { id: 'a', age_level: 'Nursery' },
     { id: 'b', age_level: 'KG1' },
     { id: 'c', age_level: 'KG2' },
     { id: 'd', age_level: 'Primary' },
-    { id: 'e' },
   ];
 
-  it('KG1 child sees only Nursery + KG1 (never above-band)', () => {
-    const out = filterInBand(lessons, 'KG1');
-    expect(out.map((l) => l.id)).toEqual(['a', 'b']);
+  it('a Nursery 1 child sees Crèche + Playgroup + Nursery 1 (the live fix)', () => {
+    expect(filterInBand(nerdc, 'Nursery 1').map((l) => l.id)).toEqual(['creche', 'pg', 'n1']);
   });
 
-  it('unknown band → empty (no fallback to all)', () => {
-    expect(filterInBand(lessons, null)).toEqual([]);
+  it('never shows a lesson above the band', () => {
+    expect(filterInBand(nerdc, 'Crèche').map((l) => l.id)).toEqual(['creche']);
+    expect(filterInBand(nerdc, 'Nursery 2').map((l) => l.id)).toEqual(['creche', 'pg', 'n1', 'n2']);
+    expect(filterInBand(nerdc, 'Kindergarten').map((l) => l.id)).toEqual(['creche', 'pg', 'n1', 'n2', 'kg']);
+    expect(filterInBand(nerdc, 'Primary').map((l) => l.id)).toEqual(['creche', 'pg', 'n1', 'n2', 'kg', 'pr']);
   });
 
-  it('rank ceiling: Nursery 1 and KG1 are interchangeable (same rank)', () => {
+  it('ranks legacy storage labels on the same ladder (Nursery ≡ Nursery 1)', () => {
+    // 0 Creche · 1 Playgroup · 2 Nursery 1 · 3 Nursery 2 · 4 Kindergarten · 5 Primary
+    expect(filterInBand(legacy, 'Nursery 1').map((l) => l.id)).toEqual(['a']);
+    expect(filterInBand(legacy, 'Nursery 2').map((l) => l.id)).toEqual(['a', 'b']);
+    expect(filterInBand(legacy, 'Kindergarten').map((l) => l.id)).toEqual(['a', 'b', 'c']);
+    expect(filterInBand(legacy, 'Primary').map((l) => l.id)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('a legacy band and its NERDC alias are interchangeable', () => {
     const both = [
       { id: 'n1', age_level: 'Nursery' },
-      { id: 'kg1', age_level: 'KG1' },
-      { id: 'kg2', age_level: 'KG2' },
+      { id: 'nerdc1', age_level: 'Nursery 1' },
+      { id: 'n2', age_level: 'Nursery 2' },
     ];
-    expect(filterInBand(both, 'Nursery').map((l) => l.id)).toEqual(['n1', 'kg1']);
-    expect(filterInBand(both, 'KG1').map((l) => l.id)).toEqual(['n1', 'kg1']);
+    expect(filterInBand(both, 'Nursery').map((l) => l.id)).toEqual(['n1', 'nerdc1']);
+    expect(filterInBand(both, 'Nursery 1').map((l) => l.id)).toEqual(['n1', 'nerdc1']);
+  });
+
+  it('drops rows whose age_level cannot be ranked', () => {
+    expect(filterInBand(nerdc, 'Primary').some((l) => l.id === 'noage')).toBe(false);
+  });
+
+  it('an unresolvable band defers to the server instead of blanking the tab', () => {
+    // The server already capped this list; its own never-empty guarantee widens
+    // to every band when it cannot read a class either.
+    expect(filterInBand(nerdc, null)).toEqual(nerdc);
+    expect(filterInBand(nerdc, 'Decorative Class Name')).toEqual(nerdc);
   });
 });
 

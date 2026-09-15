@@ -48,7 +48,7 @@ import {
   classToAgeLevel,
   filterInBand,
   flattenUnits,
-  nerdcBandToAgeLevel,
+  normalizeBand,
   type GameMode,
   type LearningPathData,
   type WeeklyGoal,
@@ -517,10 +517,13 @@ export default function StudentHome() {
   // Band source depends on the student type (mirrors the server):
   //   flagship kids — the placement result is the measure (outranks class_name);
   //   every other kid — class_name → classToAgeLevel, exactly as before.
+  // Both branches yield a canonical NERDC band, the same vocabulary the lesson
+  // rows carry — no legacy/storage round-trip (that conversion is what let the
+  // ceiling and the catalog disagree and blanked PLAY for Nursery children).
   const studentBand = useMemo(() => {
     if (placement.placed && placement.nerdc_band) {
-      const legacy = nerdcBandToAgeLevel(placement.nerdc_band);
-      if (legacy) return legacy;
+      const placed = normalizeBand(placement.nerdc_band);
+      if (placed) return placed;
     }
     return classToAgeLevel(student?.class_name);
   }, [placement.placed, placement.nerdc_band, student?.class_name]);

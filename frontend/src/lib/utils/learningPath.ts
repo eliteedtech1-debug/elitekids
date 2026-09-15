@@ -66,99 +66,148 @@ export type GameMode = 'learning' | 'practice' | 'test';
 /* Mirrors the server-side resolver (backend/src/services/ageBand.js) so the
    offline catalog / subject tabs can never widen a child's band.
 
-   EQUIVALENCE RANKS (Northern Nigeria — product decision): the five storage
-   labels collapse into four ranks — rank 0 Creche≡Pre-Nursery, rank 1
-   Nursery≡Nursery 1≡KG1, rank 2 KG2≡Nursery 2, rank 3 Primary (incl. elder
-   classes JSS/SSS/islamiyya → remedial/last rank, never an empty dashboard). */
+   ONE LADDER, TWO VOCABULARIES. The rank is the position on the canonical
+   NERDC six-band ladder (backend BAND_RANKS), because that is what the global
+   catalog stores in kids_lessons.age_level and what the server's
+   visibleLevels() ceiling compares against. The five legacy storage labels are
+   accepted as aliases of the NERDC band they name (backend NERDC_TO_PLATFORM:
+   Nursery→Nursery 1, KG1→Nursery 2, KG2→Kindergarten) so catalogs cached by
+   older builds still rank.
+
+   0 Crèche · 1 Playgroup · 2 Nursery 1 · 3 Nursery 2 · 4 Kindergarten ·
+   5 Primary (incl. elder classes JSS/SSS/islamiyya → last rank, never an empty
+   dashboard). Rank -1 = unknown label → never visible.
+
+   2026-09-15: ranking lesson rows on the OLD five-value ladder returned -1 for
+   every NERDC label, so a Nursery 1 child saw 0 of the server's 1085 lessons
+   (only "Primary" is spelled the same in both vocabularies, which is why the
+   bug hid from the Primary test child). */
 
 export const AGE_BANDS = ['Creche', 'Nursery', 'KG1', 'KG2', 'Primary'] as const;
 export type AgeBand = (typeof AGE_BANDS)[number];
 
-/** Equivalence rank per storage label. Two labels can share a rank. */
-export const BAND_RANKS: Record<AgeBand, number> = {
+/** Canonical NERDC rank per accepted label (0 = youngest, 5 = Primary). */
+export const BAND_RANKS: Record<string, number> = {
+  // NERDC labels — what lesson rows carry
+  'Crèche': 0,
   Creche: 0,
-  Nursery: 1,
-  KG1: 1,
-  KG2: 2,
-  Primary: 3,
+  Playgroup: 1,
+  'Nursery 1': 2,
+  'Nursery 2': 3,
+  Kindergarten: 4,
+  Primary: 5,
+  // legacy storage labels → the NERDC band each one names
+  Nursery: 2,
+  KG1: 3,
+  KG2: 4,
 };
 
-/** Equivalence rank of a band label, or -1 when unknown. */
+/** Canonical NERDC rank of a band label (either vocabulary), or -1. */
 export function bandRank(band: string): number {
-  const r = BAND_RANKS[band as AgeBand];
+  const r = BAND_RANKS[String(band || '').trim()];
   return Number.isInteger(r) ? r : -1;
 }
 
-/** Map a student's class_name to the lesson age_level category. */
-export function classToAgeLevel(className: string | null | undefined): AgeBand | null {
+/**
+ * Map a student's class_name to its canonical NERDC band.
+ *
+ * Mirrors backend/src/services/ageBand.js#classToAgeLevel rule-for-rule (same
+ * order, same numbers) so the client ceiling can never disagree with the
+ * server's: a class the server reads as Nursery 1 must be Nursery 1 here too.
+ */
+export function classToAgeLevel(className: string | null | undefined): NerdcBand | null {
   if (!className) return null;
   const raw = className.trim();
   const normalized = raw
+    // Accent-fold FIRST (as the server does): real schools have classes named
+    // "Crèche", and the punctuation strip below would otherwise flatten it to
+    // "cr che" and lose the band completely.
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/cls\d+/g, '')
     .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/(\d)(?=[a-z])/g, '$1 ') // "Nursery2A" → "nursery 2 a"
     .replace(/\s+/g, ' ')
     .trim();
 
   if (!normalized) return null;
 
-  // Rank 0 — Creche ≡ Pre-Nursery (checked first: contains "nursery").
-  if (/creche|pre ?nursery|pre ?school|day ?care/.test(normalized)) return 'Creche';
-  // Explicit Primary keywords beat trailing numbers ("Primary 2" is Primary).
+  // Elder/secondary + Islamiyya vocabulary first → LAST rank (remedial door).
+  if (/\bjss\b|\bjss\s*\d|\bsss\b|\bsss\s*\d|\bss\s*\d|junior\s*sec|senior\s*sec|secondary|college|polytechnic|tertiary/.test(normalized)) return 'Primary';
+  // "Basic 1-6 ≡ Primary 1-6, Basic 7-9 ≡ JSS" — the server lands every Basic
+  // form on the last rank.
+  if (/\bbasic\s*\d/.test(normalized)) return 'Primary';
   if (/primar|element/.test(normalized)) return 'Primary';
-
-  const basicMatch = normalized.match(/\bbasic\s*(\d+)/);
-  if (basicMatch) {
-    const num = parseInt(basicMatch[1]);
-    if (num <= 1) return 'Nursery'; // rank 1
-    if (num <= 2) return 'KG2'; // rank 2
-    return 'Primary'; // rank 3
-  }
-
-  // Rank 2 — Nursery 2 ≡ KG2 (numbered forms BEFORE generic keywords).
-  if (/\b(?:nursery|nurs|nu)\s*2\b/.test(normalized)) return 'KG2';
-  if (/\bkg\s*2\b|kindergarten\s*2/.test(normalized)) return 'KG2';
-
-  // Rank 1 — Nursery 1 ≡ KG1.
-  if (/\b(?:nursery|nurs|nu)\s*1\b/.test(normalized)) return 'Nursery';
-  if (/\bkg\s*1\b|kindergarten\s*1/.test(normalized)) return 'KG1';
-
-  // Generic nursery / kg (no number) → rank 1.
-  if (/nursery|nurs|\bnu\b|toddler|baby|infant/.test(normalized)) return 'Nursery';
-  if (/\bkg\b|kindergarten/.test(normalized)) return 'KG1';
-
-  // Elder classes → LAST rank (remedial/last-rank door, never empty).
-  if (/\bjss\s*\d|\bsss\s*\d|\bss\s*\d|junior|senior|secondary|college|polytechnic|tertiary/.test(normalized)) return 'Primary';
   if (/hadana|hifz|huffaz|halkat|islamiyya|islamic|madrasa|madrasah|tarbiyah|quran|koran|tajweed/.test(normalized)) return 'Primary';
 
-  // Generic numbered ladder: Class N ≈ rank N (never Creche — Pre-Nursery is
-  // explicit vocabulary only). "Primary N" already matched above.
+  // Playgroup — the pre-* family, BEFORE the generic nursery/kindergarten
+  // keywords ("Pre-Nursery A" contains "nursery").
+  if (/play ?group|\bpg\b|pre ?nursery|pre ?school|pre ?kindergarten|pre ?kg/.test(normalized)) return 'Playgroup';
+
+  // Kindergarten — numbered KG-style forms stay narrow, as on the server.
+  if (/\bkindergarten\s*1\b/.test(normalized)) return 'Nursery 1'; // ≡ KG1
+  if (/\bkindergarten\s*2\b/.test(normalized)) return 'Nursery 2'; // ≡ KG2
+  if (/kindergarten|kindergarden|reception|\bprep\b/.test(normalized)) return 'Kindergarten';
+
+  // Nursery 2 / upper KG (numbered forms BEFORE generic keywords).
+  if (/\b(?:nursery|nurs|nu)\s*2\b/.test(normalized)) return 'Nursery 2';
+  if (/\bkg\s*2\b|upper ?kg|\bukg\b/.test(normalized)) return 'Nursery 2';
+
+  // Third nursery year ≈ Kindergarten.
+  if (/\b(?:nursery|nurs|nu)\s*3\b/.test(normalized)) return 'Kindergarten';
+
+  // Nursery 1 / lower KG.
+  if (/\b(?:nursery|nurs|nu)\s*1\b/.test(normalized)) return 'Nursery 1';
+  if (/\bkg\s*1\b|lower ?kg|\blkg\b/.test(normalized)) return 'Nursery 1';
+
+  // Crèche.
+  if (/creche|crech|day ?care|baby|infant|toddler/.test(normalized)) return 'Crèche';
+
+  // Generic nursery / KG with no number → the commonest entry point.
+  if (/nursery|nurs|\bnu\b|\bkg\b/.test(normalized)) return 'Nursery 1';
+
+  // Generic numbered ladder: Class/Year/Grade/Level N — 1 ≈ Nursery 1,
+  // 2 ≈ Nursery 2, ≥3 ≈ Primary (never Crèche: Pre-Nursery is explicit vocab).
   const levelMatch = normalized.match(/\b(?:level|class|grade|form|std|standard|year|stage)\s*(\d+)/);
   if (levelMatch) {
-    const num = parseInt(levelMatch[1]);
-    if (num <= 1) return 'Nursery'; // rank 1
-    if (num <= 2) return 'KG2'; // rank 2
-    return 'Primary'; // rank 3
+    const num = parseInt(levelMatch[1], 10);
+    if (num <= 1) return 'Nursery 1';
+    if (num === 2) return 'Nursery 2';
+    return 'Primary';
   }
 
   const bareNum = normalized.match(/(\d+)\s*$/);
   if (bareNum) {
-    const num = parseInt(bareNum[1]);
-    if (num <= 1) return 'Nursery'; // rank 1
-    if (num <= 2) return 'KG2'; // rank 2
-    return 'Primary'; // rank 3
+    const num = parseInt(bareNum[1], 10);
+    if (num <= 1) return 'Nursery 1';
+    if (num === 2) return 'Nursery 2';
+    return 'Primary';
   }
 
-  if (/pre/.test(normalized)) return 'Creche';
+  if (/pre/.test(normalized)) return 'Playgroup';
 
   return null;
 }
 
-/** Lessons at-or-below the child's band (never above). */
-export function filterInBand<T extends { age_level?: string }>(lessons: T[], band: AgeBand | null): T[] {
-  if (!band) return [];
-  const max = bandRank(band);
-  if (max === -1) return [];
+/**
+ * Lessons at-or-below the child's band (never above).
+ *
+ * `band` may be a canonical NERDC label (what the server resolves from
+ * class_name) or a legacy storage label; lesson rows may carry either, so both
+ * sides are ranked on the SAME canonical ladder.
+ *
+ * An unresolvable band does NOT filter: the list came from a catalog the
+ * server already capped, and the server's own never-empty guarantee widens to
+ * every band when it cannot read a class either. Returning [] there is what
+ * turned "the API sent 1085 lessons" into a blank PLAY tab (2026-09-15).
+ */
+export function filterInBand<T extends { age_level?: string }>(
+  lessons: T[],
+  band: string | null | undefined,
+): T[] {
+  const max = bandRank(band || '');
+  if (max === -1) return lessons;
   return lessons.filter((l) => {
     const r = bandRank(l.age_level || '');
     return r !== -1 && r <= max;
@@ -174,6 +223,19 @@ export function filterInBand<T extends { age_level?: string }>(lessons: T[], ban
 
 /** Canonical NERDC Early-Childhood labels in ascending order (backend AGE_BANDS). */
 export const NERDC_AGE_BANDS = ['Crèche', 'Playgroup', 'Nursery 1', 'Nursery 2', 'Kindergarten', 'Primary'] as const;
+export type NerdcBand = (typeof NERDC_AGE_BANDS)[number];
+
+/**
+ * Coerce any accepted label (canonical NERDC, or a legacy storage value) to the
+ * canonical NERDC band. Used for server-supplied bands — e.g. the placement
+ * quiz result, which arrives as a NERDC label and needs no lossy conversion.
+ */
+export function normalizeBand(band: string | null | undefined): NerdcBand | null {
+  const value = String(band || '').trim();
+  if ((NERDC_AGE_BANDS as readonly string[]).includes(value)) return value as NerdcBand;
+  const rank = bandRank(value);
+  return rank === -1 ? null : NERDC_AGE_BANDS[rank];
+}
 
 /** Canonical NERDC band → legacy storage label (backend NERDC_TO_PLATFORM). */
 const NERDC_TO_LEGACY: Record<string, AgeBand> = {
