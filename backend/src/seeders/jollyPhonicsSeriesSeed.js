@@ -42,25 +42,32 @@ const UNITS = [
     id: 'unit-jp-u1', unit_number: 1, title: 'Sound Friends: s a t i p n',
     age: 'Creche', tier: 0, prereq: null,
     objective: 'Exposure to Group 1 letter shapes with their phonic sounds (multi-sensory, no wrong answers).',
+    assessment: 'adult observation',
     xp: 20, threshold: 50, duration: 120,
     games: [
       {
         key: 'tap', template: 'tap-recognition', domain: 'cognitive',
         itemTitle: 'Tap Your Sound Friends',
-        prompt: 'Tap the letter I say!',
+        prompt: 'Listen to the sound, then tap its letter.',
+        speechText: 'Tobi will make a sound. Listen, then tap the letter that matches.',
+        promptMode: 'audio',
+        inputMode: 'tap',
         items: [
-          letterItem('s', '#2E8B57'),
-          letterItem('a', '#FF6B35'),
-          letterItem('t', '#4A90D9'),
-          letterItem('i', '#8B4513'),
-          letterItem('p', '#946BDE'),
-          letterItem('n', '#2F8F83'),
+          { id: 's', ...letterItem('s', '#2E8B57'), sound: 'sss' },
+          { id: 'a', ...letterItem('a', '#FF6B35'), sound: 'a' },
+          { id: 't', ...letterItem('t', '#4A90D9'), sound: 't' },
+          { id: 'i', ...letterItem('i', '#8B4513'), sound: 'i' },
+          { id: 'p', ...letterItem('p', '#946BDE'), sound: 'p' },
+          { id: 'n', ...letterItem('n', '#2F8F83'), sound: 'nnn' },
         ],
+        correctId: 's',
         responseMode: 'text',
       },
       {
         key: 'match', template: 'matching', domain: 'cognitive',
         itemTitle: 'Match Sounds to Pictures',
+        scenario: 'Tobi is looking at familiar picture cards with an adult. Match each sound to its picture.',
+        speechText: 'Tobi is looking at picture cards. Match each sound to its picture with an adult.',
         pairs: [
           { a: 's', b: '☀️ Sun' },
           { a: 'a', b: '🐜 Ant' },
@@ -73,6 +80,8 @@ const UNITS = [
       {
         key: 'sort', template: 'drag-sort', domain: 'psychomotor',
         itemTitle: 'Order Your First Sounds',
+        scenario: 'Tobi and an adult are looking at six sound cards together.',
+        speechText: 'Tobi is looking at sound cards. An adult can help put them in teaching order.',
         context: 'Put the Group 1 sounds in teaching order.',
         items: [
           { num: 1, label: 's' }, { num: 2, label: 'a' }, { num: 3, label: 't' },
@@ -92,19 +101,23 @@ const UNITS = [
         itemTitle: 'Listen and Tap the Sound',
         prompt: 'Listen… then tap the letter I say!',
         items: [
-          letterItem('c', '#D94A4A'),
-          letterItem('k', '#4A90D9'),
-          letterItem('e', '#2E8B57'),
-          letterItem('h', '#8B4513'),
-          letterItem('r', '#FF6B35'),
-          letterItem('m', '#946BDE'),
-          letterItem('d', '#2F8F83'),
+          { id: 'c', ...letterItem('c', '#D94A4A') },
+          { id: 'k', ...letterItem('k', '#4A90D9') },
+          { id: 'e', ...letterItem('e', '#2E8B57') },
+          { id: 'h', ...letterItem('h', '#8B4513') },
+          { id: 'r', ...letterItem('r', '#FF6B35') },
+          { id: 'm', ...letterItem('m', '#946BDE') },
+          { id: 'd', ...letterItem('d', '#2F8F83') },
         ],
+        inputMode: 'tap',
+        correctId: 'c',
         responseMode: 'text',
       },
       {
         key: 'match', template: 'matching', domain: 'cognitive',
         itemTitle: 'Match Sounds to Pictures',
+        scenario: 'Tobi is looking at familiar picture cards with an adult. Match each sound to its picture.',
+        speechText: 'Tobi is looking at picture cards. Match each sound to its picture with an adult.',
         pairs: [
           { a: 'c', b: '🐱 Cat' },
           { a: 'k', b: '🪁 Kite' },
@@ -438,7 +451,25 @@ const UNITS = [
   },
 ];
 
+function buildCrechePhonicsRounds(items) {
+  const options = items.map((item) => ({
+    id: String(item.id),
+    label: item.label,
+    color: item.color,
+    sound: item.sound,
+  }));
+  return items.map((target) => ({
+    id: `sound-${target.id}`,
+    story: 'Tobi is listening with an adult.',
+    question: 'Listen to the sound. Which letter matches?',
+    speechText: `Tobi says the ${target.sound} sound. Tap the letter that matches.`,
+    items: options,
+    correctId: String(target.id),
+  }));
+}
+
 function buildConfig(unit, game) {
+  const isCrechePhonicsTap = unit.unit_number === 1 && game.template === 'tap-recognition';
   return {
     gameId: `gc-jp-${unit.unit_number}-${game.key}`,
     template: game.template,
@@ -456,9 +487,15 @@ function buildConfig(unit, game) {
     durationTargetSec: unit.duration,
     ...(game.prompt ? { prompt: game.prompt } : {}),
     ...(game.context ? { context: game.context } : {}),
+    ...(game.scenario ? { scenario: game.scenario } : {}),
+    ...(game.speechText ? { speechText: game.speechText } : {}),
+    ...(unit.assessment ? { assessment: unit.assessment } : {}),
     ...(game.promptMode ? { promptMode: game.promptMode } : {}),
     ...(game.responseMode ? { responseMode: game.responseMode } : {}),
+    ...(game.inputMode ? { inputMode: game.inputMode } : {}),
+    ...(game.correctId ? { correctId: game.correctId } : {}),
     ...(game.items ? { items: game.items } : {}),
+    ...(isCrechePhonicsTap ? { rounds: buildCrechePhonicsRounds(game.items) } : {}),
     ...(game.pairs ? { pairs: game.pairs } : {}),
     ...(game.questions ? { questions: game.questions } : {}),
     ...(game.sentences ? { sentences: game.sentences } : {}),
@@ -470,7 +507,7 @@ async function upsert(model, pk, values) {
   return row;
 }
 
-(async () => {
+if (require.main === module) (async () => {
   try {
     await db.content.authenticate();
 
@@ -558,3 +595,5 @@ async function upsert(model, pk, values) {
     process.exit(1);
   }
 })();
+
+module.exports = { UNITS, buildConfig, buildCrechePhonicsRounds };

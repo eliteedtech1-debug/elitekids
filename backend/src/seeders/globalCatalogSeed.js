@@ -16,10 +16,17 @@ const { v4: uuidv4 } = require('uuid');
 
 const SCHOOL = { school_id: 'SCH-ELITE', branch_id: 'BR-MAIN', created_by: 'SYSTEM' };
 
-const q = (id, prompt, labels, correctIndex) => ({
+const q = (id, prompt, labels, correctIndex, scenario) => ({
   id,
   prompt,
-  options: labels.map((label, i) => ({ id: `${id}-o${i}`, label })),
+  ...(scenario ? { scenario, speechText: `${scenario} ${prompt}` } : {}),
+  options: labels.map((label, i) => ({
+    id: `${id}-o${i}`,
+    label,
+    // Keep the visual cue separate from the readable label so a Crèche
+    // round can render picture choices without requiring reading.
+    emoji: String(label).split(' ')[0],
+  })),
   correctIndex,
 });
 
@@ -35,11 +42,11 @@ const CATALOG = [
     lesson_age_level: 'Creche',
     game_age_level: 'Creche',
     questions: [
-      q('c1', 'Which one is RED?', ['🍎 Apple', '🥬 Leaf', '🌊 Sea', '☁️ Cloud'], 0),
-      q('c2', 'Which one is GREEN?', ['🍎 Apple', '🥬 Leaf', '🌞 Sun', '🍌 Banana'], 1),
-      q('c3', 'Which one is YELLOW?', ['🐸 Frog', '🍇 Grape', '🌞 Sun', '🐻 Bear'], 2),
-      q('c4', 'Which one is BLUE?', ['🌊 Sea', '🔥 Fire', '🌳 Tree', '🍌 Banana'], 0),
-      q('c5', 'Tap the WHITE one', ['☁️ Cloud', 'coal ⚫', 'grass 🌿', 'cheese 🧀'], 0),
+      q('c1', 'Which one is RED?', ['🍎 Apple', '🥬 Leaf', '🌊 Sea', '☁️ Cloud'], 0, 'Tobi sees four things on the table.'),
+      q('c2', 'Which one is GREEN?', ['🍎 Apple', '🥬 Leaf', '🌞 Sun', '🍌 Banana'], 1, 'Tobi is looking at colours in the garden.'),
+      q('c3', 'Which one is YELLOW?', ['🐸 Frog', '🍇 Grape', '🌞 Sun', '🐻 Bear'], 2, 'Tobi points to things he can see outside.'),
+      q('c4', 'Which one is BLUE?', ['🌊 Sea', '🔥 Fire', '🌳 Tree', '🍌 Banana'], 0, 'Tobi looks around and notices different colours.'),
+      q('c5', 'Which picture is white?', ['☁️ Cloud', '⚫ Coal', '🌿 Grass', '🧀 Cheese'], 0, 'Tobi is finding a white thing.'),
     ],
   },
   {
@@ -49,11 +56,11 @@ const CATALOG = [
     lesson_age_level: 'Creche',
     game_age_level: 'Creche',
     questions: [
-      q('pg1', 'Which sound is LOUD? 🔊', ['Whisper', 'Thunder', 'Murmur', 'Tick'], 1),
-      q('pg2', 'Clap your hands — which is TWO claps? 👏👏', ['👏', '👏👏', '👏👏👏', '👏👏👏👏'], 1),
-      q('pg3', 'Which one makes a sound? 🔇', ['A stone', 'A drum', 'A feather', 'Cotton'], 1),
-      q('pg4', 'Listen: 🐶 — that is a…', ['Cat', 'Dog', 'Bird', 'Fish'], 1),
-      q('pg5', 'Which is QUIETER? 🤫', ['Shout', 'Whisper', 'Scream', 'Bang'], 1),
+      q('pg1', 'Which picture shows a loud sound?', ['🤫 Whisper', '⛈️ Thunder', '🤭 Murmur', '⏰ Tick'], 1, 'Tobi looks at four pictures with Mama.'),
+      q('pg2', 'Which picture shows two claps?', ['👏', '👏👏', '👏👏👏', '👏👏👏👏'], 1, 'Tobi claps with Mama.'),
+      q('pg3', 'Which picture shows the drum?', ['🪨 Stone', '🥁 Drum', '🪶 Feather', '☁️ Cotton'], 1, 'Tobi looks at four safe objects with Mama.'),
+      q('pg4', 'Which picture shows the dog?', ['🐱 Cat', '🐶 Dog', '🐦 Bird', '🐟 Fish'], 1, 'Tobi looks at four animal pictures with Mama.'),
+      q('pg5', 'Which picture shows a quiet sound?', ['📣 Shout', '🤫 Whisper', '😱 Scream', '💥 Bang'], 1, 'Tobi looks at four sound pictures with Mama.'),
     ],
   },
   {
@@ -142,6 +149,18 @@ const CATALOG = [
   },
 ];
 
+function buildCatalogConfig(entry) {
+  return {
+    promptMode: entry.game_age_level === 'Creche' ? 'context' : 'text',
+    responseMode: entry.game_age_level === 'Creche' ? 'image' : 'text',
+    ...(entry.game_age_level === 'Creche' ? {
+      assessment: 'adult observation',
+      inputMode: 'tap',
+    } : {}),
+    questions: entry.questions,
+  };
+}
+
 async function ensureGlobalCatalog() {
   const db = require('../models');
   const { Op } = db.Sequelize;
@@ -177,7 +196,7 @@ async function ensureGlobalCatalog() {
     // ── Quiz game config (one per lesson) ──
     const gameId = `${entry.lessonId}-quiz`;
     const gameExisting = await db.KidGameConfig.findOne({ where: { id: gameId } });
-    const config_json = { questions: entry.questions };
+    const config_json = buildCatalogConfig(entry);
     if (!gameExisting) {
       await db.KidGameConfig.create({
         id: gameId,
@@ -195,6 +214,13 @@ async function ensureGlobalCatalog() {
       const updates = {};
       if (gameExisting.content_state !== 'published') updates.content_state = 'published';
       if (gameExisting.age_level !== entry.game_age_level) updates.age_level = entry.game_age_level;
+      // Fixed catalog rows are owned by this seeder. Converge their JSON too,
+      // so a source repair also fixes an already-created global game on the
+      // next idempotent boot instead of changing only future inserts.
+      const config_json = buildCatalogConfig(entry);
+      if (JSON.stringify(gameExisting.config_json || {}) !== JSON.stringify(config_json)) {
+        updates.config_json = config_json;
+      }
       if (Object.keys(updates).length > 0) await gameExisting.update(updates);
     }
   }
@@ -202,4 +228,4 @@ async function ensureGlobalCatalog() {
   return { createdLessons, createdGames, total: CATALOG.length };
 }
 
-module.exports = { ensureGlobalCatalog, CATALOG };
+module.exports = { ensureGlobalCatalog, CATALOG, buildCatalogConfig };

@@ -986,7 +986,8 @@ function toRuntimeGameConfig(cfg) {
   // tap-recognition: schema objects → ordered tap rounds (each item is one round's target)
   if (cfg.template === 'tap-recognition' && !Array.isArray(out.items) && Array.isArray(assets.objects)) {
     const items = assets.objects
-      .map((o) => ({
+      .map((o, index) => ({
+        id: String(o.id || `tap-option-${index + 1}`),
         label: o.label,
         color: o.color,
         emoji: o.emoji,
@@ -994,7 +995,15 @@ function toRuntimeGameConfig(cfg) {
         audio: o.audio,
       }))
       .filter((o) => o.label || o.emoji || o.image);
-    if (items.length >= 2) out.items = items;
+    if (items.length >= 2) {
+      out.items = items;
+      if (!out.correctId && assets.correctId) out.correctId = String(assets.correctId);
+      if (!out.audio && typeof assets.promptAudio === 'string') {
+        const promptAudio = assets.promptAudio.trim();
+        const isAudioUrl = ['http://', 'https://', '/', 'media/', 'data:', 'blob:'].some((prefix) => promptAudio.toLowerCase().startsWith(prefix));
+        if (isAudioUrl) out.audio = promptAudio;
+      }
+    }
   }
 
   // drag-sort: bucket configs have no meaningful runtime order — degrade to a
@@ -1010,6 +1019,9 @@ function toRuntimeGameConfig(cfg) {
 
   return out;
 }
+
+/** Exported for deterministic adapter tests and content audits. */
+module.exports.toRuntimeGameConfig = toRuntimeGameConfig;
 
 /** GET /kids/lessons/:id/game — CHILD-FACING: published game config only.
  * Resolves global platform lessons for any school.
@@ -1678,6 +1690,7 @@ module.exports = {
   createLesson,
   createLessonManual,
   getPublishedGame,
+  toRuntimeGameConfig,
   getGamePreview,
   getPublishedScenes,
   getGenerationJob,

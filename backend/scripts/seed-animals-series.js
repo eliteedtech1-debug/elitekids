@@ -36,6 +36,50 @@ const SCHOOL_ID = 'SCH-TEST';
 const BRANCH_ID = 'BR-TEST';
 const CREATED_BY = 'system-seed';
 
+const CRECHE_TAP_STORIES = {
+  1: {
+    story: 'Mama is at the farm with Tobi. Tobi hears a cow say moo.',
+    question: 'Which animal says moo?',
+    target: 'cow',
+  },
+  2: {
+    story: 'Tobi is visiting the forest. He sees a lion and hears a loud roar.',
+    question: 'Which animal says roar?',
+    target: 'lion',
+  },
+  3: {
+    story: 'Tobi is helping the animals find their homes. The cow rests in a barn.',
+    question: 'Where does the cow rest?',
+    target: 'barn',
+  },
+  4: {
+    story: 'A baby calf is looking for its parent. Tobi sees a cow nearby.',
+    question: 'Who is the calf’s parent?',
+    target: 'cow-calf',
+  },
+  5: {
+    story: 'Tobi watches a bird move through the sky. The bird can fly.',
+    question: 'Which picture shows flying?',
+    target: 'fly',
+  },
+};
+
+function emojiImage(emoji) {
+  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180" viewBox="0 0 240 180"><rect width="240" height="180" rx="20" fill="#EAF3FF"/><text x="120" y="100" text-anchor="middle" font-size="64">${emoji}</text></svg>`)}`;
+}
+
+const CRECHE_FALLBACK_ACTIVITY = {
+  story: 'Tobi looks at animal picture cards with Mama. He points to an animal and smiles.',
+  question: 'Which picture shows an animal?',
+  target: 'cow',
+  options: [
+    { id: 'cow', label: 'Cow', emoji: '🐄' },
+    { id: 'ball', label: 'Ball', emoji: '⚽' },
+    { id: 'cup', label: 'Cup', emoji: '🥤' },
+    { id: 'book', label: 'Book', emoji: '📘' },
+  ],
+};
+
 const UNITS = [
   { number: 1, title: 'Farm Animals — Identity & Sound', templates: ['matching', 'tap-recognition', 'drag-sort', 'fill-in-blank'], ageBands: ['creche', 'nursery', 'kg1', 'kg2', 'primary'],
     items: [{ id: 'cow', label: 'Cow', emoji: '🐄', sound: 'Moo' }, { id: 'goat', label: 'Goat', emoji: '🐐', sound: 'Bleat' }, { id: 'chicken', label: 'Chicken', emoji: '🐔', sound: 'Cluck' }, { id: 'sheep', label: 'Sheep', emoji: '🐑', sound: 'Baa' }, { id: 'dog', label: 'Dog', emoji: '🐕', sound: 'Bark' }] },
@@ -60,16 +104,126 @@ function defaultAffective(ageBand) {
   return { encouragementVoiceLines: lines[ageBand] || lines.kg1, retryPenalty: false, celebrationOnAttempt: true };
 }
 
+function templatesForAge(unit, ageBand) {
+  // Crèche is exposure/observation-led: do not seed a text fill-in task that
+  // requires reading or spelling. The same unit remains available to older
+  // bands through its normal template list.
+  return unit.templates.filter((template) => !(ageBand === 'creche' && template === 'fill-in-blank'));
+}
+
 function genConfig(unit, ageBand, template) {
   const ab = AGE_BANDS.find((a) => a.key === ageBand);
   const items = unit.items;
-  const base = { gameId: `animals-u${unit.number}-${template}-${ageBand}`, template, topic: 'Animals', unit: unit.number, ageBand, tier: ab.tier, successThresholdPct: ab.successThresholdPct, durationTargetSec: 90, interaction: { tapTargetPx: ab.tapTargetPx, dragSnapRadiusPx: ab.dragSnapRadiusPx, timedOptional: ab.timedOptional }, affective: defaultAffective(ageBand), rewards: { starsOnComplete: 3, xp: 15 } };
+  const storySource = ageBand === 'creche' ? (CRECHE_TAP_STORIES[unit.number] || CRECHE_FALLBACK_ACTIVITY) : null;
+  const crecheActivity = storySource
+    ? {
+        ...storySource,
+        options: storySource.options || items.slice(0, 5).map((item) => ({ id: item.id, label: item.label, emoji: item.emoji })),
+      }
+    : null;
+  const base = {
+    gameId: `animals-u${unit.number}-${template}-${ageBand}`,
+    template,
+    topic: 'Animals',
+    unit: unit.number,
+    ageBand,
+    tier: ab.tier,
+    successThresholdPct: ab.successThresholdPct,
+    durationTargetSec: 90,
+    interaction: { tapTargetPx: ab.tapTargetPx, dragSnapRadiusPx: ab.dragSnapRadiusPx, timedOptional: ab.timedOptional },
+    affective: defaultAffective(ageBand),
+    rewards: { starsOnComplete: 3, xp: 15 },
+    ...(crecheActivity ? {
+      scenario: crecheActivity.story,
+      story: crecheActivity.story,
+      question: crecheActivity.question,
+      speechText: `${crecheActivity.story} ${crecheActivity.question}`,
+      assessment: 'adult observation',
+      inputMode: 'tap',
+    } : {}),
+  };
 
-  if (template === 'matching') return { ...base, promptMode: 'text', responseMode: 'image', pairs: items.slice(0, 4).map((i) => ({ id: i.id, a: `${i.emoji} ${i.label}`, b: i.sound || i.label })) };
-  if (template === 'tap-recognition') { const c = items[0]; const d = items.slice(1, 4); return { ...base, promptMode: 'text', responseMode: 'image', prompt: `Tap the ${c.label}!`, context: `Find the ${c.label}`, items: [{ id: c.id, label: c.label, emoji: c.emoji }, ...d.map((x) => ({ id: x.id, label: x.label, emoji: x.emoji }))], correctId: c.id }; }
-  if (template === 'drag-sort') return { ...base, promptMode: 'text', responseMode: 'image', items: items.slice(0, 5).map((i, idx) => ({ id: i.id, label: i.label, num: idx + 1, emoji: i.emoji })) };
-  if (template === 'quiz') { const c = items[0]; return { ...base, promptMode: 'text', responseMode: 'text', question: `Which animal says ${c.sound || c.label}?`, context: '', options: items.slice(0, 4).map((i) => ({ id: i.id, label: i.label, emoji: i.emoji })), correctId: c.id }; }
-  if (template === 'fill-in-blank') { const c = items[0]; return { ...base, promptMode: 'text', responseMode: 'text', sentence: `The ${c.label.toLowerCase()} says ___.`, blanks: [{ id: 0, answer: (c.sound || c.label).toLowerCase() }], wordBank: items.map((i) => (i.sound || i.label).toLowerCase()), reflectionPrompt: ageBand === 'primary' ? { text: 'How sure were you?', scored: false } : undefined }; }
+  if (template === 'matching') return {
+    ...base,
+    promptMode: ageBand === 'creche' ? 'image' : 'text',
+    responseMode: 'text',
+    ...(ageBand === 'creche' ? { prompt: 'Match each animal picture to its name.' } : {}),
+    pairs: (ageBand === 'creche' ? crecheActivity.options : items.slice(0, 4)).map((i) => ({
+      id: i.id,
+      // Crèche sees a picture on the left and the animal name on the right.
+      // Never expose a sound label when no audio stimulus is rendered.
+      a: ageBand === 'creche' ? emojiImage(i.emoji) : `${i.emoji} ${i.label}`,
+      b: ageBand === 'creche' ? i.label : (i.sound || i.label),
+    })),
+  };
+  if (template === 'tap-recognition') {
+    const c = items[0];
+    const d = items.slice(1, 5);
+    const options = [c, ...d].map((item) => ({ id: item.id, label: item.label, emoji: item.emoji }));
+    if (ageBand === 'creche' && crecheActivity) {
+      const activity = crecheActivity;
+      return {
+        ...base,
+        promptMode: 'context',
+        responseMode: 'image',
+        inputMode: 'tap',
+        scenario: activity.story,
+        story: activity.story,
+        question: activity.question,
+        prompt: activity.question,
+        items: activity.options,
+        correctId: activity.target,
+        assessment: 'adult observation',
+      };
+    }
+    return { ...base, promptMode: 'text', responseMode: 'image', prompt: `Tap the ${c.label}!`, context: `Find the ${c.label}`, items: options, correctId: c.id };
+  }
+  if (template === 'drag-sort') {
+    const visibleItems = ageBand === 'creche'
+      ? crecheActivity.options.slice(0, 5)
+      : items.slice(0, 5);
+    const crecheOrderStory = ageBand === 'creche'
+      ? `Tobi sees ${visibleItems.map((item) => item.label.toLowerCase()).join(', then ')}.`
+      : undefined;
+    return {
+      ...base,
+      promptMode: ageBand === 'creche' ? 'context' : 'text',
+      responseMode: 'text',
+      context: ageBand === 'creche' ? `${crecheOrderStory} Put the animal cards in that order.` : undefined,
+      story: ageBand === 'creche' ? crecheOrderStory : base.story,
+      scenario: ageBand === 'creche' ? crecheOrderStory : base.scenario,
+      speechText: ageBand === 'creche' ? `${crecheOrderStory} Put the animal cards in that order.` : base.speechText,
+      items: visibleItems.map((i, idx) => ({ id: i.id, label: i.label, num: idx + 1, emoji: i.emoji })),
+    };
+  }
+  if (template === 'quiz') {
+    const c = items[0];
+    return {
+      ...base,
+      promptMode: ageBand === 'creche' ? 'context' : 'text',
+      responseMode: 'text',
+      question: ageBand === 'creche' && crecheActivity ? crecheActivity.question : `Which animal says ${c.sound || c.label}?`,
+      context: ageBand === 'creche' && crecheActivity ? crecheActivity.story : '',
+      options: ageBand === 'creche'
+        ? crecheActivity.options.slice(0, 4)
+        : items.slice(0, 4).map((i) => ({ id: i.id, label: i.label, emoji: i.emoji })),
+      correctId: ageBand === 'creche' && crecheActivity ? crecheActivity.target : c.id,
+    };
+  }
+  if (template === 'fill-in-blank') {
+    const c = items[0];
+    return {
+      ...base,
+      promptMode: ageBand === 'creche' ? 'context' : 'text',
+      responseMode: 'text',
+      sentence: ageBand === 'creche' && crecheActivity
+        ? `${crecheActivity.story} The ${c.label.toLowerCase()} says ___.`
+        : `The ${c.label.toLowerCase()} says ___.`,
+      blanks: [{ id: 0, answer: (c.sound || c.label).toLowerCase() }],
+      wordBank: items.map((i) => (i.sound || i.label).toLowerCase()),
+      reflectionPrompt: ageBand === 'primary' ? { text: 'How sure were you?', scored: false } : undefined,
+    };
+  }
   if (template === 'puzzle-split') return { ...base, promptMode: 'image', responseMode: 'image', originalImageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/481px-Cat_November_2010-1a.jpg', grid: { rows: 2, cols: 2 }, difficulties: { easy: { grid: { rows: 2, cols: 2 }, pieceSize: { width: 150, height: 150 }, label: 'Easy', emoji: '⭐', minAge: 'Creche' }, medium: { grid: { rows: 3, cols: 3 }, pieceSize: { width: 100, height: 100 }, label: 'Medium', emoji: '⭐⭐', minAge: 'Nursery' }, hard: { grid: { rows: 4, cols: 4 }, pieceSize: { width: 75, height: 75 }, label: 'Hard', emoji: '⭐⭐⭐', minAge: 'KG1' }, expert: { grid: { rows: 5, cols: 5 }, pieceSize: { width: 60, height: 60 }, label: 'Expert', emoji: '🏆', minAge: 'KG2' } }, rewardOnly: unit.number === 8, successThresholdPct: unit.number === 8 ? null : ab.successThresholdPct };
   return base;
 }
@@ -106,7 +260,7 @@ async function seed() {
   let total = 0;
   for (const unit of UNITS) {
     for (const ageBand of unit.ageBands) {
-      for (const template of unit.templates) {
+      for (const template of templatesForAge(unit, ageBand)) {
         if (unit.number === 7 && template !== 'fill-in-blank') continue;
         if (unit.number === 8 && template === 'fill-in-blank') continue;
 
@@ -133,4 +287,4 @@ async function seed() {
 if (require.main === module) {
   seed().then(() => process.exit(0)).catch((e) => { console.error('❌', e); process.exit(1); });
 }
-module.exports = { seed };
+module.exports = { seed, genConfig, templatesForAge, UNITS };

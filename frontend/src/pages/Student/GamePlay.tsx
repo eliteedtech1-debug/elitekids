@@ -134,6 +134,33 @@ function pairVisual(p: { a?: string; b: string; image?: string }, mode: 'prompt'
 
 /* ── Types ────────────────────────────────────────────────────── */
 
+interface TapOption {
+  id?: string;
+  hex?: string;
+  color?: string;
+  num?: number;
+  label?: string;
+  image?: string;
+  emoji?: string;
+  sound?: string;
+  audio?: string;
+  context?: string;
+  matches?: string;
+  expected_text?: string;
+  mode?: string;
+}
+
+interface TapRound {
+  id?: string;
+  story?: string;
+  question?: string;
+  prompt?: string;
+  speechText?: string;
+  audio?: string;
+  items: TapOption[];
+  correctId: string;
+}
+
 interface GameConfig {
   id?: string;
   gameId?: string;
@@ -142,10 +169,12 @@ interface GameConfig {
   ageLevel?: string;
   prompt?: string;
   pairs?: { a: string; b: string; audio?: string; image?: string }[];
-  items?: { id?: string; hex?: string; color?: string; num?: number; label?: string; image?: string; emoji?: string; sound?: string; audio?: string; context?: string; matches?: string; expected_text?: string; mode?: string }[];
+  items?: TapOption[];
+  rounds?: TapRound[];
+  story?: string;
+  question?: string;
   objects?: { id: string; label: string; image?: string }[];
   correctId?: string;
-  question?: string;
   options?: { id: string; label: string; image?: string; emoji?: string; audio?: string; text?: string }[];
   answer?: string;
   questions?: { id?: string; prompt?: string; question?: string; image?: string; scenario?: string; characterName?: string; characterImage?: string; characterEmoji?: string; setting?: string; settingImage?: string; hint?: string; speechText?: string; feedbackCorrect?: string; feedbackWrong?: string; options?: { id: string; label: string; image?: string; emoji?: string; audio?: string }[]; correctIndex?: number; correctId?: string; answer?: string; isReview?: boolean; lesson_id?: string; question_id?: string }[];
@@ -160,6 +189,7 @@ interface GameConfig {
   scenario?: string;
   hint?: string;
   speechText?: string;
+  audio?: string;
   feedbackCorrect?: string;
   feedbackWrong?: string;
   // Multimodal interaction: how the concept is presented and how the learner responds
@@ -168,7 +198,6 @@ interface GameConfig {
   // Multimodal content fields
   image?: string;    // URL to prompt image
   context?: string;  // Contextual description/riddle
-  audio?: string;    // URL to prompt audio
   // Scenario-based quiz fields
   category?: string;  // e.g. "Letters", "Numbers", "Animals" — used for phonics TTS routing
   characters?: { name: string; image?: string; emoji?: string; personality?: string }[];
@@ -638,9 +667,50 @@ function TapGame({
   const items = config.items || [];
   const promptMode = config.promptMode || 'text';
   const responseMode = config.responseMode || 'image';
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const tapRounds = useMemo<TapRound[]>(() => {
+    if (Array.isArray(config.rounds) && config.rounds.length > 0) {
+      return config.rounds
+        .filter((round) => Array.isArray(round.items) && round.items.length > 0 && round.correctId)
+        .map((round, roundIndex) => ({
+          ...round,
+          items: round.items.map((item, itemIndex) => ({ ...item, id: String(item.id || `round-${roundIndex}-item-${itemIndex}`) })),
+          correctId: String(round.correctId),
+        }));
+    }
+    if (config.correctId && items.length > 0) {
+      return [{
+        story: config.story || config.scenario,
+        question: config.question || config.prompt,
+        prompt: config.prompt,
+        speechText: config.speechText,
+        audio: config.audio,
+        items: items.map((item, itemIndex) => ({ ...item, id: String(item.id || `item-${itemIndex}`) })),
+        correctId: String(config.correctId),
+      }];
+    }
+    // Legacy tap configs represented one sequential target per item. Preserve
+    // that behavior, but make the target explicit by id instead of position.
+    return items.map((target, targetIndex) => {
+      const normalizedItems = items.map((item, itemIndex) => ({ ...item, id: String(item.id || `item-${itemIndex}`) }));
+      return {
+        story: config.scenario,
+        question: config.prompt,
+        prompt: config.prompt,
+        speechText: target.audio || target.sound || target.label || target.color || target.emoji,
+        audio: target.audio,
+        items: normalizedItems,
+        correctId: String(normalizedItems[targetIndex]?.id || `item-${targetIndex}`),
+      };
+    });
+  }, [config.rounds, config.correctId, config.story, config.scenario, config.question, config.prompt, config.speechText, config.audio, items]);
+  const currentRound = tapRounds[currentIdx];
+  const roundItems = currentRound?.items || [];
+  const current = roundItems.find((item) => String(item.id) === String(currentRound?.correctId)) || roundItems[0];
+  const displayedItems = useMemo(() => shuffle(roundItems), [currentIdx, currentRound]);
+  const stimulusText = currentRound?.speechText || currentRound?.audio || (current ? speakLabel(current.label, current.color, current.emoji, config.category) : '');
   const isLearning = mode === 'learning';
   const isTest = mode === 'test';
-  const [currentIdx, setCurrentIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState('');
@@ -650,7 +720,6 @@ function TapGame({
   const [showHint, setShowHint] = useState(false);
   const [streak, setStreak] = useState(0);
   const [floatingXP, setFloatingXP] = useState(false);
-  const current = items[currentIdx];
 
   // Resolve character
   const characters = config.characters || [];
@@ -658,18 +727,19 @@ function TapGame({
 
   // Read scenario/prompt aloud in test + practice mode
   useEffect(() => {
-    if (!soundOn || !current) return;
+    if (!soundOn || !currentRound) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const text = config.speechText || config.scenario || config.prompt || config.context || '';
-      if (text && !cancelled) await speak(stripEmoji(text));
+      const text = currentRound.speechText || currentRound.audio || currentRound.question || currentRound.prompt || '';
+      if (text && !cancelled) await speakOrPlay(currentRound.audio, stripEmoji(text));
     }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [soundOn, currentIdx, currentRound]);
 
   const handleTap = (idx: number) => {
     if (feedback) return;
-    const isCorrect = idx === currentIdx;
+    const selected = displayedItems[idx];
+    const isCorrect = !!selected && String(selected.id) === String(currentRound?.correctId);
     if (!isTest && soundOn) playTap();
     if (!isCorrect || !isTest) {
       setTapping(idx);
@@ -690,13 +760,13 @@ function TapGame({
       if (newStreak === 3 || newStreak === 5) {
         if (soundOn) playStreak(newStreak);
       }
-      onAnswer?.({ correct: true, expected: current?.color || current?.label || '', given: items[idx]?.color || items[idx]?.label || '' });
+      onAnswer?.({ correct: true, expected: current?.color || current?.label || current?.id || '', given: selected?.color || selected?.label || selected?.id || '' });
       setTimeout(() => {
         setFeedback(null);
         setFeedbackMsg('');
         setPopId(null);
         setFloatingXP(false);
-        if (currentIdx + 1 >= items.length) {
+        if (currentIdx + 1 >= tapRounds.length) {
           onComplete(score + 10);
         } else {
           setCurrentIdx((i) => i + 1);
@@ -711,7 +781,7 @@ function TapGame({
         setShowHint(true);
         setTimeout(() => { setFeedback(null); setWrongIdx(null); }, 1200);
       }
-      onAnswer?.({ correct: false, expected: current?.color || current?.label || '', given: items[idx]?.color || items[idx]?.label || '' });
+      onAnswer?.({ correct: false, expected: current?.color || current?.label || current?.id || '', given: selected?.color || selected?.label || selected?.id || '' });
     }
   };
 
@@ -723,7 +793,7 @@ function TapGame({
   const playLearningAnswer = useCallback(async () => {
     if (!current || learningAnswerPlayed) return;
     setLearningAnswerPlayed(true);
-    if (soundOn) await speakOrPlay(current.audio, speakLabel(current.label, current.color, current.emoji, config.category));
+    if (soundOn) await speakOrPlay(currentRound?.audio, stimulusText || speakLabel(current.label, current.color, current.emoji, config.category));
     if (soundOn) playCorrect();
     setFeedback('correct');
     setPopId(currentIdx);
@@ -731,18 +801,18 @@ function TapGame({
     setTimeout(() => {
       setFeedback(null);
       setPopId(null);
-      if (currentIdx + 1 >= items.length) {
+      if (currentIdx + 1 >= tapRounds.length) {
         onComplete(0);
       } else {
         setCurrentIdx((i) => i + 1);
       }
     }, 1200);
-  }, [current, currentIdx, items.length, soundOn, onComplete, onAnswer, learningAnswerPlayed]);
+  }, [current, currentRound, currentIdx, tapRounds.length, stimulusText, soundOn, onComplete, onAnswer, learningAnswerPlayed]);
 
   if (!current) return null;
 
-  const scenarioText = config.scenario || '';
-  const promptText = config.prompt || t('game.findTarget');
+  const scenarioText = currentRound?.story || config.story || config.scenario || '';
+  const promptText = currentRound?.question || config.question || currentRound?.prompt || config.prompt || t('game.findTarget');
 
   return (
     <div className="space-y-5">
@@ -797,6 +867,10 @@ function TapGame({
               {scenarioText}
               <SpeakButton text={scenarioText} size="sm" className="ml-2 align-middle" />
             </p>
+            <p className="mt-3 text-base font-bold text-[#0F4D92] relative z-10">
+              {promptText}
+              <SpeakButton text={promptText} size="sm" className="ml-2 align-middle" />
+            </p>
           </div>
         ) : promptMode === 'image' ? (
           <>
@@ -805,14 +879,10 @@ function TapGame({
               <SpeakButton text={config.speechText || config.prompt || t('game.whatIsThis')} size="sm" className="ml-2 align-middle" />
             </p>
             <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-blue-50 animate-game-float animate-game-glow-pulse">
-              {current.image ? (
-                <CachedImg src={current.image} alt="" className="h-20 w-20 object-contain" />
-              ) : current.emoji ? (
-                <span className="text-5xl" role="img" aria-label="item">{current.emoji}</span>
-              ) : isHex(current.hex) ? (
-                <div className="h-16 w-16 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: current.hex }} />
+              {config.image ? (
+                <CachedImg src={config.image} alt="" className="h-20 w-20 object-contain" />
               ) : (
-                <span className="text-3xl font-bold text-gray-400">?</span>
+                <span className="text-3xl font-bold text-gray-400">🔎</span>
               )}
             </div>
           </>
@@ -820,7 +890,7 @@ function TapGame({
           <>
             <p className="text-lg font-semibold text-gray-700">
               {t('game.listenAndFind')}
-              <SpeakButton text={config.speechText || config.prompt || config.scenario || t('game.listenAndFind')} size="sm" className="ml-2 align-middle" />
+              <SpeakButton text={stimulusText || promptText || t('game.listenAndFind')} size="sm" className="ml-2 align-middle" />
             </p>
             <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-purple-50 animate-game-float animate-game-glow-pulse">
               <Volume2 className="h-12 w-12 text-purple-500 animate-game-bounce" />
@@ -829,8 +899,8 @@ function TapGame({
         ) : promptMode === 'context' ? (
           <div className="mt-2 inline-flex items-center justify-center rounded-xl px-6 py-4 bg-amber-50 animate-game-float animate-game-glow-pulse">
             <p className="text-lg font-medium text-amber-800">
-              {current.context || `Find the ${readableLabel(current.label, current.color, current.emoji)}`}
-              <SpeakButton text={current.context || config.speechText || `Find the ${readableLabel(current.label, current.color, current.emoji)}`} size="sm" className="ml-2 align-middle" />
+              {currentRound?.story || currentRound?.question || promptText}
+              <SpeakButton text={currentRound?.story || currentRound?.question || promptText} size="sm" className="ml-2 align-middle" />
             </p>
           </div>
         ) : (
@@ -839,16 +909,6 @@ function TapGame({
               {promptText}
               <SpeakButton text={promptText} size="sm" className="ml-2 align-middle" />
             </p>
-            <div className="mt-1 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-50 animate-game-float animate-game-glow-pulse">
-              {current.image && <CachedImg src={current.image} alt="" className="h-10 w-10 object-contain" />}
-              {current.emoji && <span className="text-3xl" role="img" aria-label={current.label || current.color}>{current.emoji}</span>}
-              {!current.emoji && !current.image && isHex(current.hex) && (
-                <div className="h-8 w-8 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: current.hex }} />
-              )}
-              {readableLabel(current.label, current.color, current.emoji) && (
-                <span className="text-2xl font-bold text-[#0F4D92] capitalize">{readableLabel(current.label, current.color, current.emoji)}</span>
-              )}
-            </div>
           </>
         )}
 
@@ -863,21 +923,21 @@ function TapGame({
 
       {/* Answer grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        {shuffle(items).map((item, i) => {
-          const realIdx = items.indexOf(item);
+        {displayedItems.map((item, i) => {
+          const realIdx = i;
           return (
             <button
               key={i}
               onClick={() => handleTap(realIdx)}
               disabled={!!feedback && feedback === 'correct'}
               className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-5 transition-all animate-game-drop-in stagger-${Math.min(i + 1, 12)} ${
-                !isTest && feedback === 'correct' && realIdx === currentIdx
+                !isTest && feedback === 'correct' && String(item.id) === String(currentRound?.correctId)
                   ? `${cbCorrect.border} ${cbCorrect.bg} animate-game-correct shadow-lg ${cbCorrect.shadow}`
                   : popId === realIdx
                   ? `${cbCorrect.border} ${cbCorrect.bg} animate-game-spring-in`
                   : !isTest && feedback === 'wrong' && wrongIdx === realIdx
                   ? `${cbWrong.border} ${cbWrong.bg} animate-game-wrong`
-                  : !isTest && feedback === 'wrong' && realIdx !== currentIdx
+                  : !isTest && feedback === 'wrong' && String(item.id) !== String(currentRound?.correctId)
                   ? 'border-gray-200 bg-white opacity-50 scale-95'
                   : tapping === realIdx
                   ? 'border-blue-400 bg-blue-50 animate-game-jelly shadow-md'
@@ -913,10 +973,10 @@ function TapGame({
                 )}
               </div>
               {isLearning && readableLabel(item.label, item.color, item.emoji) && (
-                <span className="text-sm font-bold text-gray-700 capitalize">{readableLabel(item.label, current.color, item.emoji)}</span>
+                <span className="text-sm font-bold text-gray-700 capitalize">{readableLabel(item.label, item.color, item.emoji)}</span>
               )}
               {/* Correct checkmark overlay */}
-              {!isTest && feedback === 'correct' && realIdx === currentIdx && (
+              {!isTest && feedback === 'correct' && String(item.id) === String(currentRound?.correctId) && (
                 <div className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-green-500 flex items-center justify-center shadow-md animate-game-pop">
                   <span className="text-white text-sm">✓</span>
                 </div>
@@ -957,7 +1017,7 @@ function TapGame({
 
       {/* Progress dots */}
       <div className="flex justify-center gap-1.5">
-        {items.map((_, i) => (
+        {tapRounds.map((_, i) => (
           <div
             key={i}
             className={`h-2.5 w-2.5 rounded-full transition-all ${
@@ -980,13 +1040,13 @@ function TapGame({
       )}
 
       {/* Voice input */}
-      {config.inputMode !== 'tap' && current && (
+      {(config.inputMode === 'speak' || config.inputMode === 'both') && current && (
         <div className="flex justify-center">
           <SpeechInput
             expectedAnswers={[current.label || '', current.color || '', current.emoji || ''].filter(Boolean)}
             onResult={(spoken, isCorrect) => {
               if (isCorrect && !feedback) {
-                const matchIdx = items.findIndex((it) => {
+                const matchIdx = displayedItems.findIndex((it) => {
                   const targets = [it.label || '', it.color || '', it.emoji || ''].filter(Boolean);
                   return targets.some((t) => spoken.toLowerCase().includes(t.toLowerCase()));
                 });

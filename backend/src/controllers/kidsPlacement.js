@@ -48,7 +48,7 @@ const PLACEMENT_QUESTION_FIXTURE = Object.freeze([
   },
   {
     id: 'placement-playgroup-1', game_type: 'matching', band: 'Creche', nerdc_band: 'Playgroup', age_range: '2–3', skill: 'loud and quiet',
-    prompt: 'Match the drum sound to the loud picture. Which sound is loud?',
+    prompt: 'Look at the pictures. Which one shows a loud drum?',
     options: [{ id: 'whisper', label: '🤫 Whisper' }, { id: 'drum', label: '🥁 BOOM' }, { id: 'sleep', label: '😴 Sleep' }], correctIndex: 1,
   },
   {

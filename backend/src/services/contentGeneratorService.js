@@ -92,6 +92,14 @@ function ageGuidance(ageLevel) {
 function gameSystemPrompt(template) {
   return `You are an expert educational game designer for young children (ages 1-10) in Nigerian schools. You produce ONLY valid JSON — no markdown, no explanation, no code fences. The JSON must match the requested template schema exactly.
 
+CRÈCHE SAFETY CONTRACT:
+- For age level Creche/Crèche, content is adult-led observation, not an independent quiz.
+- Give one concrete familiar story or stimulus, then one clear question/action and relevant visual choices.
+- Never show unexplained option rows, curriculum labels, [ABC] placeholders, random category names, or a generic "tap the correct answer" instruction.
+- Do not require reading. Prefer gaze, gesture, pointing, tapping, movement, or sound with adult support.
+- Use assessment: "adult observation" and inputMode: "tap" for visual choices, with correctId whenever a choice has a correct target.
+- If an audio stimulus is required, provide real audio or a clear TTS fallback and a visible replay control; never claim that a sound played when none exists.
+
 CRITICAL RULES:
 - asset image/audio paths MUST be relative keys like "media/{lessonId}/item-name.webp" — the asset pipeline generates actual images later
 - Use simple, culturally neutral, globally appropriate content (animals, shapes, colors, food, nature)
@@ -554,6 +562,10 @@ async function generateGameConfig({ lesson, school_id }) {
         raw.template = template;
         raw.lessonId = lesson.id;
         raw.ageLevel = lesson.age_level;
+        if (lesson.age_level === 'Creche' || lesson.age_level === 'Crèche') {
+          raw.assessment = 'adult observation';
+          raw.inputMode = raw.inputMode || 'tap';
+        }
         // Schema-required denormalized fields
         raw.category = raw.category || lesson.subject || 'General';
         raw.tier = raw.tier ?? 0;
