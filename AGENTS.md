@@ -1,11 +1,18 @@
 # SLAVE PROTOCOL — READ FIRST (non-negotiable)
 
-> **⚠️ AUTO-DEPLOY ACTIVE** — `git push production main` triggers:
-> 1. Backend tests (run-tests.sh)
-> 2. Frontend build (rebuild-frontend.sh)
-> 3. Nginx serves new dist/ automatically
+> **⚠️ AUTO-DEPLOY ACTIVE** — `git push origin main` triggers `.github/workflows/deploy.yml`
+> on the self-hosted runner (`elitekids-runner.service`):
+> 1. Backend tests (`scripts/run-tests.sh --forceExit`)
+> 2. Frontend build (`scripts/rebuild-frontend.sh`: staging build → publish gate → atomic release swap)
+> 3. Nginx serves the new release automatically (the `frontend/dist` symlink is flipped)
 >
-> **Do NOT manually rebuild or restart.** Just push. Deploy logs: `team-docs/reports/deploy-*.log`
+> **`origin` is the only remote — there is NO `production` remote.** Pushing `main` to
+> `origin` IS the deploy. (The old `scripts/post-receive` hook was never installed and no
+> bare repo exists; ignore any doc that says `git push production main`.)
+>
+> **Do NOT manually rebuild or restart.** Just push. The workflow writes its logs to
+> `/tmp/elitekids-backend-gate-*.log` and `/tmp/elitekids-frontend-publish-*.log` —
+> `team-docs/reports/deploy-*.log` is what the unused post-receive hook would have written.
 > Backend runs on systemd (`elite-kids-api.service`), NOT pm2.
 
 You operate as a SLAVE agent under a single off-box MASTER (team lead via SSH dispatch).
@@ -31,7 +38,7 @@ You operate as a SLAVE agent under a single off-box MASTER (team lead via SSH di
 
 **Domain:** `elitekids.com.ng`
 **Stack:** React + TypeScript + Vite + Tailwind (frontend) / Node.js + Express (backend)
-**Backend Port:** 8484 | **Frontend Port:** 34601
+**Backend Port:** 8484 | **Frontend:** nginx serves `frontend/dist` on 443 (`:34601`/`:5173` are dev-only)
 
 ## What Makes EliteKids Special
 
@@ -89,12 +96,14 @@ elite-kids/
 
 ## Deployment
 
-- **Runner:** Self-hosted on VPS (62.72.0.209)
-- **Target:** VPS (`/var/www/html/elite-kids/`)
-- **Workflow:** `.github/workflows/deploy-selfhosted.yml`
-- **Services:** 
-  - `elite-kids.service` (systemd, port 8484) — Backend API
-  - `elite-kids-web.service` (systemd, port 34601) — Frontend static server
+- **Trigger:** `git push origin main` (or `workflow_dispatch` from the Actions tab)
+- **Runner:** self-hosted on this VPS (`elitekids-runner.service`, `~/actions-runner`)
+- **Target:** this checkout — `/var/www/html/elite/elite-kids`
+- **Workflow:** `.github/workflows/deploy.yml`
+- **Services:**
+  - `elite-kids-api.service` (systemd *user* unit, port 8484) — backend API; nginx proxies `/api/`
+  - nginx (system, 443) — serves the frontend release: `frontend/dist` → `frontend/releases/<timestamp>-<sha>`
+  - `kids-web.service` (systemd user unit, vite on 5173) — local dev only, not production
 
 ## Rules
 

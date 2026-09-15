@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# post-receive — auto-deploy on git push production.
+# post-receive — legacy auto-deploy path for a `production` bare repo push.
+#
+# NOT INSTALLED ANYWHERE. There is no bare repo on this VPS and no `production`
+# remote in the dev checkout, so this hook has never run. Deployment is done by
+# `.github/workflows/deploy.yml` on push to `main` (self-hosted runner), which
+# delegates to scripts/rebuild-frontend.sh — the same script used below.
 # Flow: install deps → test → build frontend → nginx serves.
 set -uo pipefail
 

@@ -14,8 +14,8 @@ server-side age isolation (Year N never sees Year N+1), spill-over recovery, and
 goals. The series/units/lock engine already exists server-side; the student UI doesn't
 use it. Sits on the same series structure this spec's story games flow through.
 **Compliance:** C1 (no kids tables in `elite_db`), C2 (additive, defaulted columns only),
-C4 (all artifacts in `team-docs/`), deploy-on-push (`git push production main` auto-runs
-tests → build → nginx serves `dist/`; workers do NOT self-commit prod code — MASTER commits).
+C4 (all artifacts in `team-docs/`), deploy-on-push (`git push origin main` auto-runs
+tests → build → nginx serves the new release; workers do NOT self-commit prod code — MASTER commits).
 
 Legend: ✅ done · 🟦 in progress · ⬜ todo
 
@@ -226,8 +226,8 @@ queue as separate briefs so Phase A–D is not blocked:
 
 1. Every phase ends with: `tsc --noEmit` clean, `npm run build` OK, `npm run test:regression`
    25/25, full suite via `scripts/run-tests.sh` (baseline 2F/355P/357T, fail-set = C-DEBT-01/02 only).
-2. Deploy only via MASTER `git push production main` (auto: run-tests → rebuild-frontend →
-   nginx serves new `dist/`). No manual restarts; workers never self-commit prod code.
+2. Deploy only via MASTER `git push origin main` (auto: run-tests → rebuild-frontend →
+   nginx serves the new release). No manual restarts; workers never self-commit prod code.
 3. Scene changes are additive and JSON-contained (C1/C2): rollback = revert commit and re-push;
    old lessons keep working via `normalizeSceneScript()`; no schema ALTERs in this spec.
 4. `backend/.env.test` stays untracked-excluded-or-committed per MASTER precedent — never stage secrets.

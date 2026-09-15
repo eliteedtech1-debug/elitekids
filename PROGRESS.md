@@ -5,7 +5,8 @@ before ending every session.**
 
 **Last updated:** 2026-09-09
 **Git sync:** Local ↔ Prod both at commit `1545b36`
-**Sync method:** `git push production main` / `git pull production main`
+**Sync method:** `git push origin main` / `git pull origin main` — pushing `main` IS the
+ deploy (`.github/workflows/deploy.yml`); there is no `production` remote
 
 ---
 

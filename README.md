@@ -1,7 +1,9 @@
 # EliteKids — Gamified Nursery & Primary Content Delivery
 
-> **🚀 Auto-Deploy**: Push to `production` remote → tests run → frontend builds → live.
-> `git push production main` is all you need. Backend: systemd (`elite-kids-api.service`).
+> **🚀 Auto-Deploy**: `git push origin main` → backend tests run → frontend rebuilds → live.
+> Pushing `main` to `origin` is all you need (`origin` is the only remote — there is no
+> `production` remote). Backend: systemd user unit `elite-kids-api.service`; frontend:
+> nginx serves the `frontend/dist` release.
 
 Interactive learning app for **nursery-age children** (Creche → Primary), built as a
 **stand-alone addon to EliteCore** — the same way `elite-cbt` (Computer Based Testing)
@@ -11,7 +13,7 @@ is an addon to the main school management system (SMS).
 
 **Domain:** `elitekids.com.ng`
 **Stack:** React + TypeScript + Vite + Tailwind (frontend) / Node.js + Express (backend)
-**Backend Port:** 8484 | **Frontend Port:** 34601
+**Backend Port:** 8484 | **Frontend:** nginx serves `frontend/dist` on 443 (`34601`/`5173` are dev-only)
 
 ---
 
@@ -73,12 +75,14 @@ npm run dev
 
 ## Deployment
 
-- **Runner:** Self-hosted on VPS
-- **Target:** VPS (`/var/www/html/elite-kids/`)
-- **Workflow:** `.github/workflows/deploy-selfhosted.yml`
+- **Trigger:** `git push origin main` (or `workflow_dispatch`)
+- **Runner:** self-hosted on this VPS (`elitekids-runner.service`)
+- **Target:** this checkout — `/var/www/html/elite/elite-kids`
+- **Workflow:** `.github/workflows/deploy.yml`
 - **Services:**
-  - `elite-kids.service` (systemd, port 8484) — Backend API
-  - `elite-kids-web.service` (systemd, port 34601) — Frontend static server
+  - `elite-kids-api.service` (systemd user unit, port 8484) — backend API
+  - nginx (system, 443) — serves the frontend release `frontend/dist`
+  - `kids-web.service` (vite on 5173) — local dev only
 
 ## Documentation
 
@@ -102,7 +106,7 @@ npm run dev
 
 **Domain:** `elitekids.com.ng`
 **Stack:** React + TypeScript + Vite + Tailwind (frontend) / Node.js + Express (backend)
-**Backend Port:** 8484 | **Frontend Port:** 34601
+**Backend Port:** 8484 | **Frontend:** nginx serves `frontend/dist` on 443 (`34601`/`5173` are dev-only)
 
 ---
 
@@ -164,12 +168,14 @@ npm run dev
 
 ## Deployment
 
-- **Runner:** Self-hosted on VPS
-- **Target:** VPS (`/var/www/html/elite-kids/`)
-- **Workflow:** `.github/workflows/deploy-selfhosted.yml`
+- **Trigger:** `git push origin main` (or `workflow_dispatch`)
+- **Runner:** self-hosted on this VPS (`elitekids-runner.service`)
+- **Target:** this checkout — `/var/www/html/elite/elite-kids`
+- **Workflow:** `.github/workflows/deploy.yml`
 - **Services:**
-  - `elite-kids.service` (systemd, port 8484) — Backend API
-  - `elite-kids-web.service` (systemd, port 34601) — Frontend static server
+  - `elite-kids-api.service` (systemd user unit, port 8484) — backend API
+  - nginx (system, 443) — serves the frontend release `frontend/dist`
+  - `kids-web.service` (vite on 5173) — local dev only
 
 ## Documentation
 
