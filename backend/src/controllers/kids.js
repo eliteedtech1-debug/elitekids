@@ -12,6 +12,13 @@ const { generateGameConfig, persistGameConfig, generateSceneScript, persistScene
 const { enqueueLessonGeneration } = require('../media/generation.queue');
 const { validateManualConfig, canonicalSceneType, sceneCardErrors } = require('../services/gameConfigRules');
 const { visibleLevels, resolveBandForAdmission, AGE_BANDS } = require('../services/ageBand');
+const {
+  REQUIRES_TEST,
+  loadClosureByLesson,
+  lessonStatesFromProgress,
+  isLessonComplete,
+  lessonStateFor,
+} = require('../services/closureContract');
 const sceneAssetsSeed = require('../seeders/sceneAssetsSeed');
 
 /** Narrowest rank on the NERDC ladder — the fail-closed ceiling for an identity
@@ -1306,7 +1313,32 @@ async function recordGameComplete(req, res) {
       school_id,
     });
 
-    return res.status(201).json({ success: true, data: record });
+    // The lesson's OWN closure contract decides what "complete" means here
+    // (Q69): config_json.gamePlan.test is written by the content seeder into
+    // every config and was read by NOTHING, so the content declared one thing
+    // (Creche has no child-facing test) while the gate did another. It is read
+    // here, at the moment of play, and reported back so the client never has to
+    // guess whether this unit owes a test. Same helper as the gate, so the
+    // progress path and the learning path can never disagree.
+    const closureById = await loadClosureByLesson(db, [lesson_id]);
+    const closure = closureById.get(String(lesson_id)) || REQUIRES_TEST;
+    const progressRows = await db.KidProgress.findAll({
+      where: { child_admission_no, lesson_id },
+      attributes: ['lesson_id', 'mode', 'score'],
+    });
+    const lessonState = lessonStatesFromProgress(progressRows).get(String(lesson_id)) || {};
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        ...record.toJSON(),
+        closure: {
+          ...closure,
+          lesson_state: lessonStateFor(lessonState, closure),
+          lesson_complete: isLessonComplete(lessonState, closure),
+        },
+      },
+    });
   } catch (err) {
     console.error('recordGameComplete error:', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });

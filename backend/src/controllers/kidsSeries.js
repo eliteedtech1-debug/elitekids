@@ -13,6 +13,13 @@ const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const db = require('../models');
 const { AGE_BANDS, visibleLevels, resolveBandForAdmission } = require('../services/ageBand');
+const {
+  REQUIRES_TEST,
+  loadClosureByLesson,
+  lessonStatesFromProgress,
+  isLessonComplete,
+  lessonStateFor,
+} = require('../services/closureContract');
 const { admissionAllowed, getCurrentGoalData } = require('./kidsGoals');
 
 const CATEGORY_MAX_LEN = 100;
@@ -280,19 +287,22 @@ async function getCurriculum(req, res) {
       where: { child_admission_no: admission },
       attributes: ['lesson_id', 'mode', 'score'],
     });
-    // E3f SUPERVISOR GATE: a lesson counts as complete when the child has a
-    // PASSING TEST (score >= 50) on it. A separate practice-mode row is not
-    // required — a passing test proves mastery and unlocks the next unit.
-    const lessonState = {};
-    for (const r of prog) {
-      const st = lessonState[r.lesson_id] || (lessonState[r.lesson_id] = { practice: false, testPass: false });
-      if (r.mode === 'practice') st.practice = true;
-      if (r.mode === 'test' && Number(r.score) >= 50) st.testPass = true;
-    }
-    const lessonComplete = (l) => {
-      const st = lessonState[l];
-      return !!st && st.testPass;
-    };
+    // E3f SUPERVISOR GATE (per user decision 2026-09-04): a lesson counts as
+    // complete when the child has a PASSING TEST (score >= 50) on it. A separate
+    // practice-mode row is not required — a passing test proves mastery and
+    // unlocks the next unit.
+    //
+    // The rule is now read from each lesson's OWN closure contract
+    // (config_json.gamePlan.test) instead of being hard-coded: the content
+    // declares per band whether a unit has a child-facing test at all (Crèche /
+    // tier 0 declares none), and the gate has to agree with what was authored.
+    // Any absent or malformed declaration fails CLOSED to the rule above.
+    // See services/closureContract.js and QUEUE Q69.
+    const lessonState = lessonStatesFromProgress(prog);
+    const contractLessonIds = [...new Set(unitRows.flatMap((u) => (Array.isArray(u.content_items) ? u.content_items : [])
+      .map((it) => it && it.lesson_id).filter(Boolean).map(String)))];
+    const closureById = await loadClosureByLesson(db, contractLessonIds);
+    const lessonComplete = (l) => isLessonComplete(lessonState.get(String(l)), closureById.get(String(l)));
 
     const unitsBySeries = {};
     for (const u of unitRows) (unitsBySeries[u.series_id] = unitsBySeries[u.series_id] || []).push(u);
@@ -646,28 +656,29 @@ async function computeLearningPath(studentId) {
       where: { child_admission_no: studentId },
       attributes: ['lesson_id', 'mode', 'score'],
     });
-    const lessonState = {};
-    for (const r of prog) {
-      const st = lessonState[r.lesson_id] || (lessonState[r.lesson_id] = { practice: false, testPass: false });
-      if (r.mode === 'practice') st.practice = true;
-      if (r.mode === 'test' && Number(r.score) >= 50) st.testPass = true;
-    }
+    const lessonState = lessonStatesFromProgress(prog);
     // E3f gate (per user decision 2026-09-04): a passing TEST (score >= 50)
     // alone completes a lesson and unlocks the next unit — a separate raw
     // practice-mode row is NOT required (it was false-locking children who
     // reached a passing test without a distinct archived practice row).
-    const lessonComplete = (l) => {
-      const st = lessonState[l];
-      return !!st && st.testPass;
-    };
+    // A lesson whose own config declares NO test (gamePlan.test === null) is
+    // closed by a completed play instead — the closure contract the content
+    // authored, read here rather than hard-coded (QUEUE Q69).
+    const lessonComplete = (l) => isLessonComplete(lessonState.get(String(l)), closureById.get(String(l)));
 
     const idsOf = (u) => (Array.isArray(u.content_items) ? u.content_items : [])
       .map((ci) => String(ci && (ci.lesson_id || ci.item_id || ci)))
       .filter(Boolean);
     const allIds = [...new Set(unitRows.flatMap(idsOf))];
-    const lessonRows = allIds.length
-      ? await db.KidLesson.findAll({ where: { id: { [Op.in]: allIds }, content_state: 'published' } })
-      : [];
+    // One batched query for the lesson rows and one for their closure
+    // contracts — the gate reads the config's own declaration, never an extra
+    // per-lesson round trip (see services/closureContract.js).
+    const [lessonRows, closureById] = await Promise.all([
+      allIds.length
+        ? db.KidLesson.findAll({ where: { id: { [Op.in]: allIds }, content_state: 'published' } })
+        : [],
+      loadClosureByLesson(db, allIds),
+    ]);
     const lessonById = new Map(lessonRows.map((l) => [String(l.id), l]));
 
     const unitsBySeries = {};
@@ -698,9 +709,22 @@ async function computeLearningPath(studentId) {
           .map((lid) => {
             const row = lessonById.get(lid);
             if (!row || rankOf(row.age_level) > bandIdx) return null;
-            const st = lessonState[lid] || {};
-            const state = st.testPass ? 'passed' : exempt ? 'tested_out' : st.practice ? 'practice_done' : 'none';
-            return { lesson_id: lid, title: row.title, age_level: row.age_level, state };
+            const st = lessonState.get(lid) || {};
+            const contract = closureById.get(lid) || REQUIRES_TEST;
+            const state = lessonStateFor(st, contract, { exempt });
+            return {
+              lesson_id: lid,
+              title: row.title,
+              age_level: row.age_level,
+              state,
+              // The authored closure contract, served alongside the state so
+              // nothing has to guess whether this unit was ever meant to have
+              // a test (and a UI can say "Played" instead of "Passed").
+              closure: {
+                requires_test: contract.requires_test,
+                required_after_practice: contract.required_after_practice,
+              },
+            };
           })
           .filter(Boolean);
         unitOuts.push({ u, below, done, lessonNodes, exempt });
