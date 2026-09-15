@@ -40,7 +40,7 @@ import SpeechGame from '@/components/SpeechGame';
 import { flattenScenes, isVisualStory, estimateDurationSec } from '@/lib/utils/scenes';
 import type { SceneLibrary, NormalizedScene } from '@/lib/utils/scenes';
 import type { LearningPathData, PathLesson, LessonState } from '@/lib/utils/learningPath';
-import { flattenUnits } from '@/lib/utils/learningPath';
+import { flattenUnits, lessonRequiresTest } from '@/lib/utils/learningPath';
 // NOTE: children never see payment UI — no SubscriptionUpsell here anymore.
 import StickerButton from '@/components/StickerButton';
 import { getFeedbackClasses, getTimerColor, FOCUS_RING_GAME, motionClass } from '@/lib/utils/accessibility';
@@ -3807,6 +3807,9 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   // auto-advance to after passing. Best-effort fetch; never blocking.
   const [pathData, setPathData] = useState<LearningPathData | null>(null);
   const [ownLessonState, setOwnLessonState] = useState<LessonState>('none');
+  // Does THIS lesson's own config declare a child-facing test? Fail-closed: an
+  // unknown lesson keeps the Test until the path says otherwise (Q69/Q75).
+  const [ownRequiresTest, setOwnRequiresTest] = useState(true);
   const nextLessonRef = useRef<PathLesson | null>(null);
   const [config, setConfig] = useState<GameConfig | null>(null);
   const [scenes, setScenes] = useState<SceneWrapper[]>([]);
@@ -4140,7 +4143,18 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   const isTeacher = ['teacher', 'admin', 'branchadmin', 'superadmin'].includes(userRole);
   // Issue 2: children must practice a game before the Test is offered. Staff,
   // preview sessions and locked-mode overrides always see Test.
-  const hideTestTab = !isTeacher && !isPreview && pathData !== null && ownLessonState === 'none';
+  // Issue 2: children must practice before the Test is offered. Staff, preview
+  // sessions and locked-mode overrides always see Test — and a lesson whose own
+  // closure contract declares NO test (the observation-led Crèche/Playgroup
+  // tier) is never offered one at all: a completed play closes it (Q69/Q72).
+  const hideTestTab = !isTeacher && !isPreview
+    && (ownRequiresTest === false || (pathData !== null && ownLessonState === 'none'));
+
+  // A stale `?mode=test` link (a previously shared URL, an offline mirror) must
+  // not drop a testless lesson into a quiz its content says does not exist.
+  useEffect(() => {
+    if (ownRequiresTest === false && mode === 'test') setMode('practice');
+  }, [ownRequiresTest, mode]);
 
   // Fetch mode lock when game loads — checks per-student AND class-wide
   useEffect(() => {
@@ -4169,12 +4183,20 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
         const flat = flattenUnits(data);
         // Current lesson's state (Test gating).
         let selfState: LessonState = 'none';
+        let selfRequiresTest = true; // fail-closed until the path says otherwise
         let selfFlatIdx = -1;
         for (let i = 0; i < flat.length; i++) {
           const idx = flat[i].unit.lessons.findIndex((l) => l.lesson_id === lessonId);
-          if (idx !== -1) { selfFlatIdx = i; selfState = flat[i].unit.lessons[idx].state; break; }
+          if (idx !== -1) {
+            selfFlatIdx = i;
+            selfState = flat[i].unit.lessons[idx].state;
+            // The lesson's OWN closure contract (Crèche/Playgroup declare no test).
+            selfRequiresTest = lessonRequiresTest(flat[i].unit.lessons[idx]);
+            break;
+          }
         }
         setOwnLessonState(selfState);
+        setOwnRequiresTest(selfRequiresTest);
         // Next node = first lesson in path order whose unit is open AND state is
         // not 'done', preferring the one immediately after the current node.
         let next: PathLesson | null = null;
@@ -4996,7 +5018,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
     // Issue 2 (TikTok flow): pick the frictionless next action.
     const nextLesson = nextLessonRef.current;
     const passingTest = testPassed && !!(nextLesson && nextLesson.lesson_id !== lessonId);
-    const takingTest = mode === 'practice' && !testPassed;
+    const takingTest = mode === 'practice' && !testPassed && ownRequiresTest;
     // Smart recommendation (Doc 16): a failed test OR a shaky practice session
     // (>1 wrong answer) routes the child to Watch-and-Learn — never straight
     // to another Test. The Test CTA is suppressed while the recommendation

@@ -189,7 +189,7 @@ export default function PlayTab({
                 </Fragment>
               );
             }
-            const { lesson, locked, lockedReason, passed, exempt, isNext } = item as any;
+            const { lesson, locked, lockedReason, passed, exempt, isNext, requiresTest } = item as any;
             const ageColor = getAgeColor(lesson.age_level, colorblindMode);
             const stat = gameStats[lesson.id];
             const played = stat?.times_played || 0;
@@ -309,13 +309,20 @@ export default function PlayTab({
                     >
                       {t('student.home.practice')}
                     </Link>
-                    <Link
-                      to={`/student/game/${lesson.id}?mode=test`}
-                      onClick={(e) => { e.stopPropagation(); playTap(); }}
-                      className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-gradient-to-br from-blue-50 to-sky-50 py-2.5 text-xs font-bold text-blue-600 border border-blue-100/60 hover:bg-blue-100 hover:shadow-md active:scale-95 transition-all"
-                    >
-                      {t('student.home.test')}
-                    </Link>
+                    {/* A lesson whose own closure contract declares no test (the
+                        observation-led Crèche/Playgroup tier) offers Learn and
+                        Practice only: a completed play closes it, so a Test here
+                        would be a quiz the content says does not exist (Q69/Q75).
+                        Fail-closed — anything the path does not cover keeps it. */}
+                    {requiresTest !== false && (
+                      <Link
+                        to={`/student/game/${lesson.id}?mode=test`}
+                        onClick={(e) => { e.stopPropagation(); playTap(); }}
+                        className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-gradient-to-br from-blue-50 to-sky-50 py-2.5 text-xs font-bold text-blue-600 border border-blue-100/60 hover:bg-blue-100 hover:shadow-md active:scale-95 transition-all"
+                      >
+                        {t('student.home.test')}
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

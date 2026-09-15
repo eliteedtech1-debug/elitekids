@@ -7,6 +7,9 @@
  *  - Default mode per lesson state (practice → test once practice done)
  *  - Goal math + band-start divider
  */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import {
   classToAgeLevel,
@@ -21,6 +24,7 @@ import {
   defaultModeFor,
   goalPercent,
   isBandStart,
+  lessonRequiresTest,
   type LearningPathData,
   type PathUnit,
 } from '@/lib/utils/learningPath';
@@ -253,6 +257,50 @@ describe('unit stats + modes', () => {
     expect(defaultModeFor('practice_done')).toBe('test');
     expect(defaultModeFor('passed')).toBe('practice');
     expect(defaultModeFor(undefined)).toBe('practice');
+  });
+});
+
+describe('lesson closure contract (Q69/Q75)', () => {
+  it('hides the Test only when the lesson declares no test', () => {
+    expect(lessonRequiresTest({ closure: { requires_test: false, required_after_practice: null } })).toBe(false);
+    expect(lessonRequiresTest({ closure: { requires_test: true, required_after_practice: true } })).toBe(true);
+  });
+
+  it('fails CLOSED — an unknown lesson keeps its Test', () => {
+    // No path row (the global catalog floor), an offline mirror written before the
+    // contract existed, or a lesson the server did not classify at all.
+    expect(lessonRequiresTest(null)).toBe(true);
+    expect(lessonRequiresTest(undefined)).toBe(true);
+    expect(lessonRequiresTest({})).toBe(true);
+    expect(lessonRequiresTest({ closure: undefined })).toBe(true);
+    expect(lessonRequiresTest({ closure: { requires_test: undefined as unknown as boolean, required_after_practice: null } })).toBe(true);
+  });
+});
+
+describe('call-site contract: a testless lesson is never offered a Test', () => {
+  const read = (rel: string) => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../pages/Student', rel), 'utf8');
+    // Match CODE, not prose — the comments describing this rule must not satisfy it.
+    return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  };
+
+  it('PLAY gates its per-card Test action on the contract', () => {
+    const src = read('tabs/PlayTab.tsx');
+
+    expect(src).toMatch(/requiresTest !== false && \(/);
+    // …and the Test link still exists for everything else.
+    expect(src).toMatch(/mode=test/);
+  });
+
+  it('GamePlay gates the Test tab on the contract and coerces a stale test link', () => {
+    const src = read('GamePlay.tsx');
+
+    expect(src).toMatch(/ownRequiresTest === false/);
+    expect(src).toMatch(/selfRequiresTest = lessonRequiresTest\(flat\[i\]\.unit\.lessons\[idx\]\)/);
+    expect(src).toMatch(/setOwnRequiresTest\(selfRequiresTest\)/);
+    expect(src).toMatch(/ownRequiresTest === false && mode === 'test'\) setMode\('practice'\)/);
+    // The “practice → Test” next-action CTA must not route into a test either.
+    expect(src).toMatch(/const takingTest = mode === 'practice' && !testPassed && ownRequiresTest;/);
   });
 });
 

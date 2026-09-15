@@ -464,4 +464,75 @@ _(append one short entry per work session — do not delete old entries, this is
   Q69 left as a decision: gamePlan.test is unread dead metadata and Crèche declares no test
   while the gate requires one. All of Q58/Q70/Q71 are committed but NOT deployed (main 5
   ahead); live is still 20260915T154251Z-8b35aa5.
+
+2026-09-15 (cont.) — HEAD verification of the five unpushed commits (`099eaf6`, i.e. Q58, Q60,
+  Q68-docs, Q70, Q71) before any deploy is ordered. Backend gate `scripts/run-tests.sh
+  --forceExit`: **68/68 suites · 782/782 tests, exit 0** in 132 s — including the new
+  `test/streak-play-day.test.js` (4/4), `test/band-ceiling-sms-students.test.js` (11/11) and the
+  rewritten `test/flagship-annual-pilot-seed.test.js`. Frontend: `tsc --noEmit` clean, `vitest
+  run` **22 files · 276 tests, exit 0**, including `src/lib/utils/streak.test.ts` (6/6, with the
+  StudentHome call-site guard) and `src/lib/utils/learningPath.test.ts` (34/34, incl. the
+  own-band ordering). Zero FAIL lines in either log. Logs: `reports/gate-head-verify-
+  20260915T181748Z.log`, `reports/frontend-head-verify-20260915T181748Z.log`. This verifies the
+  fixes are green on HEAD; the live behavioural claims (no writes on load, own-band index 0) were
+  established earlier by the browser harness and are not re-established here. No source change.
+  main is still 6 ahead of `origin/main`; live is still `20260915T154251Z-8b35aa5`.
+
+2026-09-15 (cont.) — **Q69 ruled and closed, and `gamePlan.test` is no longer dead metadata**
+  (Q72). Ruling: (i) **Crèche keeps no closure test** — tier 0 is exposure, the seeder sets
+  `successThresholdPct: 0`, and all 270 Crèche configs declare `gamePlan.test: null`, so the
+  content was right and the hard-coded gate was wrong; a Crèche unit now closes on a completed
+  play. (ii) **`requiredAfterPractice` does NOT return to the gate** — the 2026-09-04 decision
+  stands (practice-first false-locked children who had already passed a test); the field stays
+  reported-never-enforced, and dropping it from the plan is a content change needing its own
+  re-seed order. New `services/closureContract.js` is the ONE rule, wired into `getCurriculum`,
+  `computeLearningPath` and `POST /kids/progress/game-complete` (which now reads the lesson's own
+  config and returns `closure.lesson_complete` / `lesson_state`). Only an explicit JSON null
+  means "no test"; everything else fails CLOSED to the old rule, so Playgroup…Primary and all
+  non-flagship content behave exactly as before — and because it only READS data prod already
+  carries, it needs no re-seed and does not re-open the Q60 drift. `kids_progress` is still 0 rows
+  live, so nothing changes retroactively. `test/lesson-closure-contract.test.js` (14 tests); two
+  mutations (gate and endpoint each ignoring the declaration) both caught, files byte-identical
+  after the sweep. Gate **69/69 · 796/796** (was 68/782); the E3f suite passes untouched. Flagged:
+  Playgroup is `tier: 1`, so it keeps a child-facing quiz the contract doc says it should not have;
+  the UI still offers a Test for a testless lesson (the payload now carries
+  `closure.requires_test: false` to hide it). reports/closure-contract-ruling-2026-09-15.md.
+  Committed? No — working tree, and NOT deployed; live is still `20260915T154251Z-8b35aa5`.
+
+
+2026-09-15 (cont.) — **Playgroup tier ruled (Q73): align with the contract.** The plan gives Playgroup
+  `tier: 1`, so the seeder wrote it a child-facing quiz test — while seven authored documents say the
+  opposite, including the authoring standard's literal instruction *"For Crèche/Playgroup, set
+  `test: null`"* and `game-size-and-module-standard.md`'s `unitPassed()` pseudocode (the exposure tier
+  requires an **adult observation record**, not a passing test). The plan's own intent agrees
+  (`gameAgeLevel: "Creche"`, average-driven ladder). Root cause: the seeder infers the ASSESSMENT MODE
+  from `tier`, a learning-difficulty knob. Ruling: Playgroup declares no child-facing test, so after
+  Q72's gate it closes on a completed play like Crèche. **Not applied** — the patch is per-band
+  `assessment` in the plan + the seeder reading it for `test`/`assessment`/`successThresholdPct`, but
+  prod's 270 Playgroup configs still declare a test, so committing it without a re-seed re-opens the
+  Q60 drift in exactly the fields `diff-pilot-vs-prod.mjs` compares: edit + re-seed is ONE order.
+  Also exposed: choices 4 vs the doc's 2–3, `successThresholdPct: 60`, and the standard's exposure-tier
+  closure (an adult observation record) NOT being wired to the lock chain — observations are read by
+  nothing in `kidsSeries`, so Q72's play-closes rule is the substitute. reports/playgroup-tier-ruling-2026-09-15.md.
+
+
+2026-09-15 (cont.) — **The exposure tier is testless end to end (Q74/Q75), and the observation
+  decision is ruled (Q76).** Q74: the plan now DECLARES each band's assessment (adult observation for
+  Crèche AND Playgroup) and the seeder reads it instead of inferring the mode from `tier`, so
+  `gamePlan.test` is null / `pilot.assessment` is 'adult observation' / `successThresholdPct` is 0 for
+  the exposure tier; validation enforces both halves so neither can silently spread. **Production was
+  re-seeded**: snapshot first, a pre-flight diff showing *exactly* 270 `kids_game_configs.config_json`
+  mismatches and nothing else, then `--confirm`, then `IN SYNC` and Playgroup 270/270 testless
+  (counts unchanged). Rollback = revert the two edits and re-seed, or the snapshot artifact. Gate
+  **69/69 · 799/799**. Q75: the child is no longer offered a Test the content says does not exist —
+  `lessonRequiresTest()` (fail-closed) rides from the path payload onto the PLAY card and the GamePlay
+  tab, a stale `?mode=test` link is coerced to practice, and the 'practice → Test' CTA is suppressed;
+  staff/preview still see Test. tsc clean, vitest **280/280**, staging build + compat-css green,
+  mutation-checked. Q76: ruled NO on wiring an adult observation record into the lock chain — live
+  `kids_teacher_observations = 0` and **no client path to `/kids/observations`**, so the gate would
+  depend on a screen that does not exist and would strand every unit on day one; if ordered it needs
+  the teacher flow first and a per-school feature-flag opt-in second (no schema change). reports/
+  exposure-tier-testless-2026-09-15.md, reports/exposure-tier-observation-closure-ruling-2026-09-15.md.
+  The CODE halves remain undeployed — live release is still `20260915T154251Z-8b35aa5` — so live still
+  offers (and the old gate still demands) the Crèche/Playgroup test.
 ```

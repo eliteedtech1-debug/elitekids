@@ -16,11 +16,35 @@ export type LessonState = 'none' | 'practice_done' | 'passed' | 'tested_out';
 export type UnitRelation = 'passed_below' | 'spillover' | 'current';
 export type GoalSetter = 'auto' | 'child' | 'teacher';
 
+/**
+ * The lesson's OWN closure contract, served by `computeLearningPath` (QUEUE
+ * Q69/Q72). `requires_test: false` means the content declares no child-facing
+ * test at all — the observation-led Crèche/Playgroup tier, where a completed
+ * play closes the lesson — so the UI must not offer a Test for it.
+ */
+export interface LessonClosure {
+  requires_test: boolean;
+  required_after_practice: boolean | null;
+}
+
 export interface PathLesson {
   lesson_id: string;
   title: string;
   age_level: string;
   state: LessonState;
+  /** Absent on older payloads / offline mirrors — treated as “a Test is owed”. */
+  closure?: LessonClosure;
+}
+
+/**
+ * Does this lesson owe a Test? FAIL-CLOSED: only an explicit
+ * `closure.requires_test === false` hides the Test. An unknown lesson (no path
+ * row yet, the global catalog floor, an offline mirror written before the
+ * contract existed) keeps it, so a missing contract can never silently change
+ * what a child is offered. Mirrors `services/closureContract.js`.
+ */
+export function lessonRequiresTest(lesson: { closure?: LessonClosure } | null | undefined): boolean {
+  return lesson?.closure?.requires_test !== false;
 }
 
 export interface PathUnit {

@@ -65,6 +65,10 @@ export interface HomeGridItem {
   passed?: boolean;
   exempt?: boolean;
   isNext?: boolean;
+  /** False when the lesson's own closure contract declares no test (the
+   *  observation-led Crèche/Playgroup tier) — the card then offers Learn and
+   *  Practice only. Defaults to true (fail-closed) when unknown. */
+  requiresTest?: boolean;
 }
 
 export interface StudentData {

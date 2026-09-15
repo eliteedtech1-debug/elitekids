@@ -49,6 +49,7 @@ import {
   filterInBand,
   flattenUnits,
   groupBySeries,
+  lessonRequiresTest,
   normalizeBand,
   unitStats,
   type GameMode,
@@ -584,6 +585,7 @@ export default function StudentHome() {
         reason: string | null;
         passed: boolean;
         exempt: boolean;
+        requiresTest: boolean;
       }
     >();
     for (const { unit } of flattenUnits(pathData)) {
@@ -595,6 +597,10 @@ export default function StudentHome() {
           // card gets its own badge rather than a green tick.
           passed: l.state === 'passed',
           exempt: l.state === 'tested_out',
+          // The lesson's own closure contract: the observation-led Crèche and
+          // Playgroup tiers declare NO child-facing test, so their cards must not
+          // offer one (fail-closed true for anything the contract does not cover).
+          requiresTest: lessonRequiresTest(l),
         });
       }
     }
@@ -623,6 +629,7 @@ export default function StudentHome() {
         lockedReason: p?.reason ?? null,
         passed: p?.passed ?? false,
         exempt: p?.exempt ?? false,
+        requiresTest: p?.requiresTest ?? true,
       };
     });
     const byId = new Map(decorated.map((d) => [d.lesson.id, d]));
@@ -637,6 +644,7 @@ export default function StudentHome() {
         passed: d.passed,
         exempt: d.exempt,
         isNext: false,
+        requiresTest: d.requiresTest,
       }));
     }
 
@@ -670,6 +678,7 @@ export default function StudentHome() {
           passed: d.passed,
           exempt: d.exempt,
           isNext: d.lesson.id === nextId,
+          requiresTest: d.requiresTest,
         });
       }
     };
