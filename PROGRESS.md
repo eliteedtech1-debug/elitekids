@@ -278,9 +278,19 @@ Ordered by what actually protects production, not by what is easiest.
 
 - [ ] **Q58** — stop a dashboard load from counting as a play day (it writes to
       `kids_economy` and inflates streaks)
-- [ ] **Q59** — make the server-side band cap hold, so `visibleLevels()` is the defence and
-      the client ceiling is only a backstop
-- [ ] **Q60** — reconcile the tracked flagship plan + seeder with the content prod serves
+- [x] **Q59/Q67** — make the server-side band cap hold — **FIXED + DEPLOYED 2026-09-15**
+      (`8b35aa5`). It was never the resolver: `models/Student.js` did not DECLARE `class_name`,
+      so no band resolved for any real-school child and the ceiling was skipped entirely.
+      004 1718→1085, 109 1718→1356, Demo5 1085→814; walked on live.
+- [x] **Q60** — reconcile the tracked flagship plan + seeder with the content prod serves —
+      **RESOLVED 2026-09-15**: tracked source now generates prod exactly (1710/1710/1530/51,
+      zero drift, gate 67/67 · 772/772). Root cause was that the 09-10 Primary work existed only
+      in the live DB and was destroyed by the deploy's `git reset --hard origin/main`.
+- [ ] **Q69 DECISION** — the content's closure contract contradicts the gate: `gamePlan.test`
+      is JSON null for all 270 Crèche games (which the gate nonetheless requires a passing test
+      for) and `requiredAfterPractice: true` for the other 1,440 (which the gate deliberately
+      ignores). Unread dead metadata today; fixing it means plan + seeder + a re-seed decision,
+      which would re-open Q60's drift
 - [ ] **Q65** — establish what the 2026-09-10 `migrate.js` run applied to the SHARED
       `elite_db.school_setup`, and confirm the kids-only rule was respected
 - [ ] **Q51** — migrate the 42 direct `elite_db.students` reads (17 files) onto elite-sms APIs

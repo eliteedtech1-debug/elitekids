@@ -118,9 +118,21 @@ session-close followups ("PLAY by unit").
   guard passed (PlayTab chunk 14.2 kB → 15.4 kB). `dist.staging` removed afterwards.
   **No push, no deploy** — nothing has been sent to live.
 
-- 2026-09-15T15:0xZ | TODO | Not done, and deliberately so: the brief's "surface each unit's
-  overview/summary game and its closure test" (finding (1) — no such rows exist in the API;
-  building it would mean inventing a backend concept).
+- 2026-09-15T16:3xZ | **CLOSED** | The brief's second half — "surface each unit's
+  overview/summary game and its closure test" — is RESOLVED, not deferred. Verdict and
+  evidence: `reports/play-unit-closure-test-verdict-2026-09-15.md`. In short: (a) the
+  **summary/overview game cannot exist as written** — every template live is
+  quiz/matching/drag-sort/stage-sequence/tap-recognition (1710 configs, no recap type), so
+  it is an authoring brief, not a UI change; (b) the **closure test DOES exist and is
+  already surfaced** — it is the unit's own game in `test` mode, which is what the E3f
+  gate reads, and for the five early bands (270 units / 270 games) the game *is* the unit,
+  so PLAY's per-card **Test** action, its **passed** badge and the header's
+  `{done}/{total} units` are the closure at the only grain the content has. New finding
+  made while checking: the closure contract *is* declared in the content
+  (`config_json.gamePlan.test` — JSON null for all 270 Crèche games,
+  `{…, requiredAfterPractice: true}` for the other 1,440) and **read by nothing**, and that
+  declaration contradicts the implemented gate twice (see the verdict §4). Also: the E3f
+  closure path has **never fired in production** (`kids_progress` = 0 rows).
 
 - 2026-09-15T15:2xZ | WALK | Browser walk of the new PLAY sections, run on the staging build
   behind the nginx-mirroring proxy (live still serves `17c0755`, so this exercises the new
@@ -261,3 +273,43 @@ FLAG (harness): a raw authorization header 401s on production (needs `Bearer `) 
   accepts it; and /api/... on prod returns the SPA shell with 200, not JSON — a probe can silently
   "pass" empty. Both now guarded.
 EVIDENCE: team-docs/reports/g6-band-ceiling-model-fix-2026-09-15.md §7
+
+--- 2026-09-15T16:3xZ · CLOSE-OUT — the two admitted limits + the drift note, all three now closed ---
+
+The status block above ("No browser walk…", "Not done…", "repo no longer reproduces prod's
+catalog") is superseded by this section. Nothing in it is left open except the two content
+DECISIONS handed to the master in §4 of the verdict report.
+
+LIMIT 1 — "did not build each unit's overview/summary game and its closure test": **CLOSED
+  as a verdict** (`reports/play-unit-closure-test-verdict-2026-09-15.md`). The summary game
+  does not exist in any band (template inventory, 1710 configs); the closure test does exist,
+  is what the E3f gate reads, and PLAY already surfaces it at the only grain the content has.
+  The check produced a new finding rather than a shrug: the closure contract is declared in
+  every flagship config (`gamePlan.test`) and **read by nothing**, and it contradicts the
+  implemented gate twice (Crèche declared testless yet gated on a test; `requiredAfterPractice:
+  true` vs the 2026-09-04 decision that a passing test alone completes a lesson). Both fixes
+  would re-open Q60's drift, so they are recorded as decisions, not patched silently.
+  Also measured: `kids_progress` / `kids_test_attempts` / `kids_mastery_progress` are all **0
+  rows** — the closure path has never fired in production, so it is backed by tests only.
+
+LIMIT 2 — "no browser walk of the new sections against live": **CLOSED**, and it was closed
+  before this brief. Three live walks exist against production, all in
+  `browser-walk/REPORT-PLAY-SECTIONS.md`: the staging build locally, `elitekids.com.ng`
+  (release `20260915T151254Z-8fc1e11`, 1718 cards / 52 sections / 6 offers, 0 errors), and —
+  after the Q67 ceiling fix — the two **real-school mid-band children** whose band the
+  ceiling actually filters (004 @ SCH/28: 1085/37/9 with no Kindergarten or Primary section;
+  109 @ SCH/11: 1356/46/9), `readOnly: true` on both. Live is currently
+  `releases/20260915T154251Z-8b35aa5` and `origin/main` is `8b35aa5`, both unchanged since
+  those runs, so the standing evidence is current and re-running would be byte-identical.
+
+DRIFT NOTE — "the repo no longer reproduces prod's catalog": **CLOSED** in Q60. Tracked
+  source now generates prod exactly (`team-docs/tools/diff-pilot-vs-prod.mjs` → 1710 lessons /
+  1710 configs / 1530 units / 51 series / 1710 points / 1710 library games, all `identical`),
+  gate 67/67 · 772/772. The work was sitting uncommitted in this checkout — which is the same
+  trap that destroyed the 09-10 Primary work, because the deploy's first CI step is
+  `git reset --hard origin/main`. It is now committed.
+
+STILL OPEN (decisions, not work): (i) Crèche closure semantics — declared testless, gated on
+  a test; (ii) `requiredAfterPractice` — drop it from the plan or restore it in the gate.
+EVIDENCE: reports/play-unit-closure-test-verdict-2026-09-15.md,
+  tools/probe-closure-test.mjs, tools/diff-pilot-vs-prod.mjs, Q60/Q68 in QUEUE.md
