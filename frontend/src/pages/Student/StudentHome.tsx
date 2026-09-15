@@ -38,7 +38,7 @@ import StudentQuickNav from '@/components/StudentQuickNav';
 import PlacementQuiz from '@/components/PlacementQuiz';
 import PlacementIntro from '@/components/PlacementIntro';
 import { useA11yStore } from '@/lib/utils/a11y-store';
-import { recordPlayDay, getStreakLocal } from '@/lib/utils/streak';
+import { cacheServerStreak, getStreakLocal } from '@/lib/utils/streak';
 import Shop, { SKIN_META, THEME_HEADER } from '@/components/Shop';
 import ReviewDueBadge from '@/components/ReviewDueBadge';
 import { warmCache, extractCacheableUrls } from '@/lib/utils/asset-cache';
@@ -325,6 +325,9 @@ export default function StudentHome() {
                 multiplier: Number(d.multiplier) || 1,
                 title: d.title ?? null,
               });
+              // Cache the server's streak for display — a read: it must not
+              // claim the child played (see the note in the finally block).
+              setStreak(cacheServerStreak(Number(d.streak?.current) || 0, Number(d.streak?.longest) || 0));
             }
           })
           .catch(() => {});
@@ -361,8 +364,11 @@ export default function StudentHome() {
       setError(err?.message || t('student.home.loadFailed'));
     } finally {
       setLoading(false);
-      const admissionNo = student?.admission_no || student?.id || '';
-      recordPlayDay(admissionNo).then(setStreak).catch(() => {});
+      // NOTE: the dashboard does NOT record a play day. It used to POST
+      // /kids/economy/streak/record on mount, so merely opening the app advanced
+      // the child's streak and reset last_play_date; play is now recorded where
+      // it happens (a completed game), and the values shown here come from the
+      // balance read below (Q58).
       // ── Offline warming: deferred, jittered, tiny ───────────────────────
       // Nothing here is needed for first paint, and a class that logs in
       // together must not fire its sweeps in the same second — the API allows

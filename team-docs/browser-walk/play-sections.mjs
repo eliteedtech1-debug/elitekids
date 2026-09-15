@@ -361,12 +361,15 @@ async function main() {
     blockedWrites: cdp.blockedWrites,
     escaped,
     readOnly: escaped.length === 0,
+    noWritesOnLoad: attemptedWrites.length === 0,
     rendered: { cards, sections: sections.length, offers: offers.length },
     expected,
     matches: {
       cardCount: cards === expected.visibleRows,
       sectionCount: sections.length === expected.seriesWithCards + (expected.pathLessVisible > 0 ? 1 : 0),
       offerCount: offers.length === expected.lockedSeries.length,
+      // A dashboard load must not WRITE at all (Q58) — not merely fail to write.
+      noWritesOnLoad: attemptedWrites.length === 0,
       firstSectionOwnBand: ownBandIdx === -1 ? null : ownBandIdx === 0,
       ownBandSectionIndex: ownBandIdx,
       firstSectionName: sections.length ? sections[0].name : null,

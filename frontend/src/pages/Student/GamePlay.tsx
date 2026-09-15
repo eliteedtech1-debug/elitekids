@@ -25,6 +25,7 @@ import SpeakButton from '@/components/SpeakButton';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { t, tN } from '@/lib/i18n';
 import { STORAGE_KEYS } from '@/lib/utils/constants';
+import { recordPlayDay } from '@/lib/utils/streak';
 import { isFlagshipSchool } from '@/lib/utils/school';
 import TimerBar from '@/components/Timer';
 import { getItemVisual, getNumberEmoji, getNumberImageUrl } from '@/lib/utils/icons';
@@ -4375,6 +4376,14 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
             console.warn('[offline] Progress lost — sync queue full');
           }
         }
+
+        // A COMPLETED GAME is a play day — a dashboard load is not. Reaching here
+        // means the child really played (the preview guard above already
+        // returned). This advances the streak's local mirror and re-asserts it
+        // server-side (idempotent per calendar day, and the server also records
+        // it from game-complete). Fire-and-forget: never hold the results screen
+        // for a reward, and never fail the game because of one (Q58).
+        if (admissionNo) void recordPlayDay(admissionNo);
 
         // Q1 NGEd — ADE v2 (BKT) update + engagement economy earn. Best-effort,
         // fire-and-forget; both are non-blocking and must never interrupt play.

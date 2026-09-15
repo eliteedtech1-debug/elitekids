@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const { hasClassAccess } = require('../services/routesHelper');
 const { recordAttemptPoints } = require('./kidsLeaderboard');
+const { recordPlayDay } = require('./kidsEconomy');
 const db = require('../models');
 const { generateGameConfig, persistGameConfig, generateSceneScript, persistSceneScript } = require('../services/contentGeneratorService');
 const { enqueueLessonGeneration } = require('../media/generation.queue');
@@ -1293,6 +1294,18 @@ async function recordGameComplete(req, res) {
     });
     // FB-17: weekly competition points (effort+performance), fire-and-forget
     recordAttemptPoints({ school_id, branch_id, child_admission_no, score: record.score });
+
+    // A COMPLETED GAME is a play day; a dashboard load is not. Recorded here,
+    // server-side, off a real play event — the client used to POST a play day
+    // from the dashboard's mount effect, so simply opening the app advanced the
+    // streak and reset last_play_date (Q58). Idempotent per calendar day and
+    // fire-and-forget: a streak is a reward, never a precondition for play.
+    // The admission comes from the JWT (the child who is actually playing).
+    void recordPlayDay({
+      child_admission_no: String(req.user?.admission_no || req.user?.id || child_admission_no),
+      school_id,
+    });
+
     return res.status(201).json({ success: true, data: record });
   } catch (err) {
     console.error('recordGameComplete error:', err.message);

@@ -41,9 +41,11 @@ export default function HomeTab({
   return (
     <>
       {/* First-time welcome — HOME must never be a blank screen for a brand-new
-          student. Opening the dashboard records a play day (so the streak
-          reminder stays quiet) and an empty garden renders nothing, which left
-          this tab empty until the child found PLAY by themselves. */}
+          student. (Opening the dashboard used to record a play day so the streak
+          reminder stayed quiet; it does not any more — the streak follows real
+          play, and a brand-new child gets StreakReminder's own first-session
+          state instead of a write.) An empty garden renders nothing, which
+          previously left this tab blank until the child found PLAY. */}
       {!isReturningStudent && (
         <div className="mb-4 relative overflow-hidden rounded-3xl border border-white/60 bg-gradient-to-br from-[#0F4D92] to-[#0d9488] p-5 text-white shadow-xl shadow-[#0F4D92]/25">
           <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" />

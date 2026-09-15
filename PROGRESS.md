@@ -276,8 +276,18 @@ Full log in `01-PLANNING/09-DECISIONS-LOG.md`. Summary:
 
 Ordered by what actually protects production, not by what is easiest.
 
-- [ ] **Q58** — stop a dashboard load from counting as a play day (it writes to
-      `kids_economy` and inflates streaks)
+- [x] **Q58** — stop a dashboard load from counting as a play day — **FIXED 2026-09-15,
+      NOT deployed.** The streak rule became one shared `kidsEconomy#applyPlayDay`, called by
+      real play events (`POST /kids/progress/game-complete`, admission from the JWT, idempotent
+      per day) instead of by the dashboard mount; the client now only refreshes display from the
+      balance **read**. Browser before/after, same child: live writes
+      `['POST …/economy/streak/record']`, new build `[]`; the harness gained `noWritesOnLoad`,
+      which fails on live and passes on the new build. Gate 68/68 · 782/782, vitest 276/276
+- [ ] **NOT DEPLOYED — `main` is 5 commits ahead.** `1c365eb` (Q70 band cap), `a3b8c65`
+      (Q71 PLAY ordering) and this Q58 fix are all gate-green but unshipped
+- [ ] **LEARN vs PLAY ordering divergence** — PLAY now leads with the child's own band
+      (Q71) while LEARN still leads with spill-over (deliberate, PLAY-only brief); they now
+      disagree about which end of the journey to lead with, so it wants an explicit decision
 - [x] **Q59/Q67** — make the server-side band cap hold — **FIXED + DEPLOYED 2026-09-15**
       (`8b35aa5`). It was never the resolver: `models/Student.js` did not DECLARE `class_name`,
       so no band resolved for any real-school child and the ceiling was skipped entirely.
@@ -437,4 +447,21 @@ _(append one short entry per work session — do not delete old entries, this is
   Two live-safety findings recorded: a dashboard load writes a streak (Q58), and the
   server-side band cap may not hold (Q59). Both deploys of the day passed the gate
   (66/66 · 761/761) and published atomically.
+
+2026-09-15 (cont.) — Band-cap and PLAY-ordering hardening, all against live data. Q67 was
+  deployed and walked: models/Student.js never DECLARED class_name, so no real-school child
+  resolved a band and the ceiling was skipped entirely — 004 1718→1085, 109 1718→1356. A
+  second pass (Q70) found 647 of 6649 children (9.7%) still resolved NO band and got all six
+  bands: the class row's section was never passed to classToAgeLevel (dead code on the
+  resolver path — 640 in Islamiyya/Tahfiz schools with sahaba-named classes), age-word room
+  names like "Just 2s" (7), and an unreadable identity widening instead of narrowing.
+  Fixed and verified read-only against production: 640 of 640 recover, 0 unresolved. PLAY
+  ordering (Q71): sections now lead with the child's own band (own-band index 45 of 52 → 0),
+  counts unchanged, harness asserts it. Q58: a dashboard load no longer counts as a play day
+  — the streak is recorded where a game completes, from the JWT. The flagship pilot (Q60) was
+  reconciled so tracked source reproduces prod exactly (1710/1710/1530/51, zero drift), and
+  the brief's "unit overview/summary game + closure test" was closed as a verdict (Q68) with
+  Q69 left as a decision: gamePlan.test is unread dead metadata and Crèche declares no test
+  while the gate requires one. All of Q58/Q70/Q71 are committed but NOT deployed (main 5
+  ahead); live is still 20260915T154251Z-8b35aa5.
 ```

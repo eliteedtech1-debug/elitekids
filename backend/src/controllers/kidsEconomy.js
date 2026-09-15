@@ -256,7 +256,88 @@ async function earnXP(req, res) {
   }
 }
 
-// POST /kids/economy/streak/record
+/**
+ * Apply ONE play day for a child: advance the streak (idempotent per calendar
+ * day — `updateStreak` returns it unchanged when the child already played
+ * today), persist it with its multiplier, and award any newly crossed
+ * milestones.
+ *
+ * Extracted so one rule serves both the explicit endpoint and the real play
+ * events, because "played" has to mean the child PLAYED. A dashboard load is
+ * NOT a play day: the client used to POST this on every mount, so merely
+ * opening the app advanced the streak and reset `last_play_date` (Q58).
+ */
+async function applyPlayDay(content, adm, schoolId) {
+  const econ = await getEconomy(content, adm, schoolId);
+
+  const todayStr = today();
+  const result = updateStreak({
+    streak_current: Number(econ.streak_current || 0),
+    streak_longest: Number(econ.streak_longest || 0),
+    streak_freeze_count: Number(econ.streak_freeze_count || 0),
+    last_play_date: econ.last_play_date,
+  }, todayStr);
+
+  // Persist
+  await content.query(
+    `UPDATE kids_economy SET
+      streak_current = :sc,
+      streak_longest = GREATEST(streak_longest, :sc),
+      streak_freeze_count = :sfc,
+      last_play_date = :lpd,
+      current_multiplier = :mult
+     WHERE child_admission_no = :adm`,
+    {
+      replacements: {
+        sc: result.streak,
+        sfc: result.new_freeze_count,
+        lpd: todayStr,
+        mult: getStreakMultiplier(result.streak),
+        adm,
+      },
+    }
+  );
+
+  // Check for streak milestones
+  const existingMilestones = await getMilestoneTypes(content, adm);
+  const newMilestones = checkMilestones(
+    { streak: result.streak, level: Number(econ.level || 1), perfect_games: 0, total_games: 0 },
+    existingMilestones
+  );
+  for (const m of newMilestones) {
+    await content.query(
+      `INSERT INTO kids_economy_milestones (child_admission_no, milestone_type, milestone_value, reward_type, reward_value)
+       VALUES (:adm, :type, :value, :rt, :rv)`,
+      {
+        replacements: { adm, type: m.type, value: m.value, rt: m.reward_type, rv: m.reward_value },
+      }
+    ).catch(() => {});
+  }
+
+  return { result, newMilestones };
+}
+
+/**
+ * Fire-and-forget play-day record for a VERIFIED play event (a completed game,
+ * an answered item). Never throws and never blocks the caller: a streak is a
+ * reward, not a precondition for play. Returns the new streak, or null.
+ */
+async function recordPlayDay({ child_admission_no, school_id }) {
+  const adm = String(child_admission_no || '').trim();
+  if (!adm) return null;
+  try {
+    await ensureSchema();
+    const { content } = dbm();
+    const { result } = await applyPlayDay(content, adm, school_id);
+    return result.streak;
+  } catch (err) {
+    console.warn('play-day record skipped:', err.message);
+    return null;
+  }
+}
+
+// POST /kids/economy/streak/record — explicit play-day record. The app calls
+// this only when a game has actually been completed, never on a dashboard load.
 async function recordStreak(req, res) {
   try {
     const u = req.user || {};
@@ -268,51 +349,7 @@ async function recordStreak(req, res) {
 
     await ensureSchema();
     const { content } = dbm();
-    const econ = await getEconomy(content, adm, schoolId);
-
-    const todayStr = today();
-    const result = updateStreak({
-      streak_current: Number(econ.streak_current || 0),
-      streak_longest: Number(econ.streak_longest || 0),
-      streak_freeze_count: Number(econ.streak_freeze_count || 0),
-      last_play_date: econ.last_play_date,
-    }, todayStr);
-
-    // Persist
-    await content.query(
-      `UPDATE kids_economy SET
-        streak_current = :sc,
-        streak_longest = GREATEST(streak_longest, :sc),
-        streak_freeze_count = :sfc,
-        last_play_date = :lpd,
-        current_multiplier = :mult
-       WHERE child_admission_no = :adm`,
-      {
-        replacements: {
-          sc: result.streak,
-          sfc: result.new_freeze_count,
-          lpd: todayStr,
-          mult: getStreakMultiplier(result.streak),
-          adm,
-        },
-      }
-    );
-
-    // Check for streak milestones
-    const existingMilestones = await getMilestoneTypes(content, adm);
-    const newMilestones = checkMilestones(
-      { streak: result.streak, level: Number(econ.level || 1), perfect_games: 0, total_games: 0 },
-      existingMilestones
-    );
-    for (const m of newMilestones) {
-      await content.query(
-        `INSERT INTO kids_economy_milestones (child_admission_no, milestone_type, milestone_value, reward_type, reward_value)
-         VALUES (:adm, :type, :value, :rt, :rv)`,
-        {
-          replacements: { adm, type: m.type, value: m.value, rt: m.reward_type, rv: m.reward_value },
-        }
-      ).catch(() => {});
-    }
+    const { result, newMilestones } = await applyPlayDay(content, adm, schoolId);
 
     return res.json({
       success: true,
@@ -486,6 +523,7 @@ module.exports = {
   earnXP,
   recordStreak,
   updateEconomyAfterGame,
+  recordPlayDay,
   updateReviewXP,
   _getEconomy: getEconomy,
   _ensureSchema: ensureSchema,

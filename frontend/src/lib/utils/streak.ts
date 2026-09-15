@@ -92,11 +92,16 @@ function recordPlayDayLocal(): StreakState {
 // ── Public API ──────────────────────────────────────────────────────────
 
 /**
- * Record a play day. Hits the REAL backend route (economy streak record —
- * admission comes from the JWT; streaks previously never persisted server-side
- * because this posted to a removed /kids/streak/record endpoint and silently
- * fell back to localStorage). Merges the economy response into the cached
- * StreakState; falls back to localStorage-only recording when offline/error.
+ * Record a play day for a child who has actually PLAYED — call it when a game is
+ * completed, never on a dashboard load. Opening the app is not playing (Q58):
+ * the dashboard used to call this from its mount effect, so just showing up
+ * advanced streaks and reset `last_play_date`.
+ *
+ * Hits the REAL backend route (economy streak record — admission comes from the
+ * JWT; streaks previously never persisted server-side because this posted to a
+ * removed /kids/streak/record endpoint and silently fell back to localStorage).
+ * Merges the economy response into the cached StreakState; falls back to
+ * localStorage-only recording when offline/error.
  */
 export async function recordPlayDay(childAdmissionNo?: string): Promise<StreakState> {
   try {
@@ -119,6 +124,29 @@ export async function recordPlayDay(childAdmissionNo?: string): Promise<StreakSt
     }
   } catch {}
   return recordPlayDayLocal();
+}
+
+/**
+ * Merge the SERVER's streak into the local cache — a READ, never a play day.
+ *
+ * The dashboard refreshes what it shows from the balance endpoint without
+ * writing anything: `lastPlayDate` / `totalDaysPlayed` / `milestones` are still
+ * only advanced by `recordPlayDay()`, so "played today" stays truthful and the
+ * streak reminder reflects real play.
+ */
+export function cacheServerStreak(currentStreak: number, longestStreak: number): StreakState {
+  const prev = getStreakLocal();
+  const current = Number(currentStreak);
+  const longest = Number(longestStreak);
+  const state: StreakState = {
+    ...prev,
+    // The server is the source of truth for the values it owns; the locally
+    // owned fields (lastPlayDate/totalDaysPlayed/milestones) are left alone.
+    currentStreak: Number.isFinite(current) && current >= 0 ? current : prev.currentStreak,
+    longestStreak: Math.max(prev.longestStreak, Number.isFinite(longest) ? longest : 0),
+  };
+  saveStreakLocal(state);
+  return state;
 }
 
 // ── Helpers (no async needed) ───────────────────────────────────────────

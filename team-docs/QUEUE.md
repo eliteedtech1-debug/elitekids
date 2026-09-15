@@ -17,7 +17,31 @@
 > metadata) that are **not in this repository at HEAD**. Prod demonstrably has the resulting
 > content; the source that generated it does not exist in tracked files. See Q48 and Q60.
 | # | Task | Assigned | Status |
-|---|------|----------|--------|
+|
+
+---
+|
+
+---
+
+
+---
+|
+
+---
+
+
+---
+
+
+---
+-|
+
+---
+
+
+---
+--|
 | Q1 | B2 media repair (briefs/b2-media-repair.md) | phaseB2 | DONE 2026-08-23 |
 | Q2 | C test matrix (briefs/c-test-matrix-expansion.md) | phaseC | DONE |
 | Q3 | Asset baseline sweep | fb-review | DONE 2026-08-23 |
@@ -76,7 +100,7 @@
 | Q55 | **Deploy hardening** after the 403 docroot incident: gate frontend publishes behind a staging build + atomic release swap (`ef46cbb`); retire the manual rsync scripts and refuse in-place frontend builds (`65d86e3`); and correct the deploy docs to describe the deploy that exists, not a `production` remote (`f62193d`) | Buffy (worker) | DONE + DEPLOYED 2026-09-14 (reports/frontend-403-docroot-incident.md — nginx docroot had no `index.html`; `index index.html` + autoindex off yields 403, not 404) |
 | Q56 | **Crèche content + placement commit** so the deploy gate can pass: restored the reverted tracked half of the crèche work from stash `fa375e14`, guarded the Jolly Phonics seeder entry point (`require.main === module`) so a test cannot trigger seeding or its `process.exit`, promoted 4 contract suites from untracked to tracked | Buffy (worker) | DONE 2026-09-15 (`5fda5ba`; gate 65/65 · 724/724; reports/creche-content-placement-gate-fix-2026-09-15.md). Root cause was an asymmetry, not a broken test: CI step 1 runs `git stash create` + `git reset --hard origin/main`, which reverts TRACKED modifications and leaves UNTRACKED files |
 | Q57 | **Crèche game audit** — manual audit of seeded Crèche games (adult-led, observation-based; must not present an ambiguous child-facing quiz or demand speech where pointing/gaze/gesture/sound is the intended response) | fb-review (worker) | PARTIAL 2026-09-11 — Milestone 1 tap-recognition discovery complete, implementation fix pending (reports/creche-game-audit-progress.md, 686 lines) |
-| Q58 | ⚠️ **OPEN FINDING — a dashboard load counts as a play day.** `streak.ts#recordPlayDay` POSTs `/kids/economy/streak/record` from `StudentHome.tsx:365` on every mount; the server UPDATEs `kids_economy` (streak_current/longest, freeze_count, last_play_date, multiplier) and can INSERT milestones | unassigned | OPEN — found 2026-09-15 by the live PLAY walk. Play is not required, only opening the app, so streaks inflate and every dashboard visit is a write. **This also invalidates the 09-15 session's "no DB writes" claim**: it checked `/kids/streak/record` (removed) but the live path is `/kids/economy/streak/record`, which persists — so that session's walks on real children 004 @ SCH/28 and 109 @ SCH/11 advanced their streaks. Harness now aborts the request (b8fef89) |
+| Q58 | **A dashboard load counted as a play day** — `streak.ts#recordPlayDay` POSTed `/kids/economy/streak/record` from `StudentHome.tsx:365` on every mount; the server UPDATEd `kids_economy` (streak_current/longest, freeze_count, last_play_date, multiplier) and could INSERT milestones | Buffy (worker) | **FIXED 2026-09-15, NOT DEPLOYED.** The streak rule is now `kidsEconomy#applyPlayDay`, shared by the endpoint and real play events; `recordPlayDay` became a fire-and-forget wrapper called from `kids.js#recordGameComplete` (`POST /kids/progress/game-complete`, admission from the **JWT**, idempotent per calendar day). The dashboard no longer writes — it refreshes display from the balance **read** via `cacheServerStreak()` — and `GamePlay` records the play day where a game **completes** (after the staff-preview guard). Browser before/after, same child: live writes `['POST …/economy/streak/record']`, new build `[]`; harness gained `noWritesOnLoad` (fails on live, passes on the new build). Backend `test/streak-play-day.test.js` (4) + frontend `streak.test.ts` (6, incl. a call-site guard). Mutation-checked both ways. Gate **68/68 · 782/782**, vitest **276/276**, tsc/staging build clean. reports/play-day-not-dashboard-load-2026-09-15.md. Was: found 2026-09-15 by the live PLAY walk. Play is not required, only opening the app, so streaks inflate and every dashboard visit is a write. **The 09-15 session's "no DB writes" claim was wrong**: it checked `/kids/streak/record` (removed) but the live path is `/kids/economy/streak/record`, which persists — so that session's walks on real children 004 @ SCH/28 and 109 @ SCH/11 advanced their streaks. Finding this also surfaced that **`updateEconomyAfterGame` already advanced the streak** on real activity, but its only caller was the ADE per-item path — the game-complete path had never had a streak caller, so the dashboard POST was surplus for a playing child and the *only* mechanism for a non-playing one. Flagged, not changed: `GET /kids/economy/balance` still INSERTs the `kids_economy` row on read (`last_play_date` stays NULL, streak stays 0), and a game completed offline lands its play day on the **sync** date |
 | Q59 | ⚠️ **FINDING — the server-side band cap did not hold.** The 09-15 session found `GET /kids/lessons` returned all 1718 rows to admissions 004/109 where it correctly capped Demo5 at 1085, leaving the CLIENT ceiling as the only defence | Buffy (worker) | **ROOT-CAUSED + FIXED 2026-09-15 (Q67), NOT YET DEPLOYED.** The earlier mechanism written into this row — “their `students.class_name` is empty… a data problem before it is a server bug” — is **WRONG and now disproved**: `elite_db.students.class_name` really holds `'Nursery 2'` (004) and `'Kindergarten'` (109), and **0 of 6649** students rows have an empty `class_name`. The real cause is that `models/Student.js` never DECLARED the column (Q67). Any check must use a mid-band child — a Primary child legitimately receives all rows. **Still open after Q67 and now closed by Q70**: 647 of 6649 children (9.7%) resolved no band at all and were served every band — decorative class names needing the class row's `section` (640), age-word room names (7), and a fail-closed policy for anything left |
 | Q60 | **Repo/prod drift on the flagship pilot** (found 2026-09-15): HEAD's `flagship-annual-pilot-plan.json` declared **5 bands and no `primary`**, `git log -S'"primary"'` on it was **empty**, and `flagshipAnnualPilotSeed.js` wrote **one** `content_items` entry per unit — yet prod serves **1718** lessons (the 6-band total) with 2 games per Primary unit | Buffy (worker) | **RESOLVED 2026-09-15 — tracked source now reproduces prod exactly.** Root cause: the 2026-09-10 Primary/Playgroup work (which seeded prod) was never committed on ANY branch (`git log -S'fp-pr-' --all` empty) and was destroyed by the deploy's `git reset --hard origin/main`; three fragments survived (`gameConfigRules.PLAYABLE_ITEM_MAX_PRIMARY`, the game-size doc, a bridges comment). Rebuilt the plan (`primarySubjects`, the `primary` band, `ladder` + `publication` blocks) and the seeder (per-band subjects, slot loop, pedagogy ladder, published posture, 15-item labels), bumped the quiz/stage-sequence schemas 10→15, and rewrote the seed test (3→8 tests). **Verified field-by-field against the DB**: `team-docs/tools/diff-pilot-vs-prod.mjs` → 1710 lessons / 1710 configs / 1530 units / 51 series / 1710 points / 1710 library games all `identical`, `IN SYNC`; gate 67/67 · 772/772. Not deployed (source-only). reports/flagship-pilot-reconciliation-2026-09-15.md. **Was:** prod content is not reproducible from tracked source. Also untracked by policy/design: `curriculum/**` (the whole new tree), `backend/scripts/inventory-creche-legacy.js` + its test, `backend/.env.kids.example` |
 | Q61 | **Student dashboard evolution** (pre-restructure, superseded by Q49): separate tests cards vs games into HOME vs a games tab (`b142333`); make Home the games grid and group games by LOCK STATE (`fbc021a`); move RevisionCard + ReviewZone inside HOME only (`e375578`) | Buffy (worker) | DONE + DEPLOYED 2026-09-10 / 09-14 / 09-15. **Superseded**: Q49 replaced this layout with the five-tab split, so read these for history, not for current behaviour |
