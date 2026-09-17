@@ -537,17 +537,17 @@ The Twemoji fallback already exists but isn't being used for game option cards. 
 
 ## Part 6: Recommended Execution Order
 
-1. **P0 Quick Fix — Placeholder Detection (1 day):** Add `isPlaceholderImage()` check in `GamePlay.tsx` so cards fall back to emoji instead of showing broken SVGs. 20-line code change, immediate visual improvement for all 1,718 games.
+1. **P0 Quick Fix — Placeholder Detection (1 day):** ✅ DONE — Added `isPlaceholderImage()` check in `GamePlay.tsx` so cards fall back to emoji instead of showing broken SVGs. 20-line code change, immediate visual improvement for all 1,718 games.
 
-2. **P0 Content Fix — Seeder Update (2 days):** Update `fallbackImage()` to generate distinct emoji per item. Clean up audio fields to be short TTS-able labels. Re-seed the database.
+2. **P0 Content Fix — Seeder Update (2 days):** ✅ DONE — Updated `fallbackImage()` with 100+ label-specific emoji mappings. Each item now gets a unique emoji based on its label (e.g., "tap" → 👆, "listen" → 👂, "count" → 🔢). Re-seed required for existing games.
 
-3. **P0 Learn Mode Auto-Play (1 day):** Add a learning auto-play `useEffect` to `TapGame` (mirroring `MatchingGame:457-485`). Auto-advance through rounds: speak → highlight correct → celebrate → next. No manual "Play Answer" button needed.
+3. **P0 Learn Mode Auto-Play (1 day):** ✅ DONE — Added learning auto-play `useEffect` to `TapGame` (mirrors `MatchingGame:457-485`). Auto-advances through rounds: speak → highlight correct → celebrate → next. No manual "Play Answer" button needed.
 
-4. **P1 Home Tab Fallback (0.5 day):** Add a fallback content block to `HomeTab.tsx` — when all four sections are null, show a "Continue Learning" card with the next lesson from the path, plus XP/streak stats.
+4. **P1 Home Tab Fallback (0.5 day):** ✅ DONE — Added fallback content block to `HomeTab.tsx` — when all four sections are null (returning student, played today, no companion, empty garden), shows XP stats, streak count, and "Play next lesson" CTA.
 
-5. **P1 Test Mode Flash Fix (0.5 day):** Don't render the mode picker until `pathData` has loaded (or `ownRequiresTest` is resolved). Use a skeleton loader for the mode bar during the 1-2s API fetch. Eliminates the flicker.
+5. **P1 Test Mode Flash Fix (0.5 day):** ✅ DONE — Modified `hideTestTab` logic to hide Test until `pathData` has loaded (or we're staff/preview). Eliminates the flicker on first load.
 
-6. **P1 Learn → Practice Transition (1 day):** After `LearningComplete` screen, prominently offer "Now try Practice →" as the primary CTA. Update the `LearningComplete` component to accept and display the next mode option.
+6. **P1 Learn → Practice Transition (1 day):** ✅ DONE — After `LearningComplete` screen, prominently offers "Try Practice →" as the primary CTA (green button).
 
 7. **P1 Learning Path Timeout (2-3 days):** Debug and fix the `GET /kids/learning-path` abort. Add caching, pagination, or query optimization for the 1,718-lesson catalog.
 
