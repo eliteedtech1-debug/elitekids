@@ -38,6 +38,10 @@ export default function HomeTab({
   };
   const playedToday = hasPlayedToday(streakState);
 
+  // Determine if all sections will be null (returning student, played today, no companion, empty garden)
+  const showFallback = isReturningStudent && playedToday && (!companion || showOnboarding || showCompanionSelect);
+  const nextLesson = pathData?.path?.[0]?.units?.[0]?.lessons?.[0];
+
   return (
     <>
       {/* First-time welcome — HOME must never be a blank screen for a brand-new
@@ -92,6 +96,43 @@ export default function HomeTab({
       <div className="mb-4">
         <GardenScene compact equippedDecorations={equippedItems} />
       </div>
+
+      {/* Fallback: returning student with nothing else to show — keep the home
+          tab from being blank. Show a "continue learning" card with stats. */}
+      {showFallback && (
+        <div className="mb-4 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm animate-game-slide-up">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-3xl">🌱</span>
+            <div>
+              <p className="text-sm font-bold text-gray-800">
+                {t('student.home.continueTitle', { defaultValue: 'Welcome back!' })}
+              </p>
+              <p className="text-xs text-gray-500">
+                {streak.currentStreak > 0
+                  ? t('student.home.streakCount', { defaultValue: `${streak.currentStreak} day streak — keep it going!`, count: streak.currentStreak })
+                  : t('student.home.noStreak', { defaultValue: 'Start a new lesson to build your streak!' })}
+              </p>
+            </div>
+          </div>
+          {economy && (
+            <div className="flex gap-3 mb-3 text-xs">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 font-bold text-amber-700">
+                ⭐ {economy.xp_total ?? 0} XP
+              </span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => { playTap(); onPickGame?.(); }}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0F4D92] px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:scale-105 active:scale-95"
+          >
+            <Play className="h-4 w-4" />
+            {nextLesson
+              ? t('student.home.playNext', { defaultValue: 'Play next lesson', title: nextLesson.title || '' })
+              : t('student.home.pickGame', { defaultValue: 'Pick a game' })}
+          </button>
+        </div>
+      )}
     </>
   );
 }

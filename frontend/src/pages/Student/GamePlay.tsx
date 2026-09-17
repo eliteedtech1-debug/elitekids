@@ -651,6 +651,12 @@ function MatchingGame({
   );
 }
 
+/** Detect inline SVG placeholder images produced by the seeder. */
+function isPlaceholderImage(src?: string | null): boolean {
+  if (!src || !src.startsWith('data:image/svg')) return false;
+  return src.includes('%23EAF3FF') || src.includes('#EAF3FF') || src.includes('🎮');
+}
+
 /* ── Tap Recognition Game ──────────────────────────────────── */
 
 function TapGame({
@@ -736,6 +742,41 @@ function TapGame({
     }, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [soundOn, currentIdx, currentRound]);
+
+  // Learning mode auto-play: speak the answer, highlight correct card, then advance.
+  useEffect(() => {
+    if (mode !== 'learning' || !currentRound || !current) return;
+    let cancelled = false;
+    const timers: number[] = [];
+    const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
+    // Stage 1: speak the answer (1200ms)
+    later(1200, () => {
+      if (cancelled || !soundOn) return;
+      speakOrPlay(currentRound.audio, stimulusText || speakLabel(current.label, current.color, current.emoji, config.category));
+    });
+    // Stage 2: highlight correct card (2200ms)
+    later(2200, () => {
+      if (cancelled) return;
+      const idx = displayedItems.findIndex((item) => String(item.id) === String(currentRound.correctId));
+      if (idx >= 0) {
+        setFeedback('correct');
+        setPopId(idx);
+        if (soundOn) playCorrect();
+      }
+    });
+    // Stage 3: advance to next round (3500ms)
+    later(3500, () => {
+      if (cancelled) return;
+      setFeedback(null);
+      setPopId(null);
+      if (currentIdx + 1 >= tapRounds.length) {
+        onComplete(score);
+      } else {
+        setCurrentIdx((i) => i + 1);
+      }
+    });
+    return () => { cancelled = true; timers.forEach(window.clearTimeout); };
+  }, [mode, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTap = (idx: number) => {
     if (feedback) return;
@@ -949,13 +990,16 @@ function TapGame({
                 {isLearning ? (
                   <>
                     {item.emoji && <span className="text-4xl" role="img" aria-label={item.label || item.color}>{item.emoji}</span>}
-                    {item.image && !item.emoji && <CachedImg src={item.image} alt={item.label} className="h-14 w-14 object-contain" />}
-                    {!item.emoji && !item.image && isHex(item.hex) && (
+                    {item.image && !isPlaceholderImage(item.image) && !item.emoji && <CachedImg src={item.image} alt={item.label} className="h-14 w-14 object-contain" />}
+                    {!item.emoji && (!item.image || isPlaceholderImage(item.image)) && isHex(item.hex) && (
                       <div className="h-14 w-14 rounded-full shadow-inner border-2 border-white/50" style={{ backgroundColor: item.hex }} />
+                    )}
+                    {!item.emoji && (!item.image || isPlaceholderImage(item.image)) && !isHex(item.hex) && (
+                      <span className="text-4xl" role="img" aria-label={item.label || 'option'}>❓</span>
                     )}
                   </>
                 ) : responseMode === 'image' ? (
-                  item.image ? (
+                  item.image && !isPlaceholderImage(item.image) ? (
                     <CachedImg src={item.image} alt="" className="h-16 w-16 object-contain" />
                   ) : item.emoji ? (
                     <span className="text-5xl" role="img" aria-label="option">{item.emoji}</span>
@@ -2924,11 +2968,13 @@ function LearningComplete({
   totalItems,
   onRestart,
   onBack,
+  onPractice,
 }: {
   lessonTitle: string;
   totalItems: number;
   onRestart: () => void;
   onBack: () => void;
+  onPractice?: () => void;
 }) {
   // Speak completion message on mount
   useEffect(() => {
@@ -2955,6 +3001,14 @@ function LearningComplete({
           </p>
         </div>
         <div className="flex gap-3 justify-center animate-game-slide-up stagger-3">
+          {onPractice && (
+            <button
+              onClick={() => { playTap(); onPractice(); }}
+              className="inline-flex items-center gap-2 rounded-xl bg-green-500 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-green-600 transition-all hover:scale-105 active:scale-95"
+            >
+              🎯 {t('game.practiceNow', { defaultValue: 'Try Practice' })}
+            </button>
+          )}
           <button
             onClick={() => { playTap(); onRestart(); }}
             className="inline-flex items-center gap-2 rounded-xl border-2 border-purple-200 px-5 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-50 transition-all hover:scale-105 active:scale-95"
@@ -4147,8 +4201,9 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
   // sessions and locked-mode overrides always see Test — and a lesson whose own
   // closure contract declares NO test (the observation-led Crèche/Playgroup
   // tier) is never offered one at all: a completed play closes it (Q69/Q72).
+  // Prevent flicker: hide Test until pathData has loaded (or we're staff/preview).
   const hideTestTab = !isTeacher && !isPreview
-    && (ownRequiresTest === false || (pathData !== null && ownLessonState === 'none'));
+    && (ownRequiresTest === false || pathData === null || (pathData !== null && ownLessonState === 'none'));
 
   // A stale `?mode=test` link (a previously shared URL, an offline mirror) must
   // not drop a testless lesson into a quiz its content says does not exist.
@@ -5009,6 +5064,7 @@ export default function GamePlay({ initialConfig }: { initialConfig?: { config: 
         totalItems={totalPossible}
         onRestart={handleRestart}
         onBack={() => navigate('/student')}
+        onPractice={() => { handleModeSelect('practice'); setPhase('play'); }}
       />
     );
   }

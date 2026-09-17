@@ -238,8 +238,46 @@ function safeText(value) {
 
 /** Local inline fallback art; no external or unreviewed media dependency. */
 function fallbackImage(label, emoji) {
-  const text = safeText(`${emoji} ${label}`.slice(0, 42));
-  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200"><rect width="320" height="200" rx="24" fill="#EAF3FF"/><text x="160" y="92" text-anchor="middle" font-size="44">${safeText(emoji)}</text><text x="160" y="145" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#123">${text}</text></svg>`)}`;
+  // Use label-specific emoji instead of subject emoji for visual variety
+  const cleanLabel = String(label || '').toLowerCase().trim();
+  const LABEL_EMOJI_MAP = {
+    // Digital
+    'tap': '👆', 'listen': '👂', 'match': '🔗', 'retry': '🔄', 'stop': '🛑',
+    'screen': '📱', 'type': '⌨️', 'click': '🖱️', 'scroll': '📜',
+    // Literacy
+    'read': '📖', 'write': '✏️', 'spell': '🔤', 'speak': '🗣️', 'letter': '🔤',
+    'word': '📝', 'sentence': '📄', 'story': '📚', 'poem': '🎵', 'rhyme': '🎶',
+    // Numeracy
+    'count': '🔢', 'add': '➕', 'subtract': '➖', 'multiply': '✖️', 'divide': '➗',
+    'number': '🔢', 'shape': '🔷', 'pattern': '🔲', 'sort': '📊', 'measure': '📏',
+    // Science
+    'plant': '🌱', 'animal': '🐾', 'water': '💧', 'sun': '☀️', 'rain': '🌧️',
+    'grow': '🌿', 'seed': '🌰', 'leaf': '🍂', 'flower': '🌸', 'tree': '🌳',
+    // Social
+    'share': '🤝', 'help': '🤝', 'friend': '👫', 'group': '👥', 'care': '❤️',
+    'kind': '😊', 'sorry': '🙏', 'please': '🙏', 'thank': '🙏', 'hello': '👋',
+    // Health
+    'wash': '🧼', 'brush': '🪥', 'eat': '🍎', 'sleep': '😴', 'exercise': '🏃',
+    'bath': '🛁', 'food': '🥗', 'rest': '😌', 'clean': '✨', 'healthy': '💪',
+    // Movement
+    'run': '🏃', 'jump': '🦘', 'walk': '🚶', 'hop': '🦿', 'skip': '🤸',
+    'dance': '💃', 'clap': '👏', 'stomp': '🦶', 'twirl': '旋转', 'stretch': '🧘',
+    // Arts
+    'draw': '🎨', 'paint': '🎨', 'sing': '🎵', 'craft': '✂️', 'cut': '✂️',
+    'glue': '🧴', 'color': '🖍️', 'shape': '🔷', 'design': '📐', 'create': '✨',
+    // Common
+    'first': '1️⃣', 'second': '2️⃣', 'third': '3️⃣', 'last': '🔚',
+    'big': '🔵', 'small': '⚪', 'hot': '🔴', 'cold': '🔵',
+    'yes': '✅', 'no': '❌', 'open': '📂', 'close': '📁',
+    'start': '▶️', 'finish': '🏁', 'next': '➡️', 'back': '⬅️',
+    'up': '⬆️', 'down': '⬇️', 'left': '⬅️', 'right': '➡️',
+    'happy': '😊', 'sad': '😢', 'angry': '😠', 'scared': '😨',
+    'fast': '⚡', 'slow': '🐢', 'new': '🆕', 'old': '📜',
+    'one': '1️⃣', 'two': '2️⃣', 'three': '3️⃣', 'four': '4️⃣', 'five': '5️⃣',
+  };
+  const itemEmoji = LABEL_EMOJI_MAP[cleanLabel] || emoji || '❓';
+  const text = safeText(`${itemEmoji} ${label}`.slice(0, 42));
+  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200"><rect width="320" height="200" rx="24" fill="#EAF3FF"/><text x="160" y="92" text-anchor="middle" font-size="44">${safeText(itemEmoji)}</text><text x="160" y="145" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#123">${text}</text></svg>`)}`;
 }
 
 function itemLabels(subjectId, objective, week, bandId, termIndex, band) {
