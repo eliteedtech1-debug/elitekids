@@ -1,4 +1,4 @@
-name: Fix Firewall (Restore SSH)
+name: Fix Firewall + SSH
 
 on:
   workflow_dispatch:
@@ -7,29 +7,32 @@ jobs:
   fix:
     runs-on: self-hosted
     steps:
-      - name: Check sudo + iptables
+      - name: Diagnose and fix
         run: |
-          echo "SUDO_PASSWORD set: ${{ secrets.SUDO_PASSWORD != '' }}"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S whoami 2>&1
+          echo "--- sshd status ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status sshd 2>&1 || true
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status ssh 2>&1 || true
+          echo "--- restart sshd ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl start sshd 2>&1 || true
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl start ssh 2>&1 || true
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl enable sshd 2>&1 || true
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl enable ssh 2>&1 || true
+          echo "--- sshd after restart ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status sshd 2>&1 || true
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status ssh 2>&1 || true
+          echo "--- listening ports ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ss -tlnp 2>&1
+          echo "--- iptables INPUT ---"
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -L INPUT -n --line-numbers 2>&1
-          echo "--- current rules ---"
-
-      - name: Flush and fix
-        run: |
-          set -x
+          echo "--- fix iptables ---"
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -F INPUT
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -P INPUT ACCEPT
-          echo "flushed + ACCEPT"
-
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -i lo -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 22 -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 80 -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 443 -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -P INPUT DROP
-
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables-save | sudo -S tee /etc/iptables.rules > /dev/null
-          echo "rules saved"
-
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -L INPUT -n --line-numbers 2>&1
+          echo "--- listening after fix ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ss -tlnp 2>&1
           echo "✅ done"
