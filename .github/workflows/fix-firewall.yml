@@ -7,32 +7,13 @@ jobs:
   fix:
     runs-on: self-hosted
     steps:
-      - name: Diagnose and fix
+      - name: Fix SSH key permissions
         run: |
-          echo "--- sshd status ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status sshd 2>&1 || true
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status ssh 2>&1 || true
-          echo "--- restart sshd ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl start sshd 2>&1 || true
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl start ssh 2>&1 || true
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl enable sshd 2>&1 || true
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl enable ssh 2>&1 || true
-          echo "--- sshd after restart ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status sshd 2>&1 || true
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl status ssh 2>&1 || true
-          echo "--- listening ports ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ss -tlnp 2>&1
-          echo "--- iptables INPUT ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -L INPUT -n --line-numbers 2>&1
-          echo "--- fix iptables ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -F INPUT
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -i lo -j ACCEPT
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 22 -j ACCEPT
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -P INPUT DROP
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables-save | sudo -S tee /etc/iptables.rules > /dev/null
-          echo "--- listening after fix ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ss -tlnp 2>&1
-          echo "✅ done"
+          echo "--- fix authorized_keys ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ls -la /home/dev/.ssh/ 2>&1
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S chmod 700 /home/dev/.ssh
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S chmod 600 /home/dev/.ssh/authorized_keys
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S chown -R dev:dev /home/dev/.ssh
+          echo "--- after fix ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ls -la /home/dev/.ssh/ 2>&1
+          echo "✅ permissions fixed"
