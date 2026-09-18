@@ -7,13 +7,18 @@ jobs:
   fix:
     runs-on: self-hosted
     steps:
-      - name: Fix SSH key permissions
+      - name: Find sshd port + fix
         run: |
-          echo "--- fix authorized_keys ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ls -la /home/dev/.ssh/ 2>&1
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S chmod 700 /home/dev/.ssh
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S chmod 600 /home/dev/.ssh/authorized_keys
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S chown -R dev:dev /home/dev/.ssh
-          echo "--- after fix ---"
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ls -la /home/dev/.ssh/ 2>&1
-          echo "✅ permissions fixed"
+          echo "--- sshd config port ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S grep -i "^Port\|^#Port" /etc/ssh/sshd_config 2>&1
+          echo "--- sshd listening ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ss -tlnp | grep sshd 2>&1 || true
+          echo "--- all listening TCP ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ss -tlnp 2>&1
+          echo "--- fix sshd to listen on 22 ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S sed -i 's/^#\?Port .*/Port 22/' /etc/ssh/sshd_config
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart sshd 2>&1
+          echo "--- after restart ---"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S ss -tlnp | grep ssh 2>&1
+          echo "✅ done"
