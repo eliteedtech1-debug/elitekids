@@ -7,20 +7,29 @@ jobs:
   fix:
     runs-on: self-hosted
     steps:
-      - name: Restore SSH access
+      - name: Check sudo + iptables
         run: |
+          echo "SUDO_PASSWORD set: ${{ secrets.SUDO_PASSWORD != '' }}"
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S whoami 2>&1
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -L INPUT -n --line-numbers 2>&1
+          echo "--- current rules ---"
+
+      - name: Flush and fix
+        run: |
+          set -x
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -F INPUT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -P INPUT ACCEPT
-          echo "✅ SSH restored"
+          echo "flushed + ACCEPT"
 
-      - name: Apply proper firewall rules
-        run: |
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -F INPUT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -i lo -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 22 -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 80 -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -A INPUT -p tcp --dport 443 -j ACCEPT
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -P INPUT DROP
+
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables-save | sudo -S tee /etc/iptables.rules > /dev/null
-          echo "✅ firewall fixed — SSH open from any IP"
+          echo "rules saved"
+
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S iptables -L INPUT -n --line-numbers 2>&1
+          echo "✅ done"
